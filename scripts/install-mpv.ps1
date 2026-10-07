@@ -1,13 +1,39 @@
 param(
   [string]$ArchivePath,
   [string]$DevArchivePath,
-  [string]$Url = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260610/mpv-x86_64-20260610-git-304426c.7z",
-  [string]$DevUrl = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/20260610/mpv-dev-x86_64-20260610-git-304426c.7z"
+  [string]$Url,
+  [string]$DevUrl
 )
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $target = Join-Path $root "src-tauri\bin\mpv"
+
+if ((-not $ArchivePath -and -not $Url) -or (-not $DevArchivePath -and -not $DevUrl)) {
+  $release = Invoke-RestMethod `
+    -Uri "https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest" `
+    -Headers @{ Accept = "application/vnd.github+json"; "User-Agent" = "Aetherio-MPV-runtime" }
+
+  if (-not $Url) {
+    $runtimeAsset = $release.assets |
+      Where-Object { $_.name -match '^mpv-x86_64-\d{8}-git-[a-f0-9]+\.7z$' } |
+      Select-Object -First 1
+    if (-not $runtimeAsset -or -not $runtimeAsset.browser_download_url) {
+      throw "The latest MPV release has no x86_64 runtime archive."
+    }
+    $Url = $runtimeAsset.browser_download_url
+  }
+
+  if (-not $DevUrl) {
+    $devAsset = $release.assets |
+      Where-Object { $_.name -match '^mpv-dev-x86_64-\d{8}-git-[a-f0-9]+\.7z$' } |
+      Select-Object -First 1
+    if (-not $devAsset -or -not $devAsset.browser_download_url) {
+      throw "The latest MPV release has no matching x86_64 dev archive."
+    }
+    $DevUrl = $devAsset.browser_download_url
+  }
+}
 
 if ($ArchivePath) {
   $resolvedArchive = Resolve-Path -LiteralPath $ArchivePath

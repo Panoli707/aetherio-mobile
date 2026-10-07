@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isTriggerEngaged } from "../../hooks/useGamepad.ts";
 import {
   resolvePlayerGamepadAction,
+  playerGamepadActionForKeyboardKey,
   type PlayerGamepadContext,
 } from "./playerGamepadMap.ts";
 
@@ -11,13 +12,21 @@ const DIRECT: PlayerGamepadContext = {
   canGoPrevEpisode: true,
   canGoNextEpisode: true,
   hasEpisodesPanel: true,
-  hasSourcesPanel: true,
   skipAvailable: false,
   controlsMode: false,
   zone: "timeline",
 };
 
 describe("resolvePlayerGamepadAction (mando en Big Picture player)", () => {
+  it("traduce las flechas de teclado a las mismas acciones que el mando", () => {
+    expect(playerGamepadActionForKeyboardKey("ArrowLeft")).toBe("dpad-left");
+    expect(playerGamepadActionForKeyboardKey("ArrowRight")).toBe("dpad-right");
+    expect(playerGamepadActionForKeyboardKey("ArrowUp")).toBe("dpad-up");
+    expect(playerGamepadActionForKeyboardKey("ArrowDown")).toBe("open-controls");
+    expect(playerGamepadActionForKeyboardKey("Escape")).toBe("back");
+    expect(playerGamepadActionForKeyboardKey("Enter")).toBeNull();
+  });
+
   it("modo directo: A alterna, izquierda/derecha seek, arriba se ignora", () => {
     expect(resolvePlayerGamepadAction("confirm", DIRECT)).toEqual({ type: "toggle" });
     expect(resolvePlayerGamepadAction("dpad-left", DIRECT)).toEqual({ type: "seek", offset: -10 });
@@ -32,12 +41,10 @@ describe("resolvePlayerGamepadAction (mando en Big Picture player)", () => {
     expect(resolvePlayerGamepadAction("rb", DIRECT)).toEqual({ type: "volume", delta: 0.05 });
   });
 
-  it("X abre subtítulos e Y abre episodios/fuentes", () => {
+  it("X abre subtítulos e Y abre episodios", () => {
     expect(resolvePlayerGamepadAction("x", DIRECT)).toEqual({ type: "open-subtitles" });
-    expect(resolvePlayerGamepadAction("y", DIRECT)).toEqual({ type: "open-episodes-or-sources" });
-    expect(
-      resolvePlayerGamepadAction("y", { ...DIRECT, hasEpisodesPanel: false, hasSourcesPanel: false }),
-    ).toBeNull();
+    expect(resolvePlayerGamepadAction("y", DIRECT)).toEqual({ type: "open-episodes" });
+    expect(resolvePlayerGamepadAction("y", { ...DIRECT, hasEpisodesPanel: false })).toBeNull();
   });
 
   it("con overlay abierto solo B cierra; cruceta y A vuelven a navegación espacial", () => {
@@ -65,25 +72,44 @@ describe("resolvePlayerGamepadAction (mando en Big Picture player)", () => {
     ).toBeNull();
   });
 
-  it("en la row de botones: navegar con wrap, arriba al timeline, abajo sale", () => {
+  it("en los controles: arriba cierra la barra y abajo abre episodios", () => {
     const bar: PlayerGamepadContext = { ...DIRECT, controlsMode: true, zone: "buttons" };
     expect(resolvePlayerGamepadAction("dpad-left", bar)).toEqual({ type: "move-button", dir: "prev" });
     expect(resolvePlayerGamepadAction("dpad-right", bar)).toEqual({ type: "move-button", dir: "next" });
-    expect(resolvePlayerGamepadAction("dpad-up", bar)).toEqual({ type: "zone-timeline" });
-    expect(resolvePlayerGamepadAction("open-controls", bar)).toEqual({ type: "exit-controls" });
+    expect(resolvePlayerGamepadAction("dpad-up", bar)).toEqual({ type: "exit-controls" });
+    expect(resolvePlayerGamepadAction("dpad-down", bar)).toEqual({ type: "open-episodes" });
+    expect(resolvePlayerGamepadAction("open-controls", bar)).toEqual({ type: "open-episodes" });
     expect(resolvePlayerGamepadAction("confirm", bar)).toBeNull();
     expect(resolvePlayerGamepadAction("back", bar)).toEqual({ type: "exit-controls" });
   });
 
-  it("en el timeline: seek, A alterna y bajar va a los botones", () => {
+  it("en el timeline: seek, A alterna, arriba enfoca controles y abajo abre episodios", () => {
     const timeline: PlayerGamepadContext = { ...DIRECT, controlsMode: true, zone: "timeline" };
     expect(resolvePlayerGamepadAction("dpad-left", timeline)).toEqual({ type: "seek", offset: -10 });
     expect(resolvePlayerGamepadAction("dpad-right", timeline)).toEqual({ type: "seek", offset: 10 });
     expect(resolvePlayerGamepadAction("confirm", timeline)).toEqual({ type: "toggle" });
-    expect(resolvePlayerGamepadAction("open-controls", timeline)).toEqual({ type: "zone-buttons" });
-    expect(resolvePlayerGamepadAction("dpad-up", timeline)).toBeNull();
-    expect(resolvePlayerGamepadAction("dpad-down", timeline)).toBeNull();
+    expect(resolvePlayerGamepadAction("open-controls", timeline)).toEqual({ type: "open-episodes" });
+    expect(resolvePlayerGamepadAction("dpad-up", timeline)).toEqual({ type: "zone-buttons" });
+    expect(resolvePlayerGamepadAction("dpad-down", timeline)).toEqual({ type: "open-episodes" });
     expect(resolvePlayerGamepadAction("back", timeline)).toEqual({ type: "exit-controls" });
+  });
+
+  it("en la fila de episodios navega horizontalmente y arriba/B la cierra", () => {
+    const episodes: PlayerGamepadContext = { ...DIRECT, controlsMode: true, zone: "episodes" };
+    expect(resolvePlayerGamepadAction("dpad-left", episodes)).toEqual({ type: "move-button", dir: "prev" });
+    expect(resolvePlayerGamepadAction("dpad-right", episodes)).toEqual({ type: "move-button", dir: "next" });
+    expect(resolvePlayerGamepadAction("dpad-down", episodes)).toEqual({ type: "ignore" });
+    expect(resolvePlayerGamepadAction("open-controls", episodes)).toEqual({ type: "ignore" });
+    expect(resolvePlayerGamepadAction("confirm", episodes)).toEqual({ type: "activate-focused" });
+  });
+
+  it("B y la cruceta arriba cierran la fila de episodios", () => {
+    const episodes: PlayerGamepadContext = { ...DIRECT, controlsMode: true, zone: "episodes" };
+    expect(resolvePlayerGamepadAction("back", episodes)).toEqual({ type: "close-episode-row" });
+    expect(resolvePlayerGamepadAction("dpad-up", episodes)).toEqual({ type: "close-episode-row" });
+    // Fuera de la fila, B sigue saliendo de la barra.
+    const buttons: PlayerGamepadContext = { ...DIRECT, controlsMode: true, zone: "buttons" };
+    expect(resolvePlayerGamepadAction("back", buttons)).toEqual({ type: "exit-controls" });
   });
 
   it("en el timeline bloqueado no hay seek ni toggle", () => {
@@ -95,7 +121,7 @@ describe("resolvePlayerGamepadAction (mando en Big Picture player)", () => {
   it("en la barra, X/Y/gatillos/bumpers siguen vivos", () => {
     const bar: PlayerGamepadContext = { ...DIRECT, controlsMode: true };
     expect(resolvePlayerGamepadAction("x", bar)).toEqual({ type: "open-subtitles" });
-    expect(resolvePlayerGamepadAction("y", bar)).toEqual({ type: "open-episodes-or-sources" });
+    expect(resolvePlayerGamepadAction("y", bar)).toEqual({ type: "open-episodes" });
     expect(resolvePlayerGamepadAction("lt", bar)).toEqual({ type: "seek", offset: -30 });
     expect(resolvePlayerGamepadAction("rt", bar)).toEqual({ type: "seek", offset: 30 });
     expect(resolvePlayerGamepadAction("lb", bar)).toEqual({ type: "volume", delta: -0.05 });
@@ -126,7 +152,7 @@ describe("resolvePlayerGamepadAction (mando en Big Picture player)", () => {
     expect(resolvePlayerGamepadAction("lb", locked)).toEqual({ type: "volume", delta: -0.05 });
     expect(resolvePlayerGamepadAction("rb", locked)).toEqual({ type: "volume", delta: 0.05 });
     expect(resolvePlayerGamepadAction("x", locked)).toEqual({ type: "open-subtitles" });
-    expect(resolvePlayerGamepadAction("y", locked)).toEqual({ type: "open-episodes-or-sources" });
+    expect(resolvePlayerGamepadAction("y", locked)).toEqual({ type: "open-episodes" });
   });
 });
 

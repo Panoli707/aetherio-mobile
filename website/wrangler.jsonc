@@ -13,6 +13,9 @@
     // "TMDB_RATE_LIMIT": "900:30",
     // "TMDB_IMAGE_RATE_LIMIT": "1200:30"
   },
+  "secrets": {
+    "required": ["PENGUPLAY_AUTH_TOKEN"]
+  },
   "d1_databases": [
     {
       "binding": "USERS_DB",

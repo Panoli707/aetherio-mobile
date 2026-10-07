@@ -26,10 +26,26 @@ describe("presupuestos del probe de pósteres", () => {
     expect(POSTER_PROBE_FAIL_TTL_MS).toBeGreaterThan(0);
   });
 
-  it("la concurrencia no supera lo que el navegador permite por host", () => {
-    // El navegador abre 6 conexiones por host (HTTP/1.1). Passarse solo hace
-    // que las peticiones esperen en la cola del navegador.
-    expect(POSTER_PROBE_MAX_CONCURRENT).toBeLessThanOrEqual(6);
-    expect(POSTER_PROBE_MAX_CONCURRENT).toBeGreaterThan(0);
+  it("la concurrencia esta en el rango util para una instancia local", () => {
+    // Los pósteres se piden al proxy loopback (127.0.0.1), no a un host remoto,
+    // así que el límite de 6 conexiones por host del navegador no aplica igual:
+    // ahí el freno es la CPU del render. Medido: 3.5 s por póster, 148 pósteres a
+    // 6 en paralelo son 86 s de splash y a 12 son 43 s.
+    //
+    // El techo de 24 existe para que un cambio futuro no lo suba sin límite y
+    // dispare cientos de renders a la vez. SpatialPosters tiene su propio
+    // limitador de 8 renders, que es el freno real.
+    expect(POSTER_PROBE_MAX_CONCURRENT).toBeGreaterThanOrEqual(6);
+    expect(POSTER_PROBE_MAX_CONCURRENT).toBeLessThanOrEqual(24);
+  });
+
+  it("el tiempo de cola cabe dentro del presupuesto de arranque", () => {
+    // La cuenta que manda: si la cola no cabe en el presupuesto, el splash
+    // entra por timeout y muestra TMDB en vez de SpatialPosters.
+    const posters = 148;
+    const renderSeconds = 3.5;
+    const colaSegundos = (posters / POSTER_PROBE_MAX_CONCURRENT) * renderSeconds;
+    const presupuestoSplash = 90;
+    expect(colaSegundos).toBeLessThan(presupuestoSplash);
   });
 });

@@ -210,6 +210,41 @@ html.aetherio-android-tv .shell-preview-app .spatial-focus{
   border-color:transparent !important;
   background-color:rgba(255,255,255,0.16) !important;
 }
+/* Piel de la referencia (Big Picture): el velo gris de arriba tapaba la fila
+   blanca de la pista elegida. Aqui manda la fila: blanca si esta seleccionada,
+   sin fondo si solo tiene el foco. */
+[data-aetherio-context-menu][data-context-variant="apple"] button:focus,
+[data-aetherio-context-menu][data-context-variant="apple"] button:focus-visible,
+[data-aetherio-context-menu][data-context-variant="apple"] button.spatial-focus{
+  background-color:transparent !important;
+}
+[data-aetherio-context-menu][data-context-variant="apple"] button[data-selected="true"]:focus,
+[data-aetherio-context-menu][data-context-variant="apple"] button[data-selected="true"]:focus-visible,
+[data-aetherio-context-menu][data-context-variant="apple"] button[data-selected="true"].spatial-focus{
+  background-color:rgba(255,255,255,0.94) !important;
+  color:#0b0b0d !important;
+}
+[data-aetherio-context-menu][data-context-variant="apple"] button[data-menu-focused="true"]:not([data-selected="true"]){
+  background-color:rgba(255,255,255,0.18) !important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,0.42), 0 0 12px rgba(255,255,255,0.10) !important;
+}
+[data-aetherio-context-menu][data-context-variant="apple"] button[data-selected="true"]:focus svg,
+[data-aetherio-context-menu][data-context-variant="apple"] button[data-selected="true"].spatial-focus svg{
+  color:#0b0b0d !important;
+}
+
+/* Los menus siguen siendo scrollables, pero la barra nativa varia entre
+   WebView/Windows y tapa parte del material. El desplazamiento queda disponible
+   con rueda, gesto y mando; solo se oculta el rail visual. */
+.aetherio-context-menu{
+  scrollbar-width:none;
+  -ms-overflow-style:none;
+}
+.aetherio-context-menu::-webkit-scrollbar{
+  display:none;
+  width:0;
+  height:0;
+}
 
 .artwork-picker__panel{
   scrollbar-width:thin;
@@ -250,6 +285,45 @@ html.aetherio-android-tv .shell-preview-app .spatial-focus{
    ser una fuente de estilo para la barra. */
 html.aetherio-android-tv .bp-player-controls .spatial-focus{
   outline:none !important;
+}
+
+/* ---------------------------------------------------------------------------
+   Boton "Saltar intro / outro / resumen" en Big Picture.
+   Referencia: reproductor de TV con pastilla blanca de tinta negra, sin icono,
+   esquinas redondeadas (no un circulo) y aire lateral generoso. Medidas y
+   decision en artifacts/player-skip/ANALYSIS.md.
+
+   El alto manda sobre todo lo demas: el padding lateral y el radio se derivan
+   de el con clamp() para que la pastilla conserve la proporcion en cualquier
+   resolucion en vez de deformarse como haria con padding fijo. La posicion
+   (right/bottom) la fija el componente, no aqui: el `right` replica el padding
+   de la barra para que el extremo derecho coincida con el de la linea de tiempo.
+*/
+.bp-skip-button{
+  --bp-skip-height:clamp(58px, 6.4vh, 84px);
+  height:var(--bp-skip-height);
+  padding-inline:calc(var(--bp-skip-height) * 1.02);
+  border-radius:calc(var(--bp-skip-height) * 0.3);
+  font-size:clamp(20px, 2.7vh, 30px);
+  font-weight:800;
+  letter-spacing:-0.01em;
+  background-color:#f6f6f7;
+  color:#111;
+  border:0;
+  box-shadow:0 18px 48px rgba(0,0,0,0.45);
+}
+/* El foco tiene que leerse a distancia con el mando: anillo blanco por fuera
+   de la pastilla (no un interior, que ya es blanco) y leve crecimiento. La regla
+   global de [data-player-skip]:focus-visible llega con !important, asi que este
+   bloque tambien lo usa y va después para ganar en empate de especificidad. */
+.bp-skip-button:focus,
+.bp-skip-button:focus-visible{
+  outline:none !important;
+  background-color:#fff !important;
+  color:#000 !important;
+  border-color:transparent !important;
+  box-shadow:0 0 0 3px rgba(255,255,255,0.6), 0 22px 56px rgba(0,0,0,0.5) !important;
+  transform:scale(1.04);
 }
 /* Velo �nico de foco de los paneles flotantes del reproductor Big Picture
    (portal fuera de la barra). React mantiene [data-bp-focus="true"] solo en
@@ -326,55 +400,138 @@ html.aetherio-android-tv [data-player-episode-panel-glass] button.spatial-focus{
    outline:none;
 }
 
-/* El vidrio sigue siendo el mismo, pero el contenido cambia de tinta cuando
-   el artwork claro haria invisible el texto blanco. */
-.bp-player-controls--light,
-[data-player-contrast="light"] .bp-player-controls{
-  color:#16181d;
-}
-.bp-player-controls--light .text-white,
-.bp-player-controls--light [class*="text-white/"],
-[data-player-contrast="light"] [data-player-skip]{
-  color:#16181d !important;
-}
-.bp-player-controls--light svg,
-.bp-player-controls--light svg[fill="white"]{
-  color:#16181d;
-  fill:currentColor;
-}
-.bp-player-controls--light .player-timeline::-webkit-slider-runnable-track{
+
+/* Sombra degradada de la barra de Big Picture.
+   Capa real para que GSAP anime su opacidad junto con el desplazamiento de la
+   barra; al ser pseudo no era consistente animar su custom property en WebView.
+   Sube MUCHO más allá de la caja. Dentro de la caja el
+   degradado se agota antes de llegar al titulo (el padding superior es la mitad
+   del alto), asi que la franja alta queda virtually limpia y el texto blanco no
+   se apoya en nada: la sombra solo se veia abajo.
+   Ni blur ni bordes ni lineas: cualquier recorte rectangular (backdrop-filter o
+   el rect del shader de MPV) devuelve el corte recto. Aqui lo unico que cruza el
+   limite superior es el degradado, y muere en transparente. */
+.bp-player-shadow{
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:0;
+  top:calc(-1 * clamp(150px, 26vh, 300px));
   background:linear-gradient(
-    to right,
-    rgba(22,24,29,0.88) 0 var(--player-progress),
-    rgba(22,24,29,0.24) var(--player-progress) 100%
+    to top,
+    rgba(0,0,0,0.74) 0%,
+    rgba(0,0,0,0.50) 30%,
+    rgba(0,0,0,0.26) 56%,
+    rgba(0,0,0,0.09) 78%,
+    rgba(0,0,0,0) 100%
+  );
+  pointer-events:none;
+  z-index:-1;
+  opacity:0.72;
+}
+.bp-player-controls--light .bp-player-shadow,
+[data-player-contrast="light"] .bp-player-shadow{
+  background:linear-gradient(
+    to top,
+    rgba(255,255,255,0.76) 0%,
+    rgba(255,255,255,0.54) 30%,
+    rgba(255,255,255,0.30) 56%,
+    rgba(255,255,255,0.10) 78%,
+    rgba(255,255,255,0) 100%
   );
 }
-.bp-player-controls--light .player-timeline::-webkit-slider-thumb,
-.bp-player-controls--light .player-timeline::-moz-range-thumb{
-  background:#16181d;
-}
-.bp-player-controls--light .player-timeline::-moz-range-track{
-  background:rgba(22,24,29,0.24);
-}
-.bp-player-controls--light .player-timeline::-moz-range-progress{
-  background:rgba(22,24,29,0.88);
-}
 
-.bp-player-controls button:not([data-bar-active="true"]){
+/* Los enlaces de texto ("Episodios", "Fuentes", "Siguiente") son tipografia, no
+   botones: si heredan el cromo translucido de los botones de icono salen con un
+   recuadro y subrayado que la referencia no tiene. */
+.bp-player-controls button.bp-bar-link{
+  background-color:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  text-decoration:none !important;
+  /* El foco del mando marca el boton con [data-bar-active="true"], que pinta
+     el fondo de la pastilla blanca y la tinta negra con !important. Para estos
+     enlaces el velo blanco no procede: se mantiene el texto blanco y el resto
+     lo deja la regla gen�rica sin fondo (fondo transparente gana por encima). */
+  color:rgba(255,255,255,0.92) !important;
+}
+.bp-player-controls button.bp-bar-link:hover,
+.bp-player-controls button.bp-bar-link:focus-visible,
+.bp-player-controls button.bp-bar-link[data-bar-active="true"]{
+  text-decoration:none !important;
+  color:#fff !important;
+  background-color:transparent !important;
+  border-color:transparent !important;
+  box-shadow:none !important;
+}
+/* Fila de episodios dentro de la barra de Big Picture.
+   La barra reserva un margen lateral clampleado (el mismo que usa el titulo y
+   el timeline). Una fila metida dentro de ese inset queda cortada a los dos
+   lados por el contenedor, no por la ventana: el efecto es una season que no
+   llega al borde. Se anula el margen con margenes negativos y se devuelve como
+   padding interior, igual que hace `ScrollRow` en la ficha: al reposo la
+   primera card queda alineada con el titulo y al scrollear las demas entran y
+   salen por los bordes de la ventana sin limite. */
+.bp-player-episode-row-backdrop{
+  opacity:0;
+  transition:opacity .42s cubic-bezier(.16,1,.3,1);
+  will-change:opacity;
+}
+.bp-player-episode-row-backdrop.is-open{opacity:1;}
+@media (prefers-reduced-motion:reduce){
+  .bp-player-episode-row-backdrop{transition:none;}
+}
+.bp-player-episode-row{
+  display:flex;
+  gap:29px;
+  width:auto;
+  max-width:none;
+  margin-left:calc(-1 * clamp(28px, 6.4vw, 132px));
+  margin-right:calc(-1 * clamp(28px, 6.4vw, 132px));
+  overflow-x:auto;
+  overflow-y:hidden;
+  /* Horizontal scrollers clip vertical overflow. Give the focused card's
+     scale/lift and shadow the same real scrollport gutters as Detail, with
+     extra room for the player row's stronger focus shadow. */
+  padding:28px clamp(28px, 6.4vw, 132px) 80px;
+  scroll-padding-left:0;
+  scrollbar-width:none;
+  overscroll-behavior-x:contain;
+}
+.bp-player-episode-row::-webkit-scrollbar{display:none;}
+.bp-player-episode-row .detail-episode-card{
+  flex:0 0 451px;
+  width:451px;
+  height:458px;
+}
+.bp-player-episode-row .detail-episode-card__copy{padding-top:23px;}
+.bp-player-episode-row .detail-episode-card:focus-visible .detail-episode-card__media,
+.bp-player-episode-row .detail-episode-card:focus-within .detail-episode-card__media{
+  box-shadow:0 18px 40px rgba(0,0,0,.42);
+}
+.bp-player-episode-row .detail-episode-card__runtime{font-size:20px;}
+.bp-player-episode-row .detail-episode-card__eyebrow{
+  font-size:18px;
+  line-height:22px;
+  text-shadow:0 1px 2px rgba(0,0,0,.9),0 2px 5px rgba(0,0,0,.48);
+}
+.bp-player-episode-row .detail-episode-card__title{
+  margin-top:6px;
+  font-size:26px;
+  line-height:30px;
+  text-shadow:0 1px 2px rgba(0,0,0,.9),0 2px 5px rgba(0,0,0,.48);
+}
+.bp-player-episode-row .detail-episode-card__overview{
+  margin-top:8px;
+  font-size:20px;
+  line-height:25px;
+  text-shadow:0 1px 2px rgba(0,0,0,.9),0 2px 5px rgba(0,0,0,.48);
+}
+.bp-player-controls button:not([data-bar-active="true"]):not(.bp-bar-link){
   background-color:rgba(255,255,255,0.10) !important;
   border-color:rgba(255,255,255,0.07) !important;
   color:rgba(255,255,255,0.9) !important;
   box-shadow:0 2px 10px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.08) !important;
-}
-
-/* En fondos claros los botones transl�cidos se perciben como seleccionados.
-   Reserva el blanco s�lido para el elemento activo y deja el resto como vidrio
-   oscuro, manteniendo una lectura clara de la fila. */
-.bp-player-controls--light button:not([data-bar-active="true"]){
-  background-color:rgba(22,24,29,0.16) !important;
-  border-color:rgba(22,24,29,0.18) !important;
-  color:#16181d !important;
-  box-shadow:0 2px 10px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.22) !important;
 }
 
 /* El foco del timeline debe poder localizarse sin depender del outline nativo
@@ -403,22 +560,116 @@ html.aetherio-android-tv [data-player-episode-panel-glass] button.spatial-focus{
   height:14px;
   box-shadow:0 0 0 1px rgba(255,255,255,0.68);
 }
-.bp-player-controls--light input[type="range"][data-bar-active="true"]{
-  filter:none;
+
+/* ---------------------------------------------------------------------------
+   Barra Big Picture (referencia Apple TV).
+   Deja de ser una capsula de vidrio: el contenido se apoya en el video con un
+   velo degradado, la pila de titulo va a la izquierda y la fila de acciones a
+   la derecha, sin pastilla. El circulo blanco deja de ser "el control que el
+   reconciliador marca" y pasa a ser "el menu que esta abierto".
+   --------------------------------------------------------------------------- */
+.bp-player-controls .bp-bar-actions button{
+  width:clamp(46px,3.1vw,58px);
+  height:clamp(46px,3.1vw,58px);
+   /* Los botones necesitan su propio material: el shader difumina los paneles,
+      no estos cuatro circulos. Dejar que el fondo pase y aplicar el mismo filtro
+      liquid-glass que usan las superficies contextuales. */
+   background-color:rgba(16,18,22,0.30) !important;
+   backdrop-filter:var(--lg-filter-md);
+   -webkit-backdrop-filter:var(--lg-filter-md);
+  border-color:rgba(255,255,255,0.10) !important;
+  box-shadow:0 6px 18px rgba(0,0,0,0.30) !important;
+  color:rgba(255,255,255,0.88) !important;
 }
-.bp-player-controls--light input[type="range"][data-bar-active="true"]::-webkit-slider-runnable-track,
-.bp-player-controls--light input[type="range"][data-bar-active="true"]::-moz-range-track,
-.bp-player-controls--light input[type="range"][data-bar-active="true"]::-moz-range-progress{
-  box-shadow:0 0 0 1px rgba(22,24,29,0.32);
+.bp-player-controls .bp-bar-actions button:hover:not(:disabled){
+  color:#fff !important;
 }
-.bp-player-controls--light input[type="range"][data-bar-active="true"]::-webkit-slider-thumb,
-.bp-player-controls--light input[type="range"][data-bar-active="true"]::-moz-range-thumb{
-  box-shadow:0 0 0 1px rgba(22,24,29,0.62);
+.bp-player-controls .bp-bar-actions button[aria-expanded="true"],
+.bp-player-controls .bp-bar-actions button[data-bar-active="true"]{
+  background-color:rgba(255,255,255,0.94) !important;
+  color:#0b0b0d !important;
 }
-[data-player-contrast="light"] [data-player-skip]{
-  border-color:rgba(22,24,29,0.16) !important;
-  background:rgba(255,255,255,0.86) !important;
-  box-shadow:0 18px 56px rgba(0,0,0,0.24) !important;
+.bp-player-controls .bp-bar-actions button:disabled{
+  opacity:0.38 !important;
+}
+
+/* Progreso: linea de 8 px y el playhead como notch vertical, no como punto.
+   Con el mando encima NO aparece ningun cuadro: el input se queda invisible y
+   solo cambia el brillo de la linea. */
+.bp-player-controls input[data-player-timeline]{
+  outline:none;
+  background:transparent;
+}
+.bp-player-controls input[data-player-timeline]:focus,
+.bp-player-controls input[data-player-timeline]:focus-visible,
+.bp-player-controls input[data-player-timeline][data-bar-active="true"]{
+  outline:none;
+  background:transparent;
+  box-shadow:none;
+}
+.bp-player-controls input[data-player-timeline][data-bar-active="true"]::-webkit-slider-runnable-track{
+  background:linear-gradient(
+    to right,
+    rgba(255,255,255,0.98) 0 var(--player-progress),
+    rgba(255,255,255,0.34) var(--player-progress) 100%
+  );
+}
+.bp-player-controls .player-timeline{
+  height:8px;
+}
+.bp-player-controls .player-timeline::-webkit-slider-runnable-track{
+  height:8px;
+  border:0;
+  border-radius:999px;
+  box-shadow:none;
+  background:linear-gradient(
+    to right,
+    rgba(255,255,255,0.94) 0 var(--player-progress),
+    rgba(255,255,255,0.26) var(--player-progress) 100%
+  );
+}
+.bp-player-controls .player-timeline::-webkit-slider-thumb{
+  width:3px;
+  height:20px;
+  margin-top:-6px;
+  border:0;
+  border-radius:2px;
+  background:#fff;
+  box-shadow:none;
+}
+.bp-player-controls .player-timeline::-moz-range-track,
+.bp-player-controls .player-timeline::-moz-range-progress{
+  height:8px;
+  border:0;
+  border-radius:999px;
+  box-shadow:none;
+}
+.bp-player-controls .player-timeline::-moz-range-track{
+  background:rgba(255,255,255,0.26);
+}
+.bp-player-controls .player-timeline::-moz-range-progress{
+  background:rgba(255,255,255,0.94);
+}
+.bp-player-controls .player-timeline::-moz-range-thumb{
+  width:3px;
+  height:20px;
+  border:0;
+  border-radius:2px;
+  background:#fff;
+  box-shadow:none;
+}
+/* El foco del mando ya no encoge la linea ni pone anillo: el notch se queda. */
+.bp-player-controls input[type="range"][data-bar-active="true"]::-webkit-slider-runnable-track,
+.bp-player-controls input[type="range"][data-bar-active="true"]::-moz-range-track,
+.bp-player-controls input[type="range"][data-bar-active="true"]::-moz-range-progress{
+  height:8px;
+  box-shadow:none;
+}
+.bp-player-controls input[type="range"][data-bar-active="true"]::-webkit-slider-thumb,
+.bp-player-controls input[type="range"][data-bar-active="true"]::-moz-range-thumb{
+  width:3px;
+  height:20px;
+  box-shadow:none;
 }
 
 html.aetherio-android-tv .scroll-row{
@@ -431,10 +682,51 @@ html.aetherio-android-tv .scroll-row{
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:99px;}
 ::selection{background:rgba(255,255,255,0.2);color:#fff;}
 
+/* --- Material liquid glass (refraccion) -------------------------------
+   El vidrio ya no difumina con blur(): deforma el backdrop con los filtros
+   SVG #frosted-* de index.html. Cada nivel declara dos valores:
+
+     --lg-blur-*    fallback si el motor no resuelve url() en backdrop-filter
+     --lg-refract-* refraccion
+
+   --lg-filter-* es el que consumen las clases y los estilos inline. El
+   @supports es la unica decision: si el motor no soporta url() (Firefox, o
+   WebKit builds que no lo resuelven) la variable nunca cambia y todas las
+   superficies siguen en blur, sin ramas por motor.
+
+   Los radios de blur de cada nivel son los que tenia cada superficie antes
+   del cambio; al perder el blur el peso visual lo lleva el scale del
+   displacement, no el desenfoque. */
+:root{
+  --lg-blur-xl:blur(60px) saturate(200%);
+  --lg-blur-lg:blur(32px) saturate(185%);
+  --lg-blur-md:blur(18px) saturate(170%);
+  --lg-blur-sm:blur(10px) saturate(150%);
+  --lg-refract-xl:url(#frosted-xl);
+  --lg-refract-lg:url(#frosted-lg);
+  --lg-refract-md:url(#frosted-md);
+  --lg-refract-sm:url(#frosted-sm);
+  --lg-filter-xl:var(--lg-blur-xl);
+  --lg-filter-lg:var(--lg-blur-lg);
+  --lg-filter-md:var(--lg-blur-md);
+  --lg-filter-sm:var(--lg-blur-sm);
+}
+@supports (backdrop-filter:url(#frosted-xl)){
+  :root{
+    --lg-filter-xl:var(--lg-refract-xl);
+    --lg-filter-lg:var(--lg-refract-lg);
+    --lg-filter-md:var(--lg-refract-md);
+    --lg-filter-sm:var(--lg-refract-sm);
+  }
+}
+
 .liquid-glass{
+  /* --lg-clip recorta el cristal ya filtrado; ver el bloque de abajo. */
+  --lg-clip:inset(0 round 0px);
   background:rgba(255,255,255,0.16);
-  backdrop-filter:blur(60px) saturate(200%);
-  -webkit-backdrop-filter:blur(60px) saturate(200%);
+  backdrop-filter:var(--lg-filter-xl);
+  -webkit-backdrop-filter:var(--lg-filter-xl);
+  clip-path:var(--lg-clip);
   border:1px solid rgba(225,230,238,0.15);
   box-shadow:0 2px 12px rgba(0,0,0,0.4),inset 0 1px 0 rgba(255,255,255,0.08);
 }
@@ -443,10 +735,12 @@ html.aetherio-android-tv .scroll-row{
   overflow:hidden;
   border-radius:18px;
   background:rgba(12,12,14,0.28);
-  backdrop-filter:blur(60px) saturate(190%);
-  -webkit-backdrop-filter:blur(60px) saturate(190%);
+  backdrop-filter:var(--lg-filter-xl);
+  -webkit-backdrop-filter:var(--lg-filter-xl);
+  clip-path:var(--lg-clip);
   border:1px solid rgba(235,240,248,0.14);
   box-shadow:0 8px 26px rgba(0,0,0,0.34),inset 0 1px 0 rgba(255,255,255,0.09);
+  --lg-clip:inset(0 round 18px);
 }
 .row-arrow-button{
   appearance:none;
@@ -477,17 +771,66 @@ html.aetherio-android-tv .scroll-row{
 }
 .liquid-glass-dark{
   background:rgba(0,0,0,0.65);
-  backdrop-filter:blur(50px) saturate(185%);
-  -webkit-backdrop-filter:blur(50px) saturate(185%);
+  backdrop-filter:var(--lg-filter-xl);
+  -webkit-backdrop-filter:var(--lg-filter-xl);
+  clip-path:var(--lg-clip);
   border:1px solid rgba(225,230,238,0.08);
+}
+/* Equivalente Tailwind de los niveles, para los componentes que compositional
+   el material con utilidades sueltas en vez de con una clase propia.
+   Hand-written a proposito: el scale backdropBlur de Tailwind envuelve cada
+   valor en blur(), y blur() no admite url(), asi que ahi no se puede. */
+.backdrop-blur-glass{
+  backdrop-filter:var(--lg-filter-xl);
+  -webkit-backdrop-filter:var(--lg-filter-xl);
+  clip-path:var(--lg-clip);
+}
+.backdrop-blur-glass-lg{
+  backdrop-filter:var(--lg-filter-lg);
+  -webkit-backdrop-filter:var(--lg-filter-lg);
+  clip-path:var(--lg-clip);
+}
+.backdrop-blur-glass-md{
+  backdrop-filter:var(--lg-filter-md);
+  -webkit-backdrop-filter:var(--lg-filter-md);
+  clip-path:var(--lg-clip);
+}
+.backdrop-blur-glass-sm{
+  backdrop-filter:var(--lg-filter-sm);
+  -webkit-backdrop-filter:var(--lg-filter-sm);
+  clip-path:var(--lg-clip);
 }
 .liquid-glass-pill{
   background:rgba(255,255,255,0.12);
-  backdrop-filter:blur(48px) saturate(175%);
-  -webkit-backdrop-filter:blur(48px) saturate(175%);
+  backdrop-filter:var(--lg-filter-xl);
+  -webkit-backdrop-filter:var(--lg-filter-xl);
+  clip-path:var(--lg-clip);
   border:1px solid rgba(225,230,238,0.09);
   border-radius:999px;
+  --lg-clip:inset(0 round 999px);
 }
+/* Chromium no aplica el border-radius al resultado de backdrop-filter:url(#frosted-*)
+   (los filtros SVG de refracción): el vidrio queda pintado hasta las esquinas
+   cuadradas aunque la caja y overflow sean redondeados. `clip-path` recorta el
+   resultado filtrado. Estas reglas leen el token rounded-* del mismo elemento,
+   así el clip conserva el radio existente sin duplicar clases en los 29 sitios.
+   El recorte es transparente por defecto: superficies sin rounded-* conservan
+   su geometría actual. */
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded"] { --lg-clip:inset(0 round 4px); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-sm"] { --lg-clip:inset(0 round 2px); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-md"] { --lg-clip:inset(0 round 6px); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-lg"] { --lg-clip:inset(0 round 8px); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-lg2"] { --lg-clip:inset(0 round 16px); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-xl"] { --lg-clip:inset(0 round 12px); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-2xl"] { --lg-clip:inset(0 round 16px); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-3xl"] { --lg-clip:inset(0 round 24px); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-full"],
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-pill"] { --lg-clip:inset(0 round 9999px); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-card"] { --lg-clip:inset(0 round 10px); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-[18px]"] { --lg-clip:inset(0 round 18px); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-[28px]"] { --lg-clip:inset(0 round 28px); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-t-[28px]"] { --lg-clip:inset(0 round 28px 28px 0 0); }
+:is(.liquid-glass,.liquid-glass-dark,.liquid-glass-pill,.liquid-glass-arrow,.backdrop-blur-glass,.backdrop-blur-glass-lg,.backdrop-blur-glass-md,.backdrop-blur-glass-sm)[class~="rounded-t"] { --lg-clip:inset(0 round 4px 4px 0 0); }
 .hero-gradient-bottom{
   background:linear-gradient(to top,rgba(0,0,0,0.95) 0%,rgba(0,0,0,0.7) 25%,rgba(0,0,0,0.2) 55%,transparent 75%);
 }
@@ -703,8 +1046,8 @@ html.aetherio-android-tv .scroll-row{
   border-radius:999px;
   color:rgba(255,255,255,0.9);
   background:rgba(5,6,7,0.62);
-  backdrop-filter:blur(8px);
-  -webkit-backdrop-filter:blur(8px);
+  backdrop-filter:var(--lg-filter-sm);
+  -webkit-backdrop-filter:var(--lg-filter-sm);
   font-size:21px;
   font-weight:700;
   line-height:1;

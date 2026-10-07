@@ -4810,7 +4810,8 @@ enum PlaybackTransportVerdict {
         /// Host que sirve el medio tras la ultima redireccion, si se resolvio.
         final_host: Option<String>,
     },
-    /// Hay un salto en HTTP plano: el video travels sin cifrar.
+    /// Hay un salto en HTTP plano: el video viaja sin cifrar. No bloquea la
+    /// reproduccion; se registra para poder auditar la sesion.
     Insecure { host: String },
     /// La comprobacion no pudo completarse. No bloquea: una red inestable no
     /// debe dejar de reproducir, y solo un `http` observado es un veredicto.
@@ -4874,9 +4875,10 @@ async fn probe_playback_url(
 /// Camina la cadena de redirecciones de `target` unicamente por cabeceras.
 ///
 /// Un add-on puede publicar un target HTTPS que responde 302 hacia un host HTTP:
-/// el jugador seguiria ese redirect por dentro y el video viajaria sin cifrar,
+/// el jugador seguira ese redirect por dentro y el video viajara sin cifrar,
 /// sin que ninguna comprobacion previa sobre la URL declarada lo detecte. Aqui
-/// se ve donde acaba realmente el medio antes de arrancar.
+/// se ve donde acaba realmente el medio antes de arrancar, para dejarlo
+/// anotado en el log.
 ///
 /// Devuelve `Err` solo si la propia comprobacion falla (DNS, TLS, timeout). Un
 /// salto `http` observado no es un error de la comprobacion: se reporta en
@@ -5016,9 +5018,9 @@ async fn open_mpv(
     // como VOD aunque el frontend lo marque como live.
     let is_live = live.unwrap_or(false) && !is_p2p_target(&target) && !looks_like_ytdlp_url(&target);
 
-    // Un target HTTPS puede redirigir a un host HTTP. El player seguira ese
-    // redirect por dentro, asi que el unico punto donde se puede cortar es aqui:
-    // antes de arrancar mpv y con la cadena ya resuelta.
+    // Un target HTTPS puede redirigir a un host HTTP. Aqui se resuelve la
+    // cadena antes de arrancar mpv para saber si acaba en claro; el salto se
+    // registra pero no se corta, porque rejecting deja al usuario sin fuente.
     match verify_playback_transport(&target, headers.as_ref()).await {
         PlaybackTransportVerdict::Secure { hops, final_host } => {
             mpv_bridge_log(
@@ -5031,18 +5033,20 @@ async fn open_mpv(
             );
         }
         PlaybackTransportVerdict::Insecure { host } => {
+            // El salto a HTTP plano se registra pero ya no detiene la
+            // reproduccion: buena parte de los add-ons deLatino resuelven en
+            // hosts que solo sirven en claro (DeepFlix, por ejemplo, encadena
+            // /resolve/<token> hacia un CDN por http), y quedarse sin fuente
+            // es peor que el riesgo de un salto. El mapa `Insecure` se sigue
+            // calculando porque es la unica forma de saber que se reproduce
+            // sin cifrar cuando hace falta auditar una sesion.
             mpv_bridge_log(
-                "transport_rejected",
+                "transport_insecure_allowed",
                 serde_json::json!({
                     "target": playback_target_log_summary(&target),
                     "insecureHost": host,
                 }),
             );
-            return Err(format!(
-                "Esta fuente entrega el video sin cifrar (redirige a HTTP en {}). \
-                 Por eso no se reproduce: el trafico podria ser manipulado en camino.",
-                if host.is_empty() { "un host sin cifrar" } else { &host }
-            ));
         }
         PlaybackTransportVerdict::Unverified { reason } => {
             // Fall open: no se pudo comprobar, no es prueba de nada inseguro.
@@ -5870,82 +5874,6 @@ fn mpv_autocrop_for_client(
     }
 }
 
-fn sample_mpv_video_lightness_for_client(
-    client: Arc<MpvClient>,
-) -> Result<serde_json::Value, String> {
-    let screenshot_path = std::env::temp_dir().join(format!(
-        "aetherio-lightness-{}-{}.png",
-        std::process::id(),
-        chrono_like_timestamp()
-    ));
-    let _ = fs::remove_file(&screenshot_path);
-
-    let command = serde_json::json!([
-        "screenshot-to-file",
-        screenshot_path.display().to_string(),
-        "video"
-    ]);
-    mpv_command_value_async(&client, command)?;
-    if !wait_for_screenshot(&screenshot_path) {
-        let _ = fs::remove_file(&screenshot_path);
-        return Err(String::from("MPV no genero screenshot para muestrear luminancia."));
-    }
-
-    let result = (|| {
-        let image = image::ImageReader::open(&screenshot_path)
-            .map_err(|error| format!("No se pudo abrir screenshot de MPV: {}", error))?
-            .decode()
-            .map_err(|error| format!("No se pudo leer screenshot de MPV: {}", error))?
-            .to_rgb8();
-        let width = image.width();
-        let height = image.height();
-        let x_step = (width / 160).max(1) as usize;
-        let y_step = (height / 90).max(1) as usize;
-        let mut total = 0.0f32;
-        let mut bright = 0usize;
-        let mut count = 0usize;
-
-        for y in (0..height).step_by(y_step) {
-            for x in (0..width).step_by(x_step) {
-                let pixel = image.get_pixel(x, y);
-                let luminance = (0.2126 * f32::from(pixel[0])
-                    + 0.7152 * f32::from(pixel[1])
-                    + 0.0722 * f32::from(pixel[2]))
-                    / 255.0;
-                total += luminance;
-                if luminance >= 0.78 {
-                    bright += 1;
-                }
-                count += 1;
-            }
-        }
-
-        if count == 0 {
-            return Err(String::from("Screenshot de MPV vacio."));
-        }
-
-        Ok(serde_json::json!({
-            "average": total / count as f32,
-            "brightPixelRatio": bright as f32 / count as f32
-        }))
-    })();
-    let _ = fs::remove_file(&screenshot_path);
-    result
-}
-
-#[tauri::command]
-async fn mpv_sample_video_lightness(
-    app: tauri::AppHandle,
-) -> Result<serde_json::Value, String> {
-    let client = {
-        let state = app.state::<MpvState>();
-        current_mpv_client(&state)?
-    };
-    tauri::async_runtime::spawn_blocking(move || sample_mpv_video_lightness_for_client(client))
-        .await
-        .map_err(|error| format!("Fallo la tarea de luminancia MPV: {}", error))?
-}
-
 fn chrono_like_timestamp() -> u128 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -6292,7 +6220,6 @@ pub fn run() {
             mpv_set_property,
             mpv_autocrop,
             mpv_seek_live,
-            mpv_sample_video_lightness,
             mpv_status,
             stop_mpv,
             trakt_oauth_configured,

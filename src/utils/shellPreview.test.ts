@@ -5,6 +5,7 @@ import {
   withShellPreviewQuery,
   shellPreviewBounds,
   isShellPreviewBootstrap,
+  wrapDelta,
 } from "./shellPreview";
 
 describe("shell preview protocol", () => {
@@ -45,11 +46,29 @@ describe("shell preview protocol", () => {
     }
   });
 
+  it("measures neighbours around a carousel that never ends", () => {
+    // La ficha siguiente de la última es la primera, y al revés.
+    expect(wrapDelta(0, 4, 5)).toBe(1);
+    expect(wrapDelta(4, 0, 5)).toBe(-1);
+    expect(wrapDelta(1, 0, 5)).toBe(1);
+    expect(wrapDelta(3, 0, 5)).toBe(-2);
+    // Con 2 fichas solo hay un vecino y cabe en un lado: el empate va al derecho.
+    expect(wrapDelta(1, 0, 2)).toBe(1);
+    expect(wrapDelta(0, 1, 2)).toBe(1);
+    // Casos límite.
+    expect(wrapDelta(0, 0, 1)).toBe(0);
+    expect(wrapDelta(3, 3, 4)).toBe(0);
+    expect(wrapDelta(0, 0, 0)).toBe(0);
+  });
+
   it("rejects malformed or external navigation messages", () => {
     expect(isShellPreviewMessage({ source: "aetherio-shell-preview", type: "ready" })).toBe(true);
+    expect(isShellPreviewMessage({ source: "aetherio-shell-preview", type: "loading" })).toBe(true);
     expect(isShellPreviewMessage({ source: "aetherio-shell-preview", type: "navigate", path: "/episode?type=movie" })).toBe(true);
     expect(isShellPreviewMessage({ source: "aetherio-shell-preview", type: "background", background: "https://image.test/backdrop.jpg" })).toBe(true);
     expect(isShellPreviewMessage({ source: "aetherio-shell-preview", type: "background", background: "" })).toBe(false);
+    expect(isShellPreviewMessage({ source: "aetherio-shell-preview", type: "reveal", on: true })).toBe(true);
+    expect(isShellPreviewMessage({ source: "aetherio-shell-preview", type: "reveal", on: "yes" })).toBe(false);
     expect(isShellPreviewMessage({ source: "other", type: "close" })).toBe(false);
     expect(isShellPreviewMessage({ source: "aetherio-shell-preview", type: "navigate", path: "https://example.com" })).toBe(false);
   });

@@ -229,7 +229,7 @@ function hashValue(value: string) {
   return String(hash);
 }
 
-function enabledAddonSignature(
+export function enabledAddonSignature(
   addons: InstalledAddon[],
   contentOrientation: ContentOrientation = "both",
   bothPreference: BothContentPreference = DEFAULT_HOME_PREFERENCES.bothPreference,
@@ -1321,14 +1321,32 @@ export async function warmHomeStartup(
     staleTime: HOME_HERO_STALE_TIME,
     gcTime: HOME_GC_TIME,
   });
+  // `Promise.allSettled` arriba espera a que las filas queden completas (base +
+  // anime). A partir de ahi el prewarm sí ve todas las filas, no solo la fase 1.
   await Promise.allSettled([rowsPromise, heroPromise]);
   onProgress?.(0.55);
 
-  const readyRows = queryClient.getQueryData<CatalogRowData[]>(homeCatalogKeys.rows(rowsSignature)) ?? [];
+  onImages?.();
+
+  // Un solo reloj para todo lo que queda de arranque. Antes cada etapa tenia su
+  // techo (el prewarm 300 s, la espera 120 s) y se sumaban: el splash llegaba a
+  // los 148 s medidos en un arranque en frio de verdad, cuando el presupuesto
+  // total era de 90 s.
+  const postersDeadline = Date.now() + SPLASH_POSTER_BUDGET_MS;
+
+  // Las filas se leen de la query YA SETTLEADA (`rowsPromise`), no de la cache.
+  // Este era el bug que dejaba media pantalla en TMDB: `fetchHomeRows` pinta en
+  // dos fases (base primero, anime despues, con `setQueryData`), y `getQueryData`
+  // en ese momento devolvia solo la fase 1. El prewarm|precalientaba ~117
+  // posters y las filas de anime se quedaban sin generar para siempre, porque
+  // nadie volvia a mirarlas.
+  const readyRows = await queryClient.fetchQuery<CatalogRowData[]>({
+    queryKey: homeCatalogKeys.rows(rowsSignature),
+    staleTime: HOME_ROWS_STALE_TIME,
+  }).catch(() => queryClient.getQueryData<CatalogRowData[]>(homeCatalogKeys.rows(rowsSignature)) ?? []);
   const heroSource = queryClient.getQueryData<MediaItem[]>(homeCatalogKeys.hero(heroSignature())) ?? [];
   const heroItems = mergeHeroItems(heroSource, readyRows, contentOrientation, bothPreference);
 
-onImages?.();
   const backgroundUrls = collectHomeDetailBackgroundUrls(readyRows, heroItems);
   // El progreso del prewarm se reporta como fraccion del tramo final: los
   // catalogos ya cargaron (0.55) y lo que queda son las imagenes. Asi la barra
@@ -1340,24 +1358,37 @@ onImages?.();
         onProgress(0.55 + (done / total) * 0.45);
       }
     : undefined;
-await Promise.allSettled([
-    prewarmHomePosters(readyRows, posterProgress),
+
+  await Promise.allSettled([
+    prewarmHomePosters(readyRows, posterProgress, postersDeadline),
     preloadImageUrls(backgroundUrls),
   ]);
 
-  // Ultimo filtro antes de dejar entrar a Home. `prewarmHomePosters` ya hizo dos
-  // rondas (con reintento de lo que dio 503 por cola llena) y devuelve cuantos
-  // quedaron sin verificar. Si aqui todavia falta alguno, se espera otra vez en
-  // vez de entrar con la mitad de las filas en TMDB: era justo lo que se veía.
-  // El tiempo spent es de nuevo una garantia superior, no una promesa de que
-  //SpatialPosters responda; si esta colgado, este timeout lo suelta.
-  let pending = await waitForPostersOrGiveUp(readyRows, posterProgress);
+  // Ultimo filtro antes de dejar entrar a Home. Lo que no se haya verificado se
+  // reintenta con lo que queda del mismo presupuesto. Si al final siguen
+  // faltando, se entra igual: unas pocas cards con el póster de TMDB son
+  // mejores que un splash trabado.
+  let pending = await waitForPostersOrGiveUp(
+    readyRows,
+    posterProgress,
+    postersDeadline - Date.now(),
+  );
   if (pending > 0) {
-    // Una ronda mas y se acepta lo que haya: a partir de aca ya no es congestión
-    // de arranque sino un póster que de verdad no se genera (404, título
-    // inexistente, error de render). Quedarse esperando para siempre seria peor
-    // que mostrar TMDB en esas pocas cards.
-    pending = await retryMissingPosters(readyRows, posterProgress);
+    pending = await retryMissingPosters(
+      readyRows,
+      posterProgress,
+      Math.max(1_000, postersDeadline - Date.now()),
+    );
+  }
+  // Sin este log, un arranque lento se ve igual que uno colgado: la pantalla
+  // queda en el logo y no hay forma de saber si faltan posters o si algo se
+  // rompio. El mensaje lleva los numeros que explican cuanto faltaba y cuanto se
+  // espero, que es lo que haria falta para diagnosticar sin instrumentar.
+  if (pending > 0) {
+    console.warn(
+      `[posters] ${pending} póster(es) sin SpatialPosters tras ${Math.round(SPLASH_POSTER_BUDGET_MS / 1000)} s de presupuesto; ` +
+        "se entra a Home y esas cards usan el póster de TMDB.",
+    );
   }
   onProgress?.(1);
 }
@@ -1365,30 +1396,47 @@ await Promise.allSettled([
 /**
  * Espera a que se vacíe la lista de posters pendientes, hasta `deadlineMs`.
  * Devuelve los que siguen faltando.
+ *
+ * El presupuesto es TOTAL y corre para todo lo que queda de arranque: la
+ * primera pasada del prewarm mas estas esperas. Antes cada una tenia su propio
+ * techo (120 s aqui, 300 s en `PREWARM_TIMEOUT_MS`) y el splash acababa
+ * esperando hasta 7 minutos: la app se veia trabada en el logo sin explicacion.
+ * Ahora hay un unico deadline que se comparte, asi que el tiempo de espera en
+ * el splash esta acotado por una sola cifra.
  */
 async function waitForPostersOrGiveUp(
   rows: CatalogRowData[],
   posterProgress?: (done: number, total: number) => void,
-  deadlineMs = 120_000,
+  remainingMs = SPLASH_POSTER_BUDGET_MS,
 ): Promise<number> {
   const settings = getSpatialPosterSettings();
   if (!isSpatialPostersConfigured(settings)) return 0;
-  const signature = spatialPosterSignature(settings);
   const startedAt = Date.now();
-  // Sondeo corto: cada vuelta mira si el server ya drenó lo suyo. 750 ms evita
-  // que esto sea un bucle ocupado sin hacer esperas visibles.
-  while (Date.now() - startedAt < deadlineMs) {
-    const missing = collectMissingPosterTargets(rows, settings, signature);
-    if (!missing.length) return 0;
-    await retryMissingPosters(rows, posterProgress);
+  // Cada vuelta reintenta los que faltan y duerme un poco. El duerme importa:
+  // sin el, este bucle corre requests seguidas sin pausas y compite con el
+  // propio SpatialPosters por CPU, que es justo lo que hace que los renders
+  // tarden mas.
+  while (Date.now() - startedAt < remainingMs) {
+    const pending = await retryMissingPosters(
+      rows,
+      posterProgress,
+      remainingMs - (Date.now() - startedAt),
+    );
+    if (pending === 0) return 0;
+    await delay(SPLASH_POSTER_POLL_MS);
   }
-  return collectMissingPosterTargets(rows, settings, signature).length;
+  return collectMissingPosterTargets(rows, settings, spatialPosterSignature(settings)).length;
+}
+
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /** Reintenta los posters pendientes una vez y devuelve los que aun faltan. */
 async function retryMissingPosters(
   rows: CatalogRowData[],
   posterProgress?: (done: number, total: number) => void,
+  timeoutMs = PREWARM_TIMEOUT_MS,
 ): Promise<number> {
   const settings = getSpatialPosterSettings();
   if (!isSpatialPostersConfigured(settings)) return 0;
@@ -1411,7 +1459,7 @@ async function retryMissingPosters(
   );
   await withTimeout(
     Promise.allSettled(workers),
-    PREWARM_TIMEOUT_MS,
+    timeoutMs,
   ).catch(() => undefined);
   return collectMissingPosterTargets(rows, settings, signature).length;
 }
@@ -1448,13 +1496,30 @@ function collectHomeDetailBackgroundUrls(rows: CatalogRowData[], heroItems: Medi
 }
 
 /**
- * El peor caso medido es un arranque en frio sin ninguna copia en disco: con
- * ~260 posteres y renders de ~2 s, y 6 conexiones (el limite por host del
- * navegador), la cola tarda del orden de 90 s. Con renders mas lentos se va de
- * 120 s, asi que el techo queda en 5 min: es solo un seguro contra un
- * SpatialPosters colgado, no el tiempo que tarda de verdad.
+ * Presupuesto TOTAL de espera de posters durante el arranque.
+ *
+ * Reparte lo que queda entre la primera pasada y las re rondas, para que el
+ * tiempo en el splash este acotado por este numero y no por la suma de varios.
+ *
+ * Medido en este equipo con arranque en frío y caché vacía: 3.5 s por póster
+ * (el render de sharp con badges) y ~150 pósteres visibles en Home. A 12
+ * verificaciones en paralelo son ~45 s. El presupuesto queda en 75 s: margen
+ * para renders más lentos, sin llegar a que el splash se haga eterno.
+ *
+ * Con la concurrencia que había antes (6) eran 86 s solo la cola, más las re
+ * rondas: de ahi el arranque de 148 s que se veía. Acá, con un solo deadline
+ * compartido, pase lo que pase se entra a Home dentro de este techo.
  */
-const PREWARM_TIMEOUT_MS = 300_000;
+const SPLASH_POSTER_BUDGET_MS = 75_000;
+
+/** Pausa entre rondas de reintento. Sin ella el bucle satura el server. */
+const SPLASH_POSTER_POLL_MS = 750;
+
+/**
+ * Techo de la primera pasada. Es una parte del presupuesto total, no un
+ * presupuesto propio: si se la comiera entero, las re rondas no tendrian nada.
+ */
+const PREWARM_TIMEOUT_MS = Math.round(SPLASH_POSTER_BUDGET_MS * 0.6);
 
 /**
  * Calienta el poster final de todos los medios de las filas cargadas.
@@ -1465,6 +1530,7 @@ const PREWARM_TIMEOUT_MS = 300_000;
 async function prewarmHomePosters(
   rows: CatalogRowData[],
   onProgress?: (done: number, total: number) => void,
+  deadlineAt = Date.now() + PREWARM_TIMEOUT_MS,
 ): Promise<number> {
   const settings = getSpatialPosterSettings();
   if (!isSpatialPostersConfigured(settings)) return 0;
@@ -1499,13 +1565,14 @@ async function prewarmHomePosters(
       }
     },
   );
-  // Se espera a TODOS. Los que fallan o no tienen id TMDB resuelven igual (con
-  // `allSettled` y el catch interno de `prewarmOnePoster`), asi que esta promesa
-  // no se cuelga nunca por un poster problematico: solo por uno que se quede
-  // colgado contra el servidor, y para eso esta `PREWARM_TIMEOUT_MS`.
+  // Se espera a TODOS, pero no mas alla del deadline que le paso el arranque.
+  // Los que fallan o no tienen id TMDB resuelven igual (con `allSettled` y el
+  // catch interno de `prewarmOnePoster`), asi que esta promesa no se cuelga por
+  // un poster problematico: solo por uno que se quede colgado contra el
+  // servidor.
   await withTimeout(
     Promise.allSettled(workers),
-    PREWARM_TIMEOUT_MS,
+    Math.max(1_000, deadlineAt - Date.now()),
   ).catch(() => undefined);
 
   return collectMissingPosterTargets(rows, settings, signature).length;

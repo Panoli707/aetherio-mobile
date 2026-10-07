@@ -15,6 +15,7 @@ import {
   RotateCcw,
   UserRound,
 } from "lucide-react";
+import { TogglePill } from "../../components/ui/ToggleSwitch";
 import packageJson from "../../../package.json";
 import aetherioLogo from "../../assets/aetheriologo.png";
 import { getApiKeys, saveApiKeys, type ApiKeys } from "../../config/apiKeys.ts";
@@ -30,13 +31,7 @@ import {
   type HomePreferences,
 } from "../../config/homePreferences.ts";
 import {
-  isSpatialPostersConfigured,
   saveSpatialPosterSettings,
-  SPATIAL_BADGE_STYLE_OPTIONS,
-  SPATIAL_LANG_OPTIONS,
-  SPATIAL_QUALITY_OPTIONS,
-  SPATIAL_RANKING_BADGE_STYLE_OPTIONS,
-  SPATIAL_REGION_OPTIONS,
   useSpatialPosterSettings,
   type SpatialPosterSettings,
 } from "../../config/spatialPosters.ts";
@@ -334,38 +329,7 @@ function DesignSection({ onNotice }: { onNotice: (message?: string) => void }) {
       </SettingsGroup>
 
       <SettingsGroup title="SpatialPosters">
-        <TextInputRow
-          title="URL de la instancia"
-          value={spatialPosters.instanceUrl}
-          maxLength={300}
-          placeholder="http://localhost:3000"
-          onChange={value => updatePosters({ instanceUrl: value })}
-        />
-        {!isSpatialPostersConfigured(spatialPosters) ? (
-          <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, opacity: 0.7 }}>
-            SpatialPosters no está configurado: los pósters usan las imágenes originales de TMDB.
-            Corre tu propia instancia y pega aquí su URL para activar las etiquetas.
-          </p>
-        ) : null}
         <ToggleRow title="Usar SpatialPosters" description="Pósters con etiquetas de género, ranking y distribuidora." value={spatialPosters.enabled} onChange={value => updatePosters({ enabled: value })} />
-        <ChoiceRow title="Región" value={spatialPosters.region} options={SPATIAL_REGION_OPTIONS} onChange={value => updatePosters({ region: value as SpatialPosterSettings["region"] })} />
-        <ChoiceRow title="Idioma del póster" value={spatialPosters.lang} options={SPATIAL_LANG_OPTIONS} onChange={value => updatePosters({ lang: value as SpatialPosterSettings["lang"] })} />
-        <ToggleRow title="Etiquetas de info" description="Género, año y rating." value={spatialPosters.globalBadges} onChange={value => updatePosters({ globalBadges: value })} />
-        <ToggleRow title="Género" value={spatialPosters.badgeGenre} onChange={value => updatePosters({ badgeGenre: value })} />
-        <ToggleRow title="Año" value={spatialPosters.badgeYear} onChange={value => updatePosters({ badgeYear: value })} />
-        <ToggleRow title="Rating" value={spatialPosters.badgeRating} onChange={value => updatePosters({ badgeRating: value })} />
-        <ChoiceRow title="Estilo de etiqueta" value={spatialPosters.badgeStyle} options={SPATIAL_BADGE_STYLE_OPTIONS} onChange={value => updatePosters({ badgeStyle: value as SpatialPosterSettings["badgeStyle"] })} />
-        <ToggleRow title="Etiquetas de ranking" value={spatialPosters.rankingBadges} onChange={value => updatePosters({ rankingBadges: value })} />
-        <ChoiceRow title="Estilo de ranking" value={spatialPosters.rankingBadgeStyle} options={SPATIAL_RANKING_BADGE_STYLE_OPTIONS} onChange={value => updatePosters({ rankingBadgeStyle: value as SpatialPosterSettings["rankingBadgeStyle"] })} />
-        <ToggleRow title="Sellos de calidad" description="4K, HDR, Dolby Vision, IMAX." value={spatialPosters.qualityBadges} onChange={value => updatePosters({ qualityBadges: value })} />
-        <ChoiceRow title="Calidad a destacar" value={spatialPosters.manualQuality} options={SPATIAL_QUALITY_OPTIONS} onChange={value => updatePosters({ manualQuality: value as SpatialPosterSettings["manualQuality"] })} />
-        <ToggleRow title="Logo de la distribuidora" value={spatialPosters.networkLogo} onChange={value => updatePosters({ networkLogo: value })} />
-        <ChoiceRow title="Lado del ribbon" value={spatialPosters.ribbonSide} options={[{ value: "left", label: "Izquierda" }, { value: "right", label: "Derecha" }]} onChange={value => updatePosters({ ribbonSide: value as SpatialPosterSettings["ribbonSide"] })} />
-        <ToggleRow title="Desenfoque inferior" value={spatialPosters.blurEnabled} onChange={value => updatePosters({ blurEnabled: value })} />
-        <NumberRow title="Intensidad del desenfoque" value={spatialPosters.blurIntensity} min={1} max={40} onChange={value => updatePosters({ blurIntensity: value })} />
-        <NumberRow title="Atenuación" value={spatialPosters.blurFade} min={0} max={100} onChange={value => updatePosters({ blurFade: value })} />
-        <NumberRow title="Oscuridad" value={spatialPosters.blurDarkness} min={0} max={100} onChange={value => updatePosters({ blurDarkness: value })} />
-        <NumberRow title="Altura del degradado" value={spatialPosters.gradientHeight} min={5} max={100} onChange={value => updatePosters({ gradientHeight: value })} />
       </SettingsGroup>
 
       <SettingsGroup title="Catálogos">
@@ -420,8 +384,8 @@ function PlaybackSection({ onNotice }: { onNotice: (message?: string) => void })
             description="Ajusta solo los subtítulos mal sincronizados comparándolos con otras traducciones del mismo título."
             value={preferences.autoSubtitleSync}
             options={[
-              { value: "learned", label: "Aprendido" },
               { value: "on", label: "Siempre" },
+              { value: "learned", label: "Aprendido" },
               { value: "off", label: "Nunca" },
             ]}
             onChange={value => update({ autoSubtitleSync: value as PlaybackPreferences["autoSubtitleSync"] })}
@@ -624,9 +588,9 @@ function SettingsHint({ children }: { children: ReactNode }) {
 
 function ToggleRow({ title, description, value, onChange }: { title: string; description?: string; value: boolean; onChange: (value: boolean) => void }) {
   return (
-    <button type="button" className={`bp-settings-page__toggle-row${value ? " is-on" : ""}`} onClick={() => onChange(!value)} aria-pressed={value}>
+    <button type="button" className={`bp-settings-page__toggle-row${value ? " is-on" : ""}`} onClick={() => onChange(!value)} role="switch" aria-checked={value}>
       <span className="bp-settings-page__row-copy"><strong>{title}</strong>{description ? <small>{description}</small> : null}</span>
-      <span className="bp-settings-page__toggle"><span /></span>
+      <TogglePill checked={value} />
     </button>
   );
 }
@@ -664,38 +628,6 @@ function CycleRow({ title, value, selectedValue = value, options, onChange }: { 
       <span className="bp-settings-page__row-copy"><strong>{title}</strong></span>
       <span className="bp-settings-page__cycle-value">{value}<ChevronRight size={21} /></span>
     </button>
-  );
-}
-
-function TextInputRow({ title, value, maxLength, placeholder, onChange }: { title: string; value: string; maxLength: number; placeholder: string; onChange: (value: string) => void }) {
-  return (
-    <div className="bp-settings-page__info-row">
-      <div className="bp-settings-page__row-copy"><strong>{title}</strong></div>
-      <input
-        type="text"
-        value={value}
-        maxLength={maxLength}
-        placeholder={placeholder}
-        onChange={event => onChange(event.target.value)}
-        className="bp-settings-page__text-input"
-      />
-    </div>
-  );
-}
-
-function NumberRow({ title, value, min, max, onChange }: { title: string; value: number; min: number; max: number; onChange: (value: number) => void }) {
-  return (
-    <div className="bp-settings-page__info-row">
-      <div className="bp-settings-page__row-copy"><strong>{title}</strong><span>{value}</span></div>
-      <input
-        type="range"
-        value={value}
-        min={min}
-        max={max}
-        onChange={event => onChange(Number(event.target.value))}
-        className="bp-settings-page__color-input"
-      />
-    </div>
   );
 }
 

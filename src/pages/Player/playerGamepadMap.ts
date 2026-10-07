@@ -7,23 +7,14 @@ export interface PlayerGamepadContext {
   transportLocked: boolean;
   canGoPrevEpisode: boolean;
   canGoNextEpisode: boolean;
-  /** Y puede abrir el panel de episodios. */
+  /** Y puede abrir la fila inline de episodios. */
   hasEpisodesPanel: boolean;
-  /** Y puede abrir el panel de fuentes cuando no hay episodios. */
-  hasSourcesPanel: boolean;
   /** Segmento de intro/resumen/outro visible y accionable (auto-foco). */
   skipAvailable: boolean;
-  /**
-   * Barra de reproducción abierta por el mando: el stick izquierdo/cruceta y
-   * A pertenecen a la navegación espacial (no actúan); B sale de la barra.
-   */
+  /** Barra en modo de navegación con D-pad/teclas: timeline, controles o episodios. */
   controlsMode: boolean;
-  /**
-   * Zona de la barra: `timeline` (foco inicial; izquierda/derecha = seek,
-   * A = play/pausa, bajar = ir a los botones) o `buttons` (navegación
-   * exclusiva con wrap; arriba = volver al timeline, bajar = salir).
-   */
-  zone: "timeline" | "buttons";
+  /** Zona activa de la barra: timeline, controles o fila de episodios. */
+  zone: "timeline" | "buttons" | "episodes";
 }
 
 export type PlayerGamepadOutcome =
@@ -33,11 +24,13 @@ export type PlayerGamepadOutcome =
   | { type: "prev-episode" }
   | { type: "next-episode" }
   | { type: "open-subtitles" }
-  | { type: "open-episodes-or-sources" }
+  | { type: "open-episodes" }
+  | { type: "activate-focused" }
   | { type: "skip-segment" }
   | { type: "open-controls" }
   | { type: "exit-controls" }
   | { type: "zone-buttons" }
+  | { type: "close-episode-row" }
   | { type: "zone-timeline" }
   | { type: "move-button"; dir: "prev" | "next" }
   | { type: "ignore" }
@@ -46,6 +39,18 @@ export type PlayerGamepadOutcome =
 export const PLAYER_SEEK_STEP_S = 10;
 export const PLAYER_SEEK_LONG_S = 30;
 export const PLAYER_VOLUME_STEP = 0.05;
+
+/** Flechas y Escape del teclado usan las mismas acciones que D-pad y B. */
+export function playerGamepadActionForKeyboardKey(key: string): GamepadActionId | null {
+  switch (key) {
+    case "ArrowLeft": return "dpad-left";
+    case "ArrowRight": return "dpad-right";
+    case "ArrowUp": return "dpad-up";
+    case "ArrowDown": return "open-controls";
+    case "Escape": return "back";
+    default: return null;
+  }
+}
 
 /**
  * Mapa puro del mando en `/big-picture/player` (Big Picture PC).
@@ -68,15 +73,13 @@ export function resolvePlayerGamepadAction(
     return { type: "skip-segment" };
   }
 
-  // En la barra hay dos zonas explícitas (no dependen del foco DOM): el
-  // timeline (foco inicial al bajar) y la row de botones (se llega bajando
-  // otra vez). En el timeline, izquierda/derecha adelantan/retroceden y A
-  // alterna play/pausa; en la row, izquierda/derecha navega con wrap
-  // circular, arriba vuelve al timeline y bajar sale. B sale siempre.
+  // En timeline izquierda/derecha hacen seek, arriba enfoca controles y abajo
+  // entra a episodios. En controles, arriba cierra la barra y abajo entra a
+  // episodios. La fila se recorre horizontalmente; arriba o B la cierra.
   // X/Y/LB/RB/LT/RT siguen vivos en ambas zonas.
   if (ctx.controlsMode) {
-    if (id === "back") return { type: "exit-controls" };
     if (ctx.zone === "timeline") {
+      if (id === "back") return { type: "exit-controls" };
       if (id === "dpad-left") {
         return ctx.transportLocked ? null : { type: "seek", offset: -PLAYER_SEEK_STEP_S };
       }
@@ -86,14 +89,26 @@ export function resolvePlayerGamepadAction(
       if (id === "confirm") {
         return ctx.transportLocked ? null : { type: "toggle" };
       }
-      if (id === "open-controls") return { type: "zone-buttons" };
-      if (id === "dpad-up" || id === "dpad-down") return null;
+      if (id === "dpad-up") return { type: "zone-buttons" };
+      // El polling normaliza la cruceta abajo como `open-controls`.
+      if (id === "dpad-down" || id === "open-controls") return ctx.hasEpisodesPanel ? { type: "open-episodes" } : null;
       // X/Y/LT/RT/LB/RB caen al switch general (siguen vivos en el timeline).
-    } else {
-      if (id === "dpad-up") return { type: "zone-timeline" };
-      if (id === "open-controls") return { type: "exit-controls" };
+    } else if (ctx.zone === "episodes") {
+      // La fila vive dentro de la barra, así que arriba/B la colapsan en lugar
+      // de salir; abajo se consume para no escapar a controles exteriores.
+      if (id === "back") return { type: "close-episode-row" };
+      if (id === "dpad-up") return { type: "close-episode-row" };
+      if (id === "dpad-down" || id === "open-controls") return { type: "ignore" };
       if (id === "dpad-left") return { type: "move-button", dir: "prev" };
       if (id === "dpad-right") return { type: "move-button", dir: "next" };
+      if (id === "confirm") return { type: "activate-focused" };
+      return null;
+    } else {
+      if (id === "dpad-up") return { type: "exit-controls" };
+      if (id === "dpad-down" || id === "open-controls") return ctx.hasEpisodesPanel ? { type: "open-episodes" } : null;
+      if (id === "dpad-left") return { type: "move-button", dir: "prev" };
+      if (id === "dpad-right") return { type: "move-button", dir: "next" };
+      if (id === "back") return { type: "exit-controls" };
       return null;
     }
   }
@@ -123,8 +138,8 @@ export function resolvePlayerGamepadAction(
     case "x":
       return { type: "open-subtitles" };
     case "y":
-      return ctx.hasEpisodesPanel || ctx.hasSourcesPanel
-        ? { type: "open-episodes-or-sources" }
+      return ctx.hasEpisodesPanel
+        ? { type: "open-episodes" }
         : null;
     case "back":
       // Sin overlay, B sigue el flujo global (volver atrás).

@@ -5,6 +5,8 @@ import aetherioLogo from "../assets/aetheriologo.png";
 import {
   createLocalProfile,
   getLocalProfiles,
+  PIN_LENGTH,
+  pinLengthError,
   readImageFileAsDataUrl,
   type LocalProfile,
 } from "../utils/localProfiles.ts";
@@ -30,6 +32,11 @@ export default function ProfileOnboarding() {
     event.preventDefault();
     if (!name.trim()) {
       setError("Escribe un nombre para crear la cuenta.");
+      return;
+    }
+    const pinIssue = pinLengthError(pin);
+    if (pinIssue) {
+      setError(pinIssue);
       return;
     }
     const isFirstProfile = getLocalProfiles().length === 0;
@@ -82,13 +89,17 @@ export default function ProfileOnboarding() {
               <Lock size={16} className="shrink-0 text-white/50" />
               <input
                 value={pin}
-                onChange={event => setPin(event.target.value.replace(/\D/g, "").slice(0, 8))}
+                onChange={event => setPin(event.target.value.replace(/\D/g, "").slice(0, PIN_LENGTH))}
                 inputMode="numeric"
                 type="password"
+                maxLength={PIN_LENGTH}
                 placeholder="Sin PIN"
                 className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/34"
               />
             </div>
+            <span className="mt-1.5 block text-xs font-medium text-white/40">
+              {pin ? `${pin.length} de ${PIN_LENGTH} dígitos` : `Sin PIN (${PIN_LENGTH} dígitos si lo pones)`}
+            </span>
           </label>
 
           <label className="block">

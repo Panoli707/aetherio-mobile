@@ -1,7 +1,8 @@
-﻿import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { BookmarkMinus, BookmarkPlus, Check, ChevronRight, Image as ImageIcon } from "lucide-react";
+import { BookmarkMinus, Check, ChevronRight, Image as ImageIcon } from "lucide-react";
 import ContextMenu from "../../components/ui/ContextMenu";
+import LibraryIcon from "../../components/ui/LibraryIcon";
 import type { HomePosterLayout } from "../../config/homePreferences";
 import { useHorizontalVirtualWindow } from "../../hooks/useHorizontalVirtualWindow";
 import type { CatalogRowData, MediaItem } from "../../types/ui";
@@ -26,7 +27,7 @@ import { isInLibrary, LIBRARY_CHANGED_EVENT, toggleLibraryItem } from "../../uti
 import { useBigPictureActive } from "../../navigation/spatialNav.ts";
 import { useLongPressAction } from "../../hooks/useLongPressAction.ts";
 import { buildDetailPath, isBigPictureLocation } from "../../utils/bigPictureDetail.ts";
-import { preloadArtwork } from "../../utils/shellPreview";
+import { isShellPreviewOpen, preloadArtwork } from "../../utils/shellPreview";
 import type { ShellPreviewRequest } from "../../utils/shellPreview";
 import CardArtworkPicker from "./CardArtworkPicker";
 
@@ -311,7 +312,7 @@ function CatalogRow({ row, posterLayout, hideHeader = false, embedded = false, o
               type="button"
               onClick={openCatalog}
               aria-label={`Ver más: ${title}`}
-              style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, height: 30, padding: "0 11px", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 999, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.62)", cursor: "pointer", fontSize: 12, fontWeight: 700, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}
+              style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, height: 30, padding: "0 11px", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 999, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.62)", cursor: "pointer", fontSize: 12, fontWeight: 700, backdropFilter: "var(--lg-filter-md)", WebkitBackdropFilter: "var(--lg-filter-md)" }}
             >
               Ver más
               <ChevronRight size={13} />
@@ -427,6 +428,10 @@ function CatalogRow({ row, posterLayout, hideHeader = false, embedded = false, o
                         detailPath: buildDetailPath(row.type, rowItem.id, undefined, location.pathname),
                         title: rowItem.name,
                         background,
+                        // El fondo crudo de la card: es el mismo <img> que la fila
+                        // ya tiene en caché, así el shell puede pintarlo al
+                        // instante mientras entra el `original` del Detail.
+                        cardBackground: rowItem.background,
                         cardElement: index === idx ? request.cardElement : scrollRef.current?.querySelector<HTMLElement>(
                           `[data-item-index="${index}"] [data-row-card]`,
                         ) ?? null,
@@ -436,7 +441,7 @@ function CatalogRow({ row, posterLayout, hideHeader = false, embedded = false, o
                           // Virtualized cards must be brought back into the DOM before focus.
                           rail.scrollTo({ left: index * (cardSize.width + (ranked ? RANKED_GAP : HORIZONTAL_GAP)), behavior: "instant" });
                           window.setTimeout(() => {
-                            if (!rail.isConnected || document.querySelector("[data-shell-preview]")) return;
+                            if (!rail.isConnected || isShellPreviewOpen()) return;
                             rail.querySelector<HTMLElement>(`[data-item-index="${index}"] [data-row-card]`)?.focus({ preventScroll: true });
                           }, 80);
                         },
@@ -484,8 +489,8 @@ function CatalogRow({ row, posterLayout, hideHeader = false, embedded = false, o
                 justifyContent: "center",
                 gap: 12,
                 boxShadow: viewMoreFocused ? "0 16px 40px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08)" : "none",
-                backdropFilter: viewMoreFocused ? "blur(18px) saturate(140%)" : "none",
-                WebkitBackdropFilter: viewMoreFocused ? "blur(18px) saturate(140%)" : "none",
+    backdropFilter: viewMoreFocused ? "var(--lg-filter-md)" : "none",
+    WebkitBackdropFilter: viewMoreFocused ? "var(--lg-filter-md)" : "none",
                 transition: "background 180ms ease, border-color 180ms ease, box-shadow 180ms ease",
                 willChange: "transform",
               }}
@@ -745,7 +750,7 @@ const CinematicCard = memo(function CinematicCard({ item, type, posterLayout, wa
         items={[
           ...(isHorizontal ? [{
             label: inLibrary ? "Quitar de la biblioteca" : "Añadir a la biblioteca",
-            icon: inLibrary ? <BookmarkMinus size={15} /> : <BookmarkPlus size={15} />,
+            icon: inLibrary ? <BookmarkMinus size={15} /> : <LibraryIcon size={15} />,
             onSelect: () => {
               const added = toggleLibraryItem({
                 ...item,

@@ -163,7 +163,7 @@ export default function BigPictureHero({ item, contentVisible = true }: { item: 
             </div>
           )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: 12 }}>
           <button
             onClick={() => openDetail(activeTarget)}
             data-hero-primary
@@ -177,7 +177,7 @@ export default function BigPictureHero({ item, contentVisible = true }: { item: 
             }}
           >
             <Play size={15} fill="black" />
-            Reproducir
+            Ver ahora
           </button>
           <button
             onClick={() => window.dispatchEvent(new CustomEvent(HERO_NEXT_EVENT))}
@@ -185,7 +185,7 @@ export default function BigPictureHero({ item, contentVisible = true }: { item: 
             title="Siguiente"
             tabIndex={-1}
             data-spatial-ignore
-            style={{ width: 44, height: 44, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.18)", cursor: "pointer", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+            style={{ width: 44, height: 44, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(255,255,255,0.08)", color: "#fff", border: "1px solid rgba(255,255,255,0.18)", cursor: "pointer", backdropFilter: "var(--lg-filter-sm)", WebkitBackdropFilter: "var(--lg-filter-sm)" }}
             onMouseEnter={event => {
               tweenTo(event.currentTarget, { backgroundColor: "rgba(255,255,255,0.16)" });
             }}

@@ -93,11 +93,18 @@ function isDeclaredDirectUrl(stream: MediaStream): boolean {
   if (isUnplayableFileHostUrl(target)) return false;
 
   const hints = stream.behaviorHints as Record<string, unknown> | undefined;
-  if (hints?.scraperPlayback === "iframe" || hints?.notWebReady === true) return false;
+  // Un iframe nunca es entrada directa para mpv, venga de donde venga.
+  if (hints?.scraperPlayback === "iframe") return false;
 
   // Native scrapers do not have a provider contract: require a concrete media
   // extension so a search/detail page can never be mistaken for a stream.
+  // `notWebReady` se rechaza aqui y solo aqui: la bandera significa "un
+  // navegador no puede reproducirlo", y Aetherio reproduce con mpv, que si
+  // sigue redirecciones y accepts headers. Rechazarla para un MediaAddon
+  // borraba su `url` aunque sea su campo de reproduccion por contrato
+  // (DeepFlix sirve /resolve/<token> sin extension y la marca asi).
   if (stream.addonId === "scraper") {
+    if (hints?.notWebReady === true) return false;
     return hints?.scraperResolvedDirect === true || isDirectMediaUrl(target);
   }
 

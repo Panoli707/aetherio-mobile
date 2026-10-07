@@ -14,15 +14,14 @@ interface UsePlayerGamepadOptions {
   canGoPrevEpisode: boolean;
   canGoNextEpisode: boolean;
   hasEpisodesPanel: boolean;
-  hasSourcesPanel: boolean;
   volume: number;
   playing: boolean;
   /** true cuando no hay menú, panel lateral ni diálogo de sync abiertos. */
   isDirectMode: () => boolean;
   /** Barra abierta por el mando: cruceta y A navegan, B sale de la barra. */
   controlsMode: boolean;
-  /** Zona de la barra: timeline (seek) o row de botones (navegación). */
-  barZone: "timeline" | "buttons";
+  /** Zona enfocada en la barra de Big Picture. */
+  barZone: "timeline" | "buttons" | "episodes";
   /** true cuando hay un segmento de intro/resumen/outro accionable. */
   skipAvailable: () => boolean;
   skipSegment: () => void;
@@ -30,7 +29,9 @@ interface UsePlayerGamepadOptions {
   exitControls: () => void;
   focusBarTimeline: () => void;
   focusBarButtons: () => void;
+  closeEpisodeRow: () => void;
   moveBarButton: (dir: "prev" | "next") => void;
+  activateFocusedControl: () => void;
   togglePlay: () => void;
   jump: (offset: number) => void;
   applyVolume: (value: number) => void;
@@ -75,7 +76,6 @@ export function usePlayerGamepad(options: UsePlayerGamepadOptions) {
         canGoPrevEpisode: current.canGoPrevEpisode,
         canGoNextEpisode: current.canGoNextEpisode,
         hasEpisodesPanel: current.hasEpisodesPanel,
-        hasSourcesPanel: current.hasSourcesPanel,
         skipAvailable: current.skipAvailable(),
         controlsMode: current.controlsMode,
         zone: current.barZone,
@@ -117,7 +117,7 @@ export function usePlayerGamepad(options: UsePlayerGamepadOptions) {
           current.openSubtitles();
           event.preventDefault();
           return;
-        case "open-episodes-or-sources":
+        case "open-episodes":
           current.openEpisodesOrSources();
           event.preventDefault();
           return;
@@ -138,12 +138,20 @@ export function usePlayerGamepad(options: UsePlayerGamepadOptions) {
           current.focusBarButtons();
           event.preventDefault();
           return;
+        case "close-episode-row":
+          current.closeEpisodeRow();
+          event.preventDefault();
+          return;
         case "zone-timeline":
           current.focusBarTimeline();
           event.preventDefault();
           return;
         case "move-button":
           current.moveBarButton(outcome.dir);
+          event.preventDefault();
+          return;
+        case "activate-focused":
+          current.activateFocusedControl();
           event.preventDefault();
           return;
         case "ignore":

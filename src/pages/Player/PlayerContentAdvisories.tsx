@@ -212,7 +212,6 @@ export function useContentAdvisories(query: StreamQuery | null, stream: MediaStr
 interface PlayerContentAdvisoriesProps {
   items: ContentAdvisory[];
   bigPicture: boolean;
-  lightBackground: boolean;
   dismissed: boolean;
   onComplete: () => void;
 }
@@ -220,7 +219,6 @@ interface PlayerContentAdvisoriesProps {
 export default function PlayerContentAdvisories({
   items,
   bigPicture,
-  lightBackground,
   dismissed,
   onComplete,
 }: PlayerContentAdvisoriesProps) {
@@ -327,25 +325,18 @@ export default function PlayerContentAdvisories({
 
   const reducedTransparency = prefersReducedTransparency();
   const increasedContrast = prefersContrastMore();
-  const darkText = lightBackground;
-  const panelBackground = darkText
-    ? reducedTransparency
-      ? "rgba(246, 246, 248, 0.97)"
-      : "rgba(244, 244, 247, 0.76)"
-    : reducedTransparency
-      ? "rgba(20, 20, 22, 0.96)"
-      : "rgba(20, 20, 22, 0.68)";
-  const panelBorder = darkText
-    ? increasedContrast ? "rgba(0, 0, 0, 0.24)" : "rgba(255, 255, 255, 0.7)"
-    : increasedContrast ? "rgba(255, 255, 255, 0.42)" : "rgba(255, 255, 255, 0.12)";
-  const panelColor = darkText ? "rgba(12, 12, 14, 0.94)" : "rgba(255, 255, 255, 0.96)";
-  const mutedColor = darkText ? "rgba(12, 12, 14, 0.5)" : "rgba(255, 255, 255, 0.56)";
-  const badgeBackground = darkText ? "rgba(12, 12, 14, 0.055)" : "rgba(255, 255, 255, 0.085)";
-  const badgeBorder = darkText ? "rgba(12, 12, 14, 0.08)" : "rgba(255, 255, 255, 0.08)";
+  const panelBackground = reducedTransparency
+    ? "rgba(20, 20, 22, 0.96)"
+    : "rgba(20, 20, 22, 0.68)";
+  const panelBorder = increasedContrast ? "rgba(255, 255, 255, 0.42)" : "rgba(255, 255, 255, 0.12)";
+  const panelColor = "rgba(255, 255, 255, 0.96)";
+  const mutedColor = "rgba(255, 255, 255, 0.56)";
+  const badgeBackground = "rgba(255, 255, 255, 0.085)";
+  const badgeBorder = "rgba(255, 255, 255, 0.08)";
   const severityColor = (severity: ContentAdvisorySeverity) => {
-    if (severity === "moderate") return darkText ? "#8a5a00" : "#ffd60a";
-    if (severity === "severe") return darkText ? "#b45309" : "#ff9f0a";
-    return darkText ? "rgba(12, 12, 14, 0.34)" : "rgba(255, 255, 255, 0.42)";
+    if (severity === "moderate") return "#ffd60a";
+    if (severity === "severe") return "#ff9f0a";
+    return "rgba(255, 255, 255, 0.42)";
   };
   const ariaLabel = `Avisos de contenido: ${items.map(item => `${item.label}, ${item.severityLabel}`).join(". ")}`;
 
@@ -374,18 +365,16 @@ export default function PlayerContentAdvisories({
           opacity: 0,
           background: panelBackground,
           border: `1px solid ${panelBorder}`,
-          boxShadow: darkText
-            ? "0 18px 46px rgba(24, 24, 28, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.78)"
-            : "0 18px 52px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
-          backdropFilter: reducedTransparency ? "none" : "blur(32px) saturate(180%)",
-          WebkitBackdropFilter: reducedTransparency ? "none" : "blur(32px) saturate(180%)",
+          boxShadow: "0 18px 52px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
+    backdropFilter: reducedTransparency ? "none" : "var(--lg-filter-lg)",
+    WebkitBackdropFilter: reducedTransparency ? "none" : "var(--lg-filter-lg)",
           willChange: "transform, opacity, filter",
         }}
       >
         <div className={`${bigPicture ? "mb-2.5 gap-2 text-[12px]" : "mb-2 gap-1.5 text-[10px]"} flex items-center font-semibold uppercase tracking-[0.12em]`} style={{ color: mutedColor }}>
           <span
             className={`${bigPicture ? "h-7 w-7 rounded-[10px]" : "h-6 w-6 rounded-[9px]"} flex items-center justify-center`}
-            style={{ background: darkText ? "rgba(12, 12, 14, 0.07)" : "rgba(255, 255, 255, 0.1)" }}
+            style={{ background: "rgba(255, 255, 255, 0.1)" }}
           >
             <ShieldAlert size={bigPicture ? 15 : 13} strokeWidth={1.9} />
           </span>

@@ -1,20 +1,31 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { AudioWaveform } from "lucide-react";
 import { gsap, tweenTo, springTo, prefersReducedMotion, anchorTransformOrigin } from "../../utils/motion";
 import { getContextGlassStyle } from "./glassSurface";
 
 /** Hay algún menú contextual abierto (portal con data-aetherio-context-menu). */
 export function isContextMenuOpen(): boolean {
   if (typeof document === "undefined") return false;
-  return document.querySelector("[data-aetherio-context-menu]") !== null;
+  return document.querySelector(
+    '[data-aetherio-context-menu][data-context-open="true"], [data-aetherio-context-menu]:not([data-context-open])',
+  ) !== null;
 }
 
 export interface ContextMenuItem {
   label: string;
   description?: string;
   icon?: ReactNode;
+  /**
+   * Fila elegida. Va explicito porque `icon` esta sobrecargado: un chelon
+   * significa "tiene submenú" y un check "esta elegida". Deducirlo del icono
+   * dejaba en blanco toda fila con submenu.
+   */
+  selected?: boolean;
   disabled?: boolean;
   closeOnSelect?: boolean;
+  /** Insignia de tecnologia mostrada a la derecha de la fila. */
+  badge?: { id: string; label: string };
   onSelect: () => void;
 }
 
@@ -27,6 +38,25 @@ interface ContextMenuProps {
   width?: number;
   maxHeight?: number;
   placement?: "outside-right" | "above-end" | "below-start";
+  /**
+   * `apple` es la piel de la referencia de Big Picture: cabecera de seccion en
+   * versalitas, filas altas con la seleccionada en blanco y la insignia de
+   * tecnologia en la cabecera. `glass` es el menu compacto de siempre.
+   */
+  variant?: "glass" | "apple";
+  header?: string;
+  /**
+   * Logos a la derecha de la cabecera. Se acepta uno o varios porque una
+   * stream puede declarar dos cosas a la vez (Dolby Atmos y 5.1).
+   */
+  headerBadge?: { id: string; label: string; imageUrl?: string } | { id: string; label: string; imageUrl?: string }[] | null;
+}
+
+function toBadgeList(
+  badge: ContextMenuProps["headerBadge"],
+): { id: string; label: string; imageUrl?: string }[] {
+  if (!badge) return [];
+  return Array.isArray(badge) ? badge : [badge];
 }
 
 export default function ContextMenu({
@@ -38,10 +68,15 @@ export default function ContextMenu({
   width = 216,
   maxHeight,
   placement = "outside-right",
+  variant = "glass",
+  header,
+  headerBadge = null,
 }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ left: -9999, top: -9999 });
   const [mounted, setMounted] = useState(open);
+  // Fila con el raton o el foco encima: es la que enseña su insignia.
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
   // Foco previo a la apertura: al cerrar con B/Escape se devuelve aquí (o al
   // ancla) para seguir con el mando donde estaba.
   const prevFocusRef = useRef<HTMLElement | null>(null);
@@ -119,13 +154,16 @@ export default function ContextMenu({
         }
       } else if (placement === "above-end") {
         left = anchorRect.right - menuWidth;
-        const controlsTop = document
-          .querySelector<HTMLElement>("[data-player-controls-glass]")
-          ?.getBoundingClientRect().top;
-        const upperBoundary = controlsTop === undefined
+        // El menu de Big Picture se cuelga del icono que lo abre, no del borde
+        // superior de la barra: colgarlo de la barra lo dejaba flotando muy
+        // arriba, lejos del control al que pertenece.
+        const upperBoundary = variant === "apple"
           ? anchorRect.top
-          : Math.min(anchorRect.top, controlsTop);
-        top = Math.max(margin, upperBoundary - menuHeight - 12);
+          : document
+            .querySelector<HTMLElement>("[data-player-controls-glass]")
+            ?.getBoundingClientRect().top ?? anchorRect.top;
+        const limit = Math.min(anchorRect.top, upperBoundary);
+        top = Math.max(margin, limit - menuHeight - (variant === "apple" ? 10 : 12));
       } else {
         left = (avoidRect?.right ?? anchorRect.right) + 8;
         top = Math.max(margin, anchorRect.top - 8);
@@ -221,9 +259,22 @@ export default function ContextMenu({
     }
   }, [open ]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open || !mounted || !menuRef.current) return;
-    menuRef.current.querySelector<HTMLElement>("button:not([disabled])")?.focus({ preventScroll: true });
+    let frame = 0;
+    frame = window.requestAnimationFrame(() => {
+      const menu = menuRef.current;
+      if (!open || !menu) return;
+      // Prefer the currently selected option; otherwise land on the first row.
+      // Waiting one frame is important in WebView2: the portal and its position
+      // are committed together, and focusing during the initial commit can leave
+      // the trigger as document.activeElement even though the menu is visible.
+      const target = menu.querySelector<HTMLElement>(
+        'button[data-selected="true"]:not([disabled])',
+      ) ?? menu.querySelector<HTMLElement>("button:not([disabled])");
+      target?.focus({ preventScroll: true });
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [open, mounted]);
 
   // Al cerrar con B/Escape (o click fuera): devolver el foco al ancla (o al
@@ -265,14 +316,33 @@ export default function ContextMenu({
 
   // §14 — respect reduced-transparency / contrast
   const glassStyle = getContextGlassStyle();
+  const apple = variant === "apple";
   return createPortal(
     <div
       ref={menuRef}
       data-aetherio-context-menu
+      data-context-open={open ? "true" : "false"}
       data-player-floating-panel-glass
+      data-context-variant={variant}
+      className="aetherio-context-menu"
       role="menu"
       style={{
-        ...glassStyle,
+        ...(apple
+          ? {
+              // El desenfoque lo pone el shader de MPV: este panel lleva
+              // `data-player-floating-panel-glass`, asi que su rectangulo entra
+              // en la geometria del blur por GPU. El `backdrop-filter` de CSS
+              // encima era una segunda superficie de muestreo sobre la
+              // superficie nativa del video, y en WebView2 sale a ratos:
+              // por eso el material parecia poco fiable. Aqui solo la velo,mas
+              // claro para que el blur del shader se lea por debajo.
+              ...glassStyle,
+              background: "rgba(20,21,24,0.42)",
+              backdropFilter: "none",
+              WebkitBackdropFilter: "none",
+              boxShadow: "0 28px 70px rgba(0,0,0,0.55), 0 2px 10px rgba(0,0,0,0.4)",
+            }
+          : glassStyle),
         position: "fixed",
         left: position.left,
         top: position.top,
@@ -281,14 +351,66 @@ export default function ContextMenu({
         maxHeight,
         overflowY: maxHeight ? "auto" : "hidden",
         overflowX: "hidden",
-        borderRadius: 16,
-        padding: 5,
+        borderRadius: apple ? 24 : 16,
+        padding: apple ? 8 : 5,
         willChange: "transform, opacity, filter",
         transform: "translateZ(0)",
       }}
       onClick={event => event.stopPropagation()}
     >
-      {sanitizedItems.map((item, index) => (
+      {apple && header ? (
+        <div
+          aria-hidden="true"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            padding: "12px 16px 8px",
+            // Sentence case, no versalitas: la referencia escribe "Audio".
+            color: "rgba(255,255,255,0.62)",
+            fontSize: 19,
+            fontWeight: 700,
+            letterSpacing: "-0.005em",
+          }}
+        >
+          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{header}</span>
+          {toBadgeList(headerBadge).map((badge, badgeIndex) => (
+            <span
+              key={`${badge.id}-${badgeIndex}`}
+              data-audio-badge={badge.id}
+              title={badge.label}
+              style={{
+                flexShrink: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                marginLeft: badgeIndex > 0 ? 10 : 0,
+              }}
+            >
+              {/* El PNG del panel de streams ya lleva el nombre dentro (el
+                  wordmark de Atmos, el "5.1" de canales): con texto al lado se
+                  leia duplicado. */}
+              {badge.imageUrl ? (
+                <img
+                  src={badge.imageUrl}
+                  alt={badge.label}
+                  style={{ height: 21, width: "auto", objectFit: "contain" }}
+                />
+              ) : (
+                <span style={{ color: "rgba(255,255,255,0.86)", fontSize: 17, fontWeight: 700 }}>{badge.label}</span>
+              )}
+            </span>
+          ))}
+        </div>
+      ) : null}
+      {sanitizedItems.map((item, index) => {
+        const selected = item.selected === true;
+        const focused = activeIndex === index;
+        // La insignia de tecnologia (Dolby Atmos) solo se ve en la fila que esta
+        // en foco o la elegida: es lo que hace la referencia y evita repetirla
+        // en todas las pistas.
+        const showBadge = Boolean(item.badge) && (selected || activeIndex === index);
+        return (
         <button
           key={`${item.label}-${index}`}
           type="button"
@@ -300,44 +422,72 @@ export default function ContextMenu({
             item.onSelect();
             if (item.closeOnSelect !== false) onClose();
           }}
+          data-selected={apple && selected ? "true" : undefined}
+          data-menu-focused={focused ? "true" : undefined}
           style={{
             width: "100%",
-            minHeight: 36,
+            minHeight: apple ? 44 : 36,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
             gap: 12,
             border: "none",
-            borderRadius: 11,
-            background: "transparent",
-            color: item.disabled ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.9)",
-            padding: "0 9px 0 11px",
-            fontSize: 13,
+            borderRadius: apple ? 14 : 11,
+            background: apple && selected
+              ? "rgba(255,255,255,0.94)"
+              : apple && focused
+                ? "rgba(255,255,255,0.18)"
+                : "transparent",
+            boxShadow: apple && focused && !selected
+              ? "inset 0 0 0 1px rgba(255,255,255,0.42), 0 0 12px rgba(255,255,255,0.10)"
+              : "none",
+            color: apple
+              ? item.disabled
+                ? "rgba(255,255,255,0.35)"
+                : selected
+                  ? "#0b0b0d"
+                  : "rgba(255,255,255,0.88)"
+              : item.disabled ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.9)",
+            padding: apple ? "0 14px" : "0 9px 0 11px",
+            fontSize: apple ? 17 : 13,
             fontWeight: 500,
             textAlign: "left",
             cursor: item.disabled ? "default" : "pointer",
+            // Respiro entre filas: en la referencia las pistas van separadas, no
+            // pegadas unas a otras.
+            marginBottom: apple && index < sanitizedItems.length - 1 ? 6 : 0,
             willChange: "transform, background-color",
             transform: "translateZ(0)",
           }}
           onPointerDown={event => {
-            if (item.disabled) return;
+            if (item.disabled || apple) return;
             // §1 Response — highlight on pointer-down instant, not hover
             gsap.killTweensOf(event.currentTarget);
             gsap.set(event.currentTarget, { scale: 0.97 });
             tweenTo(event.currentTarget, { backgroundColor: "rgba(255,255,255,0.14)", scale: 0.97 }, 0.1);
           }}
           onPointerUp={event => {
-            if (item.disabled) return;
+            if (item.disabled || apple) return;
             tweenTo(event.currentTarget, { backgroundColor: "rgba(255,255,255,0.12)", scale: 1 }, 0.14);
           }}
           onPointerLeave={event => {
-            if (item.disabled) return;
+            if (item.disabled || apple) return;
             tweenTo(event.currentTarget, { backgroundColor: "rgba(255,255,255,0)", scale: 1 }, 0.14);
           }}
+          onFocus={apple ? () => setActiveIndex(index) : undefined}
+          onBlur={apple ? () => setActiveIndex(null) : undefined}
           onMouseEnter={event => {
-            if (!item.disabled) tweenTo(event.currentTarget, { backgroundColor: "rgba(255,255,255,0.12)" });
+            if (apple) setActiveIndex(index);
+            // En la piel de la referencia la fila blanca se queda blanca: el
+            // hover no la tiñe, solo mueve el foco.
+            if (item.disabled || apple) return;
+            tweenTo(event.currentTarget, { backgroundColor: "rgba(255,255,255,0.12)" });
           }}
           onMouseLeave={event => {
+            if (apple) {
+              setActiveIndex(null);
+              return;
+            }
             tweenTo(event.currentTarget, { backgroundColor: "rgba(255,255,255,0)" });
           }}
         >
@@ -351,13 +501,31 @@ export default function ContextMenu({
               </span>
             ) : null}
           </span>
+          {showBadge && item.badge ? (
+            <span
+              data-audio-badge={item.badge.id}
+              style={{
+                flexShrink: 0,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 5,
+                color: apple && selected ? "rgba(11,11,13,0.72)" : "rgba(255,255,255,0.62)",
+                fontSize: apple ? 13 : 11,
+                fontWeight: 700,
+              }}
+            >
+              <AudioWaveform size={apple ? 14 : 12} aria-hidden="true" />
+              {item.badge.label}
+            </span>
+          ) : null}
           {item.icon ? (
-            <span style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,0.82)", flexShrink: 0 }}>
+            <span style={{ display: "flex", alignItems: "center", justifyContent: "center", color: apple && selected ? "#0b0b0d" : "rgba(255,255,255,0.82)", flexShrink: 0 }}>
               {item.icon}
             </span>
           ) : null}
         </button>
-      ))}
+        );
+      })}
     </div>,
     document.body,
   );

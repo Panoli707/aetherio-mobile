@@ -1,0 +1,72 @@
+/* Fondo compartido de las pages de identidad (Profiles y Quick Start).
+   Origen: el bloque .profile-selection-bg de ProfileSelection.css, extraído
+   para que Quick Start use el mismo fondo y no una copia que se desvía. */
+
+.profile-selection-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: #1a1a1a;
+}
+
+.profile-selection-bg-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.85;
+  filter: blur(70px) saturate(1.3);
+  transform: scale(1.6);
+  transition: opacity 0.4s ease;
+}
+
+.bg-img-current {
+  opacity: 0.85;
+}
+
+.bg-img-leave {
+  opacity: 0;
+}
+
+.bg-img-enter {
+  opacity: 0.85;
+}
+
+.profile-selection-bg > div {
+  position: absolute;
+  inset: 0;
+}
+
+.profile-selection-bg-tint {
+  background: rgba(26, 26, 26, 0.25);
+}
+
+.profile-selection-bg-radial {
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0) 60%
+  );
+}
+
+.profile-selection-bg-vertical {
+  background: linear-gradient(
+    to bottom,
+    rgba(26, 26, 26, 0.3),
+    transparent 40%,
+    transparent 60%,
+    rgba(26, 26, 26, 0.4)
+  );
+}
+
+.profile-selection-bg-bottom {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    transparent 55%,
+    rgba(26, 26, 26, 0.65) 100%
+  );
+}

@@ -111,13 +111,18 @@ async function stubPlayback(page: Page) {
   );
 }
 
+// Seekr solo vive en el reproductor normal. En Big Picture esta desactivado a
+// proposito: la card no cabe sobre esa barra y salia vacia.
 const MODES = [
-  { name: "normal", url: "/player?type=movie&id=tmdb%3A4951" },
-  { name: "big-picture", url: "/big-picture/player?type=movie&id=tmdb%3A4951" },
+  { name: "normal", url: "/player?type=movie&id=tmdb%3A4951", preview: true },
+  { name: "big-picture", url: "/big-picture/player?type=movie&id=tmdb%3A4951", preview: false },
 ];
 
 for (const mode of MODES) {
-  test(`el popup de Seekr se ve sobre la barra (${mode.name})`, async ({ page }) => {
+  test(`el popup de Seekr ${mode.preview ? "se ve sobre la barra" : "no aparece"} (${mode.name})`, async ({ page }) => {
+    // El stub pinta una hoja de sprites de 1920x18000 px y la serializa a JPEG:
+    // en paralelo con el otro test se pasa del 30 s global de la config.
+    test.setTimeout(60_000);
     page.on("pageerror", e => console.log("PAGE ERROR", String(e).slice(0, 200)));
     page.on("console", m => {
       if (m.type() === "error") console.log("CONSOLE ERROR", m.text().slice(0, 200));
@@ -168,12 +173,36 @@ for (const mode of MODES) {
     if (!box) throw new Error("la barra no tiene caja");
     await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2);
 
+    // Pasar el raton por encima INFORMA, no conduce: el pulgar, el relleno y el
+    // reloj siguen la posicion real. Antes el preview de hover alimentaba el
+    // `value` del slider y la barra se arrastraba al cursor (a mitad, 2928 s).
+    const hoveredValue = await page.evaluate(() => {
+      const input = document.querySelector("[data-player-timeline]") as HTMLInputElement | null;
+      return input ? Number(input.value) : Number.NaN;
+    });
+    console.log("VALOR TRAS PASAR EL RATON", hoveredValue);
+    expect(Math.abs(hoveredValue - START_S)).toBeLessThanOrEqual(2);
+
     const popup = page.locator("[data-seekr-preview]");
+    if (!mode.preview) {
+      // Seekr apagado: ni card, ni consulta a la API. Se espera lo que tarda el
+      // stub en responder la pista para que el "no aparece" sea concluyente.
+      await page.waitForTimeout(2_500);
+      await expect(popup).toHaveCount(0);
+      await page.screenshot({ path: `test-results/seekr-${mode.name}.png` });
+      return;
+    }
     await expect(popup).toBeVisible({ timeout: 15_000 });
 
     // El popup aparece antes que los fotogramas: hay que esperar a la imagen.
     const centreImage = popup.locator("img").first();
     await expect(centreImage).toBeVisible({ timeout: 20_000 });
+
+    // El anclaje se recalcula en cada movimiento del raton: un segundo paso (ya
+    // con la barra asentada tras el spring de entrada) es el estado que el
+    // usuario ve de verdad al recorrer la barra con el puntero.
+    await page.mouse.move(box.x + box.width * 0.5 + 3, box.y + box.height / 2);
+    await page.waitForTimeout(150);
 
     const shot = await popup.locator("img").count();
     if (shot === 0) {
@@ -250,15 +279,20 @@ for (const mode of MODES) {
     }
 
     // La card debe quedar SIEMPRE por encima de la barra, sin pisarla. Se compara
-    // el borde inferior del popup contra el borde superior del timeline, que es de
-    // donde se ancla.
-    const timelineBox = await timeline.boundingBox();
-    if (boxPopup && timelineBox) {
-      const gap = timelineBox.y - (boxPopup.y + boxPopup.height);
+    // el borde inferior del popup contra el borde superior de la BARRA completa
+    // (no del timeline): con el titulo encima, anclarse al timeline dejaba la
+    // card dentro del cristal.
+    const barBox = await page.locator("[data-player-controls-glass]").boundingBox();
+    if (boxPopup && barBox) {
+      const gap = barBox.y - (boxPopup.y + boxPopup.height);
       console.log("HUECO CON LA BARRA", Math.round(gap));
-      expect(gap).toBeGreaterThan(0);
-      expect(gap).toBeGreaterThanOrEqual(20);
+      expect(gap).toBeGreaterThanOrEqual(12);
     }
+
+    // La card solo existe con el raton sobre la barra de progreso: al salir de
+    // ella se retira al instante, sin quedarse 1,5 s colgando.
+    await page.mouse.move(box.x + box.width * 0.5, box.y - 40);
+    await expect(popup).toBeHidden({ timeout: 5_000 });
 
     await page.screenshot({ path: `test-results/seekr-${mode.name}.png` });
   });

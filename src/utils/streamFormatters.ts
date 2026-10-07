@@ -237,7 +237,15 @@ function metadataBadges(metadata?: StreamTechnicalMetadata): StreamFormatBadge[]
   else if (/\b(?:pcm|lpcm)\b/.test(audioCodec)) add("a-pcm");
 
   const dynamicRange = metadata.dynamicRange?.toLowerCase() ?? "";
-  if (/dolby[ ._-]?vision|dovi|dv/.test(dynamicRange)) add("dolby-vision");
+  // El rango dinamico tambien declara el audio: una stream con
+  // dynamicRange "Dolby Atmos" es Atmos aunque el codec venga como eac3.
+  // Sin esta linea el badge Atmos solo salia si el nombre del archivo lo decia.
+  if (/\batmos\b/.test(dynamicRange)) add("atmos");
+  // `audioProfile` es el campo de audio: hay addons que declaran ahi el Atmos
+  // y dejan `dynamicRange` para el video (HDR/DV). El reproductor lo lee
+  // tambien, asi que debe estar aqui o los dos detectores discreparian.
+  if (/\batmos\b/.test(metadata.audioProfile?.toLowerCase() ?? "")) add("atmos");
+  if (/\bdolby[ ._-]?vision|dovi|dv/.test(dynamicRange)) add("dolby-vision");
   else if (/hdr10[ ._-]?(?:plus|\+)|hdr10p/.test(dynamicRange)) add("hdr10-plus");
   else if (/hdr10/.test(dynamicRange)) add("hdr10");
   else if (/\bhdr\b|hlg/.test(dynamicRange)) add("hdr");
@@ -275,6 +283,42 @@ export function getStreamFormatBadges(stream: MediaStream, additionalMetadata?: 
     if (!matches.has(badge.id)) matches.set(badge.id, badge);
   }
   return dedupeEquivalentBadges([...matches.values()]);
+}
+
+/** Marcas monocromas aprobadas para la fila de formatos de Big Picture. */
+const BIG_PICTURE_MONOCHROME_VIDEO_BADGES = new Set([
+  "resolution-2160p", // PNG wordmark 4K
+  "resolution-1080p",
+  "resolution-720p",
+  "imax",
+  "dolby-vision",
+  "hdr10-plus",
+  "hdr10",
+  "hdr",
+  "sdr",
+  // Estos tres logos de fuente van en blanco en la fila de formato.
+  "q-b", // BluRay
+  "q-r", // Remux
+  "remux-tier-1",
+]);
+
+/** Un badge de plataforma prioritario y los formatos monocromos seleccionados. */
+export function getBigPictureHeaderBadges(stream: MediaStream | null | undefined): {
+  service: StreamFormatBadge | null;
+  video: StreamFormatBadge[];
+} {
+  if (!stream) return { service: null, video: [] };
+  const badges = getStreamFormatBadges(stream).filter(badge => badge.imageUrl);
+  const services = badges.filter(badge => badge.category === "service");
+  const service = ["s-atvp", "s-nflx"]
+    .map(id => services.find(badge => badge.id === id))
+    .find((badge): badge is StreamFormatBadge => Boolean(badge))
+    ?? services[0]
+    ?? null;
+  return {
+    service,
+    video: badges.filter(badge => BIG_PICTURE_MONOCHROME_VIDEO_BADGES.has(badge.id)),
+  };
 }
 
 function compileFormatterPattern(pattern: string) {

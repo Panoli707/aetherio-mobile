@@ -250,7 +250,7 @@ export default function UpNext({
               type="button"
               data-player-interactive
               onClick={onDetails}
-              className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.06] px-6 py-3 text-[15px] font-semibold text-white/80 backdrop-blur-md gsap-transition hover:bg-white/[0.12] hover:text-white"
+              className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.06] px-6 py-3 text-[15px] font-semibold text-white/80 backdrop-blur-glass-sm gsap-transition hover:bg-white/[0.12] hover:text-white"
             >
               <Info size={19} strokeWidth={2.2} />
               Mas info

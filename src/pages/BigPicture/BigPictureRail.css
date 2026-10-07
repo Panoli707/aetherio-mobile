@@ -42,8 +42,8 @@
   /* Mismo material que la pill de la TopNav normal (.liquid-glass-pill),
      también en el panel expandido. */
   background: rgba(255, 255, 255, 0.12);
-  -webkit-backdrop-filter: blur(48px) saturate(175%);
-  backdrop-filter: blur(48px) saturate(175%);
+  -webkit-backdrop-filter: var(--lg-filter-xl);
+  backdrop-filter: var(--lg-filter-xl);
   border: 1px solid rgba(225, 230, 238, 0.09);
   box-shadow: 0 3px 14px rgba(0, 0, 0, 0.38);
   border-radius: 999px;
@@ -224,9 +224,22 @@
   margin-bottom: 0;
 }
 
+/* El foco NO escala la fila. El scale de `.big-picture--home-maximized
+   button:focus` (BigPicture.css, para Reproducir/Siguiente) tambien alcanzaba a
+   los items del rail, y al escalar desde el centro de la caja los desplazaba
+   ~7px hacia la izquierda: su icono se iba a 75.5px y el de las otras cinco
+   filas a 82.2px, y lo mismo su etiqueta — la columna dejaba de leerse como
+   una rejilla. Se anula con la misma especificidad + 1 clase: el emphasis del
+   rail lo llevan el color y la pill blanca de `.bp-rail__indicator`. */
 .bp-rail__item.is-focused {
   color: #08080a;
-  transform: scale(1.035);
+}
+
+.big-picture--home-maximized .bp-rail__item:focus,
+.big-picture--home-maximized .bp-rail__item:focus-visible,
+.shell-preview-app .bp-rail__item:focus,
+.shell-preview-app .bp-rail__item:focus-visible {
+  transform: none;
 }
 
 .bp-rail__item:focus {
@@ -238,11 +251,20 @@
   outline-offset: 2px;
 }
 
+/* Caja del glifo: 46px fijos (= ancho del avatar) y glifo de 26px centrado,
+   para que TODOS los items compartan la misma columna de icono y la etiqueta
+   arranque siempre en el mismo x. */
 .bp-rail__item-icon {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+}
+
+.bp-rail__item-icon svg {
+  display: block;
   flex: 0 0 auto;
 }
 
@@ -250,6 +272,7 @@
   padding-left: 5px;
   font-size: 19px;
   font-weight: 700;
+  line-height: 1;
   white-space: nowrap;
 }
 

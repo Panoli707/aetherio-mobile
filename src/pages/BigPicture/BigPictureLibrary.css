@@ -1,0 +1,316 @@
+/* Biblioteca en Big Picture — port del diseño de referencia (imagen 1) a la
+   superficie 10-foot de aetherio.
+
+   ESCALA: todos los valores salen de las páginas 10-foot que ya existen, no de
+   los píxeles de la referencia. La referencia es una captura de escritorio a
+   1140×655 y sus 15px de etiqueta se leían diminutos al lado del Home/Detail.
+   Las referencias medidas en esta app son:
+
+     .bp-rail__item          60px de alto, icon 26px, label 19px/700
+     .bp-row__title          20px / 700   (título de sección)
+     .bp-genre__title        54px / 800   (título de page)
+     .bp-genre__poster       6 columnas, radio 14
+
+   Así la columna de filtros es un hermano real de la pill del rail: mismo alto
+   de fila (60), mismo ritmo (gap 8) y mismo tamaño de icono (26). Y el grid usa
+   el formato de tarjeta del Genre (217/326, radio 14), no un invento propio.
+
+   LO QUE SE MANTIENE DE LA REFERENCIA: canvas #0e0e10, la navegación de filtros
+   a la izquierda con pill blanca en la fila activa, la sección "Géneros", 6
+   columnas sin pie de foto y el ritmo de huecos (≈22% del ancho/alto de la
+   tarjeta), que es lo que hace que el conjunto se lea igual. */
+
+.bp-library {
+  min-height: 100%;
+  background: #0e0e10;
+  color: #fff;
+  /* La banda de la pill del rail sale de los tokens globales, igual que en
+     .bp-genre: el contenido nunca choca con la pill ni con el rail expandido. */
+  padding: var(--app-page-y) calc(var(--app-gutter-x) * 2) var(--app-page-y) var(--app-page-x);
+  font-family: Inter, system-ui, sans-serif;
+}
+
+.bp-library__body {
+  display: grid;
+  /* 340px: lo que necesitan de verdad las etiquetas a 19px/700 (la más larga,
+     "Ciencia ficción y fantasía", medía 352 con el cromo de fila completo).
+     La referencia lo daba en 16.75% de una ventana de 1140, pero con la escala
+     10-foot la proporción ya no da: a 17% de 1744 salían 296 y "Añadidos
+     recientemente" se recortaba 10px. */
+  grid-template-columns: 340px minmax(0, 1fr);
+  gap: 49px;
+  align-items: start;
+}
+
+/* Título de page sólo para lectores de pantalla: la pill del rail ya dice
+   "Biblioteca" y el breadcrumb de la referencia se borró por redundante
+   (ver artifacts/bp-library/PROGRESS.md). Sin esto la page no tendría heading. */
+.bp-library__sr-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ─── Columna de navegación ───────────────────────────────────────────── */
+
+/* La columna de filtros se queda pegada al techo y scrollea por su cuenta.
+
+   Sin esto, con filas de 60px una biblioteca con géneros de TMDB + addons mete
+   14 filas (≈950px) y la lista se va con el scroll del grid: en una superficie
+   10-foot, donde esta columna es el ÚNICO filtro, dejaría de existir la mitad de
+   las secciones justo cuando se buscan. `top` deja pasar la pill del rail.
+
+   El alto se acota al viewport y el scrollbar se oculta: la rueda la mueve
+   spatialNav / installInertialScroll, no el usuario. */
+.bp-library__nav {
+  position: sticky;
+  top: calc(5vh + 64px);
+  max-height: calc(100vh - 5vh - 64px - 48px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  min-width: 0;
+  /* La fila que asoma por abajo es la señal de "hay más", pero cortada a pelo
+     parece un fallo de render. El degradado la convierte en una pista. */
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 44px), transparent 100%);
+}
+
+.bp-library__nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Indicador blanco único detrás de la fila enfocada/activa (mismo modelo que
+   .bp-rail__indicator: un solo pill, posición medida del DOM real en vez de
+   aritmética, porque el bloque de géneros cambia de alto con la biblioteca). */
+.bp-library__indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 60px;
+  border-radius: 999px;
+  background: #f2f2f4;
+  transform: translateY(0);
+  transition: transform 0.22s cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+.bp-library__rows {
+  position: relative;
+}
+
+/* Envoltura de una fila: existe para poder intercalar la cabecera "Géneros"
+   sin romper el ritmo de 60+8 = el gap del propio rail. */
+.bp-library__slot {
+  margin-bottom: 8px;
+}
+
+.bp-library__slot:last-child {
+  margin-bottom: 0;
+}
+
+.bp-library__row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  height: 60px;
+  padding: 0 18px 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.68);
+  font-family: inherit;
+  font-size: 19px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: color 0.15s ease;
+}
+
+.bp-library__row.is-focused {
+  color: #0b0b0c;
+  font-weight: 700;
+}
+
+.bp-library__row:focus {
+  outline: none;
+}
+
+/* BigPicture.css escala TODO button:focus un 7%. En una columna cuya línea
+   izquierda es una vertical dura, eso desplaza el icono 10px y la etiqueta 7px
+   respecto a las otras trece filas de la misma columna — medido en el render.
+   Aquí la fila enfocada se queda en su caja: el highlight ya lo lleva el pill
+   blanco, y el texto se distingue por el color y el peso. */
+.big-picture--home-maximized .bp-library__row:focus {
+  transform: none;
+}
+
+.bp-library__row-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  flex: 0 0 auto;
+}
+
+.bp-library__row-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 20px/700 = el tamaño del título de sección del Home (.bp-row__title).
+   Alpha 0.5 en vez del 0.42 de la referencia: a 0.42 el contraste medido sobre
+   #0e0e10 es 4.07:1 y, aunque a 20px/700 ya cuenta como "large text" (3:1), a
+   0.5 da ~4.6:1 y pasa también como texto normal. */
+.bp-library__section {
+  margin: 20px 0 16px;
+  padding-left: 18px;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+/* ─── Columna de resultados ───────────────────────────────────────────── */
+
+.bp-library__results {
+  min-width: 0;
+}
+
+/* 6 columnas, como la referencia. Los huecos escalan con la tarjeta para
+   conservar la proporción de la referencia (≈22% del lado de la tarjeta:
+   26/116 de ancho, 38/175 de alto) en vez de copiar sus 26/38 absolutos, que
+   sobre tarjetas de ~196px quedarían apelados. */
+.bp-library__grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 64px 44px;
+}
+
+.bp-library__cell {
+  min-width: 0;
+  /* Cascada de entrada: fade + rise con retardo por índice (capado a 11 en el
+     style inline) para no eternizar bibliotecas grandes. */
+  animation: bp-library-cell-in 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(80ms + var(--bp-library-i, 0) * 35ms);
+}
+
+@keyframes bp-library-cell-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* Radio 14 = el de .bp-genre__poster. La tarjeta de la Biblioteca tiene que ser
+   indistinguible de la del Genre: mismo aspect-ratio, mismo radio, mismos
+   gaps de foco. */
+.bp-library__poster {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 217 / 326;
+  border: none;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #1c1c1e;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 0.16s ease;
+  /* Ancla de scroll del modo picture: al subir con el mando la card cae bajo
+     la pill, nunca cortada arriba. */
+  scroll-margin-top: calc(5vh + 81px);
+}
+
+.bp-library__poster:focus {
+  outline: none;
+}
+
+.big-picture--home-maximized .bp-library__poster:focus {
+  transform: scale(1.05);
+}
+
+.bp-library__poster img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Sin póster no se inventa arte: se dice el nombre. */
+.bp-library__fallback {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  padding: 18px;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.bp-library__status {
+  margin: 0;
+  padding: 48px 0;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ─── Ventanas estrechas: la columna de filtros no cabe al lado de seis
+   pósters, así que pasa arriba. Big Picture apunta a 1920, así que esto es la
+   red de seguridad del modo ventana pequeño. El mínimo de 5 columnas evita
+   tarjetas diminutas. ─── */
+
+@media (max-width: 1500px) {
+  .bp-library__body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 36px;
+  }
+
+  .bp-library__nav {
+    /* Apilada arriba del grid deja de tener sentido "pegada": se queda en su
+       sitio y la limita el propio flow. */
+    position: static;
+    max-height: none;
+    overflow: visible;
+    max-width: 480px;
+  }
+
+  .bp-library__grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bp-library__cell {
+    animation: none;
+  }
+
+  .bp-library__poster,
+  .bp-library__indicator,
+  .bp-library__row {
+    transition: none;
+  }
+}

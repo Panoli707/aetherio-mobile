@@ -52,8 +52,8 @@ export default function TopNavBar({ showBack = false }: Props) {
           className="flex items-center rounded-full px-1.5 py-1 gap-0.5"
           style={{
             background: "rgba(255,255,255,0.13)",
-            backdropFilter: "blur(16px)",
-            WebkitBackdropFilter: "blur(16px)",
+    backdropFilter: "var(--lg-filter-md)",
+    WebkitBackdropFilter: "var(--lg-filter-md)",
             border: "1px solid rgba(255,255,255,0.12)",
           }}
         >

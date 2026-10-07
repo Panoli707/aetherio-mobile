@@ -90,6 +90,10 @@ const STICK_REPEAT_MS = 220;
 // Al mantener dirección el repeat acelera hasta este suelo (recorrer rows).
 const STICK_REPEAT_MIN_MS = 70;
 const STICK_REPEAT_ACCEL_MS = 30;
+// LB/RB: una pulsación sigue valiendo (no hay umbral de arranque), pero al
+// mantener se repite cada BUMPER_REPEAT_MS para que el volumen del reproductor
+// sea continuo en vez de tener que pulsarlo varias veces.
+const BUMPER_REPEAT_MS = 80;
 
 type Dir = "up" | "down" | "left" | "right";
 
@@ -125,7 +129,9 @@ function dispatchGamepadKey(type: "keydown" | "keyup", key: string) {
 
 function isContextMenuOpen() {
   return typeof document !== "undefined"
-    && document.querySelector("[data-aetherio-context-menu]") !== null;
+    && document.querySelector(
+      '[data-aetherio-context-menu][data-context-open="true"], [data-aetherio-context-menu]:not([data-context-open])',
+    ) !== null;
 }
 
 export function isBigPictureActive() {
@@ -149,6 +155,10 @@ export function useGamepad({ onCombo, onStart, onGuide, enabled = true }: Gamepa
     let lastDir: Dir | null = null;
     let lastDirAt = 0;
     let dirHoldCount = 0;
+    // Bumper mantenido (LB/RB) con su última emisión: permite repetir la
+    // acción sin volver a pulsar (volumen continuo en el reproductor).
+    let heldBumper: GamepadActionId | null = null;
+    let lastBumperAt = 0;
     const prevButtons = new Map<number, boolean>();
 
     const pressedEdge = (pad: Gamepad, index: number) => {
@@ -175,6 +185,7 @@ export function useGamepad({ onCombo, onStart, onGuide, enabled = true }: Gamepa
       const pad = pickGamepad();
       if (!pad) {
         lastDir = null;
+        heldBumper = null;
         return;
       }
 
@@ -254,11 +265,25 @@ export function useGamepad({ onCombo, onStart, onGuide, enabled = true }: Gamepa
       }
       // LB(4)/RB(5) como PageUp/PageDown para filas largas (útil en Home desktop).
       // En el reproductor Big Picture se reclaman como volumen -/+.
-      if (pressedEdge(pad, 4)) {
-        if (!dispatchGamepadAction("lb")) dispatchKey("PageUp");
-      }
-      if (pressedEdge(pad, 5)) {
-        if (!dispatchGamepadAction("rb")) dispatchKey("PageDown");
+      // Mantenerlos repite la acción (el volumen así es continuo, sin tener
+      // que pulsar varias veces); la repetición solo existe si algún contexto
+      // reclamó el botón — fuera de él se conserva el PageUp/PageDown único.
+      const lbEdge = pressedEdge(pad, 4);
+      const rbEdge = pressedEdge(pad, 5);
+      if (lbEdge || rbEdge) {
+        const id: GamepadActionId = lbEdge ? "lb" : "rb";
+        const claimed = dispatchGamepadAction(id);
+        heldBumper = claimed ? id : null;
+        lastBumperAt = now;
+        if (!claimed) dispatchKey(id === "lb" ? "PageUp" : "PageDown");
+      } else if (heldBumper) {
+        const stillHeld = heldBumper === "lb" ? btn(4) : btn(5);
+        if (!stillHeld) {
+          heldBumper = null;
+        } else if (now - lastBumperAt >= BUMPER_REPEAT_MS) {
+          lastBumperAt = now;
+          dispatchGamepadAction(heldBumper, true);
+        }
       }
       // X(2) borra el último carácter SOLO con un teclado en pantalla montado
       // (Search/Party); fuera de él no hace nada. Antes de eso, la acción

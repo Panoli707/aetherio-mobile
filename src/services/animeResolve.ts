@@ -4,6 +4,11 @@ import { tmdbFetch } from "../config/apiKeys";
 const ARM_IMDB = "https://arm.haglund.dev/api/v2/imdb?id=";
 const ARM_TMDB = "https://arm.haglund.dev/api/v2/themoviedb?id=";
 const ARM_INCLUDE = "&include=myanimelist";
+// arm.haglund.dev es un servicio comunitario y puede tardar o no responder. Sin
+// corte, el fetch se queda colgado esperando al navegador y el detalle entero
+// (que espera este MAL antes de pintar) se va con él. Es la causa de que los
+// animes tardaran mucho más que el resto de filas.
+const ARM_TIMEOUT_MS = 4000;
 const ANILIST_GRAPHQL = "https://graphql.anilist.co";
 const ANILIST_TIMEOUT_MS = 6000;
 
@@ -22,7 +27,9 @@ async function armImdbToMal(imdbId: string): Promise<number | undefined> {
   if (pending) return pending;
   const request = (async () => {
     try {
-      const res = await fetch(`${ARM_IMDB}${encodeURIComponent(clean)}${ARM_INCLUDE}`);
+      const res = await fetch(`${ARM_IMDB}${encodeURIComponent(clean)}${ARM_INCLUDE}`, {
+        signal: AbortSignal.timeout(ARM_TIMEOUT_MS),
+      });
       if (!res.ok) return undefined;
       const arm = await res.json();
       const malId = Array.isArray(arm) ? arm[0]?.myanimelist : arm?.myanimelist;
@@ -45,7 +52,9 @@ async function armTmdbToMal(tmdbId: number): Promise<number | undefined> {
   if (pending) return pending;
   const request = (async () => {
     try {
-      const res = await fetch(`${ARM_TMDB}${tmdbId}${ARM_INCLUDE}`);
+      const res = await fetch(`${ARM_TMDB}${tmdbId}${ARM_INCLUDE}`, {
+        signal: AbortSignal.timeout(ARM_TIMEOUT_MS),
+      });
       if (!res.ok) return undefined;
       const arm = await res.json();
       const malId = Array.isArray(arm) ? arm[0]?.myanimelist : arm?.myanimelist;
@@ -199,6 +208,22 @@ export async function fetchAniListCharacterPhotos(staffName: string): Promise<An
   }
 }
 
+// Jikan devuelve TODOS los personajes de la serie (una larga tiene cientos) y
+// cada voz actor japones cuesta una busqueda en TMDB. Sin tope eso es una avalancha
+// de peticiones en paralelo al proxy, que encima se come el rate limit del resto
+// de la app. El reparto del hero usa tres, asi que sobra margen con veinte.
+const MAX_CAST_CHARACTERS = 20;
+
+const ROLE_ORDER = new Map<string, number>([
+  ["Main", 0],
+  ["MAIN", 0],
+  ["Supporting", 1],
+  ["SUPPORTING", 1],
+  ["Background", 2],
+  ["BACKGROUND", 2],
+  ["Minor", 3],
+]);
+
 async function resolveVoiceActorIds(chars: JikanCharacter[]): Promise<JikanCharacter[]> {
   const uniqueNames = [...new Set(chars.map((c) => c.voiceActor).filter((n): n is string => Boolean(n)))];
   const idMap = new Map<string, number>();
@@ -214,18 +239,34 @@ async function resolveVoiceActorIds(chars: JikanCharacter[]): Promise<JikanChara
   }));
 }
 
-export async function fetchAnimeCast(malId: number): Promise<JikanCharacter[]> {
+export async function fetchAnimeCast(
+  malId: number,
+  options: { resolveVoiceActors?: boolean } = {},
+): Promise<JikanCharacter[]> {
+  const resolveVoiceActors = options.resolveVoiceActors !== false;
   let chars: JikanCharacter[];
   try {
     chars = await fetchJikanAnimeCharacters(malId);
     if (chars.length) {
-      chars = await resolveVoiceActorIds(chars);
-      return chars;
+      chars = rankCast(chars);
+      return resolveVoiceActors ? await resolveVoiceActorIds(chars) : chars;
     }
   } catch {
   }
   chars = await fetchAniListCharacters(malId);
-  return await resolveVoiceActorIds(chars);
+  const ranked = rankCast(chars);
+  return resolveVoiceActors ? await resolveVoiceActorIds(ranked) : ranked;
+}
+
+// Protagonistas primero y, a igualdad, el orden que trae la fuente. El corte es
+// lo que evita hundreds de busquedas de persona en una serie larga.
+function rankCast(chars: JikanCharacter[]): JikanCharacter[] {
+  const rank = (c: JikanCharacter) => ROLE_ORDER.get(String(c.role ?? "")) ?? 4;
+  return chars
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => rank(a.c) - rank(b.c) || a.i - b.i)
+    .slice(0, MAX_CAST_CHARACTERS)
+    .map(entry => entry.c);
 }
 
 interface AniListCharEdge {

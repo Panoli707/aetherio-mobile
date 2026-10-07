@@ -57,12 +57,19 @@ export default function HomePage({ heroSlot, onContentVisibleChange }: { heroSlo
   const [isEntrance] = useState(() => isFreshHomeEntrance(location) && !hasEntrancePlayed());
   const [homeInfoVisible, setHomeInfoVisible] = useState(!isEntrance);
   const [previewRequest, setPreviewRequest] = useState<ShellPreviewRequest | null>(null);
+  // Cerrar el preview NO lo desmonta: se esconde. Los iframes del shell son
+  // documentos con su propio QueryClient, así que si mueren al cerrar, al
+  // reabrir el Detail vuelve a pedirlo todo desde cero. Escondido conserva la
+  // cache y hace que reabrir la misma fila sea instantáneo. El `key` de abajo
+  // sigue desmontando de verdad cuando se abre otra fila distinta.
+  const [previewDismissed, setPreviewDismissed] = useState(false);
   const handleOpenPreview = useCallback((request: ShellPreviewRequest) => {
     clearPendingShellPreview();
     setPreviewRequest(request);
+    setPreviewDismissed(false);
   }, []);
   const openPreview = isBigPicture ? handleOpenPreview : undefined;
-  const closePreview = useCallback(() => setPreviewRequest(null), []);
+  const closePreview = useCallback(() => setPreviewDismissed(true), []);
   const navigateFromPreview = useCallback((path: string, activeIndex: number, background?: string) => {
     // Se entra a una page detail desde el carrusel: se guarda el carrusel para
     // volver a él al salir del detail (el Home se desmonta al navegar).
@@ -355,13 +362,15 @@ export default function HomePage({ heroSlot, onContentVisibleChange }: { heroSlo
           <Empty typeFilter={typeFilter} />
         )}
       </div>
-      {isBigPicture && previewRequest ? (
-        <ShellDetailPreview
-          request={previewRequest}
-          onClose={closePreview}
-          onNavigate={navigateFromPreview}
-        />
-      ) : null}
+{isBigPicture && previewRequest ? (
+    <ShellDetailPreview
+      key={previewRequest.items?.[0]?.detailPath ?? previewRequest.detailPath}
+      request={previewRequest}
+      dismissed={previewDismissed}
+      onClose={closePreview}
+      onNavigate={navigateFromPreview}
+    />
+    ) : null}
     </div>
   );
 }

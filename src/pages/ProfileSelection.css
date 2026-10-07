@@ -1,3 +1,5 @@
+@import "../components/profile/ProfileBackdrop.css";
+
 .profile-selection-page {
   position: relative;
   min-height: 100vh;
@@ -12,77 +14,6 @@
    ni padding distintos. Ambas versiones renderizan exactamente lo mismo y el
    cambio de modo es imperceptible; lo que sí cambia es el destino al elegir
    perfil (/big-picture o /home) y el cursor. */
-
-.profile-selection-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  pointer-events: none;
-  background: #1a1a1a;
-}
-
-.profile-selection-bg-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  opacity: 0.85;
-  filter: blur(70px) saturate(1.3);
-  transform: scale(1.6);
-  transition: opacity 0.4s ease;
-}
-
-.bg-img-current {
-  opacity: 0.85;
-}
-
-.bg-img-leave {
-  opacity: 0;
-}
-
-.bg-img-enter {
-  opacity: 0.85;
-}
-
-.profile-selection-bg > div {
-  position: absolute;
-  inset: 0;
-}
-
-.profile-selection-bg-tint {
-  background: rgba(26, 26, 26, 0.25);
-}
-
-.profile-selection-bg-radial {
-  background: radial-gradient(
-    circle at 50% 50%,
-    rgba(255, 255, 255, 0.12) 0%,
-    rgba(255, 255, 255, 0.04) 25%,
-    transparent 55%,
-    rgba(26, 26, 26, 0.75) 100%
-  );
-}
-
-.profile-selection-bg-vertical {
-  background: linear-gradient(
-    to bottom,
-    rgba(26, 26, 26, 0.3),
-    transparent 40%,
-    transparent 60%,
-    rgba(26, 26, 26, 0.4)
-  );
-}
-
-.profile-selection-bg-bottom {
-  background: linear-gradient(
-    to bottom,
-    transparent 0%,
-    transparent 55%,
-    rgba(26, 26, 26, 0.65) 100%
-  );
-}
 
 .profile-selection-content {
   position: relative;
@@ -186,7 +117,22 @@
 }
 
 @media (min-width: 768px) {
-  .profile-selection-title {
+/* Aviso de PIN liberado por la migración de 4 dígitos. */
+.profile-selection-note {
+  max-width: 620px;
+  margin: -32px auto 28px;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.68);
+  text-align: center;
+}
+
+.profile-selection-title {
     font-size: 3rem;
   }
 }
@@ -218,8 +164,12 @@
   transition: transform 0.25s ease;
 }
 
+/* El foco del mando es programático: el navegador no marca :focus-visible
+   (no hay teclado real detrás), y por eso el motor espacial pone la clase
+   .spatial-focus. Sin ella la tarjeta se ve igual enfocada o no. */
 .profile-card:hover,
-.profile-card:focus-visible {
+.profile-card:focus-visible,
+.profile-card.spatial-focus {
   transform: scale(1.12);
 }
 
@@ -276,7 +226,8 @@
 }
 
 .profile-card:hover .profile-card-name,
-.profile-card:focus-visible .profile-card-name {
+.profile-card:focus-visible .profile-card-name,
+.profile-card.spatial-focus .profile-card-name {
   color: rgba(255, 255, 255, 0.95);
 }
 
@@ -286,12 +237,19 @@
   color: rgba(255, 255, 255, 0.4);
 }
 
+/* La de "Agregar" es la mas oscura de la fila, asi que el foco se marca con la
+   superficie y el "+" mas claros (un anillo blanco aqui queda feo). */
 .profile-card-add:hover .profile-card-avatar,
 .profile-card-add:focus-visible .profile-card-avatar {
   border: 0;
   background: rgba(255, 255, 255, 0.08);
   color: rgba(255, 255, 255, 0.7);
   box-shadow: none;
+}
+
+.profile-card-add.spatial-focus .profile-card-avatar {
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.92);
 }
 
 .profile-card-add .profile-card-name {
@@ -303,117 +261,17 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
-/* PIN Modal */
-.pin-modal-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
+.profile-card-add.spatial-focus .profile-card-name {
+  color: #fff;
+}
+
+/* El passcode sustituye en el sitio a las burbujas y al titulo: no hay
+   overlay ni blur, solo la misma page con otro contenido en el centro. */
+.profile-selection-pin {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(8px);
-}
-
-.pin-modal {
   width: 100%;
-  max-width: 480px;
-  margin: 16px;
-  padding: 38px;
-  border-radius: 20px;
-  background: rgba(40, 40, 42, 0.95);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-}
-
-.pin-modal-profile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.pin-modal-name {
-  font-size: 1.35rem;
-  font-weight: 800;
-  color: #fff;
-}
-
-.pin-modal-hint {
-  font-size: 1rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.pin-input-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 20px;
-  border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.pin-input-wrapper input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: 1rem;
-  color: #fff;
-}
-
-.pin-input-wrapper input::placeholder {
-  color: rgba(255, 255, 255, 0.34);
-}
-
-.pin-error {
-  margin-top: 14px;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #fca5a5;
-}
-
-.pin-actions {
-  display: flex;
-  gap: 14px;
-  margin-top: 28px;
-}
-
-.pin-btn {
-  flex: 1;
-  padding: 14px 24px;
-  border-radius: 9999px;
-  font-size: 1rem;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.pin-btn-cancel {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: transparent;
-  color: rgba(255, 255, 255, 0.68);
-}
-
-.pin-btn-cancel:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.pin-btn-enter {
-  border: none;
-  background: #fff;
-  color: #000;
-}
-
-.pin-btn-enter:hover {
-  background: rgba(255, 255, 255, 0.82);
-}
-
-.pin-btn-enter:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  min-height: 62vh;
+  transform-origin: center;
 }

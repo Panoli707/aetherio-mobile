@@ -8,15 +8,10 @@ import {
   Compass,
   ExternalLink,
   KeyRound,
-  Library,
   Lock,
   PlayCircle,
   Puzzle,
-  Search,
-  Settings,
   Share2,
-  Sparkles,
-  UserRound,
 } from "lucide-react";
 import aetherioLogo from "../assets/aetheriologo.png";
 import ProfileAvatar from "../components/profile/ProfileAvatar.tsx";
@@ -41,11 +36,45 @@ import { openExternalUrl } from "../runtime/platform.ts";
 import {
   createLocalProfile,
   getLocalProfiles,
+  pinLengthError,
   readImageFileAsDataUrl,
   verifyPin,
   type LocalProfile,
 } from "../utils/localProfiles.ts";
 import mugiwaraSeekLogo from "../assets/mugiwara-seeklogo.png";
+import ProfileBackdrop from "../components/profile/ProfileBackdrop.tsx";
+import { useHideCursorOnGamepad } from "../hooks/useHideCursorOnGamepad.ts";
+import QuickStartProfile, { registerPresetDataUrl, type ProfileFlowStage } from "../components/quickstart/QuickStartProfile.tsx";
+
+/** Lado del avatar ya recortado antes de guardarlo en el perfil. */
+const PRESET_AVATAR_SIZE = 384;
+
+/**
+ * Avatar por defecto (una de las mascotas) a data URL: recorte cuadrado al
+ * centro y reencodeado. Las mascotas son PNG de ~1250px y 1 MB; guardarlas tal
+ * cual engordaria cada perfil con mas de un megabyte de base64.
+ */
+async function readPresetAsDataUrl(src: string): Promise<string> {
+  const image = new Image();
+  image.decoding = "async";
+  image.src = src;
+  await image.decode();
+
+  const size = Math.min(image.naturalWidth, image.naturalHeight);
+  const sx = (image.naturalWidth - size) / 2;
+  const sy = (image.naturalHeight - size) / 2;
+
+  const canvas = document.createElement("canvas");
+  canvas.width = PRESET_AVATAR_SIZE;
+  canvas.height = PRESET_AVATAR_SIZE;
+  const context = canvas.getContext("2d");
+  if (!context) throw new Error("No se pudo preparar la imagen.");
+  context.drawImage(image, sx, sy, size, size, 0, 0, PRESET_AVATAR_SIZE, PRESET_AVATAR_SIZE);
+
+  const webp = canvas.toDataURL("image/webp", 0.9);
+  if (webp.startsWith("data:image/webp")) return webp;
+  return canvas.toDataURL("image/png");
+}
 
 type QuickStartStep = "profile" | "welcome" | "content" | "playback" | "apis" | "addons";
 
@@ -56,9 +85,11 @@ interface QuickStartProps {
   useFreshDefaults?: boolean;
   profileOnly?: boolean;
   onComplete: (destination: "/home" | "/addons") => void;
+  /** B / Esc en el nombre: se abandona la creación y se vuelve al selector. */
+  onCancel?: () => void;
 }
 
-export default function QuickStart({ installedAddons, activeProfile, defaultName = "", useFreshDefaults = false, profileOnly = false, onComplete }: QuickStartProps) {
+export default function QuickStart({ installedAddons, activeProfile, defaultName = "", useFreshDefaults = false, profileOnly = false, onComplete, onCancel }: QuickStartProps) {
   const [includeProfileStep] = useState(() => activeProfile === null);
   const [step, setStep] = useState(0);
   const [profile, setProfile] = useState<LocalProfile | null>(activeProfile);
@@ -67,6 +98,10 @@ export default function QuickStart({ installedAddons, activeProfile, defaultName
   const [profileAvatar, setProfileAvatar] = useState<string | undefined>();
   const [profileError, setProfileError] = useState("");
   const [creatingProfile, setCreatingProfile] = useState(false);
+  // Sub-flujo del paso "profile": nombre -> imagen -> resumen -> bienvenida.
+  const [profileStage, setProfileStage] = useState<ProfileFlowStage>("name");
+  // El mando puede repetir el OK: un solo aviso de salida por pulsacion doble.
+  const leavingProfileFlowRef = useRef(false);
   const [keys, setKeys] = useState<ApiKeys>(() => useFreshDefaults ? { ...EMPTY_API_KEYS } : getApiKeys());
   const [playback, setPlayback] = useState<PlaybackPreferences>(() => useFreshDefaults ? { ...DEFAULT_PLAYBACK_PREFERENCES } : getPlaybackPreferences());
   const [homePreferences, setHomePreferences] = useState<HomePreferences>(() => useFreshDefaults
@@ -90,6 +125,11 @@ export default function QuickStart({ installedAddons, activeProfile, defaultName
       setProfileError("Escribe un nombre para crear el perfil.");
       return;
     }
+    const pinIssue = pinLengthError(profilePin);
+    if (pinIssue) {
+      setProfileError(pinIssue);
+      return;
+    }
     setCreatingProfile(true);
     setProfileError("");
     try {
@@ -99,9 +139,10 @@ export default function QuickStart({ installedAddons, activeProfile, defaultName
         { makeActive: true, adoptCurrentData: isFirstProfile },
       );
       setProfile(created);
+      // En /quick-start/profile no hay paso "welcome" detras: la bienvenida es
+      // la ultima pantalla del sub-flujo y su CTA es quien sale (leaveProfileFlow).
       if (profileOnly) {
-        completeQuickStart();
-        onComplete("/home");
+        setProfileStage("welcome");
         return;
       }
       setStep(1);
@@ -123,6 +164,39 @@ export default function QuickStart({ installedAddons, activeProfile, defaultName
     }
   }
 
+  /**
+   * Mascota por defecto: el perfil solo admite data URLs, asi que la imagen se
+   * recorta a un cuadrado de PRESET_AVATAR_SIZE y se codifica antes de guardarse.
+   * Sin esto se meteria el PNG original (~1 MB) en el perfil de cada usuario.
+   * WebP con alfa cuando el navegador lo trae; PNG como reserva.
+   */
+  async function choosePresetProfileImage(src: string) {
+    try {
+      const dataUrl = await readPresetAsDataUrl(src);
+      registerPresetDataUrl(src, dataUrl);
+      setProfileAvatar(dataUrl);
+      setProfileError("");
+    } catch (error) {
+      setProfileError(error instanceof Error ? error.message : "No se pudo cargar la imagen.");
+    }
+  }
+
+  function clearProfileImage() {
+    setProfileAvatar(undefined);
+    setProfileError("");
+  }
+
+  function leaveProfileFlow() {
+    if (leavingProfileFlowRef.current) return;
+    leavingProfileFlowRef.current = true;
+    if (profileOnly) {
+      completeQuickStart();
+      onComplete("/home");
+      return;
+    }
+    setStep(current => Math.min(steps.length - 1, current + 1));
+  }
+
   function finish(destination: "/home" | "/addons") {
     persistSelections();
     completeQuickStart();
@@ -142,6 +216,58 @@ export default function QuickStart({ installedAddons, activeProfile, defaultName
     persistSelections();
     completeQuickStart();
     onComplete(installedAddons > 0 ? "/home" : "/addons");
+  }
+
+  /**
+   * Esta page es la misma identidad que Profiles (mismo fondo, mismo pad, mismo
+   * teclado en pantalla), asi que enciende el mismo flag: con el, el motor
+   * espacial global deja pasar las flechas y el mando recorre los controles por
+   * geometria. Sin la clase, el teclado en pantalla no se puede usar con el
+   * mando. No lleva CSS: es solo un flag de modo.
+   */
+  const isIdentityPage = currentStep === "profile" || currentStep === "welcome";
+  useEffect(() => {
+    if (!isIdentityPage) return;
+    document.documentElement.classList.add("aetherio-profile-selection");
+    return () => document.documentElement.classList.remove("aetherio-profile-selection");
+  }, [isIdentityPage]);
+
+  // Con el mando en la mano el cursor sobra (igual que en Profiles): se esconde
+  // al moverlo y vuelve con el ratón o con una tecla real.
+  useHideCursorOnGamepad();
+
+  // El paso "profile" es una page completa con el fondo compartido de Profiles:
+  // el sub-flujo (nombre, imagen, resumen, bienvenida) necesita toda la pantalla
+  // y asi el passage de perfil a perfil no cambia de fondo.
+  if (currentStep === "profile" || currentStep === "welcome") {
+    const welcomeOnly = currentStep === "welcome";
+    return (
+      <div className="relative min-h-screen overflow-hidden text-white">
+        <ProfileBackdrop imageUrl={profile?.avatarDataUrl ?? profileAvatar} />
+        <QuickStartProfile
+          stage={welcomeOnly ? "welcome" : profileStage}
+          name={welcomeOnly ? profile?.name ?? profileName : profileName}
+          pin={profilePin}
+          avatarDataUrl={welcomeOnly ? profile?.avatarDataUrl : profileAvatar}
+          error={profileError}
+          busy={creatingProfile}
+          onNameChange={setProfileName}
+          onPinChange={setProfilePin}
+          onStageChange={welcomeOnly ? () => {} : setProfileStage}
+          onChooseImage={chooseProfileImage}
+          onPickPreset={(src) => void choosePresetProfileImage(src)}
+          onClearImage={clearProfileImage}
+          onExit={onCancel ?? (() => undefined)}
+          onSubmit={() => {
+            if (welcomeOnly || profileStage === "welcome") {
+              leaveProfileFlow();
+              return;
+            }
+            void createProfileAndContinue();
+          }}
+        />
+      </div>
+    );
   }
 
   return (
@@ -178,18 +304,6 @@ export default function QuickStart({ installedAddons, activeProfile, defaultName
         </div>
 
         <section key={step} className="aetherio-page-enter flex flex-1 items-center py-8 md:py-12">
-          {currentStep === "profile" ? (
-            <ProfileStep
-              name={profileName}
-              pin={profilePin}
-              avatarDataUrl={profileAvatar}
-              error={profileError}
-              onNameChange={setProfileName}
-              onPinChange={setProfilePin}
-              onChooseImage={chooseProfileImage}
-            />
-          ) : null}
-          {currentStep === "welcome" ? <WelcomeStep profileName={profile?.name ?? "Aetherio"} /> : null}
           {currentStep === "content" ? (
             <ContentStep
               orientation={homePreferences.contentOrientation}
@@ -221,16 +335,14 @@ export default function QuickStart({ installedAddons, activeProfile, defaultName
             Atrás
           </button>
 
-          {step < steps.length - 1 || currentStep === "profile" ? (
+          {step < steps.length - 1 ? (
             <button
               type="button"
               onClick={() => void continueToNextStep()}
               disabled={creatingProfile}
               className="gsap-transition flex items-center gap-2 rounded-full bg-white px-6 py-3 text-sm font-black text-black disabled:opacity-55 hover:bg-white/82"
             >
-              {currentStep === "profile"
-                ? (creatingProfile ? "Creando perfil..." : "Crear perfil y continuar")
-                : "Continuar"}
+              {creatingProfile ? "Creando perfil..." : "Continuar"}
               <ChevronRight size={17} />
             </button>
           ) : (
@@ -367,119 +479,6 @@ function ContentStep({
             <p className="mt-3 px-1 text-xs font-medium text-white/44">Si eliges Anime, los catálogos de anime se muestran primero y viceversa.</p>
           </div>
         ) : null}
-      </div>
-    </div>
-  );
-}
-
-function ProfileStep({
-  name,
-  pin,
-  avatarDataUrl,
-  error,
-  onNameChange,
-  onPinChange,
-  onChooseImage,
-}: {
-  name: string;
-  pin: string;
-  avatarDataUrl?: string;
-  error: string;
-  onNameChange: (value: string) => void;
-  onPinChange: (value: string) => void;
-  onChooseImage: (event: ChangeEvent<HTMLInputElement>) => void;
-}) {
-  const previewProfile: LocalProfile = {
-    id: "quick-start-preview",
-    name: name || "Aetherio",
-    avatarDataUrl,
-    createdAt: 0,
-    updatedAt: 0,
-  };
-
-  return (
-    <div className="grid w-full gap-9 lg:grid-cols-[0.78fr_1.22fr] lg:items-center">
-      <StepIntroduction
-        icon={<UserRound size={22} />}
-        eyebrow="Tu perfil"
-        title="Primero, ¿cómo te llamamos?"
-        description="Cada perfil mantiene sus propias claves, preferencias, progreso y conexiones. El PIN y la foto son opcionales."
-      />
-
-      <div className="grid gap-5 rounded-[30px] border border-white/10 bg-white/[0.055] p-6 shadow-2xl md:p-8">
-        <div className="flex items-center gap-4">
-          <ProfileAvatar profile={previewProfile} className="relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl text-xl font-black" />
-          <div>
-            <p className="text-lg font-black">{name.trim() || "Tu nuevo perfil"}</p>
-            <p className="text-xs font-semibold text-white/42">Guardado localmente en este equipo</p>
-          </div>
-        </div>
-
-        <label className="block">
-          <span className="mb-2 block text-sm font-black text-white/78">Nombre</span>
-          <input
-            value={name}
-            onChange={event => onNameChange(event.target.value)}
-            autoFocus
-            maxLength={32}
-            placeholder="Tu nombre"
-            className="w-full rounded-full border border-white/12 bg-white px-4 py-3 text-sm font-semibold text-black outline-none placeholder:text-black/38 focus:border-white/42"
-          />
-        </label>
-
-        <label className="block">
-          <span className="mb-2 block text-sm font-black text-white/78">PIN opcional</span>
-          <input
-            value={pin}
-            onChange={event => onPinChange(event.target.value.replace(/\D/g, "").slice(0, 8))}
-            type="password"
-            inputMode="numeric"
-            autoComplete="new-password"
-            placeholder="Sin PIN"
-            className="w-full rounded-full border border-white/12 bg-white px-4 py-3 text-sm font-semibold text-black outline-none placeholder:text-black/38 focus:border-white/42"
-          />
-        </label>
-
-        <label className="block cursor-pointer rounded-[20px] border border-dashed border-white/16 bg-white/[0.04] p-4 gsap-transition hover:bg-white/8">
-          <span className="block text-sm font-black">Elegir foto</span>
-          <span className="mt-1 block text-xs font-medium text-white/42">PNG, JPG o WEBP desde tu equipo.</span>
-          <input type="file" accept="image/*" onChange={onChooseImage} className="sr-only" />
-        </label>
-
-        {error ? <p className="text-sm font-bold text-red-300">{error}</p> : null}
-      </div>
-    </div>
-  );
-}
-
-function WelcomeStep({ profileName }: { profileName: string }) {
-  const areas = [
-    { icon: <Clapperboard size={20} />, title: "Inicio", description: "Tus catálogos y recomendaciones." },
-    { icon: <Search size={20} />, title: "Buscar", description: "Películas, series, anime y personas." },
-    { icon: <Library size={20} />, title: "Biblioteca", description: "Progreso y contenido guardado." },
-    { icon: <Settings size={20} />, title: "Ajustes", description: "Perfiles, fuentes e integraciones." },
-  ];
-
-  return (
-    <div className="grid w-full gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(520px,1.1fr)] lg:items-center">
-      <div className="max-w-xl">
-        <span className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/7 px-3 py-1.5 text-xs font-black text-white/68">
-          <Sparkles size={14} />
-          Primera configuración
-        </span>
-        <h1 className="text-4xl font-black leading-[0.98] tracking-[-0.05em] md:text-6xl">
-          Hola, {profileName}.
-          <span className="mt-2 block text-white/38">Hagamos que Aetherio sea tuyo.</span>
-        </h1>
-        <p className="mt-6 max-w-lg text-base font-medium leading-7 text-white/58">
-          En unos pasos configuraremos cómo quieres encontrar y reproducir contenido. Todo se guarda únicamente para este perfil.
-        </p>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        {areas.map(area => (
-          <InfoCard key={area.title} icon={area.icon} title={area.title} description={area.description} />
-        ))}
       </div>
     </div>
   );
@@ -681,7 +680,7 @@ function ApiStep({
                 ref={pinRef}
                 type="password"
                 inputMode="numeric"
-                maxLength={8}
+                maxLength={4}
                 value={sharing.pin}
                 onChange={e =>
                   setSharing(prev => prev ? { ...prev, pin: e.target.value.replace(/\D/g, ""), error: "" } : null)
@@ -757,16 +756,6 @@ function StepIntroduction({ icon, eyebrow, title, description }: { icon: ReactNo
       <h2 className="mt-3 text-4xl font-black leading-[1.02] tracking-[-0.04em] md:text-5xl">{title}</h2>
       <p className="mt-5 text-base font-medium leading-7 text-white/56">{description}</p>
     </div>
-  );
-}
-
-function InfoCard({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
-  return (
-    <article className="rounded-[24px] border border-white/10 bg-white/[0.055] p-5">
-      <span className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-white/72">{icon}</span>
-      <h3 className="text-base font-black">{title}</h3>
-      <p className="mt-1 text-sm font-medium text-white/44">{description}</p>
-    </article>
   );
 }
 

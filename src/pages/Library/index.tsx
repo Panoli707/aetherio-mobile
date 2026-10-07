@@ -1,8 +1,9 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BookMarked, Compass, Film, RefreshCw, Tv } from "lucide-react";
+import { Compass, Film, RefreshCw, Tv } from "lucide-react";
 import { appleEase, gsap, prefersReducedMotion, tweenTo } from "../../utils/motion";
 import PageContainer from "../../components/layout/PageContainer";
+import LibraryIcon from "../../components/ui/LibraryIcon";
 import { writeDetailMediaMeta } from "../../utils/mediaMetadata";
 import { useProfileGradient } from "../../hooks/useProfileGradient";
 import {
@@ -36,9 +37,9 @@ import {
 type LibraryTab = "library" | "discover";
 const DISCOVER_VISIBLE_BATCH = 20;
 
-// §3/§4/§14 — stagger grid cards in on change; reduced-motion collapses to a cross-fade.
+// Â§3/Â§4/Â§14 â€” stagger grid cards in on change; reduced-motion collapses to a cross-fade.
 // Only newly-mounted cards animate on each pass (tracked via a ref), so reuse (identity
-// churn, "Mostrar más" appends) never re-webs the whole grid.
+// churn, "Mostrar mÃ¡s" appends) never re-webs the whole grid.
 function useGridEntrance(containerRef: React.RefObject<HTMLElement | null>, deps: React.DependencyList) {
   const seenRef = useRef<WeakSet<Element>>(new WeakSet());
   useLayoutEffect(() => {
@@ -125,7 +126,7 @@ export default function LibraryPage() {
     const panel = tabPanelRef.current;
     if (!panel) return;
     if (prefersReducedMotion()) {
-      // §14 — short cross-fade, no slide/scale
+      // Â§14 â€” short cross-fade, no slide/scale
       gsap.fromTo(panel, { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "power1.out" });
       return;
     }
@@ -153,7 +154,7 @@ export default function LibraryPage() {
             <h1 className="text-[clamp(2.35rem,4.8vw,4.8rem)] font-black leading-none text-white">{tab === "library" ? "Mi biblioteca" : "Descubrir"}</h1>
           </div>
           <div className="liquid-glass inline-flex rounded-2xl p-1" style={{ transform: "translateZ(0)" }}>
-            <TabButton active={tab === "library"} icon={<BookMarked size={17} />} onClick={() => setTab("library")}>
+            <TabButton active={tab === "library"} icon={<LibraryIcon size={17} />} onClick={() => setTab("library")}>
               Mi biblioteca
             </TabButton>
             <TabButton active={tab === "discover"} icon={<Compass size={17} />} onClick={() => setTab("discover")}>
@@ -289,7 +290,7 @@ function DiscoverLibrary({
       })
       .catch(error => {
         if (error instanceof DOMException && error.name === "AbortError") return;
-        setError(error instanceof Error ? error.message : "No se pudo cargar este catálogo.");
+        setError(error instanceof Error ? error.message : "No se pudo cargar este catÃ¡logo.");
         setHasMore(false);
       })
       .finally(() => {
@@ -315,7 +316,7 @@ function DiscoverLibrary({
       setPage(nextPage);
       setHasMore(result.hasMore && merged.added > 0);
     } catch (error) {
-      setError(error instanceof Error ? error.message : "No se pudo cargar la siguiente página.");
+      setError(error instanceof Error ? error.message : "No se pudo cargar la siguiente pÃ¡gina.");
       setHasMore(false);
     } finally {
       setLoadingMore(false);
@@ -343,9 +344,9 @@ function DiscoverLibrary({
           }}
         />
         <Selector
-          label="Catálogo"
+          label="CatÃ¡logo"
           value={selectedCatalog?.key ?? ""}
-          options={catalogsForType.map(value => ({ value: value.key, label: `${value.catalogName} · ${value.addonName}` }))}
+          options={catalogsForType.map(value => ({ value: value.key, label: `${value.catalogName} Â· ${value.addonName}` }))}
           onChange={value => {
             setCatalogKey(value);
             setGenre("");
@@ -353,7 +354,7 @@ function DiscoverLibrary({
         />
         {selectedCatalog?.genres.length ? (
           <Selector
-            label="Género"
+            label="GÃ©nero"
             value={selectedGenre}
             options={[
               { value: "", label: "Todos" },
@@ -390,14 +391,14 @@ function DiscoverLibrary({
                 className="liquid-glass gsap-transition inline-flex h-11 items-center gap-2 rounded-full px-5 text-sm font-black text-white disabled:opacity-50"
               >
                 <RefreshCw size={16} className={loadingMore ? "animate-spin" : ""} />
-                {loadingMore ? "Cargando…" : "Mostrar más"}
+                {loadingMore ? "Cargandoâ€¦" : "Mostrar mÃ¡s"}
               </button>
             </div>
           ) : null}
           {error ? <p className="text-center text-xs font-semibold text-red-300/80">{error}</p> : null}
         </>
       ) : (
-        <DiscoverError message="Este catálogo no devolvió contenido." />
+        <DiscoverError message="Este catÃ¡logo no devolviÃ³ contenido." />
       )}
     </div>
   );
@@ -421,16 +422,16 @@ function LibrarySelectors({
       <Selector label="Lista" value={filters.list} options={facetOptions(lists)} onChange={value => onChange("list", value)} />
       <Selector label="Tipo" value={filters.type} options={facetOptions(types)} onChange={value => onChange("type", value)} />
       {genres.length > 1 ? (
-        <Selector label="Género" value={filters.genre} options={facetOptions(genres)} onChange={value => onChange("genre", value)} />
+        <Selector label="GÃ©nero" value={filters.genre} options={facetOptions(genres)} onChange={value => onChange("genre", value)} />
       ) : null}
       <Selector
         label="Orden"
         value={filters.sort}
         options={[
-          { value: "added_desc", label: "Añadidos recientemente" },
-          { value: "added_asc", label: "Añadidos primero" },
-          { value: "title_asc", label: "Título A–Z" },
-          { value: "title_desc", label: "Título Z–A" },
+          { value: "added_desc", label: "AÃ±adidos recientemente" },
+          { value: "added_asc", label: "AÃ±adidos primero" },
+          { value: "title_asc", label: "TÃ­tulo Aâ€“Z" },
+          { value: "title_desc", label: "TÃ­tulo Zâ€“A" },
         ]}
         onChange={value => onChange("sort", value as LibraryFilters["sort"])}
       />
@@ -492,7 +493,7 @@ function AniListSyncBanner({
         </button>
         <button type="button" onClick={() => void onSync()} disabled={syncing} onPointerDown={e => { if (e.button === 0 && !syncing) tweenTo(e.currentTarget, { scale: 0.96 }); }} onPointerUp={e => tweenTo(e.currentTarget, { scale: 1 }, 0.24)} onPointerCancel={e => tweenTo(e.currentTarget, { scale: 1 }, 0.24)} className="gsap-transition inline-flex h-10 items-center gap-2 rounded-full bg-white px-4 text-xs font-black text-black disabled:opacity-55">
           <RefreshCw size={15} className={syncing ? "animate-spin" : ""} />
-          {syncing ? "Sincronizando…" : "Sincronizar ahora"}
+          {syncing ? "Sincronizandoâ€¦" : "Sincronizar ahora"}
         </button>
       </div>
     </div>
@@ -527,8 +528,8 @@ function LibrarySummary({ items }: { items: MediaItem[] }) {
   const shows = new Set(items.filter(item => item.type !== "movie").map(item => item.id));
   return (
     <div className="grid gap-3 md:grid-cols-3">
-      <Metric icon={<BookMarked size={18} />} label="En tu biblioteca" value={new Set(items.map(item => `${item.type}:${item.id}`)).size} />
-      <Metric icon={<Film size={18} />} label="Películas" value={movies.size} />
+      <Metric icon={<LibraryIcon size={18} />} label="En tu biblioteca" value={new Set(items.map(item => `${item.type}:${item.id}`)).size} />
+      <Metric icon={<Film size={18} />} label="PelÃ­culas" value={movies.size} />
       <Metric icon={<Tv size={18} />} label="Series y anime" value={shows.size} />
     </div>
   );
@@ -570,7 +571,7 @@ function facetOptions(options: FacetOption[]) {
 }
 
 function typeLabel(type: string) {
-  if (type === "movie") return "Películas";
+  if (type === "movie") return "PelÃ­culas";
   if (type === "series") return "Series";
   return type.charAt(0).toUpperCase() + type.slice(1);
 }
@@ -578,8 +579,8 @@ function typeLabel(type: string) {
 function EmptyLibrary() {
   return (
     <div className="liquid-glass mx-12 rounded-2xl px-6 py-10 text-center text-white/54">
-      <p className="text-lg font-black text-white">Tu biblioteca se llenará automáticamente.</p>
-      <p className="mt-2 text-sm">Reproduce, marca contenido como visto o sincroniza AniList para verlo aquí.</p>
+      <p className="text-lg font-black text-white">Tu biblioteca se llenarÃ¡ automÃ¡ticamente.</p>
+      <p className="mt-2 text-sm">Reproduce, marca contenido como visto o sincroniza AniList para verlo aquÃ­.</p>
     </div>
   );
 }
@@ -587,8 +588,8 @@ function EmptyLibrary() {
 function EmptyFilteredLibrary() {
   return (
     <div className="liquid-glass mx-12 rounded-2xl px-6 py-10 text-center text-white/54">
-      <p className="text-lg font-black text-white">No hay títulos con estos filtros.</p>
-      <p className="mt-2 text-sm">Cambia la lista, el tipo, el género o el año.</p>
+      <p className="text-lg font-black text-white">No hay tÃ­tulos con estos filtros.</p>
+      <p className="mt-2 text-sm">Cambia la lista, el tipo, el gÃ©nero o el aÃ±o.</p>
     </div>
   );
 }
@@ -641,8 +642,8 @@ function LibraryGridCard({ item }: { item: MediaItem }) {
 function EmptyDiscover() {
   return (
     <div className="liquid-glass mx-12 rounded-2xl px-6 py-10 text-center text-white/54">
-      <p className="text-lg font-black text-white">No hay catálogos para descubrir.</p>
-      <p className="mt-2 text-sm">Instala o activa addons con catálogos que no requieran una búsqueda.</p>
+      <p className="text-lg font-black text-white">No hay catÃ¡logos para descubrir.</p>
+      <p className="mt-2 text-sm">Instala o activa addons con catÃ¡logos que no requieran una bÃºsqueda.</p>
     </div>
   );
 }
@@ -650,7 +651,7 @@ function EmptyDiscover() {
 function DiscoverError({ message }: { message: string }) {
   return (
     <div className="liquid-glass mx-12 rounded-2xl px-6 py-10 text-center text-white/54">
-      <p className="text-lg font-black text-white">No se pudo mostrar este catálogo.</p>
+      <p className="text-lg font-black text-white">No se pudo mostrar este catÃ¡logo.</p>
       <p className="mt-2 text-sm">{message}</p>
     </div>
   );

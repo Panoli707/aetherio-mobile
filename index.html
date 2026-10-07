@@ -12,6 +12,65 @@
   </head>
 
   <body>
+    <!--
+      Material "liquid glass" por refraccion: backdrop-filter:url(#frosted-*).
+      El backdrop entra como SourceGraphic y el feDisplacementMap lo deforma
+      con el campo de ruido, en vez de solo difuminarlo con blur().
+
+     Va aqui (y no en un componente) para que exista antes del primer pintado:
+      si el filtro se montara con React, el shell arrancaria con el panel
+      plano durante los primeros frames.
+
+      Cuatro intensidades para conservar la jerarquia que antes expresaba el
+      radio de blur (xl=48-60px, lg=22-32px, md=16-20px, sm=5-12px) y una seed
+      distinta por nivel: con la misma seed, dos superficies vecinas deforman
+      identico y el patron se vuelve visible.
+
+      El orden de la cadena es lo que hace que esto sea vidrio y no un filtro
+      de onda: displacement PRIMERO (deforma el backdrop -> la onda queda
+      grabada) y el difuminado DESPUES (suaviza lo deformado). Al reves no hay
+      efecto: se difumina a un gradiente y luego se deforma un degradado, que
+      es invisible.
+
+      stdDeviation de salida (10/7/5/3) es mucho menor que el blur que sustituye
+      (48-60px). Es deliberado: en SVG el coste del kernel crece con
+      stdDeviation, y un stdDeviation de 48 sobre superficies de este tamano no
+      es viable. Con displacement ya cocido, 10 basta para leer como esmerilado.
+
+      color-interpolation-filters="sRGB" es obligatorio: el default
+      (linearRGB) lava el desplazamiento y no coincide con el resto del
+      material, que esta compuesto en sRGB.
+
+      La region -20%/140% excede la caja porque tanto el displacement como el
+      blur de salida toman pixeles de fuera; al 100% se recortan y el panel
+      muestra un marco claro en el borde.
+    -->
+    <svg width="0" height="0" aria-hidden="true" focusable="false" style="position:absolute;pointer-events:none">
+      <defs>
+        <filter id="frosted-xl" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.006 0.008" numOctaves="2" seed="11" result="n" />
+          <feGaussianBlur in="n" stdDeviation="1.5" result="nb" />
+          <feDisplacementMap in="SourceGraphic" in2="nb" scale="80" xChannelSelector="R" yChannelSelector="G" result="d" />
+          <feGaussianBlur in="d" stdDeviation="10" />
+        </filter>
+        <filter id="frosted-lg" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.008 0.010" numOctaves="2" seed="29" result="n" />
+          <feGaussianBlur in="n" stdDeviation="1.2" result="nb" />
+          <feDisplacementMap in="SourceGraphic" in2="nb" scale="46" xChannelSelector="R" yChannelSelector="G" result="d" />
+          <feGaussianBlur in="d" stdDeviation="7" />
+        </filter>
+        <filter id="frosted-md" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.010 0.012" numOctaves="2" seed="47" result="nb" />
+          <feDisplacementMap in="SourceGraphic" in2="nb" scale="24" xChannelSelector="R" yChannelSelector="G" result="d" />
+          <feGaussianBlur in="d" stdDeviation="5" />
+        </filter>
+        <filter id="frosted-sm" x="-20%" y="-20%" width="140%" height="140%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.014 0.016" numOctaves="2" seed="71" result="nb" />
+          <feDisplacementMap in="SourceGraphic" in2="nb" scale="11" xChannelSelector="R" yChannelSelector="G" result="d" />
+          <feGaussianBlur in="d" stdDeviation="3" />
+        </filter>
+      </defs>
+    </svg>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

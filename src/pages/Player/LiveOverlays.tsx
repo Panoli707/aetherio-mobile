@@ -9,12 +9,10 @@ export function LiveBadge({
   atEdge,
   latencySeconds,
   playing,
-  lightBackground,
 }: {
   atEdge: boolean;
   latencySeconds: number;
   playing: boolean;
-  lightBackground: boolean;
 }) {
   const behind = Math.max(0, latencySeconds);
   return (
@@ -38,7 +36,7 @@ export function LiveBadge({
       {!atEdge ? (
         <span
           className={`rounded-md px-2 py-1 text-[11px] font-semibold tabular-nums shadow-lg ${
-            lightBackground ? "bg-black/70 text-white/85" : "bg-black/60 text-white/75"
+            "bg-black/60 text-white/75"
           }`}
         >
           -{behind < 10 ? behind.toFixed(1) : Math.round(behind)}s
@@ -57,7 +55,7 @@ export function LiveEndedNotice({ onRetry }: { onRetry: () => void }) {
   return (
     <div
       data-player-live-ended
-      className="absolute inset-0 z-40 flex items-center justify-center bg-black/72 px-6 backdrop-blur-sm"
+      className="absolute inset-0 z-40 flex items-center justify-center bg-black/72 px-6 backdrop-blur-glass-sm"
     >
       <div className="flex max-w-sm flex-col items-center gap-3 text-center">
         <Signal size={30} className="text-white/35" />

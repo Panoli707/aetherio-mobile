@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type ImgHTMLAttributes } from "react";
 import { spatialPosterSignature, useSpatialPosterSettings } from "../config/spatialPosters";
-import { getReadyPosterArtwork, posterArtworkKey, preloadPosterArtwork } from "../services/posterArtworkCache";
+import { getReadyPosterArtwork, markPosterMissingOnDisk, posterArtworkKey, preloadPosterArtwork } from "../services/posterArtworkCache";
 
 type SpatialPosterImageProps = Omit<ImgHTMLAttributes<HTMLImageElement>, "src"> & { src?: string };
 
@@ -25,7 +25,16 @@ const SpatialPosterImage = forwardRef<HTMLImageElement, SpatialPosterImageProps>
 
   useImperativeHandle(ref, () => imageRef.current as HTMLImageElement, [displaySrc]);
 
-  return <img {...props} ref={imageRef} src={displaySrc} alt={alt} onLoad={onLoad} onError={onError} />;
+  // Si el registro persistido dijo "listo" pero la imagen no carga, el archivo no
+  // esta en el cache del proxy (se evicto, o la cache se borro a mano). Se marca
+  // como ausente para que el proximo arranque lo re-renderice de verdad en vez de
+  // volver a confiar en un veredicto viejo.
+  const handleError: ImgHTMLAttributes<HTMLImageElement>["onError"] = event => {
+    if (displaySrc) markPosterMissingOnDisk(displaySrc);
+    onError?.(event);
+  };
+
+  return <img {...props} ref={imageRef} src={displaySrc} alt={alt} onLoad={onLoad} onError={handleError} />;
 });
 
 export default SpatialPosterImage;

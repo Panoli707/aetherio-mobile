@@ -1,0 +1,169 @@
+/*
+ Campo de PIN — clone 1:1 de la interfaz de passcode de la referencia, en la
+ paleta de Aetherio (superficie oscura, acento blanco, cites san francisco).
+
+ Todas las medidas vienen de la referencia (1920x1080) y están expresadas en
+ `vw` con clamp, así que la composición es idéntica a cualquier resolución
+ (no solo a 1080p): la escala es la misma que la de la referencia.
+   - casillas 100x182, gap 20, radio 14      -> 5.2vw x 9.5vw, gap 1.05vw
+   - aire casillas -> dígitos 140           -> 7.3vw
+   - teclas 40x52 escaladas x1.6 (foco), glifo 48, paso 55.6
+                                               -> 2.9vw x 4.06vw, glifo 2.5vw
+   - título 52 / instrucción 28             -> 2.7vw / 1.45vw
+*/
+
+.pin-pad {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.pin-pad__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(4px, 0.5vw, 10px);
+  margin-bottom: clamp(28px, 7.3vw, 140px);
+}
+
+.pin-pad__title {
+  margin: 0;
+  font-size: clamp(22px, 2.7vw, 52px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #fff;
+  text-align: center;
+}
+
+.pin-pad__subtitle {
+  margin: 0;
+  font-size: clamp(13px, 1.45vw, 28px);
+  font-weight: 400;
+  line-height: 1.3;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+}
+
+.pin-pad__slots {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1.05vw, 20px);
+}
+
+.pin-pad__slot {
+  position: relative;
+  width: clamp(56px, 5.2vw, 100px);
+  height: clamp(96px, 9.5vw, 182px);
+  border-radius: clamp(8px, 0.73vw, 14px);
+  background: rgba(255, 255, 255, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Casilla con dígito: la casilla NO se rellena, aparece el punto blanco
+   centrado (referencia: punto de ~19px dentro de una casilla de 100px). */
+.pin-pad__slot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: clamp(11px, 1vw, 19px);
+  height: clamp(11px, 1vw, 19px);
+  margin: auto;
+  border-radius: 999px;
+  background: #fff;
+  opacity: 0;
+  transform: scale(0.55);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.pin-pad__slot.is-filled::after {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.pin-pad__error {
+  margin: clamp(14px, 1.6vw, 30px) 0 0;
+  font-size: clamp(13px, 1.25vw, 24px);
+  font-weight: 600;
+  color: #fca5a5;
+}
+
+.pin-pad__keys {
+  display: flex;
+  align-items: center;
+  gap: clamp(2px, 0.21vw, 4px);
+  margin-top: clamp(28px, 7.3vw, 140px);
+}
+
+.pin-pad__key {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: clamp(34px, 2.9vw, 56px);
+  height: clamp(46px, 4.06vw, 78px);
+  flex: 0 0 auto;
+  border: none;
+  border-radius: clamp(10px, 0.73vw, 14px);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.56);
+  font-family: inherit;
+  font-size: clamp(24px, 2.5vw, 48px);
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  transform-origin: center;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+
+.pin-pad__key svg {
+  width: 56%;
+  height: 56%;
+}
+
+/* Foco de teclado y foco espacial del mando: el cuadrado blanco de la referencia. */
+.pin-pad__key:focus,
+.pin-pad__key.spatial-focus,
+.pin-pad__key:focus-visible {
+  outline: none;
+  background: #fff;
+  color: #1a1a1a;
+  transform: scale(1.06);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.34);
+}
+
+.pin-pad__key:hover {
+  color: #fff;
+}
+
+.pin-pad__key--del {
+  color: rgba(255, 255, 255, 0.42);
+}
+
+.pin-pad__key--del:hover {
+  color: #fff;
+}
+
+/* PIN incorrecto: las casillas tiemblan una vez (referencia). */
+.pin-pad--error .pin-pad__slot {
+  animation: pin-pad-shake 0.36s ease;
+  background: rgba(252, 165, 165, 0.3);
+}
+
+@keyframes pin-pad-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  45% { transform: translateX(6px); }
+  70% { transform: translateX(-3px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-pad__slot,
+  .pin-pad__key {
+    transition: none;
+  }
+
+  .pin-pad--error .pin-pad__slot {
+    animation: none;
+  }
+}

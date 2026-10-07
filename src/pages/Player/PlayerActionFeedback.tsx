@@ -123,7 +123,7 @@ export default function PlayerActionFeedback({ feedback }: Props) {
           <div
             role="status"
             aria-label={muted ? "Volumen silenciado" : `Volumen ${Math.min(100, volumePct)} por ciento`}
-            className="flex w-[208px] flex-col items-center gap-5 rounded-[28px] border border-white/10 bg-black/55 px-6 pb-6 pt-7 shadow-[0_16px_48px_rgba(0,0,0,0.5)] backdrop-blur-2xl"
+            className="flex w-[208px] flex-col items-center gap-5 rounded-[28px] border border-white/10 bg-black/55 px-6 pb-6 pt-7 shadow-[0_16px_48px_rgba(0,0,0,0.5)] backdrop-blur-glass-lg"
           >
             <VolumeIcon size={52} className="text-white" strokeWidth={1.5} />
             <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/25" aria-hidden="true">

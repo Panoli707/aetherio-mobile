@@ -1,10 +1,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_SPATIAL_POSTER_SETTINGS } from "../config/spatialPosters";
 import { resetPosterProbeState } from "./posterProbe";
-import { getReadyPosterArtwork, isPosterArtworkFailed, posterArtworkKey, preloadPosterArtwork } from "./posterArtworkCache";
+import {
+  flushPosterArtworkCacheForTests,
+  getReadyPosterArtwork,
+  isPosterArtworkFailed,
+  posterArtworkKey,
+  preloadPosterArtwork,
+  resetPosterArtworkCacheForTests,
+} from "./posterArtworkCache";
 
 let loads = 0;
 let profileId = "profile-a";
+let storage: Map<string, string>;
+
+function readStorage(key: string): string | null {
+  if (key.endsWith(":active")) return profileId;
+  if (key.endsWith(":migrated")) return "1";
+  return storage.get(key) ?? null;
+}
 
 class TestImage {
   naturalWidth = 500;
@@ -28,11 +42,14 @@ class TestImage {
 beforeEach(() => {
   loads = 0;
   profileId = "profile-a";
+  storage = new Map();
   resetPosterProbeState();
+  resetPosterArtworkCacheForTests();
   vi.stubGlobal("Image", TestImage);
   vi.stubGlobal("localStorage", {
-    getItem: (key: string) => key.endsWith(":active") ? profileId : key.endsWith(":migrated") ? "1" : null,
-    setItem: () => undefined,
+    getItem: readStorage,
+    setItem: (key: string, value: string) => { storage.set(key, value); },
+    removeItem: (key: string) => { storage.delete(key); },
   });
 });
 
@@ -64,5 +81,71 @@ describe("posterArtworkCache", () => {
     expect(await preloadPosterArtwork(url, DEFAULT_SPATIAL_POSTER_SETTINGS)).toBeNull();
     expect(getReadyPosterArtwork(url, DEFAULT_SPATIAL_POSTER_SETTINGS)).toBeUndefined();
     expect(isPosterArtworkFailed(url, DEFAULT_SPATIAL_POSTER_SETTINGS)).toBe(true);
+  });
+
+  // El bug que se arregla con esto: sin registro persistido, cada arranque
+  // re-verificaba por red las ~400 URLs de Home y el splash se comia ~100 s
+  // aunque los PNG ya estuvieran en el cache del proxy.
+  it("tras un reinicio no vuelve a pedir por red lo que ya estaba verificado", async () => {
+    const url = "http://127.0.0.1:3000/api/poster/movie/11?lang=es";
+    const settings = DEFAULT_SPATIAL_POSTER_SETTINGS;
+    const signature = "sig-home";
+
+    await preloadPosterArtwork(url, settings, signature);
+    flushPosterArtworkCacheForTests();
+    expect(loads).toBe(1);
+
+    // Simula cerrar y abrir la app: se pierde el Map en memoria, el registro de
+    // disco queda.
+    resetPosterArtworkCacheForTests();
+
+    expect(await preloadPosterArtwork(url, settings, signature)).toBe(url);
+    expect(getReadyPosterArtwork(url, settings, signature)).toBe(url);
+    expect(loads).toBe(1);
+  });
+
+  it("un cambio de ajustes rehace el render porque la URL cambia", async () => {
+    const settings = DEFAULT_SPATIAL_POSTER_SETTINGS;
+    // En la app real la firma viaja dentro de la query (estilos, badges, región),
+    // así que cambiar preferencias produce otra URL y otro archivo en el proxy.
+    const conBadge = "http://127.0.0.1:3000/api/poster/movie/11?lang=es&badge=rating";
+    const sinBadge = "http://127.0.0.1:3000/api/poster/movie/11?lang=es";
+
+    await preloadPosterArtwork(conBadge, settings, "sig-1");
+    flushPosterArtworkCacheForTests();
+    resetPosterArtworkCacheForTests();
+
+    // El registro tiene `conBadge`, no `sinBadge`: se re-renderiza.
+    await preloadPosterArtwork(sinBadge, settings, "sig-2");
+    expect(loads).toBe(2);
+  });
+
+  it("no confía en el registro si la URL no es del proxy local", async () => {
+    const url = "https://example.com/remote-poster.jpg";
+    await preloadPosterArtwork(url, DEFAULT_SPATIAL_POSTER_SETTINGS, "sig");
+    flushPosterArtworkCacheForTests();
+    // Reinicio real: se pierde tambien la cache en memoria del probe.
+    resetPosterProbeState();
+    resetPosterArtworkCacheForTests();
+
+    // Fuera del proxy no hay forma de preguntar por el archivo sin generarlo, asi
+    // que se re-verifica en vez de asumir que sigue ahi: un host externo puede
+    // haber borrado el recurso.
+    await preloadPosterArtwork(url, DEFAULT_SPATIAL_POSTER_SETTINGS, "sig");
+    expect(loads).toBe(2);
+  });
+
+  it("conserva la firma completa en la clave guardada para no colisionar entre ajustes", async () => {
+    const url = "http://127.0.0.1:3000/api/poster/movie/11?lang=es";
+    const settings = DEFAULT_SPATIAL_POSTER_SETTINGS;
+    await preloadPosterArtwork(url, settings, "sig-1");
+    flushPosterArtworkCacheForTests();
+
+    const stored = storage.get("aetherio.spatial-posters.ready.v1") ?? "";
+    // La clave guardada lleva `firma::url`: al resolver, `split("::")` debe dar
+    // la URL completa, no un fragmento. Una URL con `?a=1&b=2` es el caso que
+    // rompe si se parte por cualquier separador.
+    expect(stored).toContain("sig-1::" + url);
+    expect(Object.keys(JSON.parse(stored).ready)).toHaveLength(1);
   });
 });

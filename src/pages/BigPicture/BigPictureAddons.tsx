@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MutableRefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import {
   Check,
   ChevronDown,
@@ -8,11 +8,10 @@ import {
   Plus,
   Puzzle,
   Trash2,
-  ToggleLeft,
-  ToggleRight,
   X,
 } from "lucide-react";
-import { useAddonStore, type InstalledAddon } from "../../store/addonStore.ts";
+import { TogglePill } from "../../components/ui/ToggleSwitch";
+import { listableAddons, useAddonStore, type InstalledAddon } from "../../store/addonStore.ts";
 
 const KEYBOARD_ROWS = [
   ["a", "b", "c", "d", "e", "f", "g", "h"],
@@ -30,7 +29,7 @@ export default function BigPictureAddons() {
   const [removeTarget, setRemoveTarget] = useState<InstalledAddon | null>(null);
   const keyboardFirstRef = useRef<HTMLButtonElement | null>(null);
   const {
-    addons,
+    addons: allAddons,
     isInstalling,
     installError,
     setInstalling,
@@ -40,6 +39,7 @@ export default function BigPictureAddons() {
     enableAddon,
     disableAddon,
   } = useAddonStore();
+  const addons = useMemo(() => listableAddons(allAddons), [allAddons]);
 
   useEffect(() => {
     if (!keyboardOpen) return;
@@ -185,8 +185,8 @@ function AddonCard({ addon, onToggle, onRemove }: { addon: InstalledAddon; onTog
         {addon.description ? <small>{addon.description}</small> : null}
       </div>
       <div className="bp-addons-page__card-actions">
-        <button type="button" className="bp-addons-page__toggle" onClick={onToggle} aria-pressed={addon.enabled}>
-          {addon.enabled ? <ToggleRight size={31} /> : <ToggleLeft size={31} />}
+        <button type="button" className="bp-addons-page__toggle" onClick={onToggle} role="switch" aria-checked={addon.enabled} aria-label={`${addon.enabled ? "Desactivar" : "Activar"} ${addon.name}`}>
+          <TogglePill checked={addon.enabled} />
           <span>{addon.enabled ? "Activo" : "Inactivo"}</span>
         </button>
         {!addon.bundled ? <button type="button" className="bp-addons-page__remove" onClick={onRemove} aria-label={`Eliminar ${addon.name}`}><Trash2 size={21} /></button> : null}

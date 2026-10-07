@@ -11,6 +11,7 @@ import { installSpatialRemoteNavigation, installRuntimeDocumentClasses } from ".
 import { installGsapAnimations } from "./utils/motion.ts";
 import { installModeTransition } from "./utils/bigPictureTransition.ts";
 import { isShellPreviewBootstrap } from "./utils/shellPreview.ts";
+import { migratePinsToFourDigits } from "./utils/localProfiles.ts";
 import "./index.css";
 import "./components/layout/BigPictureTransition.css";
 
@@ -20,6 +21,11 @@ const isShellPreview = isShellPreviewBootstrap(window.location.pathname, window.
 installRuntimeDocumentClasses();
 installGsapAnimations();
 installModeTransition();
+// Migracion de PINs (ver localProfiles): en segundo plano para no retrasar el
+// arranque, y solo la primera vez de cada instalacion.
+if (!isShellPreview && !isSplashWindow) {
+  void migratePinsToFourDigits();
+}
 if (isShellPreview) document.documentElement.classList.add("aetherio-big-picture");
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);

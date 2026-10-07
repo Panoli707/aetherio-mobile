@@ -67,14 +67,14 @@ describe("Auto Sync automatico", () => {
     mockStorage();
   });
 
-  it("por defecto solo sincroniza los titulos ya aprendidos", () => {
-    expect(getPlaybackPreferences().autoSubtitleSync).toBe("learned");
-    expect(DEFAULT_PLAYBACK_PREFERENCES.autoSubtitleSync).toBe("learned");
+  it("por defecto sincroniza todos los titulos automaticamente", () => {
+    expect(getPlaybackPreferences().autoSubtitleSync).toBe("on");
+    expect(DEFAULT_PLAYBACK_PREFERENCES.autoSubtitleSync).toBe("on");
   });
 
-  it("las preferencias legacy sin la clave quedan en modo aprendido", () => {
+  it("las preferencias legacy sin la clave quedan en modo siempre", () => {
     mockStorage({ [PLAYBACK_PREFERENCES_STORAGE_KEY]: JSON.stringify({ firstAudioLanguage: "eng" }) });
-    expect(getPlaybackPreferences().autoSubtitleSync).toBe("learned");
+    expect(getPlaybackPreferences().autoSubtitleSync).toBe("on");
   });
 
   it("respeta los tres modos validos y descarta los demas", () => {
@@ -83,6 +83,6 @@ describe("Auto Sync automatico", () => {
       expect(getPlaybackPreferences().autoSubtitleSync).toBe(mode);
     }
     mockStorage({ [PLAYBACK_PREFERENCES_STORAGE_KEY]: JSON.stringify({ autoSubtitleSync: "siempre" }) });
-    expect(getPlaybackPreferences().autoSubtitleSync).toBe("learned");
+    expect(getPlaybackPreferences().autoSubtitleSync).toBe("on");
   });
 });

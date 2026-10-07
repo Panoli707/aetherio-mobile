@@ -26,6 +26,12 @@ import type { BadgeStyle, RankingBadgeStyle } from "./badge-styles"
 import type { PosterImageFormat } from "@/lib/poster-runtime-cache"
 import { normalizeGenreLabel } from "@/lib/genre-label"
 
+// Medido en el arranque frío de Aetherio (2026-10): con la concurrencia de probe
+// en ~14, dejar sharp en 8 implicaba ~112 hilos de libvips sobre 8 núcleos.
+// sharp.concurrency(1) deja que la concurrencia de renders sea la que aporte el
+// paralelismo: 77 posters/s frente a 52 con el default.
+sharp.concurrency(1)
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------

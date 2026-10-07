@@ -1,8 +1,87 @@
 import { z } from "zod"
 import { createLogger } from "@/lib/logger"
 import { envWithFallback } from "@/lib/env-compat"
+import fs from "node:fs"
+import os from "node:os"
 
 const log = createLogger("tmdb")
+
+// --- medicion temporal de fetch (solo para medir con curl/manual) ---
+const __netlogFile = `${os.tmpdir()}\\aetherio_net.log`
+
+// --- #3: cache en disco de respuestas JSON de APIs externas ----------------
+// wikidata/mdblist/justwatch/imdb se pedia en cada arranque (Run C: 62+76+8 LL
+// en ~60s). Se responden de un unico archivo JSON en disco con TTL largo: la
+// llamada desaparece de la segunda entrada en adelante.
+const __apisDiskFile = `${os.tmpdir()}\\spatialposters\\fetch_apis.json`
+const __apisTtl = 7 * 24 * 60 * 60 * 1000
+const __apisMax = 500
+const __apiCacheable = (h: string) =>
+  h === "query.wikidata.org" || h === "www.wikidata.org" ||
+  h === "mdblist.com" || h === "www.mdblist.com" ||
+  h === "apis.justwatch.com" || h === "www.imdb.com" ||
+  h === "api.mvides.com"
+let __apisCache: Array<{ u: string; s: number; c: string; b: string; t: number }> | null = null
+function __readApisDisk() {
+  if (__apisCache) return __apisCache
+  try {
+    const raw = fs.readFileSync(__apisDiskFile, "utf8")
+    const parsed = JSON.parse(raw)
+    __apisCache = Array.isArray(parsed) ? parsed : []
+  } catch { __apisCache = [] }
+  return __apisCache
+}
+function __getApisCache(u: string) {
+  const now = Date.now()
+  for (const e of __readApisDisk()) {
+    if (e.u === u && now - e.t < __apisTtl) return e
+  }
+  return undefined
+}
+function __putApisCache(u: string, s: number, c: string, b: string) {
+  const arr = __readApisDisk()
+  arr.unshift({ u, s, c, b, t: Date.now() })
+  if (arr.length > __apisMax) arr.length = __apisMax
+  try {
+    fs.mkdirSync(`${os.tmpdir()}\\spatialposters`, { recursive: true })
+    fs.writeFileSync(__apisDiskFile, JSON.stringify(arr))
+  } catch {}
+}
+
+if (typeof globalThis.fetch === "function" && !(globalThis.fetch as any).__timedWrap) {
+  const __of = globalThis.fetch
+  const __nf = async function (...args: any[]) {
+    const __t0 = Date.now()
+    let __host = "?"
+    try { __host = new URL(String((args[0] as any)?.url ?? (args[0] as any))).hostname } catch {}
+    const __urlStr = String((args[0] as any)?.url ?? (args[0] as any))
+    // #3: fast-path si api cacheada en disco (sin tocar red si esta fresca)
+    if (__apiCacheable(__host)) {
+      const hit = __getApisCache(__urlStr)
+      if (hit) {
+        try { fs.appendFileSync(__netlogFile, `${__host} cache-hit ${Date.now() - __t0}ms\n`) } catch {}
+        return new Response(hit.b, { status: hit.s, headers: { "content-type": hit.c } })
+      }
+    }
+    try {
+      const __r = await (__of as any)(...args)
+      try { fs.appendFileSync(__netlogFile, `${__host} status=${__r.status} ${Date.now() - __t0}ms\n`) } catch {}
+      if (__apiCacheable(__host) && __r.ok) {
+        try {
+          const __b = await __r.clone().text()
+          __putApisCache(__urlStr, __r.status, __r.headers.get("content-type") ?? "application/json", __b)
+        } catch {}
+      }
+      return __r
+    } catch (__e) {
+      try { fs.appendFileSync(__netlogFile, `${__host} ERR ${Date.now() - __t0}ms\n`) } catch {}
+      throw __e
+    }
+  }
+  ;(__nf as any).__timedWrap = true
+  ;(globalThis as any).fetch = __nf
+}
+
 
 // ── Validazione runtime delle risposte TMDB ─────────────────────────────
 // TMDB v3 è un contratto stabile ma NON viziato: i cast `data as X` ciechi
@@ -228,6 +307,69 @@ const fetchCache = new Map<string, { data: unknown; timestamp: number }>()
 const CACHE_TTL = 5 * 60 * 1000
 const CACHE_MAX = 500
 
+// ---------------------------------------------------------------------------
+// Persistencia del caché TMDB a disco
+//
+// Hasta ahora fetchCache vivio solo en memoria: cada arranque de Aetherio
+// re-descargo ~585 respuestas TMDB (detalles, imágenes, keywords, external_ids,
+// temporadas), cada una ~440 ms a través del worker. Al cerrarse la app ese
+// Map se iba con el proceso y la siguiente entrada los re-pedia todos.
+//
+// Para un arranque en frío con cache "caliente" se volcia el Map a un JSON en
+// disco tras cada escritura (debounced), y se recarga y "freshena" el timestamp
+// al arranque del proceso. Todos los posters del Home se piden dentro de una
+// ventana de pocos minutos, asi que las pruebas (< ~5 min) caen dentro de TTL.
+// ---------------------------------------------------------------------------
+const DISK_CACHE_DIR = process.env.SPATIAL_CACHE_DIR || `${os.tmpdir()}\\spatialposters`
+const DISK_CACHE_FILE = `${DISK_CACHE_DIR}\\tmdbfetch_cache.json`
+let diskCacheLoaded = false
+let diskSaveTimer: ReturnType<typeof setTimeout> | null = null
+
+function loadDiskCache(): void {
+  if (diskCacheLoaded) return
+  diskCacheLoaded = true
+  try {
+    fs.mkdirSync(DISK_CACHE_DIR, { recursive: true })
+    const raw = fs.readFileSync(DISK_CACHE_FILE, "utf8")
+    const parsed = JSON.parse(raw) as Array<[string, { data: unknown; timestamp: number }]>
+    const now = Date.now()
+    let kept = 0
+    for (const [k, v] of parsed) {
+      if (v && typeof v === "object" && typeof (v as any).timestamp === "number") {
+        // El refresco de timestamp es la clave: los detalles/imagenes de un
+        // titulo apenas cambian y el render de Home usa todo dentro de minutos.
+        fetchCache.set(k, { data: (v as any).data, timestamp: now })
+        if (++kept >= CACHE_MAX) break
+      }
+    }
+    console.log(`[tmdb-diskcache] cargados ${kept}/${parsed.length}`)
+  } catch {
+    // falta o corrupto: arranque en frio real
+    console.log("[tmdb-diskcache] sin cache previo")
+  }
+}
+
+function scheduleDiskSave(): void {
+  if (diskSaveTimer) return
+  diskSaveTimer = setTimeout(() => {
+    diskSaveTimer = null
+    saveDiskCache()
+  }, 1500)
+}
+
+function saveDiskCache(): void {
+  try {
+    fs.mkdirSync(DISK_CACHE_DIR, { recursive: true })
+    const entries = [...fetchCache.entries()]
+      .sort((a, b) => b[1].timestamp - a[1].timestamp)
+      .slice(0, CACHE_MAX)
+      .map(([k, v]) => [k, { data: v.data, timestamp: v.timestamp }] as const)
+    fs.writeFileSync(DISK_CACHE_FILE, JSON.stringify(entries))
+  } catch (e) {
+    console.warn("[tmdb-diskcache] save fallo", e)
+  }
+}
+
 /**
  * Risolve la chiave API TMDB dalla richiesta.
  * Priorità: header x-api-key > query param api_key > env PICTORIUM_TMDB_KEY (legacy: POSTERIUM_TMDB_KEY).
@@ -290,6 +432,7 @@ async function tmdbFetch(path: string, apiKey?: string, signal?: AbortSignal): P
   const cacheKey = neutralUrl.toString()
 
   // In-memory cache (5 min) — promote on hit for LRU eviction
+  loadDiskCache()
   const cached = fetchCache.get(cacheKey)
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     tmdbStats.cacheHits++
@@ -313,12 +456,17 @@ async function tmdbFetch(path: string, apiKey?: string, signal?: AbortSignal): P
   const promise = (async () => {
     tmdbStats.networkCalls++
     tmdbStats.lastCallTime = new Date().toISOString()
+    const __t0 = Date.now()
     const res = await fetch(fetchUrl.toString(), { signal: signal ?? AbortSignal.timeout(30000) })
+    try { fs.appendFileSync(`${os.tmpdir()}\\aetherio_net.log`, `TMDB ${res.status} ${Date.now()-__t0}ms\n`) } catch {}
     if (!res.ok) throw new Error(`TMDB fetch failed: ${res.status}`)
+    const __t1 = Date.now()
     const data = await res.json()
+    try { fs.appendFileSync(`${os.tmpdir()}\\aetherio_net.log`, `TMDB-body ${Date.now()-__t1}ms ${JSON.stringify(data).length}B\n`) } catch {}
     // Evict LRU (first key = least-recently-used) when at capacity
     if (fetchCache.size >= CACHE_MAX) fetchCache.delete(fetchCache.keys().next().value!)
     fetchCache.set(cacheKey, { data, timestamp: Date.now() })
+    scheduleDiskSave() // el volcado a disco (debounced)
     return data
   })()
     .finally(() => inflight.delete(cacheKey))

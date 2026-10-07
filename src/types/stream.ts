@@ -12,6 +12,13 @@ export interface StreamTechnicalMetadata {
   audioCodec?: string;
   audioChannels?: number;
   dynamicRange?: string;
+  /**
+   * Perfil de audio declarado por el addon ("Dolby Atmos", "Atmos", ...).
+   *
+   * Va aparte de `dynamicRange` porque ese campo es de video en la practica
+   * (HDR/DV) y mezclarlo dortaba las insignias de video.
+   */
+  audioProfile?: string;
   bitDepth?: string;
 }
 

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useAddonStore } from "../../store/addonStore";
+import { useMemo, useState } from "react";
+import { listableAddons, useAddonStore } from "../../store/addonStore";
 import { Puzzle, Plus, Trash2, ToggleLeft, ToggleRight, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import PageContainer from "../../components/layout/PageContainer";
 
@@ -9,9 +9,10 @@ export default function AddonsPage() {
   const [showLog, setShowLog] = useState(false);
 
   const {
-    addons, isInstalling, installError,
+    addons: allAddons, isInstalling, installError,
     setInstalling, setInstallError, addAddon, removeAddon, enableAddon, disableAddon,
   } = useAddonStore();
+  const addons = useMemo(() => listableAddons(allAddons), [allAddons]);
 
   function addLog(msg: string) {
     setLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);

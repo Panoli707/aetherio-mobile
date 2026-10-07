@@ -3,11 +3,16 @@ import type { CSSProperties } from "react";
 // Mismo material que la pill de la TopNav (.liquid-glass-pill en index.css)
 // y que la sidebar/rail en modo Big Picture: todos los menús contextuales
 // (cards, player, diálogos) comparten este vidrio en ambas vistas.
+//
+// El vidrio es refracción (--lg-filter-xl = url(#frosted-xl), con fallback
+// blur), igual que las clases .liquid-glass*: aquí se replica en inline porque
+// los menús se posicionan con estilos calculados y deben poder superponerse
+// al canvas sin depender de una clase que los ata a un lado del árbol.
 export const CONTEXT_GLASS_STYLE: CSSProperties = {
   border: "1px solid rgba(225,230,238,0.09)",
   background: "rgba(255,255,255,0.12)",
-  backdropFilter: "blur(48px) saturate(175%)",
-  WebkitBackdropFilter: "blur(48px) saturate(175%)",
+  backdropFilter: "var(--lg-filter-xl)",
+  WebkitBackdropFilter: "var(--lg-filter-xl)",
   boxShadow: "0 3px 14px rgba(0,0,0,0.38)",
   willChange: "transform, opacity, backdrop-filter",
 };
@@ -15,6 +20,10 @@ export const CONTEXT_GLASS_STYLE: CSSProperties = {
 // §14 — los fallbacks aproximan en sólido el mismo vidrio claro (el blur
 // sobre fondo oscuro ≈ gris medio): si fueran oscuros, con la transparencia
 // del SO desactivada el menú se vería negro junto al rail claro.
+//
+// Aquí no hay refracción que replicar: estos dos ramos sustituyen el vidrio
+// por una superficie opaca a proposito, así que blur() es lo correcto y
+// displacement solo distorsionaría un fondo que ya no debe leerse.
 export function getContextGlassStyle(): CSSProperties {
   if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-transparency: reduce)").matches) {
     return {

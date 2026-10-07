@@ -84,7 +84,7 @@ async function fetchMovieCollection(request: CollectionRequest): Promise<DetailC
       year: yearFrom(item.release_date),
     };
   }));
-  return items.length ? { name: collection.name || payload?.name || "ColecciÃ³n", items } : null;
+  return items.length ? { name: collection.name || payload?.name || "Colección", items } : null;
 }
 
 function wikidataClaimIds(entity: any, property: string) {
@@ -165,7 +165,7 @@ async function fetchWikidataSeriesCollection(request: CollectionRequest): Promis
       year: artwork.year,
     };
   }));
-  const result = { name: "ColecciÃ³n", items: items.filter(item => item.title) };
+  const result = { name: "Colección", items: items.filter(item => item.title) };
   wikidataSeriesCache.set(request.tmdbId, result.items.length ? result : null);
   return result.items.length ? result : null;
 }

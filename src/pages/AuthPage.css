@@ -76,7 +76,8 @@
   border-radius: 34px;
   background: rgba(31, 31, 31, 0.88);
   box-shadow: 0 34px 100px rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(28px);
+  backdrop-filter: var(--lg-filter-lg);
+  -webkit-backdrop-filter: var(--lg-filter-lg);
 }
 
 .auth-brand {

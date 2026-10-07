@@ -7,51 +7,72 @@
   position:absolute;
   outline:none !important;
   box-shadow:none !important;
-  transition:left 360ms cubic-bezier(.16,1,.3,1), top 360ms cubic-bezier(.16,1,.3,1), width 360ms cubic-bezier(.16,1,.3,1), height 360ms cubic-bezier(.16,1,.3,1);
+  /* Apertura 450ms power3.out (el appleEase de motion.ts): el artwork crece
+     hasta el panel con deceleración simple, sin latigazo ni overshoot. */
+  transition:left 450ms cubic-bezier(0.215, 0.61, 0.355, 1), top 450ms cubic-bezier(0.215, 0.61, 0.355, 1), width 450ms cubic-bezier(0.215, 0.61, 0.355, 1), height 450ms cubic-bezier(0.215, 0.61, 0.355, 1);
 }
 .bp-shell-preview[data-stage="expanded"] .bp-shell-preview__viewport { transition-duration:500ms; }
 .bp-shell-preview[data-stage="closing"] .bp-shell-preview__viewport { transition-duration:260ms; transition-timing-function:cubic-bezier(.55,.06,.68,.19); }
 .bp-shell-preview__track {
   position:absolute; inset:0;
-  transform:translateX(calc(var(--shell-index) * -1 * (100% + var(--shell-gap))));
+  transform:translateX(calc(var(--shell-slot, 0) * -1 * (100% + var(--shell-gap))));
   transition:transform 720ms cubic-bezier(.16,1,.3,1);
 }
-.bp-shell-preview[data-stage="expanded"] .bp-shell-preview__track { transform:none; transition:none; }
+.bp-shell-preview[data-stage="expanded"] .bp-shell-preview__track { transition:none; }
 /* Colapso: un solo movimiento. La ficha se redimensiona hasta su hueco del
    carrusel con deceleración Apple (power3.out, el appleEase de motion.ts) y el
    radio del panel sigue al mismo compás, mientras el track se queda quieto. Si
-   el track transitara cruzaría `index` anchos de panel por encima del resize y
-   en el primer frame la ficha con su artwork ya habría salido de pantalla: se
+   el track transitara cruzaría una anchura de panel por encima del resize y en
+   el primer frame la ficha con su artwork ya habría salido de pantalla: se
    veía el hueco gris del backdrop y luego la tarjeta vecina cruzando entera. */
 .bp-shell-preview[data-stage="collapsing"] .bp-shell-preview__track { transition:none; }
-.bp-shell-preview[data-stage="collapsing"] .bp-shell-preview__viewport,
-.bp-shell-preview[data-stage="collapsing"] .bp-shell-preview__panel {
-  transition-duration: var(--shell-collapse, 460ms);
-  transition-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1);
-}
+.bp-shell-preview[data-stage="collapsing"] .bp-shell-preview__viewport { transition-duration: var(--shell-collapse, 460ms); transition-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1); }
 .bp-shell-preview__panel {
   position:absolute; top:0; width:100%; height:100%; overflow:hidden;
-  border-radius:calc(26px * var(--shell-density)) calc(26px * var(--shell-density)) 0 0;
-  transition:border-radius 360ms cubic-bezier(.16,1,.3,1);
+  border-radius:calc(14px * var(--shell-density)) calc(14px * var(--shell-density)) 0 0;
+  transition:border-radius 450ms cubic-bezier(0.215, 0.61, 0.355, 1), transform 380ms cubic-bezier(0.215, 0.61, 0.355, 1);
 }
+/* Los vecinos se insertan desde su propio borde: el de la derecha entra desde la
+   derecha y el de la izquierda desde la izquierda, como si el panel los
+   encajara en los huecos que quedan a los lados. El desplazamiento inicial es
+   justo el margen exterior del panel compacto (--shell-inset), así una ficha
+   vecina arranca justo fuera de pantalla y no asoma ni un píxel antes de entrar.
+
+   El offset va en el estado base y se anula cuando la apertura arranca: como el
+   selector del offset es más específico, el panel recién montado nace ya
+   desplazado y el cambio a data-opened lo devuelve al sitio transitando, que es
+   lo que produce la entrada. El cierre lo devuelve al borde, con el compás corto
+   y acelerado del reverse del panel, para que panel y vecinos salgan a la vez. */
+.bp-shell-preview:not([data-opened="true"]) .bp-shell-preview__panel[data-shell-side="end"] { transform:translateX(var(--shell-inset, 0px)); }
+.bp-shell-preview:not([data-opened="true"]) .bp-shell-preview__panel[data-shell-side="start"] { transform:translateX(calc(-1 * var(--shell-inset, 0px))); }
+.bp-shell-preview[data-stage="closing"] .bp-shell-preview__panel { transition:border-radius 260ms cubic-bezier(.55,.06,.68,.19), transform 260ms cubic-bezier(.55,.06,.68,.19); }
+.bp-shell-preview[data-stage="closing"] .bp-shell-preview__panel[data-shell-side="end"] { transform:translateX(var(--shell-inset, 0px)); }
+.bp-shell-preview[data-stage="closing"] .bp-shell-preview__panel[data-shell-side="start"] { transform:translateX(calc(-1 * var(--shell-inset, 0px))); }
+.bp-shell-preview[data-stage="collapsing"] .bp-shell-preview__panel { transition-duration: var(--shell-collapse, 460ms); transition-timing-function: cubic-bezier(0.215, 0.61, 0.355, 1); }
 .bp-shell-preview[data-stage="expanded"] .bp-shell-preview__panel { border-radius:0; transition-duration:500ms; }
-.bp-shell-preview[data-stage="closing"] .bp-shell-preview__panel { transition: border-radius 260ms cubic-bezier(.55,.06,.68,.19); }
 .bp-shell-preview__artwork { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity 640ms cubic-bezier(0.16,1,0.3,1); }
 .bp-shell-preview__artwork.is-loaded { opacity:1; }
-.bp-shell-preview__panel iframe { position:relative; display:block; width:100%; height:100%; border:0; background:transparent; opacity:0; transition:opacity 640ms cubic-bezier(0.16,1,0.3,1); }
-.bp-shell-preview__panel iframe[data-preview-ready="true"] { opacity:1; }
+/* El iframe solo se ve cuando el padre da el reveal (fin del silencio): hasta
+   entonces el panel es el artwork de la referencia, sin texto ni cromo. La
+   transición va con el reveal porque es el mismo gesto, no un fundido aparte. */
+.bp-shell-preview__panel iframe { position:relative; display:block; width:100%; height:100%; border:0; background:transparent; opacity:0; transition:opacity 420ms cubic-bezier(0.16,1,0.3,1); }
+.bp-shell-preview__panel iframe[data-preview-revealed="true"] { opacity:1; }
 .bp-shell-preview__panel iframe[inert] { pointer-events:none; }
 .shell-preview-app { position:relative; height:100vh; min-height:100vh; overflow:auto; background:transparent; color:#fff; }
 .shell-preview-app__fallback { min-height:100vh; background:#1e1e1e; }
 .shell-preview-app[data-preview-active="false"] { overflow:hidden; }
 .shell-preview-app[data-preview-active="false"] [data-aetherio-scroll-shell] { overflow:hidden !important; }
 
-/* Preview compacto: hero mas alto para que las tabs de temporadas y la
-   row de episodios asomen mas abajo (menos peek). Solo cuando el preview
-   aun no esta activo/expandido; el detalle expandido mantiene su altura. */
-.shell-preview-app[data-preview-active="false"] .detail-page-scale .detail-page-hero {
-  height: calc(78vh - 60px) !important;
-  min-height: 540px !important;
+/* Reveal escalonado del contenido, dentro del panel quieto (referencia Apple TV):
+   título → sinopsis → acciones → créditos. El escalón lo marca cada bloque con
+   --reveal-delay; la transición solo existe en el estado revelado, así que al
+   reaparecer el bloque entra desde cero y al ocultarse se corta sin fundido. */
+.shell-preview-app:not([data-preview-revealed="true"]) [data-hero-reveal] { opacity:0; transform:translateY(10px); }
+.shell-preview-app[data-preview-revealed="true"] [data-hero-reveal] {
+  opacity:1;
+  transform:none;
+  transition:opacity 520ms cubic-bezier(0.215, 0.61, 0.355, 1), transform 520ms cubic-bezier(0.215, 0.61, 0.355, 1);
+  transition-delay:var(--reveal-delay, 0ms);
 }
 
 /* Keep the parent artwork visible while DetailPage fetches its data. Once
@@ -66,6 +87,10 @@ html.aetherio-shell-preview #root,
 
 @media (prefers-reduced-motion:reduce) {
   .bp-shell-preview__artwork, .bp-shell-preview__panel iframe { transition:none !important; }
+  .shell-preview-app[data-preview-revealed="true"] [data-hero-reveal] {
+    transform:none !important;
+    transition:none !important;
+  }
 }
 @media (prefers-reduced-motion:reduce) {
   .bp-shell-preview__viewport, .bp-shell-preview__track, .bp-shell-preview__panel, .bp-shell-preview__backdrop { transition:none !important; }

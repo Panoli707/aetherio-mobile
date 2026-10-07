@@ -494,8 +494,17 @@ export const MAX_CONCURRENT_RENDERS = (() => {
   // mitad. El render es sharp (CPU-bound) asi que subirlo de mas no ayuda y
   // sube el pico de memoria; 8 es el punto donde el pool de sockets del
   // navegador (6 por host) deja de ser el limite.
-  const n = raw ? parseInt(raw, 10) : 8
-  return Number.isFinite(n) && n > 0 && n <= 32 ? n : 8
+  // Subido de 8 a 14. La cuenta real del arranque en frio de Aetherio: ~400
+  // posters visibles en Home y ~3.5 s por render (sharp horneando los badges),
+  // o sea ~1400 s de trabajo de CPU. A 8 en paralelo son ~175 s; a 14 son
+  // ~100 s. Por debajo de 14 el splash se pasa de su presupuesto y las filas del
+  // final caen al poster de TMDB, que es justo lo que se queria evitar.
+  //
+  // El render es CPU-bound, asi que subirlo de mas no acelera: solo sube el
+  // pico de memoria. 14 es donde la cola deja de ser el cuello en una CPU de
+  // escritorio de 8 nucleos, y sube el limite del rango para que quede margen.
+  const n = raw ? parseInt(raw, 10) : 14
+  return Number.isFinite(n) && n > 0 && n <= 32 ? n : 14
 })()
 // Attesa massima di un posto di render prima del 503 (F5). Lettura a module
 // level: un cambio env richiede restart, non hot-reload.

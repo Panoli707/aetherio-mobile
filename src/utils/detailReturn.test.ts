@@ -80,4 +80,50 @@ describe("findDetailReturnDelta", () => {
     const h = history([[0, "/detail/movie/589?fromSearch=1"]]);
     expect(findDetailReturnDelta(h, 0, "/detail/movie/589?fromSearch=1")).toBeNull();
   });
+
+  // Big Picture duplica las tres rutas de reproducción bajo /big-picture. Si no
+  // se saltan, la entrada del reproductor cuenta como origen y "atrás" desde
+  // el detalle vuelve a él en vez de salir al carrusel/buscador.
+  it("ignora episode, streams y player de Big Picture como origen", () => {
+    const h = history([
+      [0, "/big-picture"],
+      [1, "/big-picture/episode?type=movie&id=589&fromPlayer=1"],
+      [2, "/big-picture/streams?type=movie&id=589"],
+      [3, "/big-picture/player?type=movie&id=tmdb:589"],
+    ]);
+    expect(findDetailReturnDelta(h, 3, "/big-picture/detail/movie/589")).toBe(-3);
+  });
+
+  // El bug reportado: detail -> sección Episodie -> player -> atrás -> atrás.
+  // Las tres entradas superiores son el mismo detail (la original, la que
+  // abrió la sección y la que dejó el player al volver con replace), así que
+  // ninguna cuenta como origen: el único real es el carrusel.
+  it("desde el detail de Big Picture vuelve al carrusel y no al reproductor", () => {
+    const h = history([
+      [0, "/big-picture"],
+      [1, "/big-picture/detail/movie/589"],
+      [2, "/big-picture/detail/movie/589"],
+      [3, "/big-picture/detail/movie/589"],
+    ]);
+    expect(findDetailReturnDelta(h, 3, "/big-picture/detail/movie/589")).toBe(-3);
+  });
+
+  it("desde el detalle de Big Picture vuelve al buscador si de ahí salió", () => {
+    const h = history([
+      [0, "/big-picture/search?q=akira"],
+      [1, "/big-picture/detail/movie/589"],
+      [2, "/big-picture/detail/movie/589"],
+    ]);
+    expect(findDetailReturnDelta(h, 2, "/big-picture/detail/movie/589")).toBe(-2);
+  });
+
+  it("detail a detail de otra obra en Big Picture si cuenta como origen", () => {
+    const h = history([
+      [0, "/big-picture"],
+      [1, "/big-picture/detail/movie/589"],
+      [2, "/big-picture/detail/movie/1048"],
+      [3, "/big-picture/detail/movie/1048"],
+    ]);
+    expect(findDetailReturnDelta(h, 3, "/big-picture/detail/movie/1048")).toBe(-2);
+  });
 });

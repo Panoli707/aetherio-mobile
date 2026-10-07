@@ -1,0 +1,631 @@
+/*
+ Flujo de creación de perfil de Quick Start — referencias 1-5.
+
+ Retícula de las referencias (mockup 16:9, ancho 1670) expresada en vw con
+ clamp: a 1920 reproduce los valores medidos y a 1280 escala sin reorganizarse.
+
+   - teclado a 16vw del borde, columna de formulario centrada en 68vw
+   - título 3vw/600, campo 33.4vw x 3.8vw radio 999, botón 19.3vw x 3.35vw
+   - burbujas de avatar 17vw, pitch x 20.4vw, pitch y 18.9vw
+   - filas del resumen 3.7vw con gap 1.3vw, tarjeta derecha 36.8vw radio 2vw
+*/
+
+.qs-profile {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  padding: clamp(20px, 2.2vw, 42px) clamp(24px, 4vw, 76px);
+  color: #fff;
+}
+
+.qs-profile__stage {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-height: 0;
+}
+
+/* ---------------------------------------------------------------- nombre -- */
+
+.qs-name {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(24px, 6vw, 120px);
+  width: 100%;
+}
+
+.qs-name__form {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(22px, 2.6vw, 50px);
+  justify-self: center;
+  width: min(100%, 640px);
+}
+
+.qs-name__title {
+  margin: 0;
+  font-size: clamp(26px, 3vw, 56px);
+  font-weight: 600;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-align: center;
+  color: #fff;
+}
+
+.qs-name__field {
+  display: flex;
+  align-items: center;
+  width: min(100%, 33.4vw);
+  min-width: 260px;
+  height: clamp(46px, 3.8vw, 70px);
+  padding: 0 clamp(20px, 1.6vw, 32px);
+  border-radius: 999px;
+  background: #3a3a3c;
+  font-size: clamp(17px, 1.5vw, 28px);
+  font-weight: 600;
+  color: #fff;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.qs-name__field:empty::before {
+  content: "Tu nombre";
+  color: rgba(255, 255, 255, 0.34);
+  font-weight: 500;
+}
+
+.qs-name__cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: clamp(180px, 19.3vw, 340px);
+  height: clamp(44px, 3.35vw, 62px);
+  padding: 0 clamp(20px, 1.8vw, 34px);
+  border: none;
+  border-radius: 999px;
+  background: #fff;
+  color: #1a1a1a;
+  font-family: inherit;
+  font-size: clamp(15px, 1.25vw, 24px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.qs-name__cta:disabled {
+  background: #3a3a3c;
+  color: rgba(255, 255, 255, 0.42);
+  cursor: default;
+}
+
+.qs-name__cta:not(:disabled):hover {
+  opacity: 0.86;
+}
+
+.qs-name__cta:focus,
+.qs-name__cta.spatial-focus,
+.qs-name__cta:focus-visible {
+  outline: none;
+  transform: scale(1.04);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
+}
+
+.qs-name__hint {
+  margin: 0;
+  font-size: clamp(13px, 1.05vw, 20px);
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+}
+
+/* --------------------------------------------------------------- imagenes -- */
+
+.qs-avatar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(24px, 3vw, 56px);
+  width: 100%;
+}
+
+.qs-avatar__title {
+  margin: 0;
+  font-size: clamp(24px, 2.75vw, 52px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+/* Las burbujas se centran en vez de ocupar columnas fijas: cuantas mas haya
+   (3 mascotas + la propia, o una previdencia + la propia) la fila sigue
+   centrada y del mismo ancho. 11.2vw es el diametro que ya traia la retícula
+   de 6 columnas a 1920 (215px). */
+.qs-avatar__grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 2.4vw, 42px);
+  width: 100%;
+  max-width: min(100%, 1500px);
+}
+
+.qs-avatar__bubble {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: clamp(110px, 11.2vw, 215px);
+  aspect-ratio: 1;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.72);
+  overflow: hidden;
+  cursor: pointer;
+  transform-origin: center;
+  transition: background-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.qs-avatar__bubble img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qs-avatar__bubble--own {
+  flex-direction: column;
+  gap: 6px;
+  border: 1px dashed rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.qs-avatar__bubble--own span {
+  max-width: 64%;
+  font-size: clamp(10px, 0.85vw, 16px);
+  font-weight: 700;
+  line-height: 1.18;
+  letter-spacing: 0.02em;
+  text-align: center;
+  padding: 0 4px;
+  text-wrap: balance;
+}
+
+.qs-avatar__bubble:hover,
+.qs-avatar__bubble:focus,
+.qs-avatar__bubble.spatial-focus,
+.qs-avatar__bubble:focus-visible {
+  outline: none;
+  transform: scale(1.05);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.45);
+}
+
+.qs-avatar__bubble.is-selected {
+  box-shadow: 0 0 0 4px #fff, 0 14px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* --------------------------------------------------------------- resumen -- */
+
+.qs-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 36.8vw);
+  align-items: center;
+  gap: clamp(28px, 5vw, 110px);
+  width: 100%;
+}
+
+.qs-summary__left {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(18px, 2vw, 40px);
+  padding-left: clamp(0px, 2vw, 40px);
+}
+
+.qs-summary__title {
+  margin: 0;
+  font-size: clamp(22px, 2.15vw, 42px);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.qs-summary__rows {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1.3vw, 22px);
+  width: min(100%, 34vw);
+  min-width: 300px;
+}
+
+.qs-summary__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  height: clamp(44px, 3.7vw, 70px);
+  padding: 0 clamp(18px, 1.6vw, 30px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  background: #3a3a3c;
+  color: #fff;
+  font-family: inherit;
+  font-size: clamp(14px, 1.25vw, 24px);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.qs-summary__row:hover {
+  background: #454548;
+}
+
+.qs-summary__row:focus,
+.qs-summary__row.spatial-focus,
+.qs-summary__row:focus-visible {
+  outline: none;
+  background: #fff;
+  color: #1a1a1a;
+  transform: scale(1.03);
+}
+
+.qs-summary__value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: rgba(255, 255, 255, 0.52);
+  font-weight: 600;
+}
+
+.qs-summary__row:focus .qs-summary__value,
+.qs-summary__row.spatial-focus .qs-summary__value {
+  color: rgba(26, 26, 26, 0.62);
+}
+
+/* Contenedor del OK con el ancho de las filas: asi el boton, que es mas
+   corto, queda centrado bajo ellas en vez de pegado a la izquierda. */
+.qs-summary__actions {
+  display: flex;
+  justify-content: center;
+  width: min(100%, 34vw);
+  min-width: 300px;
+}
+
+.qs-summary__cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Mas corto que las filas y centrado bajo ellas (no pegado a la izquierda). */
+  width: min(100%, 21vw);
+  min-width: 240px;
+  height: clamp(44px, 3.35vw, 62px);
+  padding: 0 clamp(20px, 1.8vw, 34px);
+  border: none;
+  border-radius: 999px;
+  background: #fff;
+  color: #1a1a1a;
+  font-family: inherit;
+  font-size: clamp(15px, 1.25vw, 24px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.qs-summary__cta:hover {
+  opacity: 0.86;
+}
+
+.qs-summary__cta:focus,
+.qs-summary__cta.spatial-focus,
+.qs-summary__cta:focus-visible {
+  outline: none;
+  transform: scale(1.03);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
+}
+
+.qs-summary__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(14px, 1.4vw, 26px);
+  padding: clamp(24px, 2.6vw, 50px);
+  border-radius: clamp(20px, 2vw, 34px);
+  background: #262628;
+  text-align: center;
+}
+
+.qs-summary__avatars {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: clamp(4px, 0.6vw, 12px);
+}
+
+.qs-summary__avatar {
+  width: clamp(64px, 7.2vw, 132px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  border: 3px solid #262628;
+  background: #8e8e93;
+  color: #1a1a1a;
+  font-size: clamp(22px, 2.4vw, 44px);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.qs-summary__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qs-summary__avatar--badge {
+  margin-left: -2vw;
+  background: #f2f2f7;
+}
+
+.qs-summary__card-title {
+  margin: 0;
+  font-size: clamp(16px, 1.5vw, 30px);
+  font-weight: 800;
+  line-height: 1.25;
+  color: #fff;
+}
+
+.qs-summary__card-body {
+  margin: 0;
+  font-size: clamp(12px, 1.02vw, 20px);
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.qs-summary__disclose {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: clamp(4px, 0.4vw, 8px);
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.46);
+  font-family: inherit;
+  font-size: clamp(11px, 0.95vw, 19px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.qs-summary__disclose:hover {
+  color: #fff;
+}
+
+.qs-summary__disclose:focus,
+.qs-summary__disclose.spatial-focus,
+.qs-summary__disclose:focus-visible {
+  outline: none;
+  color: #fff;
+}
+
+.qs-summary__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+}
+
+.qs-summary__list li {
+  font-size: clamp(11px, 0.95vw, 18px);
+  font-weight: 500;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.44);
+  padding-left: 16px;
+  position: relative;
+}
+
+.qs-summary__list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ------------------------------------------------------------ bienvenida -- */
+
+.qs-welcome {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 1.8vw, 34px);
+  width: 100%;
+  text-align: center;
+}
+
+.qs-welcome__avatar {
+  width: clamp(72px, 7.3vw, 132px);
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: #f2f2f7;
+  color: #1a1a1a;
+  font-size: clamp(24px, 2.6vw, 48px);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: clamp(4px, 0.6vw, 12px);
+}
+
+.qs-welcome__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qs-welcome__title {
+  margin: 0;
+  font-size: clamp(26px, 3.2vw, 62px);
+  font-weight: 800;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  color: #fff;
+}
+
+.qs-welcome__body {
+  margin: 0;
+  max-width: min(100%, 47vw);
+  font-size: clamp(13px, 1.2vw, 23px);
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.qs-welcome__cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: clamp(220px, 26.6vw, 470px);
+  height: clamp(44px, 3.35vw, 62px);
+  margin-top: clamp(6px, 0.8vw, 16px);
+  padding: 0 clamp(20px, 1.8vw, 34px);
+  border: none;
+  border-radius: 999px;
+  background: #fff;
+  color: #1a1a1a;
+  font-family: inherit;
+  font-size: clamp(15px, 1.25vw, 24px);
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.qs-welcome__cta:hover {
+  opacity: 0.86;
+}
+
+.qs-welcome__cta:focus,
+.qs-welcome__cta.spatial-focus,
+.qs-welcome__cta:focus-visible {
+  outline: none;
+  transform: scale(1.03);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.45);
+}
+
+/* ------------------------------------------------------- pantalla del PIN -- */
+
+/* La fila "PIN" del resumen abre esta pantalla: es el mismo pad de acceso de
+   Profiles, con su propio titulo y subtitulo (los props de PinPad), no un
+   encabezado aparte. Sin boton Guardar: se queda puesto al completar los 4. */
+.qs-pin {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(18px, 2vw, 34px);
+  width: 100%;
+}
+
+.qs-pin__actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 1.2vw, 22px);
+}
+
+.qs-pin__action {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: inherit;
+  font-size: clamp(13px, 1.1vw, 20px);
+  font-weight: 700;
+  padding: clamp(10px, 0.9vw, 16px) clamp(18px, 1.6vw, 30px);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.qs-pin__action:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.qs-pin__action:focus,
+.qs-pin__action.spatial-focus,
+.qs-pin__action:focus-visible {
+  outline: none;
+  background: #fff;
+  color: #1a1a1a;
+}
+
+/* ----------------------------------------------------------------- error -- */
+
+.qs-profile__error {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(16px, 1.6vw, 30px);
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: clamp(13px, 1.05vw, 20px);
+  font-weight: 700;
+  color: #fca5a5;
+}
+
+.qs-pin__skip {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.62);
+  font-family: inherit;
+  font-size: clamp(13px, 1.1vw, 20px);
+  font-weight: 700;
+  padding: clamp(8px, 0.7vw, 14px) clamp(16px, 1.4vw, 26px);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.qs-pin__skip:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.qs-pin__skip:focus,
+.qs-pin__skip.spatial-focus,
+.qs-pin__skip:focus-visible {
+  outline: none;
+  color: #1a1a1a;
+  background: #fff;
+}
+
+/* --------------------------------------------------------- modo reducido -- */
+
+@media (prefers-reduced-motion: reduce) {
+  .qs-name__cta,
+  .qs-avatar__bubble,
+  .qs-summary__row,
+  .qs-summary__cta,
+  .qs-welcome__cta,
+  .qs-kb__key,
+  .qs-kb__tab {
+    transition: none;
+  }
+}

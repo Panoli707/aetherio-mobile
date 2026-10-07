@@ -19,8 +19,9 @@ import { useYouTubePlayer } from "../../hooks/useYouTubePlayer.ts";
 import { GAMEPAD_ACTION_EVENT } from "../../hooks/useGamepad.ts";
 import { isPlayableMediaStream } from "../../utils/playableMedia.ts";
 import { streamSpanishPriority } from "../../utils/streamLanguagePriority.ts";
-import { animeSourcePriority, sortStreamsForPlayback } from "../../utils/streamPlaybackRanking.ts";
-import { useAddonStore } from "../../store/addonStore.ts";
+import { sortStreamsForPlayback } from "../../utils/streamPlaybackRanking.ts";
+import { buildSourceChips } from "../../utils/sourceFilterOrder.ts";
+import { sourceFilterPriority, useAddonStore } from "../../store/addonStore.ts";
 import { CNCVERSE_BRIDGE_ID, cncVerseProviderLabel } from "../../services/cncverseBridge.ts";
 import type { MediaStream, StreamQuery } from "../../types/stream.ts";
 import { buildPlayerSearch } from "../../utils/playerSearch.ts";
@@ -47,6 +48,7 @@ import { normalizeRoomCode, isCompleteRoomCode, isEncryptedPayload, partyMediaKe
 import ContextMenu from "../../components/ui/ContextMenu.tsx";
 import { pickBestMatchingSource, type AutoNextSourceHint } from "../../utils/autoNextSource.ts";
 import { registerAutoResolve } from "../../utils/autoResolveGuard.ts";
+import { shouldAutoResolveOnEntry } from "./autoResolveRules.ts";
 import PlayerLoadingOverlay from "../Player/PlayerLoadingOverlay.tsx";
 import {
   AVAILABLE_STREAMS_KEY,
@@ -56,6 +58,7 @@ import {
   SELECTED_MEDIA_META_KEY,
   SELECTED_PLAYBACK_OVERRIDES_KEY,
   SELECTED_STREAM_KEY,
+  availableStreamsMediaKey,
   getDetailLogoKey,
   getStreamKind,
   playbackOverrideQueryKey,
@@ -101,7 +104,7 @@ const AUTO_OPTION = "auto";
 const NO_SUBTITLES_OPTION = "none";
 const PLAYER_HANDOFF_DELAY_MS = 90;
 const DIRECT_STREAM_FALLBACKS_KEY = "aetherio-direct-stream-fallbacks";
-const PRIORITY_ANIME_SOURCES = ["AnimES", "AnimeAV1", "AnimeFLV", "GojoWtf", "AnimeKai", "Torrentio", "Nyaa.si", "SeaDex", "AnimeTosho", "AnimeSaturn", "AnimeSaturn (Mirror)", "AnimeUnity", "AnimeUnity (Mirror)", "AnimeWorld"] as const;
+const PRIORITY_ANIME_SOURCES = ["AnimeAV1", "AnimES", "AnimeFLV", "GojoWtf", "AnimeKai", "Torrentio", "Nyaa.si", "SeaDex", "AnimeTosho", "AnimeSaturn", "AnimeSaturn (Mirror)", "AnimeUnity", "AnimeUnity (Mirror)", "AnimeWorld"] as const;
 
 function numberValue(value: unknown) {
   const next = Number(value);
@@ -170,6 +173,21 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
   const location = useLocation();
   const navigate = useNavigate();
   const bigPicture = isBigPictureLocation(location.pathname);
+  /**
+   * El panel de fuentes tiene ALTURA FIJA, no la que le dé su contenido: con 1
+   * stream o con 300 mide lo mismo y la lista se desplaza dentro.
+   *
+   * Se puede en cuanto la cadena de alturas de arriba ya es de altura
+   * DEFINIDA —sin esto, `h-full` no tiene contra qué resolver y el panel se
+   * encoge al contenido, que es lo que pasaba— y eso ocurre en los dos modos en
+   * que el panel va embebido en el Detail:
+   *   - picture:      PageContainer `h-[100dvh]`, grid `flex-1 items-stretch`.
+   *   - normal:       PageContainer `h-[100dvh]`, grid `flex-1 items-stretch`.
+   * La page suelta de escritorio (`/episode` sin type/id) no entra: su grid es
+   * `min-h-[...] items-center`, de altura mínima, y allí el panel sí debe
+   * ajustarse al contenido.
+   */
+  const fixedHeightPanel = bigPicture || embedded;
   // En modo embebido (sección dentro de Detail) no hay fondo propio: el único
   // background es el del Detail. Tampoco se toca el historial (el padre manda).
   const sharedTransparent = embedded || useSharedBackground;
@@ -392,20 +410,20 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
   // mostrar el loader antes de que lleguen los streams.
   const autoResolveIntent = useMemo(() => {
     if (!query || returnedFromPlayer || partyMode) return false;
-    if (autoplayRequested) return true;
-    if (playbackPreferences.sourceSelectionMode === "first") return true;
-    if (!playbackPreferences.reuseLastLink) return false;
-    // "Continuar" no auto-resuelve por el streamId que guarda la entrada de
-    // progreso: ese streamId no caduca, asi que basta con haber visto el
-    // titulo una vez para que la row saltara siempre al reproductor. La unica
-    // senal de cache es el ultimo enlace guardado (TTL = lastLinkCacheHours):
-    // hay cache -> directo; no hay -> panel de streams.
-    return Boolean(getCachedLastLink(
-      streamCacheKey(query.type, query.id, query.season, query.episode),
-      playbackPreferences.lastLinkCacheHours,
-    ));
+    // Aqui la senal de cache es "existe un enlace guardado": todavia no se sabe
+    // si su source sigue entre las cargadas, y para el loader eso da igual.
+    return shouldAutoResolveOnEntry({
+      continueRequested,
+      autoplayRequested,
+      sourceSelectionMode: playbackPreferences.sourceSelectionMode,
+      cacheSignal: playbackPreferences.reuseLastLink && Boolean(getCachedLastLink(
+        streamCacheKey(query.type, query.id, query.season, query.episode),
+        playbackPreferences.lastLinkCacheHours,
+      )),
+    });
   }, [
     autoplayRequested,
+    continueRequested,
     partyMode,
     playbackPreferences.lastLinkCacheHours,
     playbackPreferences.reuseLastLink,
@@ -691,16 +709,15 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
     if (autoResolveCancelled) return;
     const cached = getPreferredCachedStream(allStreams, query, playbackPreferences);
     const nextStream = pickDefaultStream(allStreams, query, playbackPreferences, continueRequested, autoplayRequested, originalLanguage);
-    // "Continuar" solo salta al reproductor si el enlace de la ultima
-    // reproduccion sigue en cache y ademas esa fuente sigue entre las
-    // cargadas. Sin cache se revela el panel de streams. El streamId de la
-    // entrada de progreso sigue sirviendo para preseleccionar, no para saltar.
-    const shouldAutoPlay = continueRequested
-      ? Boolean(cached)
-      : autoplayRequested
-        || playbackPreferences.sourceSelectionMode === "first"
-        || Boolean(playbackPreferences.sourceSelectionMode === "manual" && cached);
-    if (!shouldAutoPlay) return;
+    // Aqui la senal de cache es "el enlace guardado sigue entre las streams
+    // cargadas". Con "Continuar" la regla siempre da false: el panel se revela
+    // y elegir la stream (y el minuto) es del usuario.
+    if (!shouldAutoResolveOnEntry({
+      continueRequested,
+      autoplayRequested,
+      sourceSelectionMode: playbackPreferences.sourceSelectionMode,
+      cacheSignal: Boolean(cached),
+    })) return;
 
     if (!nextStream) return;
     const autoKey = [
@@ -735,12 +752,14 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
   const wouldAutoPlayNow = useMemo(() => {
     if (!query || returnedFromPlayer || partyMode || autoResolveCancelled) return false;
     if (!allStreams.length) return false;
-    const nextStream = pickDefaultStream(allStreams, query, playbackPreferences, continueRequested, autoplayRequested, originalLanguage);
-    if (!nextStream) return false;
-    if (continueRequested) return Boolean(getPreferredCachedStream(allStreams, query, playbackPreferences));
-    return autoplayRequested
-      || playbackPreferences.sourceSelectionMode === "first"
-      || Boolean(playbackPreferences.sourceSelectionMode === "manual" && getPreferredCachedStream(allStreams, query, playbackPreferences));
+    // Misma regla que el efecto de arriba: el loader de auto-resolve y el
+    // auto-play no pueden discrepar.
+    return shouldAutoResolveOnEntry({
+      continueRequested,
+      autoplayRequested,
+      sourceSelectionMode: playbackPreferences.sourceSelectionMode,
+      cacheSignal: Boolean(getPreferredCachedStream(allStreams, query, playbackPreferences)),
+    });
   }, [
     allStreams,
     autoplayRequested,
@@ -926,7 +945,12 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
     saveLastLink(streamCacheKey(query.type, query.id, query.season, query.episode), stream);
     writePlaybackOverrides(query, playbackSelection, subtitleChoice === AUTO_OPTION);
     sessionStorage.setItem(SELECTED_STREAM_KEY, JSON.stringify(stream));
-    sessionStorage.setItem(AVAILABLE_STREAMS_KEY, JSON.stringify(allStreams));
+    // La lista viaja con la clave del medio: el Player la descarta si no
+    // corresponde a lo que esta reproduciendo y la resuelve por su cuenta.
+    sessionStorage.setItem(AVAILABLE_STREAMS_KEY, JSON.stringify({
+      key: availableStreamsMediaKey(query),
+      streams: allStreams,
+    }));
     if (getStreamKind(stream) === "https") {
       const fallbacks = allStreams
         .filter((candidate: MediaStream) => (
@@ -1038,12 +1062,12 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
       <PageContainer fullBleed className={bigPicture
         ? "relative z-10 mx-auto flex h-[100dvh] max-h-[100dvh] w-full max-w-[1920px] flex-col overflow-hidden pb-6 pt-[88px]"
         : embedded
-          ? "relative z-10 mx-auto flex min-h-screen w-full max-w-[1920px] flex-col pb-9 pt-8"
+          ? "relative z-10 mx-auto flex h-[100dvh] max-h-[100dvh] w-full max-w-[1920px] flex-col overflow-hidden pb-9 pt-[var(--app-shell-nav-height)]"
           : "relative z-10 mx-auto flex min-h-screen w-full max-w-[1920px] flex-col pb-9 pt-[88px]"}>
         <section className={bigPicture
           ? "episode-page-layout grid min-h-0 w-full flex-1 grid-cols-1 items-stretch gap-12 overflow-hidden lg:grid-cols-[0.82fr_1fr]"
           : embedded
-            ? "episode-page-layout grid min-h-[calc(100vh-56px)] w-full grid-cols-1 items-start gap-8 lg:grid-cols-[0.82fr_1fr]"
+            ? "episode-page-layout grid min-h-0 w-full flex-1 grid-cols-1 items-stretch gap-8 lg:grid-cols-[0.82fr_1fr]"
             : "episode-page-layout grid min-h-[calc(100vh-160px)] grid-cols-1 items-center gap-12 lg:grid-cols-[0.82fr_1fr]"}>
           <div className={bigPicture ? "episode-hero-main flex max-h-full min-h-0 min-w-0 flex-col items-center justify-center overflow-hidden pb-1" : "episode-hero-main flex min-w-0 flex-col items-center justify-center pb-1"}>
             <div className="episode-media-card liquid-glass-dark relative mx-auto mb-8 aspect-video w-full max-w-[800px] overflow-hidden rounded-2xl border-white/[0.08]">
@@ -1111,9 +1135,14 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
             </div>
           </div>
 
-          <div className={bigPicture ? "flex max-h-full min-h-0 w-full min-w-0 flex-col justify-center self-stretch overflow-hidden" : "w-full min-w-0 self-center"}>
+          <div className={bigPicture
+            ? "flex max-h-full min-h-0 w-full min-w-0 flex-col justify-center self-stretch overflow-hidden"
+            : embedded
+              ? "flex max-h-full min-h-0 w-full min-w-0 flex-col justify-center self-stretch overflow-hidden"
+              : "w-full min-w-0 self-center"}>
             <SourcePickerPanel
               title="Seleccionar fuente"
+              fixedHeightPanel={fixedHeightPanel}
               loading={loading || scrapedLoading}
               error={error ?? scrapedError}
                 streams={allStreams}
@@ -1478,6 +1507,7 @@ function SourcePickerPanel({
   selectedStreamId,
   selectedSource,
   bigPicture,
+  fixedHeightPanel,
   mediaRuntimeMinutes,
   partyMedia,
   partyMode,
@@ -1496,6 +1526,8 @@ function SourcePickerPanel({
   selectedStreamId: string;
   selectedSource: string | null;
   bigPicture: boolean;
+  /** El panel se dimensiona a la altura disponible, no a su contenido. */
+  fixedHeightPanel: boolean;
   mediaRuntimeMinutes?: number;
   partyMedia: PartyMedia | null;
   partyMode: null | "guest" | "host";
@@ -1509,6 +1541,10 @@ function SourcePickerPanel({
   const sourceFilterRefs = useRef(new Map<string, HTMLButtonElement>());
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  // El chip se ordena por el add-on al que pertenece, asi que hace falta saber
+  // cuales son los integrados: un add-on instalado por el usuario va delante de
+  // todos ellos. `bundled` no viaja en el MediaStream, sale de la lista.
+  const addonsById = useAddonStore(state => state.addons);
   const party = useParty();
   const partyBtnRef = useRef<HTMLButtonElement>(null);
   const [partyMenuOpen, setPartyMenuOpen] = useState(false);
@@ -1570,29 +1606,18 @@ function SourcePickerPanel({
     setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
   }, []);
 
-  const uniqueSources = useMemo(() => {
-    const sourceMap = new Map<string, { name: string; count: number }>();
-    for (const sourceName of expectedSourceNames) {
-      const key = normalizeStreamSourceName(sourceName);
-      if (key && !sourceMap.has(key)) sourceMap.set(key, { name: sourceName, count: 0 });
-    }
-    for (const stream of streams) {
-      const sourceName = extractSourceName(stream);
-      if (!sourceName) continue;
-      const key = normalizeStreamSourceName(sourceName);
-      const existing = sourceMap.get(key) ?? { name: sourceName, count: 0 };
-      existing.count++;
-      sourceMap.set(key, existing);
-    }
-    return Array.from(sourceMap.values())
-      .sort((a, b) => {
-        if (isAnime) {
-          const priority = animeSourcePriority(a.name) - animeSourcePriority(b.name);
-          if (priority) return priority;
-        }
-        return b.count - a.count || a.name.localeCompare(b.name);
-      });
-  }, [expectedSourceNames, streams, isAnime]);
+  const uniqueSources = useMemo(() => buildSourceChips({
+    expectedSourceNames,
+    streams,
+    bundledById: new Map(addonsById.map(addon => [addon.id, Boolean(addon.bundled)])),
+    isAnime,
+    // Los chips en rojo se van al final de la fila, pero solo cuando ya no queda
+    // nada que esperar: mientras cargan estan en Pending y su sitio es el de su
+    // add-on.
+    loading,
+    extractSourceName,
+    priorityOf: sourceFilterPriority,
+  }), [expectedSourceNames, streams, isAnime, addonsById, loading]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -1675,7 +1700,7 @@ function SourcePickerPanel({
 
   return (
     <section
-      className={bigPicture ? "liquid-glass flex max-h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-3xl border border-white/[0.14]" : "liquid-glass w-full overflow-hidden rounded-3xl border border-white/[0.14]"}
+      className={fixedHeightPanel ? "liquid-glass flex h-full max-h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-3xl border border-white/[0.14]" : "liquid-glass w-full overflow-hidden rounded-3xl border border-white/[0.14]"}
       aria-label={heading}
     >
       <div data-bp-episode-tools={bigPicture ? true : undefined} className="flex shrink-0 items-center justify-between gap-4 border-b border-white/[0.08] px-5 py-4">
@@ -1923,16 +1948,18 @@ function SourcePickerPanel({
           </>
         ) : null}
       </div>
-      <div data-bp-episode-streams={bigPicture ? true : undefined} className={bigPicture ? "min-h-0 flex-1 overflow-hidden overscroll-none px-5 py-3" : "max-h-[calc(100vh-210px)] overflow-y-auto p-3"}>
+      <div data-bp-episode-streams={bigPicture ? true : undefined} className={fixedHeightPanel ? "min-h-0 flex-1 overflow-hidden overscroll-none px-5 py-3" : "max-h-[calc(100vh-210px)] overflow-y-auto p-3"}>
         {error ? (
           <p className="mb-2 rounded-xl border border-white/[0.08] bg-black/24 px-4 py-3 text-sm font-semibold text-white/58">{error}</p>
         ) : null}
         {loading && filteredStreams.length === 0 ? (
-          <p className="px-3 py-2 text-sm font-semibold text-white/62">Buscando fuentes...</p>
+          <StreamPanelPlaceholder fixedHeightPanel={fixedHeightPanel} bigPicture={bigPicture} loading>
+            Buscando streams...
+          </StreamPanelPlaceholder>
         ) : filteredStreams.length === 0 ? (
-          <p className="px-3 py-2 text-sm font-semibold text-white/58">
-            {selectedSource ? `Sin fuentes de ${selectedSource}.` : "Sin fuentes disponibles."}
-          </p>
+          <StreamPanelPlaceholder fixedHeightPanel={fixedHeightPanel} bigPicture={bigPicture}>
+            {selectedSource ? `Sin streams de ${selectedSource}.` : "Sin streams disponibles."}
+          </StreamPanelPlaceholder>
         ) : (
           <div className="grid gap-2">
             {filteredStreams.map((stream, index) => (
@@ -1951,6 +1978,38 @@ function SourcePickerPanel({
       </>
       )}
     </section>
+  );
+}
+
+function StreamPanelPlaceholder({
+  children,
+  fixedHeightPanel,
+  bigPicture,
+  loading = false,
+}: {
+  children: string;
+  fixedHeightPanel: boolean;
+  bigPicture: boolean;
+  loading?: boolean;
+}) {
+  return (
+    <div
+      data-bp-episode-placeholder
+      className={`flex w-full flex-col items-center justify-center gap-7 text-center ${fixedHeightPanel ? "h-full" : "py-20"}`}
+      role="status"
+      aria-live="polite"
+    >
+      <p
+        className={`max-w-[90%] px-2 font-black leading-none text-white ${
+          bigPicture
+            ? "text-[clamp(1.9rem,4.4vw,3.8rem)]"
+            : "text-[clamp(1.5rem,3.4vw,2.9rem)]"
+        }`}
+      >
+        {children}
+      </p>
+      {loading ? <span className="aetherio-loading-spinner" aria-hidden="true" /> : null}
+    </div>
   );
 }
 

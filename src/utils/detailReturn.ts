@@ -10,9 +10,22 @@ export function makeScrollKey(pathname: string, search: string) {
   return `${pathname}${search}`;
 }
 
-/** Rutas intermedias del flujo de reproduccion: no son un "origen" valido. */
+/**
+ * Rutas intermedias del flujo de reproduccion: no son un "origen" valido.
+ *
+ * Big Picture duplica las tres bajo `/big-picture/...`, asi que el matching es
+ * por sufijo y no por igualdad: si no, una entrada del reproductor de picture
+ * se tomaria por un origen y "atras" desde el detalle volveria a el.
+ */
 function isPlaybackRoute(pathname: string) {
-  return pathname === "/episode" || pathname === "/streams" || pathname === "/player";
+  return (
+    pathname === "/episode" ||
+    pathname === "/streams" ||
+    pathname === "/player" ||
+    pathname === "/big-picture/episode" ||
+    pathname === "/big-picture/streams" ||
+    pathname === "/big-picture/player"
+  );
 }
 
 /**

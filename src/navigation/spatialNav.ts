@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { isBigPictureMode } from "../runtime/platform.ts";
+import { dispatchGamepadAction } from "../hooks/useGamepad.ts";
+import { playerGamepadActionForKeyboardKey } from "../pages/Player/playerGamepadMap.ts";
 import { prefersReducedMotion, tweenTo } from "../utils/motion.ts";
+import { isShellPreviewOpen } from "../utils/shellPreview.ts";
 import { isContextMenuOpen } from "../components/ui/ContextMenu.tsx";
 
 /**
@@ -494,12 +497,22 @@ function collectCandidates(): HTMLElement[] {
   // Menú contextual abierto: zona espacial cerrada y exclusiva. El mando no
   // debe saltar al contenido que queda detrás; salir es solo con B/Escape
   // (lo cierra ContextMenu y devuelve el foco al ancla).
-  const menu = document.querySelector<HTMLElement>("[data-aetherio-context-menu]");
+  // ContextMenu conserva el portal durante la animacion de salida. Solo el que
+  // declara `data-context-open=true` puede ser la zona activa; elegir el primero
+  // montado dejaba al mando encerrado en un menu invisible anterior.
+  const menu = document.querySelector<HTMLElement>(
+    '[data-aetherio-context-menu][data-context-open="true"]',
+  );
   if (menu) return Array.from(menu.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(isVisibleFocusable);
   // Una superficie modal es una zona espacial cerrada: el mando no debe
   // saltar al contenido que queda detrás mientras el usuario escribe o
   // confirma una acción.
-  const modal = document.querySelector<HTMLElement>("[data-spatial-modal]");
+  //
+  // Se ignoran las ocultas: el preview shell sigue en el DOM (con `hidden`)
+  // para que sus iframes conserven la cache del Detail, y si contara, el mando
+  // se quedaría encerrado en un overlay que ya no se ve.
+  const modal = Array.from(document.querySelectorAll<HTMLElement>("[data-spatial-modal]"))
+    .find(el => !el.hidden);
   const scope = modal ?? document;
   return Array.from(scope.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(isVisibleFocusable);
 }
@@ -688,7 +701,7 @@ function tweenHorizontalScroll(rowScroller: HTMLElement, target: number, fast: b
   }
 }
 
-function followHorizontalFocus(rowScroller: HTMLElement, el: HTMLElement, fast: boolean) {
+export function followHorizontalFocus(rowScroller: HTMLElement, el: HTMLElement, fast: boolean) {
   const s = rowScroller.getBoundingClientRect();
   const c = el.getBoundingClientRect();
   const centerFocusedCard = rowScroller.hasAttribute("data-focus-center");
@@ -920,15 +933,35 @@ function moveFocus(dir: SpatialDir): boolean {
   // atajos zonales (héroe, rows, teclado, rail) y solo se navega dentro con
   // el vecino geométrico. Sin vecino en esa dirección se consume la flecha
   // para no escapar al fondo; la salida es B/Escape.
-  if (isContextMenuOpen()) {
-    const next = findBestCandidate(current, dir, all.map(el => {
-      const r = el.getBoundingClientRect();
-      return { el, left: r.left, top: r.top, width: r.width, height: r.height };
-    }));
-    if (next) {
-      next.el.focus({ preventScroll: true });
-      bringIntoView(next.el, dir, fast);
+  const activeContextMenu = document.querySelector<HTMLElement>(
+    '[data-aetherio-context-menu][data-context-open="true"]',
+  );
+  if (activeContextMenu) {
+    // Menus are a vertical list. Use their DOM order rather than spatial
+    // scoring: the trigger remains focused briefly while the portal mounts,
+    // and its geometry is outside the menu (above/below it), so geometry can
+    // find no candidate and leave the user stranded. ContextMenu also moves
+    // focus on open; this is the recovery path if a direction arrives first.
+    const currentIndex = active ? all.indexOf(active) : -1;
+    if (currentIndex < 0) {
+      const initial = all.find(el => el.dataset.selected === "true") ?? all[0];
+      if (initial) {
+        initial.focus({ preventScroll: true });
+        bringIntoView(initial, dir, fast);
+      }
+      return true;
     }
+
+    if (dir === "up" || dir === "down") {
+      const step = dir === "down" ? 1 : -1;
+      const next = all[Math.max(0, Math.min(all.length - 1, currentIndex + step))];
+      if (next && next !== active) {
+        next.focus({ preventScroll: true });
+        bringIntoView(next, dir, fast);
+      }
+    }
+    // A menu is an exclusive vertical list; left/right never escape into the
+    // playback controls behind it. B/Escape is the only exit.
     return true;
   }
   // Al filo con acción marcada (Siguiente del hero): empujar la dispara
@@ -1010,25 +1043,31 @@ function moveFocus(dir: SpatialDir): boolean {
     }));
     return true;
   }
-  // Episodio Big Picture estático: subida/bajada determinista entre el
-  // cajón de fuentes y los filtros (arriba desde una fuente → "Todas",
-  // abajo desde filtros → primera fuente). Va ANTES de moveRowAware: si
-  // corriera después, la memoria por fila lo consumiría y mandaría el foco
-  // al último chip visitado en vez de a TODOS.
+// Episodio Big Picture: la lista de fuentes es vertical y los filtros de
+  // arriba son una row horizontal que SOLO se recorre con LB/RB. "Abajo" desde
+  // los filtros entra a la primera fuente (determinista); "arriba" nunca vuelve
+  // a los filtros — se queda dentro de la lista. Va ANTES de moveRowAware: si
+  // corriera después, la memoria por fila lo consumiría.
   if (active.closest("[data-bp-episode]")) {
     if (dir === "up" && active.closest("[data-bp-episode-streams]")) {
-      const todas = document.querySelector<HTMLElement>('[data-row-key="episode-sources"] [data-item-index="0"]');
-      if (todas && isVisibleFocusable(todas)) {
-        const sourceRow = todas.closest<HTMLElement>('[data-row-key="episode-sources"]');
-        if (sourceRow) {
-          // Entrar por el mismo camino que una row del Home: registra el
-          // índice, aplica la marca visual y revela el chip horizontalmente.
-          focusRowIndex(sourceRow, 0, dir, fast);
-        } else {
-          todas.focus({ preventScroll: true });
-        }
-        return true;
+      // Las fuentes son una lista vertical: "arriba" es SIEMPRE la fuente
+      // anterior de esa misma lista. No puede caer en moveRowAware, porque su
+      // camino "up" (spatialNav: `nearestRowInDir`) busca la row `data-row-key`
+      // más cercana en esa dirección y desde aquí encuentra la de los FILTROS
+      // de arriba: el foco saltaba a un filtro (cualquiera: el que tuviera la
+      // memoria de la row), no a la fuente de arriba.
+      const list = active.closest<HTMLElement>("[data-bp-episode-streams]")!;
+      const buttons = Array.from(list.querySelectorAll<HTMLElement>("button:not([disabled])"));
+      const index = buttons.findIndex(button => button.contains(active));
+      if (index > 0) {
+        const previous = buttons[index - 1];
+        previous.focus({ preventScroll: true });
+        scrollBpEpisodeListIntoView(list, previous, fast);
       }
+      // En la primera fuente no hay a dónde subir dentro del cajón y los
+      // filtros de arriba son una row horizontal que solo se recorre con LB/RB:
+      // la tecla se consume aquí en vez de saltar a un filtro.
+      return true;
     }
     if (dir === "down" && active.closest('[data-row-key="episode-sources"]')) {
       const firstStream = document.querySelector<HTMLElement>("[data-bp-episode-primary]")
@@ -1183,7 +1222,20 @@ export function installSpatialNavigation() {
     if (!isSpatialNavMode()) return;
     // The native preview owns input, forwarding it to its embedded detail
     // only after expansion. Never move focus in the Home behind it.
-    if (document.querySelector("[data-shell-preview]")) return;
+    if (isShellPreviewOpen()) return;
+
+    // En el Player Big Picture, teclado y mando comparten el mismo mapa de
+    // zonas. PlayerGamepad resuelve flechas/escape según timeline, controles o
+    // fila de episodios; si no reclama la acción (por ejemplo, un menú abierto),
+    // la navegación espacial de abajo conserva el comportamiento del overlay.
+    if (window.location.pathname.startsWith("/big-picture/player")) {
+      const action = playerGamepadActionForKeyboardKey(event.key);
+      if (action && dispatchGamepadAction(action)) {
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+    }
 
     // Confirmar con mando (A = Enter sintético): los eventos sintéticos no
     // disparan la activación nativa del botón, hay que clickear a mano.
@@ -1225,7 +1277,7 @@ export function installSpatialNavigation() {
   // aquí al soltar A, como el click sintético de antes pero sin romper holds.
   const onKeyUp = (event: KeyboardEvent) => {
     if (!isSpatialNavMode()) return;
-    if (document.querySelector("[data-shell-preview]")) return;
+    if (isShellPreviewOpen()) return;
     if (event.key !== "Enter") return;
     if (!(event as KeyboardEvent & { aetherioGamepadHold?: boolean }).aetherioGamepadHold) return;
     const el = document.activeElement as HTMLElement | null;

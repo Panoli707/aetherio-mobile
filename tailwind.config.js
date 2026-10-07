@@ -25,6 +25,12 @@ export default {
         },
       },
       fontFamily: { sans: ["Inter", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"] },
+      // NOTA: las utilidades de vidrio por refraccion (backdrop-blur-glass*)
+      // NO van aqui a proposito. Tailwind envuelve cada valor de este scale en
+      // blur(), y blur() solo admite <length>: emitiria
+      // `backdrop-filter: blur(url(#frosted-xl))`, que es invalido y hacia
+      // que el navegador descartase la declaracion entera. Esas cuatro
+      // utilidades estan escritas a mano en src/index.css, junto al material.
       backdropBlur: { atv: "20px", heavy: "40px" },
       borderRadius: { pill: "999px", card: "10px", lg2: "16px" },
       boxShadow: {

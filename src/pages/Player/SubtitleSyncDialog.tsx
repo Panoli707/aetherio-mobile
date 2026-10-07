@@ -173,7 +173,7 @@ export default function SubtitleSyncDialog({
       {!embedded ? (
         <div
           className="absolute inset-0"
-          style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)" }}
+          style={{ background: "rgba(0,0,0,0.45)", backdropFilter: "var(--lg-filter-sm)", WebkitBackdropFilter: "var(--lg-filter-sm)" }}
           onClick={onClose}
           aria-hidden="true"
         />

@@ -71,7 +71,7 @@ export async function createLocalProfile(input: LocalProfileInput, options?: { m
   const profile: LocalProfile = {
     id: createProfileId(),
     name: normalizeName(input.name),
-    pin: input.pin ? await hashPin(input.pin) : undefined,
+    pin: isValidPin(input.pin) ? await hashPin(input.pin) : undefined,
     avatarDataUrl: normalizeAvatar(input.avatarDataUrl),
     createdAt: now,
     updatedAt: now,
@@ -97,7 +97,7 @@ export async function updateLocalProfile(id: string, input: LocalProfileInput) {
     updated.push({
       ...profile,
       name: normalizeName(input.name),
-      pin: input.pin ? await hashPin(input.pin) : profile.pin,
+      pin: isValidPin(input.pin) ? await hashPin(input.pin) : profile.pin,
       avatarDataUrl: normalizeAvatar(input.avatarDataUrl),
       updatedAt: Date.now(),
     });
@@ -174,6 +174,11 @@ function writeProfiles(profiles: LocalProfile[]) {
   dispatchProfilesChanged();
 }
 
+/** Solo para tests: siembra la lista de perfiles sin pasar por la UI. */
+export function writeLocalProfilesForTest(profiles: LocalProfile[]) {
+  writeProfiles(profiles);
+}
+
 function profileStorageKeys() {
   const scope = currentProfileScope();
   const profiles = `${PROFILE_SPACE_PREFIX}:${scope}:profiles`;
@@ -237,6 +242,24 @@ function normalizeName(name: string) {
 
 const PIN_SALT = "aetherio-profile-v1";
 
+/** El PIN de Aetherio son exactamente 4 dígitos. */
+export const PIN_LENGTH = 4;
+
+/**
+ * Un PIN solo existe si tiene 4 dígitos: el teclado de acceso pide 4, así que
+ * guardar 1-3 dejaría el perfil sin forma de abrirlo. La UI avisa antes de
+ * guardar y esta capa es la red de seguridad.
+ */
+export function isValidPin(value: string | undefined | null): value is string {
+  return typeof value === "string" && new RegExp(`^\\d{${PIN_LENGTH}}$`).test(value);
+}
+
+/** Mensaje para la UI; null cuando el PIN es válido o está vacío. */
+export function pinLengthError(value: string): string | null {
+  if (!value || isValidPin(value)) return null;
+  return `El PIN debe tener ${PIN_LENGTH} dígitos.`;
+}
+
 export async function hashPin(pin: string): Promise<string> {
   const data = new TextEncoder().encode(`${PIN_SALT}:${pin}`);
   const hashBuffer = await crypto.subtle.digest("SHA-256", data);
@@ -247,6 +270,94 @@ export async function hashPin(pin: string): Promise<string> {
 export async function verifyPin(pin: string, hash: string): Promise<boolean> {
   const pinHash = await hashPin(pin);
   return pinHash === hash;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Migración de PINs                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * El PIN pasó de "hasta 8 dígitos" a "exactamente 4" (el teclado de acceso pide
+ * 4). Como el PIN se guarda hasheado no se puede leer su largo, así que la
+ * única forma fiable de saber si un PIN guardado sigue siendo válido es
+ * comprobarlo contra los 10.000 combinaciones de 4 dígitos: si ninguna coincide
+ * es un PIN legacy (5-8 dígitos) y se quita, dejando el perfil accesible.
+ *
+ * Todo local: 10.000 SHA-256 sobre la maquina del usuario, sin red. Se hace una
+ * sola vez (marca en localStorage) y en segundo plano, sin bloquear el arranque.
+ */
+
+const PIN_MIGRATION_KEY = "aetherio-pin-length-v1-migrated";
+export const PIN_MIGRATION_EVENT = "aetherio-pin-migration-done";
+
+/** 4 dígitos = 10.000 combinaciones: el tope del espacio de PIN. */
+export const PIN_SPACE = 10 ** PIN_LENGTH;
+
+export function needsPinLengthMigration(): boolean {
+  try {
+    if (localStorage.getItem(PIN_MIGRATION_KEY)) return false;
+    return getLocalProfiles().some(profile => Boolean(profile.pin));
+  } catch {
+    return false;
+  }
+}
+
+/** Hashes de los 10.000 PIN de 4 dígitos, calculados en paralelo por lotes. */
+async function hashAllFourDigitPins(): Promise<Set<string>> {
+  const hashes = new Set<string>();
+  const BATCH = 250;
+  for (let start = 0; start < PIN_SPACE; start += BATCH) {
+    const batch: Promise<void>[] = [];
+    for (let value = start; value < Math.min(start + BATCH, PIN_SPACE); value++) {
+      const pin = String(value).padStart(PIN_LENGTH, "0");
+      batch.push(hashPin(pin).then(hash => { hashes.add(hash); }));
+    }
+    await Promise.all(batch);
+  }
+  return hashes;
+}
+
+/**
+ * Quita los PINs que ya no son de 4 dígitos. Devuelve los nombres de los
+ * perfiles liberados. Es idempotente y no hace nada si ya se migró.
+ */
+export async function migratePinsToFourDigits(): Promise<string[]> {
+  try {
+    if (!needsPinLengthMigration()) {
+      markPinMigrationDone();
+      return [];
+    }
+    const profiles = getLocalProfiles();
+    const pinned = profiles.filter(profile => profile.pin);
+    if (pinned.length === 0) {
+      markPinMigrationDone();
+      return [];
+    }
+    const validHashes = await hashAllFourDigitPins();
+    const released: string[] = [];
+    const updated = profiles.map(profile => {
+      if (!profile.pin || validHashes.has(profile.pin)) return profile;
+      released.push(profile.name);
+      return { ...profile, pin: undefined, updatedAt: Date.now() };
+    });
+    if (released.length > 0) writeProfiles(updated);
+    markPinMigrationDone();
+    if (released.length > 0) {
+      window.dispatchEvent(new CustomEvent(PIN_MIGRATION_EVENT, { detail: { released } }));
+    }
+    return released;
+  } catch {
+    // Migracion best-effort: si algo falla, el perfil sigue protegido por su PIN.
+    return [];
+  }
+}
+
+function markPinMigrationDone() {
+  try {
+    localStorage.setItem(PIN_MIGRATION_KEY, String(Date.now()));
+  } catch {
+    // Sin localStorage no hay nada que migrar.
+  }
 }
 
 function normalizeAvatar(avatarDataUrl: string | undefined) {

@@ -198,7 +198,7 @@ export const DEFAULT_SPATIAL_POSTER_SETTINGS: SpatialPosterSettings = {
   globalBadges: true,
   badgeGenre: true,
   badgeYear: true,
-  badgeRating: true,
+  badgeRating: false,
   badgeStyle: "shadow",
   rankingBadges: true,
   rankingBadgeStyle: "default",

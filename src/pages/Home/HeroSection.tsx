@@ -560,7 +560,7 @@ export default function HeroSection({ item, items, activeIndex, onSelect, onVide
                 background: "rgba(0,0,0,0.42)",
                 color: "rgba(255,255,255,0.92)",
                 boxShadow: "0 6px 22px rgba(0,0,0,0.32)",
-                backdropFilter: "blur(14px)",
+                backdropFilter: "var(--lg-filter-md)",
                 cursor: stream.hasAudio ? "pointer" : "default",
                 opacity: stream.hasAudio ? 1 : 0.42,
                 visibility: contentVisible ? "visible" : "hidden",

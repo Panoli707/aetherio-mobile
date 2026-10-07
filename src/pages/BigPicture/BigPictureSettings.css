@@ -221,11 +221,6 @@
    inside its glass surfaces so rows cannot be clipped by their parent. */
 .big-picture--home-maximized .bp-settings-page button:focus { transform: none; }
 
-.bp-settings-page__toggle { position: relative; flex: 0 0 auto; width: 66px; height: 38px; padding: 4px; border-radius: 99px; background: rgba(255, 255, 255, 0.2); transition: background 180ms ease; }
-.bp-settings-page__toggle span { display: block; width: 30px; height: 30px; border-radius: 50%; background: rgba(255, 255, 255, 0.62); transition: transform 180ms ease, background 180ms ease; }
-.is-on .bp-settings-page__toggle { background: #fff; }
-.is-on .bp-settings-page__toggle span { transform: translateX(28px); background: #090a0c; }
-
 .bp-settings-page__cycle-value { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; max-width: 48%; color: #fff; font-size: 16px; font-weight: 800; text-align: right; }
 .bp-settings-page__text-input { min-width: 0; max-width: 360px; flex: 1 1 260px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 14px; background: rgba(255, 255, 255, 0.07); padding: 12px 14px; color: #fff; font: inherit; font-size: 15px; font-weight: 700; outline: none; }
 .bp-settings-page__text-input:focus { border-color: rgba(255, 255, 255, 0.48); background: rgba(255, 255, 255, 0.11); }
@@ -280,9 +275,9 @@
 .bp-settings-page__small-action:focus-visible { border-color: transparent; background: rgba(255, 255, 255, 0.2); color: #fff; outline: none; }
 .bp-settings-page__small-action:disabled { cursor: default; opacity: 0.25; }
 
-.bp-settings-page__notice { position: fixed; right: 6vw; bottom: 30px; z-index: 20; display: flex; align-items: center; gap: 9px; padding: 14px 19px; border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 999px; background: rgba(22, 24, 28, 0.9); color: #fff; box-shadow: 0 16px 50px rgba(0, 0, 0, 0.35); backdrop-filter: blur(20px); font-size: 14px; font-weight: 800; }
+.bp-settings-page__notice { position: fixed; right: 6vw; bottom: 30px; z-index: 20; display: flex; align-items: center; gap: 9px; padding: 14px 19px; border: 1px solid rgba(255, 255, 255, 0.22); border-radius: 999px; background: rgba(22, 24, 28, 0.9); color: #fff; box-shadow: 0 16px 50px rgba(0, 0, 0, 0.35); backdrop-filter: var(--lg-filter-md); font-size: 14px; font-weight: 800; }
 
-.bp-settings-page__modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 34px; background: rgba(0, 0, 0, 0.68); backdrop-filter: blur(12px); }
+.bp-settings-page__modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 34px; background: rgba(0, 0, 0, 0.68); backdrop-filter: var(--lg-filter-sm); }
 .bp-settings-page__editor { width: min(780px, 100%); padding: 26px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 28px; background: rgba(27, 29, 33, 0.96); box-shadow: 0 30px 100px rgba(0, 0, 0, 0.58); }
 .bp-settings-page__editor-head { margin-bottom: 19px; }
 .bp-settings-page__editor-head span { display: block; color: rgba(255, 255, 255, 0.5); font-size: 12px; font-weight: 700; }
@@ -303,7 +298,7 @@
 .bp-addons-page__install,
 .bp-addons-page__log,
 .bp-addons-page__installed { width: min(1480px, 100%); margin: 0 auto 28px; }
-.bp-addons-page__install { display: grid; grid-template-columns: minmax(0, 0.7fr) minmax(420px, 1.3fr); gap: 36px; align-items: center; padding: 26px 29px; border: 1px solid var(--bp-line); border-radius: 28px; background: var(--bp-surface); box-shadow: 0 22px 70px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.05); -webkit-backdrop-filter: blur(28px) saturate(135%); backdrop-filter: blur(28px) saturate(135%); }
+.bp-addons-page__install { display: grid; grid-template-columns: minmax(0, 0.7fr) minmax(420px, 1.3fr); gap: 36px; align-items: center; padding: 26px 29px; border: 1px solid var(--bp-line); border-radius: 28px; background: var(--bp-surface); box-shadow: 0 22px 70px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255, 255, 255, 0.05); -webkit-backdrop-filter: var(--lg-filter-lg); backdrop-filter: var(--lg-filter-lg); }
 .bp-addons-page__install h2,
 .bp-addons-page__installed h2 { margin: 0; font-size: 25px; letter-spacing: -0.03em; font-weight: 820; }
 .bp-addons-page__install h2 + p { margin: 8px 0 0; color: var(--bp-muted); font-size: 14px; line-height: 1.5; }
@@ -334,7 +329,10 @@
 .bp-addons-page__card-actions { display: flex; align-items: center; gap: 8px; }
 .bp-addons-page__toggle,
 .bp-addons-page__remove { display: grid; place-items: center; border: 0; background: transparent; color: #fff; cursor: pointer; }
-.bp-addons-page__toggle { gap: 3px; color: rgba(255, 255, 255, 0.82); font-size: 11px; font-weight: 800; }
+.bp-addons-page__toggle { display: flex; align-items: center; gap: 9px; padding: 6px 12px 6px 8px; border-radius: 999px; color: rgba(255, 255, 255, 0.82); font-size: 11px; font-weight: 800; }
+.bp-addons-page__toggle:hover,
+.bp-addons-page__toggle.spatial-focus,
+.bp-addons-page__toggle:focus-visible { background: rgba(255, 255, 255, 0.12); outline: none; }
 .is-enabled .bp-addons-page__toggle { color: #fff; }
 .bp-addons-page__remove { width: 43px; height: 43px; border-radius: 14px; color: rgba(255, 255, 255, 0.5); }
 .bp-addons-page__remove:hover,
@@ -348,7 +346,7 @@
 .bp-addons-page__spin { animation: bp-addon-spin 0.9s linear infinite; }
 @keyframes bp-addon-spin { to { transform: rotate(360deg); } }
 
-.bp-addons-page__modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 34px; background: rgba(0, 0, 0, 0.68); backdrop-filter: blur(12px); }
+.bp-addons-page__modal { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 34px; background: rgba(0, 0, 0, 0.68); backdrop-filter: var(--lg-filter-sm); }
 .bp-addons-page__keyboard,
 .bp-addons-page__confirm { width: min(760px, 100%); padding: 25px; border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 28px; background: rgba(27, 29, 33, 0.96); box-shadow: 0 30px 100px rgba(0, 0, 0, 0.58); }
 .bp-addons-page__keyboard-head { margin-bottom: 18px; }

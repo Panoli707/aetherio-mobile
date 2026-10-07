@@ -1,5 +1,7 @@
 import crypto from "node:crypto"
 import sharp from "sharp"
+import fs from "node:fs"
+import os from "node:os"
 import { findAccentColor } from "@/lib/accent-color"
 import { GENRE_FALLBACK } from "@/lib/badges"
 // Batch B: STD_W/STD_H ora provengono da image-utils.ts (single source of truth)
@@ -23,7 +25,52 @@ export function hashKey(key: string): string {
   return crypto.createHash("md5").update(key).digest("hex").slice(0, 16)
 }
 
+// ---------------------------------------------------------------------------
+// Cache en disco de las imagenes fuente (poster base, logo, backdrop).
+//
+// fetchImg descarga de image.tmdb.org y otros CDNs; esas bytes son la MATERIA
+// PRIMA del render de sharp. Sin cache de disco, cada arranque vuelve a bajar
+// las ~393 imagenes fuente (medida: 393 fetches `image.tmdb.org` en 60s). El
+// proxy de Aetherio cachea el PNG *final*, pero la imagen fuente se vuelve a
+// pedir en cada render. Guardar el buffer por URL suficiente: son recursos
+// estables, no necesitan TTL corto.
+// ---------------------------------------------------------------------------
+const __IMG_CACHE_DIR = `${os.tmpdir()}\\spatialposters\\src_img`
+
+function __imgDiskPath(url: string): string {
+  let ext = "bin"
+  try {
+    const p = new URL(url).pathname.toLowerCase()
+    const m = p.match(/\.(jpg|jpeg|png|webp|avif|svg)$/)
+    if (m) ext = m[1]
+  } catch {}
+  return `${__IMG_CACHE_DIR}\\${hashKey(url)}.${ext}`
+}
+
+function __readFromImgCache(url: string): Buffer | null {
+  try {
+    const p = __imgDiskPath(url)
+    if (fs.existsSync(p)) {
+      const st = fs.statSync(p)
+      if (st.size > 0 && st.size <= MAX_IMG_SIZE) return fs.readFileSync(p)
+    }
+  } catch {}
+  return null
+}
+
+function __writeToImgCache(url: string, buf: Buffer): void {
+  try {
+    fs.mkdirSync(__IMG_CACHE_DIR, { recursive: true })
+    fs.writeFileSync(__imgDiskPath(url), buf)
+  } catch {}
+}
+
 export async function fetchImg(url: string, signal?: AbortSignal): Promise<Buffer> {
+  // Cache en disco de la imagen fuente: reutiliza el render anterior sin
+  // re-descargar de TMDB/CDNs. Los buffers son la entrada estable de sharp.
+  const __hit = __readFromImgCache(url)
+  if (__hit) return __hit
+
   let targetUrl = url
   if (
     targetUrl.includes("pin.it") ||
@@ -76,6 +123,7 @@ export async function fetchImg(url: string, signal?: AbortSignal): Promise<Buffe
   if (cl && Number(cl) > MAX_IMG_SIZE) throw new Error("image too large")
   const buf = Buffer.from(await res.arrayBuffer())
   if (buf.length > MAX_IMG_SIZE) throw new Error("image too large")
+  __writeToImgCache(targetUrl, buf)
   return buf
 }
 

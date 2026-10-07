@@ -221,8 +221,8 @@ const backdropStyle: CSSProperties = {
   placeItems: "center",
   padding: 24,
   background: "rgba(4, 4, 5, 0.68)",
-  backdropFilter: "blur(16px) saturate(130%)",
-  WebkitBackdropFilter: "blur(16px) saturate(130%)",
+  backdropFilter: "var(--lg-filter-md)",
+  WebkitBackdropFilter: "var(--lg-filter-md)",
 };
 
 const cardStyle: CSSProperties = {

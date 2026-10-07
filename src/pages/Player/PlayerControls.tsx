@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import {
   AudioLines,
@@ -23,13 +23,14 @@ import {
   VolumeX,
   X,
 } from "lucide-react";
-import type { SelectOption, VideoScaleMode } from "./types";
+import type { EpisodeOption, SelectOption, VideoScaleMode } from "./types";
 import { formatTime } from "./utils";
 import ContextMenu from "../../components/ui/ContextMenu";
-import PartyPanel from "../../party/PartyPanel";
-import type { PartyMedia } from "../../party/protocol";
 import { getContextGlassStyle } from "../../components/ui/glassSurface";
+import type { StreamFormatBadge } from "../../utils/streamFormatters";
+import { formatAirDate, formatRuntime } from "../../utils/mediaLabels";
 import { gsap, springTo, prefersReducedMotion, anchorTransformOrigin } from "../../utils/motion";
+import { followHorizontalFocus } from "../../navigation/spatialNav.ts";
 import { sendNativePlaybackCommand, setNativeMpvControlsBlur } from "../../runtime/platform";
  import { useSeekrApiKey } from "../../config/useSeekrApiKey";
 import type { SeekrContent } from "./seekPreview/seekr";
@@ -63,9 +64,21 @@ type MpvBlurGeometry = {
   };
 };
 
+const MONOCHROME_WHITE_FORMAT_BADGE_IDS = new Set(["q-b", "q-r", "remux-tier-1"]);
+
+function isEpisodeCardVisibleInRow(row: HTMLElement, card: HTMLElement) {
+  const rowRect = row.getBoundingClientRect();
+  const cardRect = card.getBoundingClientRect();
+  return cardRect.left >= rowRect.left - 1 && cardRect.right <= rowRect.right + 1;
+}
+
 interface PlayerControlsProps {
   active: boolean;
   currentMetaTitle: string;
+  /** Un unico badge de plataforma, encima del titulo en Big Picture. */
+  streamingServiceBadge?: StreamFormatBadge | null;
+  /** Badges monocromos de formato, bajo la plataforma. */
+  videoFormatBadges?: StreamFormatBadge[];
   title: string;
   seekrContent: SeekrContent | null;
   currentTime: number;
@@ -80,6 +93,8 @@ interface PlayerControlsProps {
   isLocalPlayback: boolean;
   repeatEnabled: boolean;
   audioOptions: SelectOption[];
+  /** Logos de la cabecera "Audio", del `.json` (tecnologia, codec y/o canales). */
+  audioTechLogo?: AudioHeaderBadge | AudioHeaderBadge[] | null;
   subtitleOptions: SelectOption[];
   speedOptions: string[];
   videoProfileOptions: SelectOption[];
@@ -107,25 +122,20 @@ interface PlayerControlsProps {
   onGoLive?: () => void;
   /** Variante Big Picture (/big-picture/player): layout sin guía de mando. */
   bigPicture?: boolean;
-  /** Texto oscuro cuando el fondo/poster del reproductor es muy claro. */
-  lightBackground?: boolean;
   /** Menú flotante activo, elevado a PlayerPage para que el mando (X) lo abra. */
   openMenu: string | null;
   onOpenMenuChange: (next: string | null) => void;
   showPanelToggle: boolean;
   activeSidePanel: "episodes" | "sources" | null;
+  episodesRowOpen: boolean;
+  episodeOptions: EpisodeOption[];
+  currentEpisodeNumber?: number;
   hasEpisodeOptions: boolean;
   controlsLocked: boolean;
   /** Sala de espera Party: bloquea transporte pero deja volumen y Party vivos. */
   lobbyMode: boolean;
-  showPartyButton: boolean;
   partyConnected: boolean;
-  partyPeerCount: number;
   partyPeerNames: string[];
-  partyCurrentMedia: PartyMedia | null;
-  partyCurrentTitle: string;
-  partyStreamFailed: boolean;
-  onPartyRetryStream: () => void;
   canGoPrevEpisode: boolean;
   canGoNextEpisode: boolean;
   canChangeSource: boolean;
@@ -153,12 +163,26 @@ interface PlayerControlsProps {
   onToggleRepeat: () => void;
   onToggleSourcePanel: () => void;
   onToggleEpisodePanel: () => void;
+  /** Refleja el foco del reproductor para compartir navegación teclado/mando. */
+  onBarFocusChange: (zone: "timeline" | "buttons" | "episodes") => void;
+  /** Colapsa la fila de episodios y devuelve el foco al timeline. */
+  onCloseEpisodeRow: () => void;
+  onSelectEpisode: (episode: EpisodeOption) => void;
   onNavigateEpisode: (direction: "prev" | "next") => void;
+}
+
+/** Logo de la cabecera "Audio": el PNG real del `.json` de la stream. */
+interface AudioHeaderBadge {
+  id: string;
+  label: string;
+  imageUrl: string;
 }
 
 export default function PlayerControls({
   active,
   currentMetaTitle,
+  streamingServiceBadge = null,
+  videoFormatBadges = [],
   title,
   seekrContent,
   currentTime,
@@ -173,6 +197,7 @@ export default function PlayerControls({
   isLocalPlayback,
   repeatEnabled,
   audioOptions,
+  audioTechLogo = null,
   subtitleOptions,
   speedOptions,
   videoProfileOptions,
@@ -195,22 +220,18 @@ export default function PlayerControls({
   liveDvrProgress = 1,
   onGoLive,
   bigPicture,
-  lightBackground = false,
   openMenu,
   onOpenMenuChange,
   showPanelToggle,
   activeSidePanel,
+  episodesRowOpen,
+  episodeOptions,
+  currentEpisodeNumber,
   hasEpisodeOptions,
   controlsLocked,
   lobbyMode,
-  showPartyButton,
   partyConnected,
-  partyPeerCount,
   partyPeerNames,
-  partyCurrentMedia,
-  partyCurrentTitle,
-  partyStreamFailed,
-  onPartyRetryStream,
   canGoPrevEpisode,
   canGoNextEpisode,
   canChangeSource,
@@ -238,10 +259,20 @@ export default function PlayerControls({
   onToggleRepeat,
   onToggleSourcePanel,
   onToggleEpisodePanel,
+  onBarFocusChange,
+  onCloseEpisodeRow,
+  onSelectEpisode,
   onNavigateEpisode,
 }: PlayerControlsProps) {
   const controlsRef = useRef<HTMLDivElement>(null);
   const controlsGlassRef = useRef<HTMLDivElement>(null);
+  const episodeRowRef = useRef<HTMLDivElement>(null);
+  const episodeRowScrollLeftRef = useRef(0);
+  const hasEpisodeRowScrollMemoryRef = useRef(false);
+  const lastFocusedEpisodeIdRef = useRef<string | null>(null);
+  const lastPlaybackEpisodeRef = useRef(currentEpisodeNumber);
+  const episodeRowIdentityRef = useRef("");
+  const playerShadowRef = useRef<HTMLDivElement>(null);
   const lastBlurGeometryRef = useRef("");
   const blurErrorLoggedRef = useRef(false);
   const blurCommandQueueRef = useRef<Promise<void>>(Promise.resolve());
@@ -322,7 +353,14 @@ export default function PlayerControls({
     const syncBarFocus = () => {
       const active = getActiveControl();
       clearBarFocus();
-      active?.setAttribute("data-bar-active", "true");
+      if (!active) return;
+      active.setAttribute("data-bar-active", "true");
+      const zone = active.closest("[data-bp-episode-row]")
+        ? "episodes"
+        : active.matches("[data-player-timeline]")
+          ? "timeline"
+          : "buttons";
+      onBarFocusChange(zone);
     };
 
     root.addEventListener("focusin", syncBarFocus);
@@ -335,63 +373,259 @@ export default function PlayerControls({
       window.clearInterval(focusSyncTimer);
       clearBarFocus();
     };
-  }, [bigPicture]);
+  }, [bigPicture, onBarFocusChange]);
+
+useEffect(() => {
+    if (!bigPicture || !episodesRowOpen || episodeOptions.length === 0) return;
+    const frame = window.requestAnimationFrame(() => {
+      const row = episodeRowRef.current;
+      if (!row) return;
+      const rowIdentity = episodeOptions[0]?.id ?? "";
+      const playbackChanged = lastPlaybackEpisodeRef.current !== currentEpisodeNumber;
+      const rowChanged = episodeRowIdentityRef.current !== rowIdentity;
+      if (playbackChanged || rowChanged) {
+        lastPlaybackEpisodeRef.current = currentEpisodeNumber;
+        episodeRowIdentityRef.current = rowIdentity;
+        lastFocusedEpisodeIdRef.current = null;
+        episodeRowScrollLeftRef.current = 0;
+        hasEpisodeRowScrollMemoryRef.current = false;
+      }
+      // Recuerda el desplazamiento horizontal entre aperturas, pero el foco va
+      // siempre al episodio que se está reproduciendo. Si ese dato no está en la
+      // temporada, usa la última card enfocada antes de caer en la primera.
+      if (hasEpisodeRowScrollMemoryRef.current) {
+        row.scrollTo({ left: episodeRowScrollLeftRef.current, behavior: "auto" });
+      }
+      const rememberedId = lastFocusedEpisodeIdRef.current;
+      const rememberedTarget = rememberedId
+        ? Array.from(row.querySelectorAll<HTMLElement>("[data-bp-episode-card]"))
+          .find(card => card.dataset.bpEpisodeId === rememberedId)
+        : null;
+      const target = row.querySelector<HTMLElement>("[data-bp-episode-card][aria-current='true']")
+        ?? rememberedTarget
+        ?? row.querySelector<HTMLElement>("[data-bp-episode-card]");
+      if (!target) return;
+      target.focus({ preventScroll: true });
+      if (!hasEpisodeRowScrollMemoryRef.current || !isEpisodeCardVisibleInRow(row, target)) {
+        followHorizontalFocus(row, target, true);
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [bigPicture, episodesRowOpen, episodeOptions.length, currentEpisodeNumber]);
+
+  // La fila queda montada mientras la barra y su salida se desplazan. El glass
+  // se mueve (no hace fade); solo las tarjetas y sus sombras se atenúan para que
+  // el borde inferior del scrollport no las corte de golpe.
+  const [episodesMounted, setEpisodesMounted] = useState(episodesRowOpen);
+  const episodesOpenRef = useRef(episodesRowOpen);
+  const barHeightBeforeEpisodesRef = useRef<number | null>(null);
+  const episodeRowExpansionRef = useRef(0);
+  useLayoutEffect(() => {
+    const wasOpen = episodesOpenRef.current;
+    episodesOpenRef.current = episodesRowOpen;
+    const glass = controlsGlassRef.current;
+
+    if (episodesRowOpen) {
+      if (!episodesMounted) {
+        barHeightBeforeEpisodesRef.current = glass?.getBoundingClientRect().height ?? null;
+        setEpisodesMounted(true);
+        return;
+      }
+
+      if (!glass) return;
+      gsap.killTweensOf(glass);
+      gsap.killTweensOf(playerShadowRef.current);
+      if (barHeightBeforeEpisodesRef.current !== null) {
+        const heightBefore = barHeightBeforeEpisodesRef.current;
+        barHeightBeforeEpisodesRef.current = null;
+        const expansion = Math.max(0, glass.getBoundingClientRect().height - heightBefore);
+        episodeRowExpansionRef.current = expansion;
+        const row = episodeRowRef.current;
+        const shadow = playerShadowRef.current;
+        if (prefersReducedMotion() || expansion < 1) {
+          gsap.set(glass, { clearProps: "transform" });
+          if (shadow) gsap.set(shadow, { opacity: 1 });
+          if (row) gsap.set(row, { clearProps: "opacity" });
+          return;
+        }
+        // La row ya está en el layout. Devuelve el glass a su altura anterior
+        // y anímalo hacia arriba para revelar las tarjetas desde abajo.
+        gsap.set(glass, { y: expansion });
+        if (row) {
+          gsap.killTweensOf(row);
+          gsap.set(row, { clearProps: "opacity" });
+        }
+        const opening = gsap.timeline();
+        opening.to(glass, {
+          y: 0,
+          duration: 0.48,
+          ease: "power3.out",
+          overwrite: "auto",
+        }, 0);
+        if (shadow) opening.to(shadow, {
+          opacity: 1,
+          duration: 0.44,
+          ease: "power3.out",
+          overwrite: "auto",
+        }, 0.02);
+      } else if (!wasOpen) {
+        // Reapertura mientras la salida estaba a medio camino: interrumpe el
+        // cierre desde su valor de presentación y vuelve al glass expandido.
+        const row = episodeRowRef.current;
+        const shadow = playerShadowRef.current;
+        gsap.killTweensOf(row);
+        gsap.killTweensOf(shadow);
+        const reopening = gsap.timeline();
+        reopening.to(glass, { y: 0, duration: 0.36, ease: "power3.out", overwrite: "auto" }, 0);
+        if (shadow) reopening.to(shadow, { opacity: 1, duration: 0.36, ease: "power3.out", overwrite: "auto" }, 0);
+        if (row) reopening.to(row, { opacity: 1, duration: 0.24, ease: "power3.out", overwrite: "auto" }, 0);
+      }
+      return;
+    }
+
+    if (!episodesMounted) {
+      if (glass && episodeRowExpansionRef.current > 0) {
+        // La row ya se desmontó: limpiar el desplazamiento en el mismo layout
+        // commit evita que el glass salte al recuperar su altura original.
+        gsap.set(glass, { clearProps: "transform" });
+        episodeRowExpansionRef.current = 0;
+      }
+      return;
+    }
+
+    if (!wasOpen || !glass || prefersReducedMotion() || episodeRowExpansionRef.current < 1) {
+      if (prefersReducedMotion() && playerShadowRef.current) gsap.set(playerShadowRef.current, { opacity: 0.72 });
+      setEpisodesMounted(false);
+      return;
+    }
+
+    // Primero baja la barra. La row queda asomada en el borde durante ese
+    // desplazamiento; después se atenúan las tarjetas/sombras y finalmente se
+    // desmontan. La barra nunca hace fade.
+    gsap.killTweensOf(glass);
+    const row = episodeRowRef.current;
+    const shadow = playerShadowRef.current;
+    gsap.killTweensOf(row);
+    gsap.killTweensOf(shadow);
+    const closing = gsap.timeline({ onComplete: () => setEpisodesMounted(false) });
+    closing.to(glass, {
+      y: episodeRowExpansionRef.current,
+      duration: 0.48,
+      ease: "power3.out",
+      overwrite: "auto",
+    }, 0);
+    if (row) {
+      closing.to(row, {
+        opacity: 0,
+        duration: 0.32,
+        ease: "power3.out",
+        overwrite: "auto",
+      });
+    }
+    if (shadow) closing.to(shadow, {
+      opacity: 0.72,
+      duration: 0.32,
+      ease: "power3.out",
+      overwrite: "auto",
+    }, 0.48);
+  }, [bigPicture, episodesRowOpen, episodesMounted]);
 
   // Lobby Party: el transporte lo gobierna el anfitrión; volumen y Party siguen vivos.
   const transportLocked = controlsLocked || lobbyMode;
   const { apiKey: seekrApiKey } = useSeekrApiKey();
+  // Seekr es solo del reproductor normal. En Big Picture la card no cabe sobre
+  // la barra (se salia del borde izquierdo y salia vacia) y el hover del
+  // timeline no necesita previews: `enabled: false` ademas evita pedir pista ni
+  // hojas de sprites a la API.
   const seekrPreview = useSeekrPreview({
     apiKey: seekrApiKey,
     content: seekrContent,
     durationMs: Math.max(0, duration * 1_000),
-    enabled: !transportLocked && duration > 0,
+    enabled: !bigPicture && !transportLocked && duration > 0,
   });
   const [seekPreviewTime, setSeekPreviewTime] = useState<number | null>(null);
+  // Intencion (la pide el raton/teclado) y nodo montado van separados: el nodo
+  // sobrevive al apagado para que el fade de salida pueda animarse antes de
+  // desmontar.
   const [seekPreviewVisible, setSeekPreviewVisible] = useState(false);
+  const [seekPreviewMounted, setSeekPreviewMounted] = useState(false);
+  // Passar el raton por encima NO mueve la barra: el preview de hover solo
+  // informa (miniatura). El pulgar, el relleno y el reloj siguen la posicion
+  // real salvo mientras el puntero esta presionando el timeline de verdad.
+  const [timelineScrubbing, setTimelineScrubbing] = useState(false);
   // El popup se dibuja FUERA de la barra: el contenedor de controles tiene
   // overflow-hidden, asi que dentro se recortaba siempre. Se ancla en coordenadas
   // de ventana y se monta con un portal.
   const [seekPreviewAnchor, setSeekPreviewAnchor] = useState<{ left: number; bottom: number } | null>(null);
   const seekPreviewTimerRef = useRef<number | null>(null);
   const seekDraggingRef = useRef(false);
+  // El raton esta encima del timeline. La card solo existe en ese estado (o
+  // enfocada por teclado): pasar por la barra la enciende, salir de ella la apaga
+  // al instante. El flag tambien frena al timer para que no se apague con el
+  // raton quieto encima.
+  const seekHoverRef = useRef(false);
+  const seekPreviewRef = useRef<HTMLDivElement | null>(null);
+  // Un input range puede quedarse en estado de arrastre si se pierde el
+  // puntero (cambio de app, ventana sin foco): seguiria emitiendo cambios al
+  // solo pasar por encima. Marcar el origen del gesto (puntero o teclado) es lo
+  // que deja el seek solo en manos del usuario.
+  const keyboardScrubRef = useRef(false);
+  // El tactil no tiene "quedarse encima": al soltar, la card se retira.
+  const scrubIsTouchRef = useRef(false);
   const timelineTrackRef = useRef<HTMLDivElement | null>(null);
 
+  const unmountSeekPreview = () => {
+    setSeekPreviewMounted(false);
+    setSeekPreviewTime(null);
+    setSeekPreviewAnchor(null);
+  };
+
+  const clearSeekPreviewTimer = () => {
+    if (seekPreviewTimerRef.current !== null) {
+      window.clearTimeout(seekPreviewTimerRef.current);
+      seekPreviewTimerRef.current = null;
+    }
+  };
+
+  const hideSeekPreview = () => {
+    clearSeekPreviewTimer();
+    // No se desmonta aqui: el fade de salida corre sobre el nodo vivo y lo
+    // retira al terminar (onComplete del tween).
+    setSeekPreviewVisible(false);
+  };
+
+  // Red de seguridad para el caso de foco (mando/teclado), que no tiene raton
+  // que avise de que se fue. Con el puntero encima no hace nada: el siguiente
+  // movimiento vuelve a armarlo.
   const hideSeekPreviewSoon = () => {
-    if (seekPreviewTimerRef.current !== null) window.clearTimeout(seekPreviewTimerRef.current);
+    clearSeekPreviewTimer();
     seekPreviewTimerRef.current = window.setTimeout(() => {
       seekPreviewTimerRef.current = null;
-      if (!seekDraggingRef.current) {
-        setSeekPreviewVisible(false);
-        setSeekPreviewTime(null);
-        setSeekPreviewAnchor(null);
-      }
+      if (!seekDraggingRef.current && !seekHoverRef.current) hideSeekPreview();
     }, 1_500);
   };
 
   const showSeekPreview = (time: number) => {
     const next = Math.max(0, Math.min(duration || time, time));
     setSeekPreviewTime(next);
+    setSeekPreviewMounted(true);
     setSeekPreviewVisible(seekrPreview.available);
     const rect = timelineTrackRef.current?.getBoundingClientRect();
     if (rect && rect.width > 0) {
       const ratio = duration > 0 ? Math.max(0, Math.min(1, next / duration)) : 0;
+      // Se ancla al borde SUPERIOR de la barra entera, no al timeline: con el
+      // titulo y los botones alrededor, medir desde el timeline dejaba la card
+      // encima de la propia barra de reproduccion. Mismo calculo en normal y
+      // en Big Picture porque las dos comparten este bloque.
+      const barTop = controlsGlassRef.current?.getBoundingClientRect().top ?? rect.top;
       setSeekPreviewAnchor({
         left: rect.left + rect.width * ratio,
-        // +24 en vez de +14: deja una banda clara entre la card y el timeline para
-        // que nunca llegue a pisar la barra de reproduccion.
-        bottom: window.innerHeight - rect.top + 24,
+        // +14: banda limpia entre la card y la barra de reproduccion.
+        bottom: window.innerHeight - barTop + 14,
       });
     }
     void seekrPreview.loadFrames(next);
-    if (seekPreviewTimerRef.current !== null) window.clearTimeout(seekPreviewTimerRef.current);
-    seekPreviewTimerRef.current = window.setTimeout(() => {
-      seekPreviewTimerRef.current = null;
-      if (!seekDraggingRef.current) {
-        setSeekPreviewVisible(false);
-        setSeekPreviewTime(null);
-        setSeekPreviewAnchor(null);
-      }
-    }, 1_500);
+    hideSeekPreviewSoon();
   };
 
   const previewTimeFromPointer = (event: ReactPointerEvent<HTMLInputElement>) => {
@@ -400,9 +634,63 @@ export default function PlayerControls({
     return Math.max(0, Math.min(duration, ((event.clientX - rect.left) / rect.width) * duration));
   };
 
+  const startTimelineScrub = (event: ReactPointerEvent<HTMLInputElement>) => {
+    seekDraggingRef.current = true;
+    setTimelineScrubbing(true);
+    // Solo el raton (o lapiz) puede quedarse "encima"; el tactil se retira al
+    // soltar, asi que no puede dejar la card encendida.
+    scrubIsTouchRef.current = event.pointerType === "touch";
+    seekHoverRef.current = !scrubIsTouchRef.current;
+    showSeekPreview(previewTimeFromPointer(event));
+  };
+
+  const endTimelineScrub = () => {
+    seekDraggingRef.current = false;
+    setTimelineScrubbing(false);
+    if (scrubIsTouchRef.current) {
+      seekHoverRef.current = false;
+      hideSeekPreview();
+      return;
+    }
+    // Con el puntero encima la card espera a que se vaya (onPointerLeave).
+    clearSeekPreviewTimer();
+  };
+
+  const timelineDisabled = (!bigPicture && !duration) || transportLocked;
+
+  useEffect(() => {
+    if (!timelineDisabled) return;
+    // Un timeline que se bloquea a mitad de arrastre ya no recibe el pointerup:
+    // sin esta salida la barra se quedaria pegada a la posicion del puntero.
+    seekDraggingRef.current = false;
+    setTimelineScrubbing(false);
+  }, [timelineDisabled]);
+
   useEffect(() => () => {
     if (seekPreviewTimerRef.current !== null) window.clearTimeout(seekPreviewTimerRef.current);
   }, []);
+
+  // Entrada y salida de la card en fade. El nodo se desmonta al terminar el
+  // apagado; mientras tanto sigue montado (y por eso `pointer-events-none`).
+  useEffect(() => {
+    const el = seekPreviewRef.current;
+    if (!el || !seekPreviewMounted) return;
+    gsap.killTweensOf(el);
+    if (prefersReducedMotion()) {
+      gsap.set(el, { opacity: seekPreviewVisible ? 1 : 0 });
+      if (!seekPreviewVisible) unmountSeekPreview();
+      return;
+    }
+    gsap.fromTo(el, { opacity: seekPreviewVisible ? 0 : 1 }, {
+      opacity: seekPreviewVisible ? 1 : 0,
+      duration: seekPreviewVisible ? 0.16 : 0.12,
+      ease: "power2.out",
+      overwrite: "auto",
+      onComplete: () => {
+        if (!seekPreviewVisible) unmountSeekPreview();
+      },
+    });
+  }, [seekPreviewMounted, seekPreviewVisible]);
 
   const subtitleBlurRefreshKey = useMemo(
     () => `${selectedSubtitleValue}|${subtitlesLoading ? "loading" : "ready"}|${subtitleOptions.map(option => option.value).join("\u0000")}`,
@@ -430,7 +718,7 @@ export default function PlayerControls({
         if (el && !active) el.style.pointerEvents = "none";
       }, 340);
     }
-  }, [active]);
+  }, [active, bigPicture]);
 
   useEffect(() => {
     const syncControlsTop = () => {
@@ -556,15 +844,16 @@ export default function PlayerControls({
     const buildGeometry = (): MpvBlurGeometry | null => {
       const glass = controlsGlassRef.current;
       if (!glass) return null;
-      const fullscreenSubtitleOverlay = Boolean(bigPicture && openMenu === "subtitles");
       const rect = glass.getBoundingClientRect();
       const episodePanel = activeSidePanel
         ? document.querySelector<HTMLElement>("[data-player-episode-panel-glass]")
-        : null;
+        : (episodesRowOpen || episodesMounted)
+          ? document.querySelector<HTMLElement>("[data-player-episode-row-backdrop]")
+          : null;
       const episodeRect = episodePanel?.getBoundingClientRect();
+      const syncDialog = document.querySelector<HTMLElement>("[data-player-sync-dialog-glass]");
       const floatingPanel = openMenu || subtitleSyncOpen
-        ? (document.querySelector<HTMLElement>("[data-player-sync-dialog-glass]") ??
-           document.querySelector<HTMLElement>("[data-player-floating-panel-glass]"))
+        ? (syncDialog ?? document.querySelector<HTMLElement>("[data-player-floating-panel-glass]"))
         : null;
       const floatingRect = floatingPanel?.getBoundingClientRect();
       if ((openMenu || subtitleSyncOpen) && !floatingPanel) return null;
@@ -584,10 +873,16 @@ export default function PlayerControls({
               top: r(episodeRect.top),
               right: r(episodeRect.right),
               bottom: r(episodeRect.bottom),
-              cornerRadius: Math.round(28 * scale),
+              cornerRadius: activeSidePanel ? Math.round(28 * scale) : 0,
             }
           : undefined,
-        subtitlePanel: floatingRect && !fullscreenSubtitleOverlay
+        // El panel de sincronizacion ocupa toda la pantalla: no hay nada detras que
+        // leer y difuminarlo taparia el menu de pistas. Se excluye **solo** cuando
+        // el elemento medido es ese dialogo. Antes se excluia con
+        // `openMenu === "subtitles"`, que tambien es cierto con la lista de
+        // pistas abierta, y por eso el menu de subtitulos se quedaba sin
+        // desenfoque mientras audio y velocidad si lo tenian.
+        subtitlePanel: floatingRect && floatingPanel !== syncDialog
           ? {
               left: r(floatingRect.left),
               top: r(floatingRect.top),
@@ -614,11 +909,12 @@ export default function PlayerControls({
       const key = JSON.stringify({ geometry, alpha });
       if (key === lastBlurGeometryRef.current) return;
       lastBlurGeometryRef.current = key;
+      const barCounts = !bigPicture && alpha.blurAlpha > 0.01;
       const shouldBeEnabled =
-        alpha.blurAlpha > 0.01 ||
+        barCounts ||
         alpha.episodeBlurAlpha > 0.01 ||
         alpha.subtitleBlurAlpha > 0.01 ||
-        active ||
+        (!bigPicture && active) ||
         !!activeSidePanel ||
         !!openMenu ||
         !!subtitleSyncOpen;
@@ -641,8 +937,10 @@ export default function PlayerControls({
     };
 
     // Barra exagerada (0.62/0.44) y menús con misma elegancia que nav (0.48/0.36)
-    const targetBar = active && !controlsLocked ? 1 : 0;
-    const targetEpisode = activeSidePanel ? 1 : 0;
+    // Big Picture queda fuera: su barra no se desenfoca, se apoya en el video
+    // con una sombra degradada (el rect del shader dibujaria un corte recto).
+    const targetBar = bigPicture ? 0 : (active && !controlsLocked ? 1 : 0);
+    const targetEpisode = activeSidePanel || episodesRowOpen ? 1 : 0;
     const targetSubtitle = openMenu || subtitleSyncOpen ? 1 : 0;
 
     gsap.killTweensOf(barAlphaRef.current);
@@ -717,7 +1015,7 @@ export default function PlayerControls({
       }
       if (nativeRetryTimer !== null) window.clearTimeout(nativeRetryTimer);
     };
-  }, [active, activeSidePanel, bigPicture, controlsLocked, nativeSurfaceVisible, openMenu, subtitleBlurRefreshKey, subtitleSyncOpen]);
+  }, [active, activeSidePanel, bigPicture, controlsLocked, episodesMounted, episodesRowOpen, nativeSurfaceVisible, openMenu, subtitleBlurRefreshKey, subtitleSyncOpen]);
 
   function runControlAction(action: () => void) {
     setOpenMenu(null);
@@ -734,32 +1032,47 @@ export default function PlayerControls({
   ) : null;
 
   // Mismo material que el sidebar de Big Picture (.bp-rail__box).
+  // El relleno opaco y el backdropFilter se juzgan por la MISMA condicion: si el
+  // relleno se vuelve opaco por una preferencia que el filtro no comparte, el
+  // vidrio queda tapado por un panel casi solido y no se ve. Por eso el
+  // reduced-transparency se resuelve una vez aqui y gobierna ambos ramos.
+  // (Que antes el relleno gateara por prefersReducedMotion era el bug: con
+  // reduced motion activo ponia rgba(28,28,30,0.94) mientras el filtro seguia
+  // en url(#frosted-lg) — 94% opaco encima, refraccion invisible.)
+  const reducedTransparency = typeof window !== "undefined"
+    && window.matchMedia?.("(prefers-reduced-transparency: reduce)").matches;
+
+  // Big Picture: la barra ya no es una capsula de vidrio. Es contenido sobre el
+  // video con una SOMBRA DEGRADADA (como la referencia): el panel se apoya en la
+  // imagen, sin borde, sin radio y sin ancho maximo.
+  //
+  // Ni backdrop-filter ni blur de MPV: cualquier recorte —el rect del shader o el
+  // rect del webview— devuelve el corte recto que se quejo. El degradado vive en
+  // `.bp-player-controls::before` (index.css) porque tiene que subir mas alla de
+  // esta caja; aqui la superficie queda transparente.
   const glassStyle: CSSProperties = bigPicture
-    ? {
-        background: "rgba(255, 255, 255, 0.12)",
-        backdropFilter: "blur(48px) saturate(175%)",
-        WebkitBackdropFilter: "blur(48px) saturate(175%)",
-        border: "1px solid rgba(225, 230, 238, 0.09)",
-        boxShadow: "0 3px 14px rgba(0, 0, 0, 0.38)",
-      }
+    ? { background: "transparent" }
     : {
-        background: prefersReducedMotion() || (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-transparency: reduce)").matches)
-          ? "rgba(28,28,30,0.94)"
-          : "rgba(70, 70, 70, 0.22)",
-        backdropFilter: (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-transparency: reduce)").matches) ? "none" : "blur(22px) saturate(180%)",
-        WebkitBackdropFilter: (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-transparency: reduce)").matches) ? "none" : "blur(22px) saturate(180%)",
+        background: reducedTransparency ? "rgba(28,28,30,0.94)" : "rgba(70, 70, 70, 0.22)",
+        backdropFilter: reducedTransparency ? "none" : "var(--lg-filter-lg)",
+        WebkitBackdropFilter: reducedTransparency ? "none" : "var(--lg-filter-lg)",
         border: "1px solid rgba(255,255,255,0.08)",
         willChange: "transform, backdrop-filter",
         transform: "translateZ(0)",
         backfaceVisibility: "hidden",
       };
-  const timelineDisplayTime = seekPreviewTime ?? currentTime;
+  // Hover informa, no conduce: solo un arrastre real mueve la barra visible.
+  const timelineDisplayTime = timelineScrubbing && seekPreviewTime !== null ? seekPreviewTime : currentTime;
 
   return (
     <div
       ref={controlsRef}
       data-player-interactive
-      className="absolute inset-x-0 bottom-0 z-40 px-4 pb-3 will-change-transform"
+      className={bigPicture
+        // Sin padding exterior: el panel tiene que llegar a los cuatro bordes de
+        // la ventana, que es lo que hace que la sombra "agarre" todo.
+        ? "absolute inset-x-0 bottom-0 z-40 will-change-transform"
+        : "absolute inset-x-0 bottom-0 z-40 px-4 pb-3 will-change-transform"}
       style={{ opacity: 0, pointerEvents: active ? "auto" : "none", willChange: "transform, opacity, filter", transform: "translateZ(0)" }}
       onMouseEnter={onControlsEnter}
       onMouseLeave={onControlsLeave}
@@ -770,19 +1083,129 @@ export default function PlayerControls({
         ref={controlsGlassRef}
         data-player-controls-glass
         className={bigPicture
-          ? `bp-player-controls relative mx-auto w-full overflow-hidden rounded-[26px] px-7 pb-3 pt-4${lightBackground ? " bp-player-controls--light" : ""}`
+          ? `bp-player-controls relative mx-auto w-full px-[clamp(28px,6.4vw,132px)] pb-[clamp(20px,3.6vh,42px)] pt-[clamp(30px,7vh,84px)]`
           : "relative mx-auto w-full max-w-[1240px] overflow-hidden rounded-[26px] px-5 py-3.5 shadow-[0_30px_90px_rgba(0,0,0,0.76)] will-change-transform"}
         style={glassStyle}
       >
         {bigPicture ? (
-          <div className="mb-1">
-            <p className="truncate text-[19px] font-bold leading-[1.2] text-white">{currentMetaTitle}</p>
-            {title ? (
-              <p className="mt-0.5 truncate text-[15px] font-medium leading-snug text-white/90">{title}</p>
-            ) : null}
-             {partyPill}
-              </div>
-             ) : (
+          <div ref={playerShadowRef} className="bp-player-shadow" aria-hidden="true" />
+        ) : null}
+        {bigPicture ? (
+          <div className="flex items-end justify-between gap-8">
+            <div className="min-w-0">
+              {!episodesRowOpen && streamingServiceBadge?.imageUrl ? (
+                <img
+                  src={streamingServiceBadge.imageUrl}
+                  alt={streamingServiceBadge.label}
+                  title={streamingServiceBadge.label}
+                  className="mb-[clamp(5px,0.65vh,9px)] block h-[clamp(40px,3.75vw,72px)] max-w-[min(28vw,260px)] object-contain object-left"
+                />
+              ) : null}
+              {videoFormatBadges.length ? (
+                <div className="mb-[clamp(6px,0.75vh,10px)] flex flex-wrap items-center gap-[clamp(4px,0.4vw,8px)]">
+                  {videoFormatBadges.map(badge => (
+                    <img
+                      key={badge.id}
+                      src={badge.imageUrl}
+                      alt={badge.label}
+                      title={badge.label}
+                      className="block h-[clamp(17px,1.4vw,27px)] max-w-[min(12vw,112px)] object-contain object-left"
+                      style={MONOCHROME_WHITE_FORMAT_BADGE_IDS.has(badge.id)
+                        ? { filter: "brightness(0) invert(1)" }
+                        : undefined}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              {title ? (
+                <p className="bp-eyebrow truncate text-[clamp(15px,1.15vw,20px)] font-semibold leading-[1.2] text-white/72">{title}</p>
+              ) : null}
+              <p className={`bp-title truncate text-[clamp(28px,2.75vw,56px)] font-bold leading-[1.04] tracking-[-0.022em] text-white ${streamingServiceBadge?.imageUrl || videoFormatBadges.length ? "mt-0" : "mt-[0.3em]"}`}>
+                {currentMetaTitle}
+              </p>
+              {partyPill}
+            </div>
+            {/* Party no entra en la barra de Big Picture: son cuatro controles en
+                fila y el boton sobraba. El aviso de sala sigue en `partyPill`,
+                junto al titulo. */}
+            <div className="bp-bar-actions flex shrink-0 flex-wrap items-center justify-end gap-[clamp(6px,0.55vw,12px)] pb-[0.35em]">
+              <SubtitleMenu
+                label={subtitlesLoading ? "Cargando subtítulos" : "Subtítulos"}
+                selectedSubtitleValue={selectedSubtitleValue}
+                subtitleOptions={[{ value: "", label: subtitlesLoading ? "Cargando subtítulos..." : "Apagado" }, ...subtitleOptions]}
+                open={openMenu === "subtitles"}
+                disabled={transportLocked}
+                bigPicture={bigPicture}
+                subtitleSyncOpen={subtitleSyncOpen}
+                subtitleDelayMs={subtitleDelayMs}
+                subtitleScalePercent={subtitleScalePercent}
+                subtitleVerticalPercent={subtitleVerticalPercent}
+                subtitleSyncLoading={subtitleSyncLoading}
+                subtitleSyncError={subtitleSyncError}
+                subtitleSyncCanUseManual={subtitleSyncCanUseManual}
+                subtitleSyncStage={subtitleSyncStage}
+                subtitleSyncCues={subtitleSyncCues}
+                subtitleSyncCapturedVideoMs={subtitleSyncCapturedVideoMs}
+                subtitleSyncTrackLabel={subtitleSyncTrackLabel}
+                onToggle={() => setOpenMenu(value => value === "subtitles" ? null : "subtitles")}
+                onClose={() => setOpenMenu(null)}
+                onSubtitleChange={onSubtitleChange}
+                onSubtitleDelayChange={onSubtitleDelayChange}
+                onSubtitleScaleChange={onSubtitleScaleChange}
+                onSubtitleVerticalChange={onSubtitleVerticalChange}
+                onOpenSubtitleSync={onOpenSubtitleSync}
+                onCloseSubtitleSync={onCloseSubtitleSync}
+                onCaptureSubtitleSync={onCaptureSubtitleSync}
+                onApplySubtitleSyncCue={onApplySubtitleSyncCue}
+                onUseManualSubtitleSync={onUseManualSubtitleSync}
+                onPickSubtitleTrack={onPickSubtitleTrack}
+              />
+<IconMenu
+                id="audio"
+                label="Audio"
+                icon={<AudioLines size={22} />}
+                value={selectedMpvAudio}
+                // Sin "Sin audio": apagar el sonido no es una pista de audio y la
+                // referencia no lo tiene. Sin pistas tampoco hay menu.
+                options={audioOptions}
+                onChange={onAudioChange}
+                open={openMenu === "audio"}
+                disabled={transportLocked || audioOptions.length === 0}
+                onToggle={() => setOpenMenu(value => value === "audio" ? null : "audio")}
+                onClose={() => setOpenMenu(null)}
+                apple
+                header="Audio"
+                headerBadge={audioTechLogo}
+              />
+              <IconMenu
+                id="speed"
+                label="Velocidad"
+                icon={<TimerReset size={22} />}
+                value={selectedSpeed}
+                options={speedOptions.map(option => ({ value: option, label: `${option}x` }))}
+                onChange={onSpeedChange}
+                open={openMenu === "speed"}
+                disabled={transportLocked}
+                onToggle={() => setOpenMenu(value => value === "speed" ? null : "speed")}
+                onClose={() => setOpenMenu(null)}
+                apple
+                header="Velocidad"
+              />
+              <VideoEnhancementMenu
+                label="Mejoras de video"
+                icon={<Sparkles size={22} />}
+                value={selectedVideoProfile}
+                options={videoProfileOptions}
+                onChange={onVideoProfileChange}
+                open={openMenu === "video-enhancements"}
+                disabled={transportLocked}
+                onToggle={() => setOpenMenu(value => value === "video-enhancements" ? null : "video-enhancements")}
+                onClose={() => setOpenMenu(null)}
+              />
+            </div>
+          </div>
+        ) : null}
+        {!bigPicture ? (
          <div className="mb-2 flex items-center gap-3 text-xs text-white/72">
           <span className="max-w-[36ch] truncate text-base font-semibold tracking-[-0.015em] leading-[1.1] text-white/92" style={{ fontOpticalSizing: "auto" }}>{currentMetaTitle}</span>
           {title ? (
@@ -793,7 +1216,7 @@ export default function PlayerControls({
           ) : null}
           {partyPill}
         </div>
-        )}
+        ) : null}
         {gamepadPresent && !bigPicture ? (
           <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-medium text-white/55" aria-hidden="true">
             <span><span className="font-bold text-white/80">A</span> Reproducir</span>
@@ -820,12 +1243,13 @@ export default function PlayerControls({
           <span className="w-12 text-right text-xs text-white/84">{formatTime(timelineDisplayTime)}</span>
           )}
           <div ref={timelineTrackRef} className="relative min-w-0 flex-1">
-            {seekPreviewVisible && seekrPreview.available && seekPreviewAnchor
+            {seekPreviewMounted && seekrPreview.available && seekPreviewAnchor
               ? createPortal(
                 <div
+                  ref={seekPreviewRef}
                   data-seekr-preview
                   data-player-interactive
-                  className="pointer-events-none fixed z-[70] -translate-x-1/2"
+                  className="pointer-events-none fixed z-[70] -translate-x-1/2 will-change-opacity"
                   style={{ left: `${seekPreviewAnchor.left}px`, bottom: `${seekPreviewAnchor.bottom}px` }}
                   onPointerDown={event => event.stopPropagation()}
                   onMouseMove={event => event.stopPropagation()}
@@ -850,29 +1274,37 @@ export default function PlayerControls({
               step={1}
               value={Math.min(timelineDisplayTime, duration || timelineDisplayTime)}
               onChange={event => {
+                // Solo manda un gesto real: pulsacion en el timeline o teclado.
+                // Un cambio sin ninguno de los dos es del slider, no del usuario.
+                if (!seekDraggingRef.current && !keyboardScrubRef.current) return;
                 const next = Number(event.target.value);
                 showSeekPreview(next);
                 onSeek(next);
               }}
-              onPointerDown={event => {
-                seekDraggingRef.current = true;
-                showSeekPreview(previewTimeFromPointer(event));
-              }}
+              onKeyDown={() => { keyboardScrubRef.current = true; }}
+              onKeyUp={() => { keyboardScrubRef.current = false; }}
+              onPointerDown={startTimelineScrub}
               onPointerMove={event => {
+                // Raton encima de la barra: la card vive mientras siga aqui.
+                seekHoverRef.current = true;
                 if (!transportLocked) showSeekPreview(previewTimeFromPointer(event));
               }}
-              onPointerUp={() => {
-                seekDraggingRef.current = false;
-                hideSeekPreviewSoon();
-              }}
+              onPointerUp={endTimelineScrub}
+              onPointerCancel={endTimelineScrub}
               onPointerLeave={() => {
-                if (!seekDraggingRef.current) hideSeekPreviewSoon();
+                seekHoverRef.current = false;
+                // Fuera de la barra no hay preview, y no 1,5 s despues: se va ya.
+                if (!seekDraggingRef.current) hideSeekPreview();
               }}
               onFocus={() => showSeekPreview(currentTime)}
               onBlur={() => {
-                if (!seekDraggingRef.current) hideSeekPreviewSoon();
+                // Red de seguridad: si el puntero se perdio (fuera de la ventana,
+                // otra app encima) la barra no puede quedarse pegada al raton.
+                keyboardScrubRef.current = false;
+                if (seekDraggingRef.current) endTimelineScrub();
+                else hideSeekPreviewSoon();
               }}
-              disabled={(!bigPicture && !duration) || transportLocked}
+              disabled={timelineDisabled}
               style={{
                 pointerEvents: transportLocked ? "none" : "auto",
                 opacity: transportLocked ? 0.42 : 1,
@@ -887,21 +1319,20 @@ export default function PlayerControls({
         </div>
         )}
 
-        <div className={bigPicture ? "flex flex-wrap items-center gap-2" : "flex flex-wrap items-center justify-between gap-3"}>
-          <div className={bigPicture ? "flex flex-wrap items-center gap-2" : "flex flex-wrap items-center gap-2.5"}>
-            {bigPicture ? null : (
-              <IconButton label="Retroceder 10 segundos" disabled={transportLocked} onClick={() => runControlAction(() => onJump(-10))}>
-                <RotateCcw size={19} />
-              </IconButton>
-            )}
+        {/* Big Picture tiene su propia anatomia: la fila de iconos vive junto al
+            titulo, arriba. aqui solo la version normal, con su transporte. */}
+        {bigPicture ? null : (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <IconButton label="Retroceder 10 segundos" disabled={transportLocked} onClick={() => runControlAction(() => onJump(-10))}>
+              <RotateCcw size={19} />
+            </IconButton>
             <IconButton label={playing ? "Pausar" : "Reproducir"} disabled={transportLocked} onClick={() => runControlAction(onTogglePlay)} large playPause>
               {playing ? <Pause size={24} fill="white" /> : <Play size={24} fill="white" />}
             </IconButton>
-            {bigPicture ? null : (
-              <IconButton label="Avanzar 10 segundos" disabled={transportLocked} onClick={() => runControlAction(() => onJump(10))}>
-                <RotateCw size={19} />
-              </IconButton>
-            )}
+            <IconButton label="Avanzar 10 segundos" disabled={transportLocked} onClick={() => runControlAction(() => onJump(10))}>
+              <RotateCw size={19} />
+            </IconButton>
             {isLocalPlayback ? (
               <IconButton
                 label={repeatEnabled ? "Desactivar repetición" : "Repetir"}
@@ -912,7 +1343,6 @@ export default function PlayerControls({
                 <Repeat size={18} />
               </IconButton>
             ) : null}
-            {bigPicture ? null : (
             <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/12 px-2.5 py-2">
               <button
                 type="button"
@@ -935,10 +1365,9 @@ export default function PlayerControls({
                 className="h-1 w-32 accent-white"
               />
             </div>
-            )}
           </div>
 
-          <div className={bigPicture ? "flex flex-wrap items-center gap-2" : "flex flex-wrap items-center justify-end gap-2.5"}>
+          <div className="flex flex-wrap items-center justify-end gap-2.5">
             <IconMenu
               id="audio"
               label="Audio"
@@ -1006,15 +1435,13 @@ export default function PlayerControls({
               onClose={() => setOpenMenu(null)}
             />
 
-            {bigPicture ? null : (
-              <IconButton
-                label={videoScaleMode === "crop" ? "Recortar" : "Original"}
-                disabled={transportLocked}
-                onClick={() => runControlAction(onToggleVideoScale)}
-              >
-                <Crop size={18} />
-              </IconButton>
-            )}
+<IconButton
+              label={videoScaleMode === "crop" ? "Recortar" : "Original"}
+              disabled={transportLocked}
+              onClick={() => runControlAction(onToggleVideoScale)}
+            >
+              <Crop size={18} />
+            </IconButton>
             {canChangeSource ? (
               <IconButton
                 label={activeSidePanel === "sources" ? "Cerrar fuentes" : "Fuentes"}
@@ -1035,8 +1462,8 @@ export default function PlayerControls({
                     : "border-white/[0.07] bg-white/10 text-white/90 hover:bg-white/14"
                 }`}
                 style={{
-                  backdropFilter: "blur(18px) saturate(160%)",
-                  WebkitBackdropFilter: "blur(18px) saturate(160%)",
+    backdropFilter: "var(--lg-filter-md)",
+    WebkitBackdropFilter: "var(--lg-filter-md)",
                   boxShadow: "0 2px 10px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.10)",
                 }}
                 title="Episodios"
@@ -1046,7 +1473,7 @@ export default function PlayerControls({
               </button>
             )}
 
-            {hasEpisodeOptions && !bigPicture && (
+            {hasEpisodeOptions && (
               <>
                 <IconButton
                   label="Episodio anterior"
@@ -1064,28 +1491,141 @@ export default function PlayerControls({
                 </IconButton>
               </>
             )}
-
-            {showPartyButton ? (
-              <PartyMenu
-                open={openMenu === "party"}
-                onToggle={() => setOpenMenu(value => value === "party" ? null : "party")}
-                onClose={() => setOpenMenu(null)}
-                connected={partyConnected}
-                peerCount={partyPeerCount}
-                currentMedia={partyCurrentMedia}
-                currentTitle={partyCurrentTitle}
-                streamFailed={partyStreamFailed}
-                onRetryStream={onPartyRetryStream}
-              />
-            ) : null}
-
           </div>
-          {bigPicture ? (
-            <span className="ml-auto shrink-0 text-[15px] font-medium text-white/90">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
-          ) : null}
         </div>
+        )}
+
+        {bigPicture ? (
+          // Referencia: el transcurrido va BAJO el pulgar y a la derecha lo que
+          // queda, no el total. El porcentaje se acota para que la etiqueta no
+          // se salga por los extremos.
+          <div className="relative mt-[clamp(10px,1.6vh,18px)] h-[1.5em] text-[clamp(13px,1.05vw,19px)] font-medium text-white/62">
+            <span
+              className="absolute top-0 tabular-nums"
+              style={{
+                left: `${Math.max(4, Math.min(96, duration > 0 ? (timelineDisplayTime / duration) * 100 : 0))}%`,
+                transform: "translateX(-50%)",
+              }}
+            >
+              {formatTime(timelineDisplayTime)}
+            </span>
+            <span className="absolute right-0 top-0 tabular-nums">
+              -{formatTime(Math.max(0, duration - timelineDisplayTime))}
+            </span>
+          </div>
+        ) : null}
+
+        {bigPicture ? (
+          <div className="mt-[clamp(12px,2vh,26px)] flex flex-wrap items-center gap-x-[clamp(20px,1.8vw,34px)] gap-y-1">
+            {showPanelToggle ? (
+              // La etiqueta ya no es un botón: abrir la fila es sólo con la
+              // cruceta abajo (o Y). Nada clickeable/seleccionable aquí.
+              <span
+                data-bp-episodes-label
+                aria-expanded={episodesRowOpen}
+                className="bp-eyebrow truncate text-[clamp(15px,1.15vw,20px)] font-semibold leading-[1.2] text-white/72"
+              >
+                Episodios
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+        {bigPicture && episodesMounted && episodeOptions.length > 0 ? (
+          <div
+            data-bp-episode-row
+            data-row-scroller
+            data-focus-center
+            data-row-key={`player:${episodeOptions[0]?.id ?? ""}`}
+            data-row-count={episodeOptions.length}
+            role="group"
+            aria-label="Episodios de la temporada actual"
+            aria-hidden={!episodesRowOpen}
+            className="bp-player-episode-row"
+            ref={episodeRowRef}
+            onScroll={event => {
+              episodeRowScrollLeftRef.current = event.currentTarget.scrollLeft;
+              hasEpisodeRowScrollMemoryRef.current = true;
+            }}
+            style={{
+              marginTop: "-8px",
+              marginBottom: "-60px",
+              pointerEvents: episodesRowOpen ? "auto" : "none",
+            }}
+          >
+            {episodeOptions.map((episode, index) => {
+              const current = episode.episode === currentEpisodeNumber;
+              const runtime = formatRuntime(episode.runtime);
+              return (
+                <div
+                  key={episode.id}
+                  data-bp-episode-card
+                  data-bp-episode-id={episode.id}
+                  data-scroll-key={`${episode.season}:${episode.episode}`}
+                  data-row-card
+                  data-item-index={index}
+                  aria-current={current ? "true" : undefined}
+                  role="button"
+                  tabIndex={episodesRowOpen ? 0 : -1}
+                  aria-label={`Episodio ${episode.episode}: ${episode.name}`}
+                  onClick={() => onSelectEpisode(episode)}
+                  onKeyDown={event => {
+                    // El mando cierra la fila con B o con la cruceta arriba
+                    // (ver playerGamepadMap). El teclado llega aqui: se cierra
+                    // con la misma flecha, y se detiene la propagacion para que
+                    // el atajo global no la convierta en volumen.
+                    if (event.key === "ArrowUp") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      onCloseEpisodeRow();
+                      return;
+                    }
+                    if ((event.key === "Enter" || event.key === " ") && !event.repeat) {
+                      event.preventDefault();
+                      onSelectEpisode(episode);
+                    }
+                  }}
+                  onFocus={event => {
+                    lastFocusedEpisodeIdRef.current = episode.id;
+                    gsap.killTweensOf(event.currentTarget);
+                    gsap.to(event.currentTarget, { y: -3, scale: 1.03, zIndex: 4, duration: 0.28, ease: "power2.out", overwrite: "auto" });
+                  }}
+                  onBlur={event => {
+                    gsap.killTweensOf(event.currentTarget);
+                    gsap.to(event.currentTarget, { y: 0, scale: 1, zIndex: 1, duration: 0.28, ease: "power2.out", overwrite: "auto" });
+                  }}
+                  onMouseEnter={event => {
+                    gsap.killTweensOf(event.currentTarget);
+                    gsap.to(event.currentTarget, { y: -3, scale: 1.03, zIndex: 4, duration: 0.28, ease: "power2.out", overwrite: "auto" });
+                  }}
+                  onMouseLeave={event => {
+                    gsap.killTweensOf(event.currentTarget);
+                    gsap.to(event.currentTarget, { y: 0, scale: 1, zIndex: 1, duration: 0.28, ease: "power2.out", overwrite: "auto" });
+                  }}
+                  className="detail-episode-card"
+                >
+<div className="detail-episode-card__media">
+                    {episode.still ? (
+                      <img className="detail-episode-card__image" src={episode.still} alt="" loading="lazy" decoding="async" />
+                    ) : (
+                      <div className="detail-episode-card__placeholder" />
+                    )}
+                    <div className="detail-episode-card__scrim" />
+                    {runtime ? <span className="detail-episode-card__runtime">{runtime}</span> : null}
+                  </div>
+                  <div className="detail-episode-card__copy">
+                    <p className="detail-episode-card__eyebrow">Episodio {episode.episode}</p>
+                    <p className="detail-episode-card__title">{episode.name}</p>
+                    {episode.overview ? (
+                      <p className="detail-episode-card__overview">{episode.overview}</p>
+                    ) : episode.airDate ? (
+                      <p className="detail-episode-card__overview">{formatAirDate(episode.airDate)}</p>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -1390,7 +1930,7 @@ function SubtitleMenu({
   useEffect(() => {
     if (!open || !mounted || !menuRef.current) return;
     const el = menuRef.current;
-    if (bigPicture) {
+if (bigPicture) {
       gsap.killTweensOf(el);
       if (prefersReducedMotion()) {
         gsap.set(el, { opacity: 0 });
@@ -1534,9 +2074,124 @@ function SubtitleMenu({
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        <Captions size={17} />
+        {/* 22 como los demas de la fila (audio, velocidad, mejoras): a 17 se veía
+            mas pequeno que sus hermanos. */}
+        <Captions size={22} />
       </button>
-      {mounted && !disabled
+
+      {/* Big Picture: menu contextual, no panel a pantalla completa. La
+          sincronizacion y los ajustes de tiempo salen del boton de arriba, que
+          abre el panel de sincronizacion que ya existe. */}
+      {bigPicture ? (
+        <ContextMenu
+          open={open && !disabled && !subtitleSyncOpen}
+          anchorRef={buttonRef}
+          onClose={onClose}
+          variant="apple"
+          header="Subtítulos"
+          width={340}
+          maxHeight={460}
+          placement="above-end"
+          items={[
+            {
+              label: subtitleSyncLoading ? "Sincronizando…" : "Sincronizar",
+              icon: undefined,
+              closeOnSelect: false,
+              onSelect: () => onOpenSubtitleSync(),
+            },
+            ...subtitleOptions.map(option => ({
+              label: option.value === "" ? "Apagado" : (option.languageLabel ?? option.label),
+              selected: option.value === selectedSubtitleValue,
+              icon: option.value === selectedSubtitleValue ? <Check size={17} /> : undefined,
+              closeOnSelect: false,
+              onSelect: () => onSubtitleChange(option.value),
+            })),
+          ]}
+        />
+      ) : null}
+      {bigPicture && subtitleSyncOpen ? createPortal(
+        <div
+          data-player-sync-dialog-glass
+          data-player-floating-panel-glass
+          data-spatial-modal="true"
+          className="fixed inset-0 z-[60] flex items-center justify-center text-white will-change-transform"
+          style={{
+            background: "rgba(5, 7, 11, 0.62)",
+            backdropFilter: "var(--lg-filter-sm)",
+            WebkitBackdropFilter: "var(--lg-filter-sm)",
+          }}
+          onKeyDown={stopMenuKeys}
+        >
+          <div
+            role="dialog"
+            aria-label="Sincronización de subtítulos"
+            className="mx-6 flex h-[min(70vh,640px)] min-h-[320px] w-full max-w-[1080px] overflow-hidden rounded-[26px] border border-white/10 bg-black/35 shadow-[0_30px_90px_rgba(0,0,0,0.5)] backdrop-blur-xl"
+          >
+            <aside className="flex w-[260px] shrink-0 flex-col border-r border-white/[0.08] bg-black/[0.14] p-5">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-white/42">Subtítulos</p>
+              <h3 className="mt-2 text-[15px] font-semibold leading-snug text-white/92">Sincronización</h3>
+              <div className="mt-5 space-y-4">
+                <SubtitleStepper
+                  label="Atraso"
+                  value={`${(subtitleDelayMs / 1000).toFixed(2)}s`}
+                  onDecrease={() => onSubtitleDelayChange(subtitleDelayMs - 100)}
+                  onIncrease={() => onSubtitleDelayChange(subtitleDelayMs + 100)}
+                />
+                <SubtitleStepper
+                  label="Tamaño"
+                  value={`${subtitleScalePercent}%`}
+                  onDecrease={() => onSubtitleScaleChange(Math.max(50, subtitleScalePercent - 5))}
+                  onIncrease={() => onSubtitleScaleChange(Math.min(300, subtitleScalePercent + 5))}
+                />
+                <SubtitleStepper
+                  label="Posición vertical"
+                  value={`${subtitleVerticalPercent}%`}
+                  onDecrease={() => onSubtitleVerticalChange(Math.max(0, subtitleVerticalPercent - 1))}
+                  onIncrease={() => onSubtitleVerticalChange(Math.min(60, subtitleVerticalPercent + 1))}
+                />
+              </div>
+              <div className="mt-auto space-y-2 border-t border-white/[0.08] pt-4">
+                <p className="truncate text-xs font-semibold text-white/72">{subtitleSyncTrackLabel || "Pista actual"}</p>
+                <button
+                  type="button"
+                  onClick={handleResetSettings}
+                  className="w-full rounded-full border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-xs font-semibold text-white/72 gsap-transition hover:bg-white/[0.12] hover:text-white"
+                >
+                  Restablecer ajustes
+                </button>
+                <button
+                  type="button"
+                  onClick={onCloseSubtitleSync}
+                  className="w-full rounded-full border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-xs font-semibold text-white/72 gsap-transition hover:bg-white/[0.12] hover:text-white"
+                >
+                  Volver a pistas
+                </button>
+              </div>
+            </aside>
+            <div className="min-h-0 min-w-0 flex-1">
+              <SubtitleSyncDialog
+                open={subtitleSyncOpen}
+                loading={subtitleSyncLoading}
+                error={subtitleSyncError}
+                canUseManual={subtitleSyncCanUseManual}
+                stage={subtitleSyncStage}
+                cues={subtitleSyncCues}
+                capturedVideoMs={subtitleSyncCapturedVideoMs}
+                trackLabel={subtitleSyncTrackLabel}
+                bigPicture
+                embedded
+                onClose={onCloseSubtitleSync}
+                onCapture={onCaptureSubtitleSync}
+                onApplyCue={onApplySubtitleSyncCue}
+                onUseManualSync={onUseManualSubtitleSync}
+                onPickTrack={onPickSubtitleTrack}
+              />
+            </div>
+          </div>
+        </div>,
+        document.body,
+      ) : null}
+      {bigPicture ? null : mounted && !disabled
         ? createPortal(
             <div
               ref={menuRef}
@@ -1553,8 +2208,8 @@ function SubtitleMenu({
                 ...(bigPicture
                   ? {
                       background: "rgba(5, 7, 11, 0.46)",
-                      backdropFilter: "blur(8px) saturate(118%)",
-                      WebkitBackdropFilter: "blur(8px) saturate(118%)",
+    backdropFilter: "var(--lg-filter-sm)",
+    WebkitBackdropFilter: "var(--lg-filter-sm)",
                     }
                   : getContextGlassStyle()),
                 ...(bigPicture
@@ -1583,7 +2238,7 @@ function SubtitleMenu({
             : "relative z-10 flex min-h-0 flex-1 flex-col"}
           >
           <div className={bigPicture
-            ? "mx-auto flex w-full max-w-[1180px] shrink-0 items-end justify-between gap-5 rounded-t-[28px] border-x border-t border-white/[0.1] bg-black/[0.28] px-6 py-5 shadow-[0_26px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl"
+            ? "mx-auto flex w-full max-w-[1180px] shrink-0 items-end justify-between gap-5 rounded-t-[28px] border-x border-t border-white/[0.1] bg-black/[0.28] px-6 py-5 shadow-[0_26px_80px_rgba(0,0,0,0.28)] backdrop-blur-glass"
             : "flex h-16 shrink-0 items-center justify-between border-b border-white/[0.08] px-5"}
           >
             <div className="flex min-w-0 items-center gap-2.5">
@@ -1865,8 +2520,8 @@ function IconButton({
       style={{
         transform: "translateZ(0)",
         willChange: "transform, background-color",
-        backdropFilter: "blur(18px) saturate(160%)",
-        WebkitBackdropFilter: "blur(18px) saturate(160%)",
+        backdropFilter: "var(--lg-filter-md)",
+        WebkitBackdropFilter: "var(--lg-filter-md)",
         boxShadow: "0 2px 10px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.10)",
       }}
       title={label}
@@ -1955,6 +2610,7 @@ function VideoEnhancementMenu({
         ...categoryOptions.map(option => ({
           label: option.label,
           description: option.description,
+          selected: option.value === value,
           icon: option.value === value ? <Check size={14} /> : undefined,
           onSelect: () => onChange(option.value),
         })),
@@ -1963,6 +2619,7 @@ function VideoEnhancementMenu({
         ...uncategorizedOptions.map(option => ({
           label: option.label,
           description: option.description,
+          selected: option.value === value,
           icon: option.value === value ? <Check size={14} /> : undefined,
           onSelect: () => onChange(option.value),
         })),
@@ -2007,236 +2664,13 @@ function VideoEnhancementMenu({
         open={open && !disabled}
         anchorRef={buttonRef}
         onClose={onClose}
+        variant="apple"
+        header={category ? category.label : "Mejoras de video"}
         width={340}
         maxHeight={420}
         placement="above-end"
         items={items}
       />
-    </div>
-  );
-}
-
-function PartyMenu({
-  open,
-  onToggle,
-  onClose,
-  connected,
-  peerCount,
-  currentMedia,
-  currentTitle,
-  streamFailed,
-  onRetryStream,
-}: {
-  open: boolean;
-  onToggle: () => void;
-  onClose: () => void;
-  connected: boolean;
-  peerCount: number;
-  currentMedia: PartyMedia | null;
-  currentTitle: string;
-  streamFailed: boolean;
-  onRetryStream: () => void;
-}) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const [mounted, setMounted] = useState(open);
-  const [position, setPosition] = useState<{ left: number; top: number }>({ left: 0, top: 0 });
-  const MENU_WIDTH = 480;
-
-  // §7 — anclado al botón (above-end, como los demás menús de la barra), nunca centrado.
-  useEffect(() => {
-    if (!open || !mounted || !buttonRef.current || !menuRef.current) return;
-    const updatePosition = () => {
-      const anchor = buttonRef.current;
-      const el = menuRef.current;
-      if (!anchor || !el) return;
-      const aRect = anchor.getBoundingClientRect();
-      const menuWidth = MENU_WIDTH;
-      const menuHeight = el.offsetHeight || 440;
-      const margin = 10;
-      let left = aRect.right - menuWidth;
-      if (left < margin) left = Math.min(window.innerWidth - menuWidth - margin, Math.max(margin, aRect.right - menuWidth));
-      if (left + menuWidth > window.innerWidth - margin) left = window.innerWidth - menuWidth - margin;
-      const controlsTop = document
-        .querySelector<HTMLElement>("[data-player-controls-glass]")
-        ?.getBoundingClientRect().top;
-      const upperBoundary = controlsTop === undefined ? aRect.top : Math.min(aRect.top, controlsTop);
-      const top = Math.max(margin, upperBoundary - menuHeight - 12);
-      setPosition({ left, top });
-    };
-    updatePosition();
-    const t = window.setTimeout(updatePosition, 40);
-    window.addEventListener("resize", updatePosition);
-    return () => {
-      window.clearTimeout(t);
-      window.removeEventListener("resize", updatePosition);
-    };
-  }, [open, mounted]);
-
-  useEffect(() => {
-    if (open) {
-      setMounted(true);
-      return;
-    }
-    const el = menuRef.current;
-    if (!el) {
-      setMounted(false);
-      return;
-    }
-    gsap.killTweensOf(el);
-    if (prefersReducedMotion()) {
-      gsap.to(el, { opacity: 0, duration: 0.18, ease: "power1.out", overwrite: "auto", onComplete: () => setMounted(false) });
-      return;
-    }
-    // §3/§4 spring exit anchored, interruptible
-    const anchor = buttonRef.current;
-    if (anchor) {
-      const aRect = anchor.getBoundingClientRect();
-      const mRect = el.getBoundingClientRect();
-      const origin = anchorTransformOrigin(aRect, mRect.left, mRect.top, mRect.width, mRect.height);
-      gsap.set(el, { transformOrigin: origin });
-    }
-    springTo(el, {
-      opacity: 0,
-      y: 8,
-      scale: 0.98,
-      filter: "blur(6px)",
-    } as unknown as gsap.TweenVars, { damping: 1.0, duration: 0.28 });
-    gsap.delayedCall(0.30, () => { if (!open) setMounted(false); });
-  }, [open]);
-
-  useEffect(() => {
-    if (!open || !mounted || !menuRef.current) return;
-    const el = menuRef.current;
-    // §7 anchor origin to trigger button
-    const anchor = buttonRef.current;
-    if (anchor) {
-      const aRect = anchor.getBoundingClientRect();
-      const mRect = el.getBoundingClientRect();
-      const origin = anchorTransformOrigin(aRect, mRect.left, mRect.top, mRect.width, mRect.height);
-      gsap.set(el, { transformOrigin: origin });
-    }
-    gsap.killTweensOf(el);
-    if (prefersReducedMotion()) {
-      gsap.set(el, { opacity: 0 });
-      gsap.to(el, { opacity: 1, duration: 0.2, ease: "power1.out", overwrite: "auto" });
-      return;
-    }
-    gsap.set(el, { opacity: 0, y: 10, scale: 0.98, filter: "blur(8px)" });
-    springTo(el, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" } as unknown as gsap.TweenVars, { damping: 1.0, duration: 0.36 });
-  }, [open, mounted]);
-
-  useEffect(() => {
-    if (!open) return;
-    const onPointerDown = (event: MouseEvent) => {
-      const target = event.target as Node | null;
-      if (!target) return;
-      if (menuRef.current?.contains(target)) return;
-      if (buttonRef.current?.contains(target)) return;
-      onClose();
-    };
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      // Consumir para que B del mando no dispare además el "volver" global.
-      event.preventDefault();
-      event.stopPropagation();
-      onClose();
-    };
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("keydown", onEscape);
-    return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("keydown", onEscape);
-    };
-  }, [onClose, open]);
-
-  return (
-    <div className="relative" data-player-menu data-menu-id="party">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={onToggle}
-        onPointerDown={e => {
-          gsap.killTweensOf(e.currentTarget);
-          gsap.to(e.currentTarget, { scale: 0.96, duration: 0.1, ease: "power2.out", overwrite: "auto" });
-        }}
-        onPointerUp={e => gsap.to(e.currentTarget, { scale: 1, duration: 0.14, ease: "power2.out", overwrite: "auto" })}
-        onPointerLeave={e => gsap.to(e.currentTarget, { scale: 1, duration: 0.14, ease: "power2.out", overwrite: "auto" })}
-        className={`relative flex h-10 w-10 items-center justify-center rounded-full border text-white gsap-transition will-change-transform active:scale-[0.96] ${
-          open || connected ? "border-white/[0.12] bg-white/18" : "border-white/[0.07] bg-white/10 hover:bg-white/15"
-        }`}
-        style={{
-          transform: "translateZ(0)",
-          willChange: "transform, background-color",
-          backdropFilter: "blur(18px) saturate(160%)",
-          WebkitBackdropFilter: "blur(18px) saturate(160%)",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.10)",
-        }}
-        title={connected ? "Party: sala activa" : "Party: ver juntos"}
-        aria-label={connected ? "Party: sala activa" : "Party: ver juntos"}
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        <Users size={17} />
-        {connected && peerCount > 0 ? (
-          <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-white px-1 text-[11px] font-black text-black">
-            {peerCount}
-          </span>
-        ) : null}
-      </button>
-      {mounted
-        ? createPortal(
-            <div
-              ref={menuRef}
-              data-player-party-panel-glass
-              data-player-floating-panel-glass
-              role="dialog"
-              aria-label="Party"
-              className="fixed z-[60] flex w-[min(480px,calc(100vw-32px))] flex-col overflow-hidden rounded-[24px] text-white will-change-transform"
-              style={{
-                ...getContextGlassStyle(),
-                left: position.left,
-                top: position.top,
-                width: "min(480px, calc(100vw - 32px))",
-                maxHeight: "calc(var(--aetherio-player-controls-top, 80vh) - var(--app-safe-top, 0px) - 86px)",
-                minHeight: 320,
-                willChange: "transform, opacity, filter",
-                transform: "translateZ(0)",
-              }}
-            >
-              <div className="flex h-16 shrink-0 items-center justify-between border-b border-white/[0.08] px-5">
-                <div className="flex min-w-0 items-center gap-2.5">
-                  <Users size={18} className="shrink-0 text-white/72" />
-                  <div className="min-w-0">
-                    <h3 className="text-[15px] font-semibold tracking-[-0.01em] text-white">Party</h3>
-                    <p className="truncate text-xs text-white/48">
-                      {connected ? `${peerCount} en la sala` : (currentTitle || "Ver juntos")}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white/64 gsap-transition hover:bg-white/10 hover:text-white"
-                  aria-label="Cerrar Party"
-                  title="Cerrar"
-                >
-                  <X size={17} />
-                </button>
-              </div>
-
-              <div className="flex min-h-0 flex-1 flex-col p-5">
-                <PartyPanel
-                  currentMedia={currentMedia}
-                  currentTitle={currentTitle}
-                  streamFailed={streamFailed}
-                  onRetryStream={onRetryStream}
-                />
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
     </div>
   );
 }
@@ -2252,6 +2686,9 @@ function IconMenu({
   onToggle,
   onClose,
   disabled = false,
+  apple = false,
+  header,
+  headerBadge = null,
 }: {
   id: string;
   icon: ReactNode;
@@ -2263,6 +2700,10 @@ function IconMenu({
   onToggle: () => void;
   onClose: () => void;
   disabled?: boolean;
+  /** Piel de la referencia de Big Picture (cabecera + fila seleccionada blanca). */
+  apple?: boolean;
+  header?: string;
+  headerBadge?: AudioHeaderBadge | AudioHeaderBadge[] | null;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
 
@@ -2295,14 +2736,22 @@ function IconMenu({
         open={open && !disabled}
         anchorRef={buttonRef}
         onClose={onClose}
-        width={id === "video-enhancements" ? 340 : 224}
-        maxHeight={id === "video-enhancements" ? 380 : 288}
+        variant={apple ? "apple" : "glass"}
+        header={apple ? header : undefined}
+        headerBadge={apple ? headerBadge : null}
+        width={apple ? 340 : id === "video-enhancements" ? 340 : 224}
+        maxHeight={apple ? 420 : id === "video-enhancements" ? 380 : 288}
         placement="above-end"
         items={options.map(option => ({
           label: option.label,
           description: option.description,
-          icon: option.value === value ? <Check size={14} /> : undefined,
+          selected: option.value === value,
+          icon: option.value === value ? <Check size={apple ? 17 : 14} /> : undefined,
+          // El logo va en la cabecera (lo dice la referencia): en las filas solo
+          // el nombre de la pista.
           onSelect: () => onChange(option.value),
+          // Con el mando, A selecciona y el menu sigue abierto: se cierra con B.
+          closeOnSelect: apple ? false : undefined,
         }))}
       />
     </div>

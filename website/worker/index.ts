@@ -1,13 +1,14 @@
 import { handleAuthRequest, type AuthEnv } from "./auth";
 import { handleReleaseRequest, type ReleaseEnv } from "./releases";
 import { handleProxyRequest, type ProxyEnv } from "./tmdb";
+import { handlePenguPlayRequest, type PenguPlayEnv } from "./penguplay";
 import { handleJikanRequest } from "./jikan";
 import { handleAwardsRequest, type AwardsApiEnv } from "./awards/api";
 import { parseJoinPath, partyJoinPageResponse, sanitizeJoinServer } from "./party-join";
 import { runImport, weeklyTargets } from "./awards/import";
 import { resolvePeopleBatch } from "./awards/people";
 
-interface Env extends AuthEnv, ReleaseEnv, AwardsApiEnv, ProxyEnv {
+interface Env extends AuthEnv, ReleaseEnv, AwardsApiEnv, ProxyEnv, PenguPlayEnv {
   ASSETS: Fetcher;
   RELEASE_PUBLISH_TOKEN?: string;
   AWARDS_IMPORT_TOKEN?: string;
@@ -27,6 +28,9 @@ export default {
 
     const awardsResponse = await handleAwardsRequest(request, env, url);
     if (awardsResponse) return awardsResponse;
+
+    const penguPlayResponse = await handlePenguPlayRequest(request, env);
+    if (penguPlayResponse) return penguPlayResponse;
 
     // Proxy con credenciales de servidor (TMDB / IntroDB): la key nunca
     // viaja al cliente.

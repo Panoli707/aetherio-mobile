@@ -43,11 +43,6 @@ export interface MpvVideoEnhancementResult {
   activeDeband: string;
 }
 
-export interface NativeVideoLightness {
-  average: number;
-  brightPixelRatio: number;
-}
-
 export function isTauriRuntime() {
   if (typeof window === "undefined") return false;
   const tauriWindow = window as Window & {
@@ -388,11 +383,6 @@ export async function sendNativePlaybackCommand(command: unknown[]) {
 
 export async function setNativeAutocrop(enabled: boolean) {
   return invokeCommand("mpv_autocrop", { enabled });
-}
-
-export async function sampleNativeVideoLightness(): Promise<NativeVideoLightness | null> {
-  if (!isTauriRuntime()) return null;
-  return invokeCommand<NativeVideoLightness>("mpv_sample_video_lightness");
 }
 
 export async function setNativeMpvVideoProfile(profile: string) {

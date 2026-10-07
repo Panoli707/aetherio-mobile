@@ -126,8 +126,8 @@ export function PartyHomeButton({ onOpen }: { onOpen: () => void }) {
           // Disco esmerilado propio: dentro de la píldora, sobre fondos
           // oscuros el blur de la píldora solo no se aprecia.
           background: connected ? undefined : "rgba(255,255,255,0.12)",
-          backdropFilter: connected ? undefined : "blur(48px) saturate(175%)",
-          WebkitBackdropFilter: connected ? undefined : "blur(48px) saturate(175%)",
+    backdropFilter: connected ? undefined : "var(--lg-filter-xl)",
+    WebkitBackdropFilter: connected ? undefined : "var(--lg-filter-xl)",
           border: connected ? undefined : "1px solid rgba(255,255,255,0.14)",
           boxShadow: connected ? undefined : "0 2px 10px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.10)",
         }}
@@ -268,7 +268,7 @@ export default function HomePartyModal({ open, onClose }: { open: boolean; onClo
       <div
         ref={backdropRef}
         className="absolute inset-0 bg-black/60"
-        style={{ backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
+        style={{ backdropFilter: "var(--lg-filter-sm)", WebkitBackdropFilter: "var(--lg-filter-sm)" }}
         onClick={onClose}
       />
       <div

@@ -283,8 +283,8 @@ export default function CardArtworkPicker({
         justifyContent: "center",
         padding: 40,
         background: "rgba(0,0,0,0.66)",
-        backdropFilter: "blur(10px)",
-        WebkitBackdropFilter: "blur(10px)",
+    backdropFilter: "var(--lg-filter-sm)",
+    WebkitBackdropFilter: "var(--lg-filter-sm)",
       }}
     >
       <div

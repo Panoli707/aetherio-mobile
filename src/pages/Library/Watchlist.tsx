@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
-import { BookMarked, Compass, Film, RefreshCw, Tv } from "lucide-react";
+﻿import { useEffect, useMemo, useState } from "react";
+import { Compass, Film, RefreshCw, Tv } from "lucide-react";
 import PageContainer from "../../components/layout/PageContainer";
+import LibraryIcon from "../../components/ui/LibraryIcon";
 import { applyHomeCatalogPreferences, useHomePreferences } from "../../config/homePreferences";
 import { useHomeCatalogs } from "../../hooks/useCatalogs";
 import { useAddonStore } from "../../store/addonStore";
@@ -63,7 +64,7 @@ export default function LibraryPage() {
           <h1 className="text-[clamp(2.35rem,4.8vw,4.8rem)] font-black leading-none text-white">Biblioteca</h1>
         </div>
         <div className="liquid-glass inline-flex rounded-2xl p-1">
-          <TabButton active={tab === "library"} icon={<BookMarked size={17} />} onClick={() => setTab("library")}>
+          <TabButton active={tab === "library"} icon={<LibraryIcon size={17} />} onClick={() => setTab("library")}>
             Mi biblioteca
           </TabButton>
           <TabButton active={tab === "discover"} icon={<Compass size={17} />} onClick={() => setTab("discover")}>
@@ -148,7 +149,7 @@ function AniListSyncBanner({
         <p className="mt-1 text-xs font-semibold text-white/48">
           {error || (count
             ? `${count} animes sincronizados. El progreso se actualiza al completar episodios.`
-            : "Conecta AniList al iniciar sesión para importar y mantener tu lista.")}
+            : "Conecta AniList al iniciar sesiÃ³n para importar y mantener tu lista.")}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
@@ -167,7 +168,7 @@ function AniListSyncBanner({
           className="gsap-transition inline-flex h-10 items-center gap-2 rounded-full bg-white px-4 text-xs font-black text-black disabled:opacity-55"
         >
           <RefreshCw size={15} className={syncing ? "animate-spin" : ""} />
-          {syncing ? "Sincronizando…" : "Sincronizar ahora"}
+          {syncing ? "Sincronizandoâ€¦" : "Sincronizar ahora"}
         </button>
       </div>
     </div>
@@ -217,7 +218,7 @@ function LibrarySummary({ entriesVersion }: { entriesVersion: number }) {
 
   return (
     <div className="grid gap-3 md:grid-cols-3">
-      <Metric icon={<BookMarked size={18} />} label="Guardados por actividad" value={stats.total} />
+      <Metric icon={<LibraryIcon size={18} />} label="Guardados por actividad" value={stats.total} />
       <Metric icon={<Film size={18} />} label="Peliculas vistas" value={stats.movies} />
       <Metric icon={<Tv size={18} />} label="Series vistas" value={stats.shows} />
     </div>

@@ -15,6 +15,8 @@ import { useBackAction } from "../../input/inputActions.ts";
 import { useAddonStore } from "../../store/addonStore.ts";
 import { consumeAutoResolveBackPress } from "../../utils/autoResolveGuard.ts";
 import { buildDetailPath, buildPlayerBackPath } from "../../utils/bigPictureDetail.ts";
+import { isShellPreviewOpen } from "../../utils/shellPreview";
+import { findDetailReturnDelta, makeScrollKey } from "../../utils/detailReturn.ts";
 import { isFreshHomeEntrance } from "../../utils/homeEntrance.ts";
 import { gsap, installInertialScroll, prefersReducedMotion, springTo } from "../../utils/motion.ts";
 import type { MediaItem } from "../../types/ui.ts";
@@ -26,6 +28,7 @@ import BigPictureRail from "./BigPictureRail.tsx";
 import BigPictureSearch from "./BigPictureSearch.tsx";
 import BigPictureParty from "./BigPictureParty.tsx";
 import BigPictureGenre from "./BigPictureGenre.tsx";
+import BigPictureLibrary from "./BigPictureLibrary.tsx";
 import "./BigPicture.css";
 import "./BigPictureSettings.css";
 
@@ -106,6 +109,7 @@ export default function BigPicturePage() {
   // layout de escritorio porque sus inputs/selects no son una buena superficie
   // de interacción para un mando.
   const isSearch = location.pathname.startsWith("/big-picture/search");
+  const isLibrary = location.pathname.startsWith("/big-picture/library");
   const isParty = location.pathname.startsWith("/big-picture/party");
   const isGenre = location.pathname.startsWith("/big-picture/genre");
   const isCatalog = location.pathname.startsWith("/big-picture/catalog");
@@ -116,7 +120,7 @@ export default function BigPicturePage() {
   const isPlayer = location.pathname.startsWith("/big-picture/player");
   const isPerson = location.pathname.startsWith("/big-picture/person/");
   const isEntity = location.pathname.startsWith("/big-picture/entity/");
-  const isSubPage = isSearch || isParty || isGenre || isCatalog || isSettings || isAddons || isEpisode || isDetail || isPlayer || isPerson || isEntity;
+  const isSubPage = isSearch || isLibrary || isParty || isGenre || isCatalog || isSettings || isAddons || isEpisode || isDetail || isPlayer || isPerson || isEntity;
   const addons = useAddonStore(s => s.addons);
   const prefs = useHomePreferences();
   const { heroItems } = useHomeCatalogs(addons, prefs.contentOrientation, prefs.bothPreference, !isSubPage);
@@ -219,9 +223,9 @@ export default function BigPicturePage() {
   // scroll exterior queda arriba: el scroll real lo lleva el shell interior
   // de la propia page (igual que en PC con AppShell). Sin esto el hero heredaría el scroll.
   useEffect(() => {
-    if (!isDetail && !isCatalog && !isSettings && !isAddons && !isEpisode && !isPlayer && !isPerson && !isEntity) return;
+    if (!isDetail && !isCatalog && !isSettings && !isAddons && !isLibrary && !isEpisode && !isPlayer && !isPerson && !isEntity) return;
     scrollRef.current?.scrollTo({ top: 0, behavior: "auto" as ScrollBehavior });
-  }, [isDetail, isCatalog, isSettings, isAddons, isEpisode, isPlayer, isPerson, isEntity, location.pathname]);
+  }, [isDetail, isCatalog, isSettings, isAddons, isLibrary, isEpisode, isPlayer, isPerson, isEntity, location.pathname]);
 
   // Root de la page que hay que fundir en cada cambio de ruta: el primer hijo
   // CON className del shell de scroll. Ese descriptor descarta a propósito los
@@ -277,6 +281,14 @@ export default function BigPicturePage() {
   // page entrante pueda hacer su propio fade desde 0 sin quedar heredando un
   // container invisible. El rail y el backdrop viven fuera del shell, así que
   // la navegación lateral se mantiene visible durante el fundido.
+  // El fundido es cosmético y la navegación es el comportamiento: el gesto de
+  // "atrás" NO puede depender de que un tween complete. gsap corre sobre
+  // requestAnimationFrame, así que cuando el rAF se limita (ventana sin foco,
+  // carga pesada, overlay del compositor) un tween de 0.16s puede tardar
+  // segundos: medido con rAF a 2fps tardaba 6.5s. Y dos pulsaciones seguidas se
+  // matan entre sí (el `killTweensOf` de la segunda deja a la primera sin
+  // `onComplete`), lo que hacía el botón de salida intermitente. Por eso
+  // `finish` es idempotente y además lo garantiza un timeout.
   const fadeOutThen = useCallback((go: () => void) => {
     const shell = scrollRef.current;
     if (!shell || prefersReducedMotion()) {
@@ -284,23 +296,48 @@ export default function BigPicturePage() {
       return;
     }
     gsap.killTweensOf(shell);
-    gsap.to(shell, { opacity: 0, duration: 0.16, ease: "power1.in", onComplete: () => { gsap.set(shell, { clearProps: "opacity" }); go(); } });
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(guard);
+      gsap.set(shell, { clearProps: "opacity" });
+      go();
+    };
+    const guard = window.setTimeout(finish, 400);
+    gsap.to(shell, { opacity: 0, duration: 0.16, ease: "power1.in", onComplete: finish });
   }, []);
+
+  // Mapa índice-de-historial → ruta visitada, para que "atrás" en el detalle
+  // sepa de dónde se salió. `navigate(-1)` a ciegas no sirve aquí: al volver
+  // del reproductor la entrada se reescribe con `replace: true`, así que tras
+  // reproducir quedan apiladas varias entradas del mismo detail (la original,
+  // la de la sección Episodie y la que dejó el player). Un solo retroceso se
+  // quedaba dentro del propio medio y re-abría el panel de fuentes, que con
+  // auto-resolve volvía a lanzar el player. Es el mismo mapa que usa AppShell
+  // en modo normal.
+  const routeHistoryRef = useRef(new Map<number, string>());
+  useLayoutEffect(() => {
+    const index = window.history.state?.idx;
+    if (typeof index === "number" && Number.isInteger(index)) {
+      routeHistoryRef.current.set(index, makeScrollKey(location.pathname, location.search));
+    }
+  }, [location.pathname, location.search]);
 
   // B del mando / Esc / Borrar (acción central `back` de inputActions):
   // - En el home (/big-picture): un toque abre la advertencia de salida
   //   (salir de la app). NUNCA vuelve a la app normal: la única salida a
   //   modo normal es el botón Start del mando.
-  // - En las sub-páginas (/big-picture/search, /big-picture/party,
-  //   /big-picture/genre, /big-picture/settings, /big-picture/addons,
-  //   /big-picture/episode, /big-picture/player, /big-picture/person,
-  //   /big-picture/entity,
+  // - En las sub-páginas (/big-picture/search, /big-picture/library,
+  //   /big-picture/party, /big-picture/genre, /big-picture/settings,
+  //   /big-picture/addons, /big-picture/episode, /big-picture/player,
+  //   /big-picture/person, /big-picture/entity,
   //   /big-picture/detail/...): B retrocede a la página
   //   anterior, igual que Escape en la app normal (siempre dentro de Big Picture).
   const handleBack = useCallback(() => {
     // Con el modal de salida abierto, B lo cierra a él; no actuar encima.
     if (exitConfirmOpen) return;
-    if (document.querySelector("[data-shell-preview]")) return;
+    if (isShellPreviewOpen()) return;
     // Popup de sinopsis del detail (sin X): B lo cierra a él; no retroceder.
     if (document.querySelector("[data-aetherio-synopsis-popup]")) return;
     // Reproductor: siempre a la page de Episodie (picker de fuentes) del mismo
@@ -317,6 +354,26 @@ export default function BigPicturePage() {
     // página, mismo fondo); no navegar encima.
     if (isDetail && document.querySelector("[data-aetherio-episode-section]")) return;
     if (isEpisode && consumeAutoResolveBackPress()) return;
+    // Detalle: volver a la page de la que se salió (carrusel, buscador,
+    // biblioteca…), saltando las entradas intermedias del propio medio y del
+    // reproductor. Sin esto `navigate(-1)` caía en otra entrada del mismo
+    // detail —la que guardaba el request de Episodie— y el panel de fuentes
+    // volvía a abrirse con su auto-resolve, relanzando el player.
+    if (isDetail) {
+      const index = window.history.state?.idx;
+      const delta = typeof index === "number" && Number.isInteger(index)
+        ? findDetailReturnDelta(
+            routeHistoryRef.current,
+            index,
+            makeScrollKey(location.pathname, location.search),
+          )
+        : null;
+      fadeOutThen(() => {
+        if (delta === null) navigate("/big-picture", { replace: true });
+        else navigate(delta);
+      });
+      return;
+    }
     if (isSubPage) {
       fadeOutThen(() => navigate(-1));
       return;
@@ -344,6 +401,8 @@ export default function BigPicturePage() {
       >
         {isSearch ? (
           <BigPictureSearch />
+        ) : isLibrary ? (
+          <BigPictureLibrary />
         ) : isParty ? (
           <BigPictureParty />
         ) : isGenre ? (

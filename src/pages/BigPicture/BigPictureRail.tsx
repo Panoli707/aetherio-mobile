@@ -1,6 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ComponentType } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Home, Plug, Search, Settings, Users } from "lucide-react";
+import { Settings, Users } from "lucide-react";
+import LibraryIcon from "../../components/ui/LibraryIcon.tsx";
+import SearchThinIcon from "../../components/ui/SearchThinIcon.tsx";
+import HomeBoldIcon from "../../components/ui/HomeBoldIcon.tsx";
+import ConnectionIcon from "../../components/ui/ConnectionIcon.tsx";
 import {
   getActiveProfile,
   getProfileInitial,
@@ -19,16 +23,20 @@ import "./BigPictureRail.css";
  * - Rail 276px → item 60px → gap 8px → padding 13px → perfil 62px
  * - Colapsado: pill 53px (icono 38px + etiqueta), radio full
  * - Expandido: radio 31px, indicador blanco #F6F6F7, overlay #080A0E 38%
- * - Items: Buscar / Inicio / Party / Ajustes / Extensiones
+ * - Items: Buscar / Inicio / Biblioteca / Party / Ajustes / Extensiones
  *
  * Party es ruta (/big-picture/party, page 10-foot con teclado en pantalla),
  * no modal: el modal de Home es patrón PC (ratón + teclado físico).
+ *
+ * Biblioteca es ruta (/big-picture/library): su propia page 10-foot con la
+ * navegación de secciones que usa el rail de la Library de referencia
+ * (artifacts/bp-library/ANALYSIS.md).
  */
 interface RailItem {
   key: string;
   label: string;
   /**
-   * `ComponentType` y no `typeof Home`: los iconos de lucide son
+   * `ComponentType` y no `typeof Users`: los iconos de lucide son
    * `forwardRef` (con `$$typeof`), pero un SVG propio es un componente de
    * función normal. Este tipo acepta ambos sin castear.
    */
@@ -37,11 +45,12 @@ interface RailItem {
 }
 
 const RAIL_ITEMS: readonly RailItem[] = [
-  { key: "search", route: "/big-picture/search", label: "Buscar", Icon: Search },
-  { key: "home", route: "/big-picture", label: "Inicio", Icon: Home },
+  { key: "search", route: "/big-picture/search", label: "Buscar", Icon: SearchThinIcon },
+  { key: "home", route: "/big-picture", label: "Inicio", Icon: HomeBoldIcon },
+  { key: "library", route: "/big-picture/library", label: "Biblioteca", Icon: LibraryIcon },
   { key: "party", route: "/big-picture/party", label: "Party", Icon: Users },
   { key: "settings", route: "/big-picture/settings", label: "Ajustes", Icon: Settings },
-  { key: "addons", route: "/big-picture/addons", label: "Extensiones", Icon: Plug },
+  { key: "addons", route: "/big-picture/addons", label: "Extensiones", Icon: ConnectionIcon },
 ];
 
 // Tokens nativos × 1.2 (ver TvPagePill.kt: 230 / 11 / 52 / 7 / 50).
@@ -113,8 +122,16 @@ export default function BigPictureRail() {
   useLayoutEffect(() => {
     const measure = () => {
       const el = collapsedMeasureRef.current;
-      // +2px por el borde de 1px de la caja (box-sizing: border-box).
-      if (el) setCollapsedW(Math.ceil(el.getBoundingClientRect().width) + 2);
+      if (el) {
+        // +2px por el borde de 1px de la caja (box-sizing: border-box).
+        // +4px de holgura: el redondeo sub-píxel del reparto flex dejaba la
+        // etiqueta entre 0.6 y 1.5px más corta de lo que el texto necesita, y
+        // Chrome pintaba "Bibliote…" / "Extensiones…" en la pill (medido en
+        // artifacts/bp-library/measure/rail-labels.mjs, 15 de 18 combinaciones
+        // de ruta y ancho). Sin holgura, cualquier etiqueta larga pierde su
+        // último glifo.
+        setCollapsedW(Math.ceil(el.getBoundingClientRect().width) + 6);
+      }
     };
     measure();
     let disposed = false;
@@ -165,12 +182,13 @@ export default function BigPictureRail() {
       const hero = document.querySelector<HTMLElement>(
         "[data-aetherio-big-picture] [data-hero-panel], [data-aetherio-big-picture] .detail-page-hero",
       );
-      // Search, Party, Genre, Settings y Addons Big Picture no tienen
+      // Search, Library, Party, Genre, Settings y Addons Big Picture no tienen
       // hero: la pill se aparca en cuanto se scrollea (si no, queda
       // flotando sobre tabs/contenido).
       if (!hero) {
         const isSubPage =
           document.querySelector("[data-aetherio-big-picture] [data-bp-search-kb]") !== null ||
+          document.querySelector("[data-aetherio-big-picture] [data-bp-library]") !== null ||
           document.querySelector("[data-aetherio-big-picture] [data-bp-party]") !== null ||
           document.querySelector("[data-aetherio-big-picture] [data-bp-genre]") !== null ||
           document.querySelector("[data-aetherio-big-picture] [data-bp-settings]") !== null ||

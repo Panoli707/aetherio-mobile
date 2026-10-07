@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { PlayerFeedbackKind } from "./PlayerActionFeedback";
+import { isContextMenuOpen } from "../../components/ui/ContextMenu";
 
 interface KeyboardShortcutHandlers {
   togglePlay: () => void;
@@ -51,6 +52,15 @@ export function usePlayerKeyboardShortcuts({
   useEffect(() => {
     if (!enabled) return;
     const onKeyDown = (event: KeyboardEvent) => {
+      // Big Picture spatial navigation and focused controls own any key they
+      // already consumed. Do not turn the same Arrow press into a second seek
+      // or volume change on the window bubble listener.
+      if (event.defaultPrevented) return;
+      // En Big Picture las flechas pertenecen al navegador espacial mientras
+      // un menú contextual está abierto. Sin esta guarda, el shortcut global
+      // también las convertía en seek/volumen y el mando parecía no moverse
+      // dentro de las opciones.
+      if (isContextMenuOpen()) return;
       const target = event.target as HTMLElement | null;
       if (target) {
         const tag = target.tagName.toLowerCase();

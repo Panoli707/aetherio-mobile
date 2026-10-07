@@ -38,7 +38,10 @@ export interface PlaybackPreferences {
   addonSubtitleLoadMode: AddonSubtitleLoadMode;
   /**
    * Cuando se sincroniza un subtitulo automaticamente al seleccionarlo:
-   * `learned` solo en titulos ya sincronizados, `on` en todos, `off` nunca.
+   * `on` en todos (por defecto), `learned` solo en titulos ya sincronizados a
+   * mano, `off` nunca. En `on` y `learned` el ajuste solo se aplica si el plan
+   * supera el umbral de confianza, asi que un subtitulo que ya va bien nunca
+   * se toca.
    */
   autoSubtitleSync: AutoSyncGlobalMode;
   /** When true, the desktop runtime advertises what is being watched to Discord. */
@@ -80,7 +83,7 @@ export const DEFAULT_PLAYBACK_PREFERENCES: PlaybackPreferences = {
   postPlayMovieThresholdPercent: 90,
   preferredSubtitleLanguage: "spa",
   addonSubtitleLoadMode: "preferred",
-  autoSubtitleSync: "learned",
+  autoSubtitleSync: "on",
   enableDiscordRichPresence: true,
   upNextEnabled: true,
 };

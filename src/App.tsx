@@ -105,6 +105,15 @@ const MAX_CACHED_PAGES = 16;
 const TRANSIENT_PAGE_PATHS = new Set(["/", "/episode", "/streams", "/player", "/big-picture"]);
 type StartupBrandState = "idle" | "pending" | "visible";
 
+/**
+ * Ruta con la que arrancó esta carga del documento. Se lee una sola vez, al
+ * importar el módulo, porque `/` no aguanta: el propio router lo reescribe a
+ * `/home` en cuanto monta `PageRoutes`, y para entonces la pantalla de carga
+ * sigue arriba. Preguntarle a `location.pathname` más tarde ya no distingue un
+ * arranque en frío de un F5 sobre Home.
+ */
+const BOOT_PATH = typeof window === "undefined" ? "/" : window.location.pathname;
+
 export default function App() {
   const queryClient = useQueryClient();
   const location = useLocation();
@@ -112,6 +121,11 @@ export default function App() {
   const [profileRevision, setProfileRevision] = useState(0);
   const hasProfile = hasActiveLocalProfile();
   const isCreatingProfile = location.pathname === "/quick-start/profile";
+  // ¿Este arranque tiene que pasar por el selector de perfiles? Solo si la carga
+  // empieza en la raíz —el icono del sistema y una ventana nueva abren ahí— o
+  // si un cambio de identidad reinicia el arranque. Un F5 o un deep link llegan
+  // con una ruta propia y se recargan donde están, como una recarga.
+  const [needsProfileGate, setNeedsProfileGate] = useState(() => BOOT_PATH === "/");
   const returnToBigPicture = new URLSearchParams(location.search).get("from") === "big-picture";
   const profileSelectionPath = getLastAppMode() === "big-picture"
     ? "/profiles?from=big-picture"
@@ -170,6 +184,8 @@ export default function App() {
   // Al arrancar desde la raíz, restaura el último modo pasando primero por el
   // selector de perfiles. Los deep links navegan fuera de "/" antes de que el
   // startup esté listo, así que una intención explícita siempre gana.
+  // `prepare()` ya lleva a `/profiles` en su camino normal; este efecto cubre
+  // los caminos donde `prepare()` sale antes (auth, primer perfil, quick start).
   useEffect(() => {
     if (!startupReady || !hasProfile) return;
     if (location.pathname !== "/") return;
@@ -191,6 +207,9 @@ export default function App() {
       setAccount(nextAccount);
       setLocalMode(nextLocalMode);
       setStartupStatus(nextAccount || nextLocalMode ? "Preparando tu perfil" : "Listo para comenzar");
+      // Cambiar de identidad reinicia el arranque, así que vuelve a tocar pasar
+      // por el selector: el perfil activo era de la cuenta anterior.
+      setNeedsProfileGate(true);
       setStartupReady(false);
     };
     window.addEventListener(AETHERIO_AUTH_CHANGED_EVENT, refresh);
@@ -235,21 +254,34 @@ export default function App() {
         if (!disposed) setProfileRevision(value => value + 1);
       }
 
-      setStartupStatus("Cargando tu biblioteca");
-      const startupHomePrefs = getHomePreferences();
-      await warmHomeStartup(
-        queryClient,
-        enabledAddons,
-        startupHomePrefs.contentOrientation,
-        startupHomePrefs.bothPreference,
-        () => {
-          if (!disposed) setStartupStatus("Preparando imágenes");
-        },
-      );
+      // Recarga (F5) o deep link: el splash no espera. La página que venía se
+      // repinta desde la caché persistida — `useHomeCatalogs` la siembra como
+      // `initialData` — y se calienta sola en background al montarse, así que
+      // el prewarm de aquí solo añadiría una espera de hasta 75 s delante de una
+      // pantalla que el usuario ya tenía abierta. En un arranque en frío, en
+      // cambio, el splash es lo único en pantalla: ahí sí se espera.
+      if (needsProfileGate) {
+        const startupHomePrefs = getHomePreferences();
+        setStartupStatus("Cargando tu biblioteca");
+        await warmHomeStartup(
+          queryClient,
+          enabledAddons,
+          startupHomePrefs.contentOrientation,
+          startupHomePrefs.bothPreference,
+          () => {
+            if (!disposed) setStartupStatus("Preparando imágenes");
+          },
+        );
+      }
       if (!disposed) {
         setStartupStatus("Todo listo");
-        navigate(profileSelectionPath, { replace: true });
         setStartupReady(true);
+        // Al arrancar desde la raíz se restaura el último modo pasando por el
+        // selector. En una recarga no se patea al usuario de la página que ya
+        // tenía. Crear un perfil en /quick-start/profile vuelve a disparar este
+        // arranque (cambia el perfil activo), pero ese flujo tiene su propia
+        // salida: su CTA de bienvenida. No se le roba la navegacion.
+        if (needsProfileGate && !isCreatingProfile) navigate(profileSelectionPath, { replace: true });
       }
     };
 
@@ -262,7 +294,7 @@ export default function App() {
     return () => {
       disposed = true;
     };
-  }, [account, authRestored, enabledAddons, isCreatingProfile, localMode, navigate, profileRevision, queryClient, startupReady]);
+  }, [account, authRestored, enabledAddons, isCreatingProfile, localMode, navigate, needsProfileGate, profileRevision, queryClient, startupReady]);
 
   useEffect(() => {
     if (!account) return;
@@ -328,6 +360,7 @@ export default function App() {
               setAccount(user);
               setLocalMode(false);
               setAuthError("");
+              setNeedsProfileGate(true);
               setStartupReady(false);
               navigate(hasActiveLocalProfile() ? "/" : "/quick-start/profile", { replace: true });
             }
@@ -433,12 +466,14 @@ export default function App() {
           setAccount(user);
           setLocalMode(false);
           setAuthError("");
+          setNeedsProfileGate(true);
           setStartupReady(false);
         }}
         onContinueLocal={() => {
           setAccount(null);
           setLocalMode(true);
           setAuthError("");
+          setNeedsProfileGate(true);
           setStartupReady(false);
         }}
       />,
@@ -447,20 +482,36 @@ export default function App() {
 
   if (isCreatingProfile) {
     return withStartup(
-      <Suspense fallback={<RouteFallback />}>
-        <QuickStart
-          installedAddons={addons.length}
-          activeProfile={null}
-          defaultName={account?.displayName?.trim() ?? ""}
-          useFreshDefaults
-          profileOnly
-          onComplete={() => {
-            setProfileRevision(value => value + 1);
-            const restoreBigPicture = returnToBigPicture || getLastAppMode() === "big-picture";
-            navigate(restoreBigPicture ? "/profiles?from=big-picture" : "/profiles", { replace: true });
-          }}
-        />
-      </Suspense>,
+      <PartyProvider>
+        {/* El flujo de creación es una page completa con teclado en pantalla, asi
+            que necesita el polling del mando (useGamepad, que vive en
+            GamepadWakeListener) y el motor espacial global: sin esto no hay
+            flechas, ni A, ni B, y el teclado en pantalla no se puede usar. */}
+        <GamepadWakeListener />
+        <Suspense fallback={<RouteFallback />}>
+          <QuickStart
+            installedAddons={addons.length}
+            activeProfile={null}
+            defaultName={account?.displayName?.trim() ?? ""}
+            useFreshDefaults
+            profileOnly
+            onComplete={() => {
+              setProfileRevision(value => value + 1);
+              const restoreBigPicture = returnToBigPicture || getLastAppMode() === "big-picture";
+              navigate(restoreBigPicture ? "/profiles?from=big-picture" : "/profiles", { replace: true });
+            }}
+            onCancel={() => {
+              // B en el nombre: se vuelve al selector sin crear nada y con el
+              // foco en la burbuja de "Agregar", que es de donde se vino.
+              // Solo si ya hay algún perfil: en una instalación nueva el
+              // selector está vacío y no hay a qué volver, así que B no hace
+              // nada en vez de dejar en una pantalla sin nada que hacer.
+              if (getLocalProfiles().length === 0) return;
+              navigate("/profiles", { replace: true, state: { focusAdd: true } });
+            }}
+          />
+        </Suspense>
+      </PartyProvider>,
     );
   }
 
@@ -484,6 +535,10 @@ export default function App() {
               await rehydrateHomeCacheForActiveProfile();
               queryClient.removeQueries({ queryKey: ["home"] });
               const nextHomePrefs = getHomePreferences();
+              // Siempre mostrar la pantalla de cargando al seleccionar un perfil,
+              // destacados los catálogos y pósters. Si el cambio de perfil/cuenta
+              // desencadena un prewarm completo. No SKIP aunque exista caché local:
+              // el usuario quiere ver tres pasos de carga (catálogos, pósters, listo).
               onProgress(45, "Cargando catálogo…");
               await warmHomeStartup(
                 queryClient,

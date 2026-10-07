@@ -41,6 +41,11 @@ export interface InstalledAddon {
    * fuentes agrupa por proveedor real y no debe abrir un chip con su nombre.
    */
   streamSourceFromPayload?: boolean;
+  /**
+   * El add-on se pide igual pero no se lista en las paginas de complementos
+   * ni en Fuentes: entra en el flujo de streams sin ocupar la interfaz.
+   */
+  hiddenInUi?: boolean;
 }
 
 interface AddonStore {
@@ -65,16 +70,22 @@ export const TORRENTIO_LATINO_MANIFEST_URL = "https://torrentio.strem.fun/langua
 const CINEMETA_ADDON_ID = "com.linvo.cinemeta";
 const ANIMES_ADDON_ID = "com.animeflv.stremio.addon";
 const ANIMES_MANIFEST_URL =
-  "https://pigamer37.alwaysdata.net/onAirCatalogs=animeflv%2Canimeav1%2Chenaojara%2Ctioanime%2Canimejara%2Cjkanime/manifest.json";const CINEMETA_MANIFEST_URL = "https://v3-cinemeta.strem.io/manifest.json";
+  "https://pigamer37.alwaysdata.net/onAirCatalogs=animeflv%2Canimeav1%2Chenaojara%2Ctioanime%2Canimejara%2Cjkanime/manifest.json";
+const CINEMETA_MANIFEST_URL = "https://v3-cinemeta.strem.io/manifest.json";
 const HDHUB_ADDON_ID = "com.stremio.HdHub";
 export const HDHUB_MANIFEST_URL = "https://hdhub.thevolecitor.qzz.io/eyJ0b3Jib3giOiJ1bnNldCIsInF1YWxpdGllcyI6IjIxNjBwLDEwODBwLDcyMHAiLCJzb3J0IjoiZGVzYyIsImNvbnRlbnQiOiJsYXRpbiIsImNhdGFsb2dzIjoiIn0/manifest.json";
 const STREVERSE_ADDON_ID = "com.stremverse.org";
+const REMOVED_ADDON_IDS = new Set([STREVERSE_ADDON_ID]);
+const PENGUPLAY_ADDON_ID = "com.penguplay";
+const AETHERIO_API_BASE = (import.meta.env.VITE_AETHERIO_API_URL as string | undefined)?.replace(/\/$/, "")
+  ?? "https://trkll.aetherio.workers.dev";
+export const PENGUPLAY_MANIFEST_URL = `${AETHERIO_API_BASE}/api/penguplay/manifest.json`;
+const PENGUPLAY_LOGO = "https://pengu.uk/penguplay-icon.png";
+const DEEPFLIX_ADDON_ID = "org.portal.free";
+export const DEEPFLIX_MANIFEST_URL = "https://mg.homelabx.qzz.io/manifest.json";
 export const STREVERSE_MANIFEST_URL =
   "https://stremverse1.alwaysdata.net/1XY6xCsIwGIRfRW7O6NRNRRHERbtJKWn4SULTpOSPxSi-u7RVKG7H3cfdvZCeKLAvIcB9iIlR3HAIITXSOQjsolUtJQhsJbf0s7eS6StL8t4yBM4hhTiVjEB4WK8hcLnrJkNg01G0SvrVsjwrN1PHoFrKqASc9Ho6sT5B4NpLb9mMgZLzOU6RuoEiU-3sQDUN5NO4vwgi9U7mP9NYbZzVJjGq9wc/manifest.json";
-const STREVERSE_LOGO =
-  "https://storage.ko-fi.com/cdn/useruploads/8be649b0-3d7f-42fc-a516-e092fdc9ca65_8bb57f59-c58d-4129-8b99-0a5ae03c0b06.png";
-/** Deportes del addon, en el orden en que el los declara (Football primero). */
-const STREVERSE_GENRES = [
+export const STREVERSE_SPORTS = [
   "Football",
   "Cricket",
   "Basketball",
@@ -205,52 +216,65 @@ const HDHUB_ADDON: InstalledAddon = {
 };
 
 /**
- * StremVerse: eventos en directo, repeticiones y highlights de deportes.
+ * PenguPlay: un solo endpoint que agrega ~15 proveedores (4KHDHub, MovieBox,
+ * VAPlayer, Miruro, 2Peckle...) y filtra por calidad, audio y tamaño. Se
+ * instala como bundled y sin listar en la interfaz: es infraestructura de
+ * fuentes, no una opcion que el usuario deba elegir a mano.
  *
- * Se instala como bundled para tener resolucion de `stream` de tipo `tv` (sus
- * idsown son `stremevent_*`, `replay_*`, `highlight_*` y `ttv:direct_*`, ninguno
- * con prefijo IMDB/TMDB), pero sin catalogos: sus tipos son `tv`, y las filas del
- * Home se filtran por `contentOrientation` (movie/series/anime), asi que no
- * aparecerian ahi ni contributing nada. El consumo real ocurre desde la pagina de
- * Deportes, via el provider de live (ver stremioSportsProviders.ts).
+ * Su timeout por defecto (6 s) se queda corto cuando el proveedor elegido va
+ * lento, asi que se sube sin llegar a los 55 s del CNCVerse Bridge, que consulta
+ * una batalla de extensiones distintas.
  */
-const STREVERSE_ADDON: InstalledAddon = {
-  id: STREVERSE_ADDON_ID,
-  name: "StremVerse",
-  description: "Deportes en directo, repeticiones y highlights.",
-  logo: STREVERSE_LOGO,
-  url: STREVERSE_MANIFEST_URL,
+const PENGUPLAY_ADDON: InstalledAddon = {
+  id: PENGUPLAY_ADDON_ID,
+  name: "PenguPlay",
+  description: "Agregador de proveedores con filtros de calidad, audio y tamaño.",
+  logo: PENGUPLAY_LOGO,
+  url: PENGUPLAY_MANIFEST_URL,
   manifest: {
-    id: STREVERSE_ADDON_ID,
-    version: "3.0.0",
-    name: "StremVerse",
-    description: "Live Events, Replays and Highlights from StremVerse.",
-    resources: ["catalog", "meta", "stream"],
-    types: ["tv"],
-    idPrefixes: [
-      "stremevent_",
-      "stremevent_sktech_",
-      "stremevent_playfy_",
-      "stremevent_playztv_",
-      "stremevent_merged_",
-      "replay_",
-      "highlight_",
-      "stremevent_xtra2_",
-      "ttv:direct_",
-    ],
+    id: PENGUPLAY_ADDON_ID,
+    version: "1.4.0",
+    name: "PenguPlay",
+    description: "Stream movies and series in Stremio with configurable provider and quality filters.",
+    resources: [{ name: "stream", types: ["movie", "series"], idPrefixes: ["tt", "tmdb:", "tvdb:", "mal:", "kitsu:", "tvmaze:", "anilist:", "anidb:"] }],
+    types: ["movie", "series"],
+    idPrefixes: ["tt", "tmdb:", "tvdb:", "mal:", "kitsu:", "tvmaze:", "anilist:", "anidb:"],
     catalogs: [], // Los add-ons bundled (excepto Cinemeta) no deben aportar catálogos.
-    logo: STREVERSE_LOGO,
-    behaviorHints: { configurable: true, configurationRequired: false },
+    logo: PENGUPLAY_LOGO,
+    behaviorHints: {},
   },
   enabled: true,
   installedAt: 0,
-  version: "3.0.0",
+  version: "1.4.0",
+  bundled: true,
+  scope: "global",
+  hiddenInUi: true,
+  streamTimeoutMs: 20_000,
+  streamAttempts: 2,
+};
+
+const DEEPFLIX_ADDON: InstalledAddon = {
+  id: DEEPFLIX_ADDON_ID,
+  name: "DeepFlix",
+  description: "Portal de Peliculas y series en idioma Latino.",
+  url: DEEPFLIX_MANIFEST_URL,
+  manifest: {
+    id: DEEPFLIX_ADDON_ID,
+    version: "1.0.0",
+    name: "DeepFlix",
+    description: "Portal de Peliculas y series en idioma Latino",
+    resources: [{ name: "stream", types: ["movie", "series"], idPrefixes: ["tt"] }],
+    types: ["movie", "series"],
+    idPrefixes: ["tt"],
+    catalogs: [], // Los add-ons bundled (excepto Cinemeta) no deben aportar catálogos.
+    behaviorHints: { p2p: false, configurable: false },
+  },
+  enabled: true,
+  installedAt: 0,
+  version: "1.0.0",
   bundled: true,
   scope: "global",
 };
-
-/** Deportes que declara el addon, para el filtro de la pagina de Deportes. */
-export const STREVERSE_SPORTS = STREVERSE_GENRES;
 
 /**
  * CNCVerse Bridge: un add-on que expone ~70 extensiones CloudStream detras de
@@ -317,10 +341,58 @@ function withBundledCncVerse(globalAddons: InstalledAddon[]) {
   return [...merged.values()];
 }
 
+/**
+ * Add-ons integrados, en el orden en que deben aparecer sus chips en el panel
+ * de seleccion de fuentes.
+ *
+ * La clave es que el chip casi nunca lleva el nombre del add-on: Torrentio se
+ * desglosa en sus indexers (ThePiratebay, Yoru, Nyaa...), asi que un chip se
+ * ordena por el add-on al que pertenece, no por como se llama. Los ids viven
+ * aqui y no en las vistas para que esta lista no se desincronice.
+ *
+ * PenguPlay antes que DeepFlix: el orden lo fijo el usuario. Lo unico que queda
+ * por encima de esta lista es AnimeAV1 (ver `chipTier` en sourceFilterOrder).
+ */
+const SOURCE_FILTER_ORDER: readonly string[] = [
+  PENGUPLAY_ADDON_ID,
+  DEEPFLIX_ADDON_ID,
+  TORRENTIO_ADDON_ID,
+  HDHUB_ADDON_ID,
+];
+
+/**
+ * Posicion de un chip de fuente: menor goes antes.
+ *
+ * Lo que instalo el usuario va primero (cualquier add-on no integrado,
+ * incluidos los scrapers), porque si eligio esa fuente manda sobre las que
+ * trae la app. Luego los integrados en el orden de arriba, y el resto al
+ * final para que el desempate por cantidad de streams los ordene entre si.
+ */
+export function sourceFilterPriority(addonId: string | undefined, bundled: boolean | undefined): number {
+  // `undefined` es "no sabemos de donde viene" (streams de scraper, extensiones
+  // de media, add-ons que ya no estan instalados). No es lo mismo que un
+  // add-on no integrado: tratarlo como instalado por el usuario lo mandaba
+  // delante de todo, y como lo ignoran los未知 lo que llega sin registro.
+  if (bundled === false) return 0;
+  const normalized = addonId === "torrentio" ? TORRENTIO_ADDON_ID : addonId;
+  const index = normalized ? SOURCE_FILTER_ORDER.indexOf(normalized) : -1;
+  return index === -1 ? SOURCE_FILTER_ORDER.length + 1 : index + 1;
+}
+
 function isInstalledAddon(value: unknown): value is InstalledAddon {
   if (!value || typeof value !== "object") return false;
   const addon = value as Partial<InstalledAddon>;
   return typeof addon.id === "string" && typeof addon.name === "string" && typeof addon.url === "string";
+}
+
+/**
+ * Add-ons que la interfaz debe listar. Los marcados `hiddenInUi` se siguen
+ * pidiendo en `stream` —para eso estan instalados— pero no aparecen en
+ * Complementos ni en Fuentes. Todo lo demas (los contadores de "instalados",
+ * los toggles globales y el log de la pagina) cuenta sobre esta lista.
+ */
+export function listableAddons(addons: InstalledAddon[]) {
+  return addons.filter(addon => !addon.hiddenInUi);
 }
 
 function readPersistedAddons(key: string): InstalledAddon[] {
@@ -405,12 +477,23 @@ function withBundledHdhub(globalAddons: InstalledAddon[]) {
   return [...merged.values()];
 }
 
-function withBundledStremVerse(globalAddons: InstalledAddon[]) {
+function withBundledPenguPlay(globalAddons: InstalledAddon[]) {
   const merged = new Map(globalAddons.map(addon => [addon.id, withScope(addon)]));
-  const existing = merged.get(STREVERSE_ADDON.id);
-  merged.set(STREVERSE_ADDON.id, {
+  const existing = merged.get(PENGUPLAY_ADDON.id);
+  merged.set(PENGUPLAY_ADDON.id, {
     ...existing,
-    ...STREVERSE_ADDON,
+    ...PENGUPLAY_ADDON,
+    enabled: existing?.enabled ?? true,
+  });
+  return [...merged.values()];
+}
+
+function withBundledDeepflix(globalAddons: InstalledAddon[]) {
+  const merged = new Map(globalAddons.map(addon => [addon.id, withScope(addon)]));
+  const existing = merged.get(DEEPFLIX_ADDON.id);
+  merged.set(DEEPFLIX_ADDON.id, {
+    ...existing,
+    ...DEEPFLIX_ADDON,
     enabled: existing?.enabled ?? true,
   });
   return [...merged.values()];
@@ -422,24 +505,35 @@ function withBundledStremVerse(globalAddons: InstalledAddon[]) {
  * surta efecto aunque la lista persistida fuera de fecha.
  */
 function withBundledAddons(globalAddons: InstalledAddon[]) {
-  return withBundledCncVerse(withBundledStremVerse(withBundledHdhub(withBundledCinemeta(
-    withBundledTorrentio(withBundledAnimes(globalAddons)),
-  ))));
+  const supportedAddons = globalAddons.filter(addon => !REMOVED_ADDON_IDS.has(addon.id));
+  const withAnimes = withBundledAnimes(supportedAddons);
+  const withTorrentio = withBundledTorrentio(withAnimes);
+  const withCinemeta = withBundledCinemeta(withTorrentio);
+  const withHdhub = withBundledHdhub(withCinemeta);
+  const withDeepflix = withBundledDeepflix(withHdhub);
+  const withPenguPlay = withBundledPenguPlay(withDeepflix);
+  return withBundledCncVerse(withPenguPlay);
 }
 
 function loadAddonScopes() {
   if (typeof localStorage === "undefined") {
-    return [TORRENTIO_LATINO_ADDON, CINEMETA_ADDON, ANIMES_ADDON, HDHUB_ADDON, STREVERSE_ADDON, CNCVERSE_BRIDGE_ADDON];
+    return [TORRENTIO_LATINO_ADDON, CINEMETA_ADDON, ANIMES_ADDON, HDHUB_ADDON, CNCVERSE_BRIDGE_ADDON, DEEPFLIX_ADDON, PENGUPLAY_ADDON];
   }
   const storedGlobal = readPersistedAddons(GLOBAL_ADDONS_STORAGE_KEY).map(withScope);
   const globalAddons = withBundledAddons(storedGlobal.filter(addon => addon.scope === "global"));
+  const hasRemovedGlobalAddons = storedGlobal.some(addon => REMOVED_ADDON_IDS.has(addon.id));
   const profileKey = activeProfileAddonsStorageKey();
-  if (!profileKey) return globalAddons;
+  if (!profileKey) {
+    if (hasRemovedGlobalAddons) writePersistedAddons(GLOBAL_ADDONS_STORAGE_KEY, globalAddons);
+    return globalAddons;
+  }
 
   const storedProfile = readPersistedAddons(profileKey)
     .map(withScope)
-    .filter(addon => addon.scope === "profile");
-  const incorrectlyGlobalPersonal = storedGlobal.filter(addon => addon.scope === "profile");
+    .filter(addon => addon.scope === "profile" && !REMOVED_ADDON_IDS.has(addon.id));
+  const incorrectlyGlobalPersonal = storedGlobal.filter(
+    addon => addon.scope === "profile" && !REMOVED_ADDON_IDS.has(addon.id),
+  );
   const profileAddons = mergeById([...incorrectlyGlobalPersonal, ...storedProfile]);
 
   // Migración de la versión que volvió globales todos los add-ons: los dos

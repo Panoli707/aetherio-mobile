@@ -1,3 +1,4 @@
+import { isShellPreviewOpen } from "../utils/shellPreview";
 import type { ShellPreviewRequest } from "../utils/shellPreview";
 
 /**
@@ -55,7 +56,7 @@ export function buildRestoredPreviewRequest(saved: SavedShellPreview): ShellPrev
       if (card?.isConnected) {
         card.scrollIntoView({ block: "nearest", inline: "nearest" });
         window.setTimeout(() => {
-          if (document.querySelector("[data-shell-preview]")) return;
+          if (isShellPreviewOpen()) return;
           card.focus({ preventScroll: true });
         }, 80);
         return;

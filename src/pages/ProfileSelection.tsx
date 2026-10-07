@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Lock, Check } from "lucide-react";
-import ProfileAvatar from "../components/profile/ProfileAvatar.tsx";
+import { gsap } from "gsap";
+import PinPad from "../components/pin/PinPad.tsx";
+import ProfileBackdrop from "../components/profile/ProfileBackdrop.tsx";
 import AddProfileIcon from "../components/ui/AddProfileIcon.tsx";
 import {
   getLocalProfiles,
@@ -9,11 +10,14 @@ import {
   setActiveProfile,
   verifyPin,
   getProfileInitial,
+  migratePinsToFourDigits,
+  PIN_MIGRATION_EVENT,
   type LocalProfile,
 } from "../utils/localProfiles.ts";
 import { setBigPictureActive } from "../runtime/platform.ts";
 import { getLastAppMode, setLastAppMode } from "../utils/appMode.ts";
 import { getHomePreferences } from "../config/homePreferences.ts";
+import { prefersReducedMotion } from "../utils/motion.ts";
 import { GAMEPAD_ACTIVITY_EVENT } from "../hooks/useGamepad.ts";
 import packageJson from "../../package.json";
 import "./ProfileSelection.css";
@@ -197,22 +201,44 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
     : location.pathname.startsWith("/big-picture")
       || new URLSearchParams(location.search).get("from") === "big-picture"
       || getLastAppMode() === "big-picture";
-  const profiles = useMemo(() => getLocalProfiles(), []);
+  // Los perfiles se releen cuando la migración de PINs los toca (los liberar
+  // cambia `pin` y `updatedAt` de la lista guardada).
+  const [profilesVersion, setProfilesVersion] = useState(0);
+  const profiles = useMemo(() => getLocalProfiles(), [profilesVersion]);
   const [welcomeCopy, setWelcomeCopy] = useState<WelcomeCopy>({ mode: "first", messageIndex: 0 });
   const welcomeCopyResolvedRef = useRef(false);
   const [pinModal, setPinModal] = useState<{ profile: LocalProfile; pin: string; error: string } | null>(null);
+  // El passcode no es un overlay: sustituye en el sitio a las burbujas y al
+  // titulo. Estos dos refs son las dos caras del intercambio y `showPin` decide
+  // cuál está montada mientras dura la transición.
+  const [showPin, setShowPin] = useState(false);
+  const gridViewRef = useRef<HTMLDivElement>(null);
+  const pinViewRef = useRef<HTMLDivElement>(null);
+  // Un solo cierre por apertura: el mando puede repetir B durante los ~180ms
+  // del fade y el intercambio no debe reproducirse dos veces.
+  const closingPinRef = useRef(false);
+  // Burbuja desde la que se abrió el passcode: al cerrar, el foco vuelve ahí y
+  // no al primer perfil de la lista.
+  const pinReturnIdRef = useRef<string | null>(null);
+  const pinWasOpenRef = useRef(false);
+  const profileCardRefs = useRef(new Map<string, HTMLButtonElement>());
+  // Burbuja de "Agregar": es de donde se entra a crear un perfil, asi que al
+  // volver con B desde Quick Start el foco vuelve a ella y no al primer perfil.
+  const addCardRef = useRef<HTMLButtonElement>(null);
+  const focusAddRef = useRef((location.state as { focusAdd?: boolean } | null)?.focusAdd === true);
   const [adding, setAdding] = useState(false);
   const [selectingId, setSelectingId] = useState<string | null>(null);
   const [welcomeProfile, setWelcomeProfile] = useState<LocalProfile | null>(null);
   const [profileProgress, setProfileProgress] = useState(0);
   const [profileProgressLabel, setProfileProgressLabel] = useState("Preparando tu biblioteca…");
-  const pinInputRef = useRef<HTMLInputElement>(null);
   const firstControlRef = useRef<HTMLButtonElement>(null);
 
   const hasActive = !!getActiveProfileId();
   const bgProfile = profiles.find(p => p.id === getActiveProfileId()) || profiles[0];
 
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  // PINs legacy (5-8 dígitos) liberados por la migración: se avisa una vez.
+  const [releasedPins, setReleasedPins] = useState<string[]>([]);
   const targetUrl = hoveredId
     ? profiles.find(p => p.id === hoveredId)?.avatarDataUrl
     : bgProfile?.avatarDataUrl;
@@ -221,6 +247,30 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
   const [bgNext, setBgNext] = useState<string | null | undefined>(null);
   const [bgTransitioning, setBgTransitioning] = useState(false);
   const bgTimer = useRef<number>(0);
+
+  useEffect(() => {
+    // La migración quita los PINs que ya no son de 4 dígitos (main.tsx la
+    // lanza al arrancar). Si liberó alguno, se lo decimos aquí.
+    let cancelled = false;
+    void migratePinsToFourDigits().then(released => {
+      if (!cancelled && released.length > 0) {
+        setReleasedPins(released);
+        setProfilesVersion(version => version + 1);
+      }
+    });
+    const onMigrated = (event: Event) => {
+      const detail = (event as CustomEvent<{ released?: string[] }>).detail;
+      if (cancelled || !detail?.released?.length) return;
+      setReleasedPins(detail.released);
+      setProfilesVersion(version => version + 1);
+    };
+    window.addEventListener(PIN_MIGRATION_EVENT, onMigrated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(PIN_MIGRATION_EVENT, onMigrated);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     document.documentElement.classList.add("aetherio-profile-selection");
@@ -286,25 +336,60 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
     if (pinModal) return;
     let timer = 0;
     const focusWhenVisible = () => {
-      const control = firstControlRef.current;
-      if (!control) return;
-      const style = window.getComputedStyle(control);
+      // Tras cerrar el passcode el foco vuelve a la burbuja desde la que se
+      // abrió; si no, al primer control, como al entrar en la page. Llegando
+      // desde Quick Start (B en el nombre) el foco va a "Agregar".
+      const wantsAdd = focusAddRef.current;
+      focusAddRef.current = false;
+      const target = wantsAdd
+        ? addCardRef.current ?? firstControlRef.current
+        : (pinReturnIdRef.current ? profileCardRefs.current.get(pinReturnIdRef.current) : null)
+          ?? firstControlRef.current;
+      if (!target) return;
+      const style = window.getComputedStyle(target);
       if (style.visibility !== "visible" || style.display === "none") {
         timer = window.setTimeout(focusWhenVisible, 100);
         return;
       }
-      control.focus({ preventScroll: true });
+      target.focus({ preventScroll: true });
     };
     timer = window.setTimeout(focusWhenVisible, 40);
     return () => window.clearTimeout(timer);
   }, [pinModal]);
+
+  /**
+   * Vuelta al selector: las burbujas entran con fade. Va en un efecto y no al
+   * final de closePin porque al closing la grilla todavia no esta montada
+   * (showPin la sustituye), asi que alli el ref apuntaba a null y el fade se
+   * perdia.
+   */
+  useEffect(() => {
+    if (showPin || !pinWasOpenRef.current) return;
+    pinWasOpenRef.current = false;
+    const grid = gridViewRef.current;
+    if (!grid || prefersReducedMotion()) return;
+    gsap.fromTo(
+      grid,
+      { opacity: 0 },
+      { opacity: 1, duration: 0.34, ease: "power3.out", clearProps: "opacity" },
+    );
+    return () => {
+      gsap.killTweensOf(grid);
+      gsap.set(grid, { clearProps: "opacity" });
+    };
+  }, [showPin]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape" && event.key !== "Esc" && event.code !== "Escape") return;
       event.preventDefault();
       event.stopPropagation();
-      if (pinModal) setPinModal(null);
+      // Con el passcode abierto, B / Esc deshacen el intercambio entero
+      // (closePin): el pad se va y vuelven las burbujas. Con un
+      // `setPinModal(null)` pelado el pad se queda montado y vacio — se ve
+      // como si el B no hiciese nada — y ademas el preventDefault de aqui
+      // evita que el back global de la page saque de /profiles.
+      if (pinModal) void closePin();
       else navigate(-1);
     };
     document.addEventListener("keydown", onKey, true);
@@ -336,10 +421,6 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
   }, [bigPicture, hasActive, navigate, profiles]);
 
   useEffect(() => {
-    if (pinModal) pinInputRef.current?.focus();
-  }, [pinModal]);
-
-  useEffect(() => {
     if (!welcomeProfile) {
       setProfileProgress(0);
       setProfileProgressLabel("Preparando tu biblioteca…");
@@ -348,11 +429,56 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
 
   function selectProfile(profile: LocalProfile) {
     if (profile.pin) {
-      setPinModal({ profile, pin: "", error: "" });
+      void openPin(profile);
       return;
     }
     void enterProfile(profile);
   }
+
+  /**
+   * Intercambio: las burbujas y "¿Quién está viendo?" se van (fade) y en su
+   * lugar entra el passcode. Sin overlay ni blur: la page es la misma, solo
+   * cambia lo que hay en el centro. Las transiciones de esta page son fades
+   * puros — nada de escala ni desplazamiento.
+   */
+  async function openPin(profile: LocalProfile) {
+    closingPinRef.current = false;
+    pinReturnIdRef.current = profile.id;
+    const grid = gridViewRef.current;
+    if (grid && !prefersReducedMotion()) {
+      await gsap.to(grid, { opacity: 0, duration: 0.2, ease: "power2.in" });
+    }
+    setPinModal({ profile, pin: "", error: "" });
+    setShowPin(true);
+    pinWasOpenRef.current = true;
+  }
+
+  async function closePin() {
+    if (closingPinRef.current) return;
+    closingPinRef.current = true;
+    const pad = pinViewRef.current;
+    if (pad && !prefersReducedMotion()) {
+      await gsap.to(pad, { opacity: 0, duration: 0.18, ease: "power2.in" });
+    }
+    setShowPin(false);
+    setPinModal(null);
+  }
+
+  /** Entrada del passcode: fade, como el resto de transiciones de la page. */
+  useEffect(() => {
+    if (!showPin) return;
+    const pad = pinViewRef.current;
+    if (!pad || prefersReducedMotion()) return;
+    gsap.fromTo(
+      pad,
+      { opacity: 0 },
+      { opacity: 1, duration: 0.34, ease: "power3.out", clearProps: "opacity" },
+    );
+    return () => {
+      gsap.killTweensOf(pad);
+      gsap.set(pad, { clearProps: "opacity" });
+    };
+  }, [showPin]);
 
   async function enterProfile(profile: LocalProfile) {
     if (selectingId || welcomeProfile) return;
@@ -382,8 +508,14 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
       return;
     }
     const profile = pinModal.profile;
+    // El passcode se va por el mismo intercambio y entra el perfil.
+    const pad = pinViewRef.current;
+    if (pad && !prefersReducedMotion()) {
+      await gsap.to(pad, { opacity: 0, duration: 0.18, ease: "power2.in" });
+    }
+    setShowPin(false);
     setPinModal(null);
-    enterProfile(profile);
+    void enterProfile(profile);
   }
 
   function addProfile() {
@@ -393,26 +525,11 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
 
   return (
     <div className={`profile-selection-page${welcomeProfile ? " profile-selection-page--welcoming" : ""}`} data-bp-profile-selection={bigPicture ? "true" : undefined}>
-      <div className="profile-selection-bg">
-        {bgCurrent && (
-          <img
-            src={bgCurrent}
-            alt=""
-            className={`profile-selection-bg-img ${bgTransitioning ? "bg-img-leave" : "bg-img-current"}`}
-          />
-        )}
-        {bgNext && (
-          <img
-            src={bgNext}
-            alt=""
-            className={`profile-selection-bg-img bg-img-enter`}
-          />
-        )}
-        <div className="profile-selection-bg-tint" />
-        <div className="profile-selection-bg-radial" />
-        <div className="profile-selection-bg-vertical" />
-        <div className="profile-selection-bg-bottom" />
-      </div>
+      <ProfileBackdrop
+        imageUrl={bgCurrent}
+        nextImageUrl={bgNext}
+        transitioning={bgTransitioning}
+      />
 
       {welcomeProfile ? (
         <main className="profile-selection-content profile-welcome-content" aria-live="polite">
@@ -434,15 +551,47 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
          </main>
       ) : (
         <main className="profile-selection-content">
-          <h1 className="profile-selection-title">
-            ¿Quién está viendo?
-          </h1>
+          {showPin ? (
+            <div
+              ref={pinViewRef}
+              className="profile-selection-pin"
+              // Zona modal en los dos modos: el motor espacial no debe saltar a
+              // las cards que quedan detrás mientras se escribe el PIN.
+              data-spatial-modal="true"
+            >
+              <PinPad
+                value={pinModal?.pin ?? ""}
+                onChange={pin => setPinModal(prev => (prev ? { ...prev, pin, error: "" } : null))}
+                onComplete={() => void submitPin()}
+                onCancel={() => void closePin()}
+                error={pinModal?.error ?? ""}
+              />
+            </div>
+          ) : (
+            <div ref={gridViewRef}>
+              <h1 className="profile-selection-title">
+                ¿Quién está viendo?
+              </h1>
+
+              {releasedPins.length > 0 ? (
+                <p className="profile-selection-note">
+                  Le quitamos el PIN a {releasedPins.join(", ")}: el PIN ahora es de 4 dígitos y el
+                  anterior no se podía introducir. Ya podés entrar y poner uno nuevo en Ajustes.
+                </p>
+              ) : null}
 
           <div className="profile-selection-row">
             {profiles.map((profile, index) => (
               <button
                 key={profile.id}
-                ref={index === 0 ? firstControlRef : undefined}
+                ref={node => {
+                  if (!node) {
+                    profileCardRefs.current.delete(profile.id);
+                    return;
+                  }
+                  profileCardRefs.current.set(profile.id, node);
+                  if (index === 0) firstControlRef.current = node;
+                }}
                 onClick={() => selectProfile(profile)}
                 disabled={selectingId !== null}
                 onMouseEnter={() => setHoveredId(profile.id)}
@@ -470,7 +619,10 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
             ))}
 
             <button
-              ref={profiles.length === 0 ? firstControlRef : undefined}
+              ref={node => {
+                addCardRef.current = node;
+                if (profiles.length === 0 && node) firstControlRef.current = node;
+              }}
               onClick={addProfile}
               disabled={adding || selectingId !== null}
               className="profile-card profile-card-add"
@@ -481,72 +633,10 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
               <span className="profile-card-name">Agregar</span>
             </button>
           </div>
+            </div>
+          )}
         </main>
       )}
-
-      {pinModal ? (
-        <div
-          className="pin-modal-overlay"
-          data-spatial-modal={bigPicture ? "true" : undefined}
-          onClick={() => setPinModal(null)}
-        >
-          <div
-            className="pin-modal"
-            onClick={e => e.stopPropagation()}
-            onKeyDown={e => { if (e.key === "Escape") setPinModal(null); }}
-          >
-            <div className="pin-modal-profile">
-              <ProfileAvatar
-                profile={pinModal.profile}
-                className="relative flex h-20 w-20 items-center justify-center overflow-hidden rounded-full bg-white text-2xl font-black text-black"
-              />
-              <p className="pin-modal-name">{pinModal.profile.name}</p>
-              <p className="pin-modal-hint">Introduce el PIN para acceder</p>
-            </div>
-
-            <div className="pin-input-wrapper">
-              <Lock size={20} style={{ color: "rgba(255,255,255,0.4)", flexShrink: 0 }} />
-              <input
-                ref={pinInputRef}
-                type="password"
-                inputMode="numeric"
-                maxLength={8}
-                value={pinModal.pin}
-                onChange={e =>
-                  setPinModal(prev =>
-                    prev ? { ...prev, pin: e.target.value.replace(/\D/g, ""), error: "" } : null
-                  )
-                }
-                onKeyDown={e => { if (e.key === "Enter") void submitPin(); }}
-                placeholder="PIN"
-              />
-            </div>
-
-            {pinModal.error ? (
-              <p className="pin-error">{pinModal.error}</p>
-            ) : null}
-
-            <div className="pin-actions">
-              <button
-                onClick={() => setPinModal(null)}
-                className="pin-btn pin-btn-cancel"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => void submitPin()}
-                disabled={!pinModal.pin.trim()}
-                className="pin-btn pin-btn-enter"
-              >
-                <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-                  <Check size={16} />
-                  Entrar
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -10,8 +10,8 @@ export interface StreamPlaybackRankingOptions {
 }
 
 const ANIME_SOURCE_ORDER = [
-  "animes",
   "animeav1",
+  "animes",
   "animeflv",
   "gojowtf",
   "animekai",
@@ -39,7 +39,6 @@ function isKnownDeadTorrent(stream: MediaStream): boolean {
 
 function playbackScore(stream: MediaStream): number {
   const hints = stream.behaviorHints ?? {};
-  const notWebReady = Boolean(hints.notWebReady);
   const lowerName = (stream.name ?? "").toLowerCase();
   const hasDirectUrl = typeof stream.url === "string" && /^https?:\/\//i.test(stream.url);
   const hasHttpSource = (stream.sources ?? []).some(item => /^https?:\/\//i.test(item));
@@ -51,7 +50,11 @@ function playbackScore(stream: MediaStream): number {
   if (hasHttpSource) score += 20;
   if (stream.subtitles?.length) score += 8;
   if (typeof hints.videoSize === "number" && hints.videoSize > 0) score += 4;
-  if (notWebReady || !isPlayableMediaStream(stream)) score -= 100;
+  // La penalidad la carga lo que de verdad impide reproducir. `notWebReady`
+  // ya no se puntua aqui: tras dejar de vetar `url` en playableMedia.ts solo
+  //describe el navegador, y restar por ello enterraba fuentes que mpv si
+  // reproduce (DeepFlix marca su /resolve/ con la bandera).
+  if (!isPlayableMediaStream(stream)) score -= 100;
   if (lowerName.includes("cam")) score -= 12;
   return score;
 }

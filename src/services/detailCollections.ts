@@ -36,7 +36,10 @@ const malToTmdbCache = new Map<string, { id: number; type: "movie" | "series" }>
 
 async function fetchJson(url: string, init?: RequestInit) {
   try {
-    const response = await fetch(url, init);
+    const response = await fetch(url, {
+      ...init,
+      signal: init?.signal ?? AbortSignal.timeout(8_000),
+    });
     if (!response.ok) return null;
     return await response.json();
   } catch {
@@ -211,12 +214,6 @@ async function resolveMalToTmdb(malId: string, preferredType: "movie" | "series"
   return null;
 }
 
-async function resolveTitleToTmdb(title: string, type: "movie" | "series") {
-  const result = await tmdbFetch<any>(`/search/${tmdbType(type)}`, { params: { query: title, language: "en-US" } });
-  const id = Number(result?.results?.[0]?.id);
-  return id > 0 ? { id, type } : null;
-}
-
 async function fetchAniListFranchise(request: CollectionRequest): Promise<DetailCollectionItem[]> {
   const payload = await fetchJson("https://graphql.anilist.co", {
     method: "POST",
@@ -228,6 +225,7 @@ async function fetchAniListFranchise(request: CollectionRequest): Promise<Detail
             edges {
               relationType
               node {
+                id
                 idMal
                 format
                 seasonYear
@@ -252,23 +250,17 @@ async function fetchAniListFranchise(request: CollectionRequest): Promise<Detail
     const title = node?.title?.english || node?.title?.romaji;
     if (!title) continue;
     const type: "movie" | "series" = node.format === "MOVIE" ? "movie" : "series";
-    const resolved = await resolveTitleToTmdb(title, type);
-    if (resolved?.id === request.tmdbId) continue;
-    const id = resolved ? `tmdb:${resolved.id}` : node.idMal ? `mal:${node.idMal}` : "";
+    const id = node.idMal ? `mal:${node.idMal}` : node.id ? `anilist:${node.id}` : "";
     const key = `${type}:${id}`;
     if (!id || seen.has(key)) continue;
     seen.add(key);
-    const artwork: { poster?: string; backdrop?: string; logo?: string } = resolved
-      ? await fetchArtwork(type, resolved.id)
-      : {};
     items.push({
       id,
       title,
       type,
       description: node.description,
-      poster: artwork.poster ?? node.coverImage?.extraLarge ?? node.coverImage?.large,
-      backdrop: artwork.backdrop ?? node.bannerImage,
-      logo: artwork.logo,
+      poster: node.coverImage?.extraLarge ?? node.coverImage?.large,
+      backdrop: node.bannerImage ?? node.coverImage?.large,
       year: yearFrom(node.seasonYear),
     });
   }
@@ -279,14 +271,21 @@ async function fetchAnimeFranchise(request: CollectionRequest): Promise<DetailCo
   const isAnime = request.mediaId.startsWith("mal:")
     || (request.tmdbData?.original_language === "ja" && request.tmdbData?.genres?.some((genre: any) => genre.id === 16));
   if (!isAnime) return null;
-  const malId = request.mediaId.startsWith("mal:")
-    ? request.mediaId.slice(4)
-    : await searchJikanAnime(request.title);
+  const malId = request.mediaId.startsWith("mal:") ? request.mediaId.slice(4) : "";
   const cacheKey = malId || `title:${request.title.toLowerCase()}`;
   const cached = malFranchiseCache.get(cacheKey);
   if (cached) return cached.length ? { name: "Franquicia", items: cached } : null;
-  const payload = malId
-    ? await jikanRequest<{ data?: any[] }>(`/anime/${encodeURIComponent(malId)}/relations`)
+  // AniList returns franchise relations and artwork in one request. Prefer it
+  // to Jikan's rate-limited series of relation/detail lookups; use Jikan only
+  // when AniList has no usable relations.
+  const aniListItems = await fetchAniListFranchise(request);
+  if (aniListItems.length) {
+    malFranchiseCache.set(cacheKey, aniListItems);
+    return { name: "Franquicia", items: aniListItems };
+  }
+  const fallbackMalId = malId || await searchJikanAnime(request.title);
+  const payload = fallbackMalId
+    ? await jikanRequest<{ data?: any[] }>(`/anime/${encodeURIComponent(fallbackMalId)}/relations`)
     : null;
   const relations = (payload?.data ?? []).flatMap((relation: any) => relation.entry ?? []);
   const seen = new Set<string>();
@@ -318,7 +317,6 @@ async function fetchAnimeFranchise(request: CollectionRequest): Promise<DetailCo
       year: yearFrom(anime.year),
     });
   }
-  if (!items.length) items.push(...await fetchAniListFranchise(request));
   malFranchiseCache.set(cacheKey, items);
   return items.length ? { name: "Franquicia", items } : null;
 }

@@ -35,6 +35,10 @@ export function useEpisodeMetadata(query: StreamQuery | null) {
         const logoPath = logos.find((item: any) => typeof item?.file_path === "string")?.file_path;
         setSeriesLogoUrl(logoPath ? `${IMG}/original${logoPath}` : null);
 
+        // La duración por episodio es opcional en TMDB; la de la serie sirve de
+        // respaldo para que la tarjeta no se quede sin dato.
+        const seriesRuntime = Number(detailsJson?.episode_run_time?.[0]);
+
         setEpisodeOptions((seasonJson.episodes ?? []).map((episode: any) => ({
           id: `${tmdbId}:${query.season}:${episode.episode_number}`,
           episode: episode.episode_number,
@@ -43,6 +47,7 @@ export function useEpisodeMetadata(query: StreamQuery | null) {
           overview: typeof episode.overview === "string" ? episode.overview : undefined,
           airDate: episode.air_date,
           still: episode.still_path ? `${IMG}/original${episode.still_path}` : undefined,
+          runtime: Number(episode.runtime) || (Number.isFinite(seriesRuntime) ? seriesRuntime : undefined),
         })));
 
         // Resolver el primer episodio de la siguiente temporada, si existe, para

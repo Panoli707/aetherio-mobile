@@ -6,6 +6,7 @@ const FIRST_VALUE_KEYS = {
   audioCodec: ["audioCodec", "audio_codec", "codecAudio", "audioCodecName", "audio_codecs"],
   audioChannels: ["audioChannels", "audio_channels", "channels", "channelCount"],
   dynamicRange: ["dynamicRange", "dynamic_range", "videoRange", "video_range", "hdr", "range"],
+  audioProfile: ["audioProfile", "audio_profile", "audioProfileName", "audioTrack", "audio_track"],
   bitDepth: ["bitDepth", "bit_depth", "bitdepth", "bits", "depth", "colorDepth", "color_depth"],
 } as const;
 
@@ -45,7 +46,16 @@ function normalizeChannels(value: unknown): number | undefined {
 }
 
 function normalizeText(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim() ? value.trim() : undefined;
+  if (typeof value === "string") return value.trim() ? value.trim() : undefined;
+  // Varios addones devuelven listas ("audio_codecs": ["eac3", "atmos"]): se
+  // unen para que el detector de tecnologia las pueda leer igual que un string.
+  if (Array.isArray(value)) {
+    const parts = value
+      .map(item => (typeof item === "string" ? item.trim() : ""))
+      .filter(Boolean);
+    return parts.length ? parts.join(" ") : undefined;
+  }
+  return undefined;
 }
 
 /** Extracts only explicitly supplied technical fields; it never infers channels from codecs. */
@@ -61,6 +71,7 @@ export function normalizeStreamTechnicalMetadata(...values: unknown[]): StreamTe
     dynamicRange: firstValue(records, FIRST_VALUE_KEYS.dynamicRange) === true
       ? "HDR"
       : normalizeText(firstValue(records, FIRST_VALUE_KEYS.dynamicRange)),
+    audioProfile: normalizeText(firstValue(records, FIRST_VALUE_KEYS.audioProfile)),
     bitDepth: normalizeText(firstValue(records, FIRST_VALUE_KEYS.bitDepth)),
   };
   return Object.values(metadata).some(value => value !== undefined) ? metadata : undefined;

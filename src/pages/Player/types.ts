@@ -63,6 +63,8 @@ export interface EpisodeOption {
   overview?: string;
   airDate?: string;
   still?: string;
+  /** Duración en minutos, tal y como la da el catálogo. */
+  runtime?: number;
 }
 
 export interface ChapterOption {
@@ -87,6 +89,8 @@ export interface SelectOption {
   languageKey?: string;
   languageLabel?: string;
   sourceLabel?: string;
+  /** Insignia de tecnologia (Dolby Atmos…) mostrada fuera del texto. */
+  badge?: { id: string; label: string };
 }
 
 export type VideoScaleMode = "original" | "crop";

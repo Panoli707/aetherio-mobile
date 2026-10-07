@@ -11,6 +11,7 @@ import {
   fullResArtworkUrl,
   preloadArtwork,
   shellPreviewBounds,
+  wrapDelta,
   SHELL_PREVIEW_MESSAGE_SOURCE,
   withShellPreviewQuery,
   type ShellPreviewRequest,
@@ -26,11 +27,46 @@ const EntityPage = lazy(() => import("../../pages/Entity"));
 
 interface ShellDetailPreviewProps {
   request: ShellPreviewRequest;
+  /**
+   * El overlay está cerrado pero sigue montado. Los iframes sobreviven para no
+   * tirar la cache con la que ya viene cargado el Detail; mientras está en
+   * `true` el overlay no captura ni teclado ni mando ni mensajes.
+   */
+  dismissed?: boolean;
   onClose: () => void;
   onNavigate: (path: string, activeIndex: number, background?: string) => void;
 }
 
-type Stage = "entering" | "entered" | "collapsing" | "expanded" | "closing";
+// Ciclo de vida de la ficha, en el orden en el que se recorren:
+//
+//   morphing → held → revealing → open        (el preview, panel compacto)
+//   open → expanded                            (fullscreen, detalle navegable)
+//   expanded → collapsing → open               (el "atrás" devuelve al preview)
+//   cualquiera → closing                       (al home, con el reverse)
+//
+// `morphing`/`held`/`revealing` son la coreografía de la referencia: el artwork
+// crece hasta el panel, el panel se queda solo un instante y luego el contenido
+// entra escalonado DENTRO del panel (la geometría no se mueve). El fullscreen
+// queda como paso aparte para cuando el usuario quiere navegar temporadas.
+type Stage = "morphing" | "held" | "revealing" | "open" | "collapsing" | "expanded" | "closing";
+
+// El preview aún no es la superficie activa: el carrusel manda (flechas = otro
+// shell, Enter/analógico abajo = fullscreen) y el iframe sigue inert.
+function isPreviewStage(stage: Stage) {
+  return stage === "morphing" || stage === "held" || stage === "revealing" || stage === "open";
+}
+
+// Apertura de la shell (referencia Apple TV): el rect de la card crece hasta el
+// panel compacto en SHELL_OPEN_MS con deceleración simple (power3.out, el
+// appleEase de motion.ts) y sin overshoot — el latigazo de la expo-out anterior
+// se nota en el primer frame y rompe la sensación de "crecer" del artwork.
+//
+// Silencio tras el morph: el panel se queda solo con el artwork antes de que
+// entre el contenido. Es el aire de la referencia (unos 2 s de hero antes de que
+// se vea el título) y también lo que hace que la entrada escalonada se lea como
+// una entrada y no como un volcado de datos.
+const SHELL_OPEN_MS = 450;
+const SHELL_HOLD_MS = 900;
 
 // El colapso es UN movimiento, no dos. La ficha se redimensiona hasta su hueco
 // del carrusel y el track se queda quieto: si el track transitara, cruzaría
@@ -50,13 +86,23 @@ const SHELL_COLLAPSE_MS = 460;
 // reenvían (scroll/movimiento).
 const SHELL_ENTER_ARM_MS = 900;
 
-export default function ShellDetailPreview({ request, onClose, onNavigate }: ShellDetailPreviewProps) {
+export default function ShellDetailPreview({ request, dismissed = false, onClose, onNavigate }: ShellDetailPreviewProps) {
   const items = request.items?.length ? request.items : [request];
-  const initialIndex = Math.max(0, Math.min(request.initialIndex ?? 0, items.length - 1));
-  const [index, setIndex] = useState(initialIndex);
-  const [stage, setStage] = useState<Stage>("entering");
+  const count = items.length;
+  const initialIndex = Math.max(0, Math.min(request.initialIndex ?? 0, count - 1));
+  // Posición sin techo en el carrusel: el carrusel es infinito, así que `pos`
+  // solo crece (o baja) sin limite y `index` es su resto. Cada ficha se coloca
+  // en el hueco que le toca respecto a `pos`, medido por el lado más corto
+  // (wrapDelta): al pasar de la última a la primera, la ficha que envuelve
+  // conserva su hueco y el salto se ve como un paso más, no como un teletransporte.
+  const [pos, setPos] = useState(initialIndex);
+  const index = ((pos % count) + count) % count;
+  const [stage, setStage] = useState<Stage>("morphing");
   const [opened, setOpened] = useState(false);
   const [active, setActive] = useState(false);
+  // El contenido del Detail solo entra cuando el beat termina. Hasta entonces el
+  // iframe queda invisible y el panel muestra únicamente el artwork.
+  const [revealed, setRevealed] = useState(false);
   const [ready, setReady] = useState(false);
   const [readyIndices, setReadyIndices] = useState<Set<number>>(() => new Set());
   const [mountedIndices, setMountedIndices] = useState<Set<number>>(() => new Set([initialIndex]));
@@ -89,15 +135,36 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
     ? { left: 0, top: 0, width: viewport.width, height: viewport.height } : compact;
 
   const collapseTimerRef = useRef(0);
+  const beatTimerRef = useRef(0);
+  // El silencio ya venció: a partir de aquí el reveal solo espera al Detail.
+  const beatDoneRef = useRef(false);
+  // Espejo del stage para los timers, que se arman antes de existir el estado.
+  const stageRef = useRef(stage);
+  stageRef.current = stage;
+  // Espejo de `opened` para el arranque de la apertura: evita setearla dos veces
+  // si el efecto se reejecuta antes del segundo frame.
+  const openedRef = useRef(opened);
+  openedRef.current = opened;
+  const dismissedRef = useRef(dismissed);
+  dismissedRef.current = dismissed;
   const close = useCallback(() => {
     window.clearTimeout(collapseTimerRef.current);
+    window.clearTimeout(beatTimerRef.current);
     setStage("closing");
   }, []);
   const expand = useCallback(() => {
     // Reanudar la expansión durante un colapso a medio salir cancela el reposo:
-    // si no, el timer dejaría la shell en "entered" con la vista ya expandida.
+    // si no, el timer dejaría la shell en "open" con la vista ya expandida.
     window.clearTimeout(collapseTimerRef.current);
-    setStage(current => (previewReady && current !== "closing" && current !== "expanded") ? "expanded" : current);
+    // No se entra a un Detail a medio cargar. El reveal va atado a lo mismo que
+    // la entrada, así que forzar `revealed` aquí sin expansión solo sacaba el
+    // esqueleto de la zona de contenido dentro del panel compacto.
+    if (!previewReady || stageRef.current === "closing" || stageRef.current === "expanded") return;
+    // Expandir cancela el beat pendiente: en fullscreen el contenido ya está
+    // puesto, así que no le toca estelar por bloques ni esperar al silencio.
+    window.clearTimeout(beatTimerRef.current);
+    setRevealed(true);
+    setStage("expanded");
   }, [previewReady]);
   // Back/B desde el detail expandido vuelve al carrusel (colapsa), no al
   // home: solo el back desde el carrusel ya colapsado cierra al home.
@@ -112,15 +179,71 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
     setStage(current => (current === "expanded" ? "collapsing" : current));
     window.clearTimeout(collapseTimerRef.current);
     collapseTimerRef.current = window.setTimeout(
-      () => setStage(current => (current === "collapsing" ? "entered" : current)),
+      // Al preview con su contenido ya revelado: se vuelve al punto en el que
+      // estaba la ficha antes de entrar, no a un hero vacío otra vez.
+      () => setStage(current => (current === "collapsing" ? "open" : current)),
       reduced ? 0 : SHELL_COLLAPSE_MS,
     );
     window.setTimeout(() => surfaceRef.current?.focus({ preventScroll: true }), 0);
   }, [reduced]);
 
-  useEffect(() => () => window.clearTimeout(collapseTimerRef.current), []);
+// El beat: termina el silencio y el contenido entra escalonado dentro del
+// panel. Se rearma desde cero al moverse de shell, para que cada ficha tenga
+// su propio silencio antes de su texto.
+//
+// El silencio es el mínimo, no la señal: el reveal solo sale cuando el Detail
+// además está listo (iframe `ready` + artwork cargado y revelado). Con el
+// temporizador como único disparador el iframe se volvaba visible a los 1350 ms
+// con la zona de contenido todavía en skeletons —el esqueleto se veía porque la
+// page se montó con la metadata sembrada desde la card y `loading` seguía
+// activo—. El panel se queda en artwork todo el tiempo que haga falta.
+//
+// No hay red de seguridad con reloj: el reveal y la expansion esperan a que el
+// Detail realmente confirme `ready`, para no exponer skeletons si se pulsa A
+// mientras el contenido sigue cargando. Escape sigue permitiendo cerrar.
+const maybeReveal = useCallback(() => {
+  if (revealed || !beatDoneRef.current || !previewReady) return;
+  setRevealed(true);
+  setStage(current => (current === "morphing" || current === "held") ? "revealing" : current);
+}, [previewReady, revealed]);
+
+const maybeRevealRef = useRef(maybeReveal);
+maybeRevealRef.current = maybeReveal;
+
+const beginReveal = useCallback((delay: number) => {
+  beatDoneRef.current = false;
+  window.clearTimeout(beatTimerRef.current);
+  beatTimerRef.current = window.setTimeout(() => {
+    beatDoneRef.current = true;
+    maybeRevealRef.current();
+  }, reduced ? 0 : delay);
+}, [reduced]);
+
+// El Detail puede terminar de cargar después de que el silencio ya haya
+// vencido: se cierra el reveal en cuanto pasa a estar listo.
+useEffect(() => { maybeReveal(); }, [maybeReveal]);
+
+const restartBeat = useCallback(() => {
+  setRevealed(false);
+  setStage(current => (current === "revealing" || current === "open") ? "held" : current);
+  // Si el morph todavía no ha terminado, el silencio nuevo empieza cuando
+  // termine: si no, el texto entraría con el panel aún creciendo.
+  const remaining = stageRef.current === "morphing" ? SHELL_OPEN_MS : 0;
+  beginReveal(remaining + SHELL_HOLD_MS);
+}, [beginReveal]);
+
+  useEffect(() => () => {
+    window.clearTimeout(collapseTimerRef.current);
+    window.clearTimeout(beatTimerRef.current);
+  }, []);
 
   useEffect(() => {
+    // El cierre suelta el host (root inert + scroll del home) pero NO desmonta
+    // el overlay: los iframes siguen montados detrás de `hidden` y con ellos su
+    // cache de react-query, que es lo único que evita que el Detail vuelva a
+    // pedirlo todo al reabrir. Cada iframe es un documento con su propio
+    // QueryClient, así que si mueren se pierde la cache entera.
+    if (dismissed) return;
     const root = document.getElementById("root");
     const wasInert = root?.inert ?? false;
     if (root) root.inert = true;
@@ -130,11 +253,34 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
       stopInertialScroll(shell);
       shell.style.overflowY = "hidden";
     }
-    const resize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
-    window.addEventListener("resize", resize);
     return () => {
       if (root) root.inert = wasInert;
       if (shell) shell.style.overflowY = previousOverflow;
+    };
+  }, [dismissed, request.cardElement]);
+
+  // Al reabrir una sesión tibia el morph se repite (la ficha vuelve a crecer
+  // desde su card), pero el contenido ya está dentro: el reveal sale en cuanto
+  // el artwork está listo, sin volver a pedir nada por red.
+  useEffect(() => {
+    if (!dismissed) return;
+    window.clearTimeout(collapseTimerRef.current);
+    window.clearTimeout(beatTimerRef.current);
+    setStage("morphing");
+    setOpened(false);
+    setActive(false);
+    setRevealed(false);
+    if (restoreFocusRef.current) {
+      const selected = selectedRef.current;
+      if (selected.restoreFocus) selected.restoreFocus();
+      else (selected.cardElement?.isConnected ? selected.cardElement : request.cardElement)?.focus({ preventScroll: true });
+    }
+  }, [dismissed, request.cardElement]);
+
+  useEffect(() => {
+    const resize = () => setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener("resize", resize);
+    return () => {
       window.removeEventListener("resize", resize);
       if (restoreFocusRef.current) {
         const selected = selectedRef.current;
@@ -144,14 +290,36 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
     };
   }, [request.cardElement]);
 
-  useEffect(() => {
-    const start = window.setTimeout(() => {
-      surfaceRef.current?.focus({ preventScroll: true });
-      setOpened(true);
-    }, reduced ? 0 : 16);
-    const settled = window.setTimeout(() => setStage(current => current === "entering" ? "entered" : current), reduced ? 0 : 516);
-    return () => { window.clearTimeout(start); window.clearTimeout(settled); };
-  }, [reduced]);
+useEffect(() => {
+    // Cerrado: no se arma nada. Al reabrir el efecto se vuelve a ejecutar desde
+    // cero y el morph se repite con la ficha ya cargada dentro.
+    if (dismissed) return;
+    // La apertura necesita que el estado inicial (panel en el rect de la card,
+    // vecinos desplazados fuera de pantalla) est� pintado y confirmado por el
+    // navegador ANTES de cambiar a la geometr�a final: si el cambio de estado
+    // llegara antes del primer frame, no habr�a valor previo del que transitar
+    // y el morph �y con �l la entrada lateral de los vecinos� saldr�a de golpe.
+    // Dos frames seguidos lo garantizan (un solo rAF a�n puede caer en el mismo
+    // frame que el primer paint).
+    let raf2 = 0;
+    const raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => {
+        if (!openedRef.current) setOpened(true);
+      });
+    });
+    surfaceRef.current?.focus({ preventScroll: true });
+    if (reduced) setOpened(true);
+    const settled = window.setTimeout(
+      () => setStage(current => current === "morphing" ? "held" : current),
+      reduced ? 0 : SHELL_OPEN_MS,
+    );
+    beginReveal(SHELL_OPEN_MS + SHELL_HOLD_MS);
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+      window.clearTimeout(settled);
+    };
+  }, [beginReveal, dismissed, reduced]);
 
   useEffect(() => {
     if (stage !== "closing") return;
@@ -177,12 +345,13 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
     setReady(readyIndices.has(index));
   }, [index, readyIndices]);
 
-  // Precalienta los bytes finales (misma ventana visible que el render ±2):
-  // cuando el Detail confirme el backdrop, el <img> lo saca de caché en vez
-  // de descargarlo desde cero.
+  // Precalienta los bytes finales (misma ventana visible que el render ±2, con
+  // vuelta incluida porque el carrusel no tiene fin): cuando el Detail confirme
+  // el backdrop, el <img> lo saca de caché en vez de descargarlo desde cero.
   useEffect(() => {
-    for (let i = Math.max(0, index - 2); i <= Math.min(items.length - 1, index + 2); i++) {
-      preloadArtwork(items[i]?.background);
+    for (let offset = -2; offset <= 2; offset += 1) {
+      const neighbour = ((index + offset) % count + count) % count;
+      preloadArtwork(items[neighbour]?.background);
     }
     // items es estable (vive en el request); el índice manda.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -214,23 +383,62 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
 
   useEffect(() => { sendActivation(); }, [sendActivation, ready]);
 
+  // El stagger vive dentro del iframe (los bloques son del Detail), así que el
+  // reveal también viaja por postMessage: solo la ficha activa lo recibe y el
+  // resto se queda en hero aunque su iframe siga montado.
+  const sendReveal = useCallback(() => {
+    const targetOrigin = window.location.origin === "null" ? "*" : window.location.origin;
+    iframeRefs.current.forEach((frame, frameIndex) => {
+      frame.contentWindow?.postMessage({
+        source: SHELL_PREVIEW_MESSAGE_SOURCE, type: "reveal",
+        on: frameIndex === index && revealed && previewReady,
+      }, targetOrigin);
+    });
+  }, [index, previewReady, revealed]);
+
+  useEffect(() => { sendReveal(); }, [sendReveal, ready]);
+
   // Espejo por refs para los handlers (teclado, mensajes, mando): se registran
   // una sola vez y siempre leen el estado vigente (sin cierres obsoletos).
-  const shellStateRef = useRef({ index, stage, active, count: items.length });
-  shellStateRef.current = { index, stage, active, count: items.length };
+  const shellStateRef = useRef({ index, stage, active, count });
+  shellStateRef.current = { index, stage, active, count };
   const shellReadyRef = useRef(readyIndices);
   shellReadyRef.current = readyIndices;
+  const posRef = useRef(pos);
+  posRef.current = pos;
   const expandRef = useRef(expand);
   expandRef.current = expand;
+  const restartBeatRef = useRef(restartBeat);
+  restartBeatRef.current = restartBeat;
 
   useEffect(() => {
     const onMessage = (event: MessageEvent<unknown>) => {
       if (event.origin !== window.location.origin) return;
+      // Overlay cerrado: los iframes siguen vivos y pueden seguir avisando
+      // (imágenes que terminan de decodificar), pero ya no se hace nada con ello.
+      if (dismissedRef.current) return;
       const frameIndex = Array.from(iframeRefs.current.entries())
         .find(([, frame]) => frame.contentWindow === event.source)?.[0];
       if (frameIndex === undefined) return;
       if (!isShellPreviewMessage(event.data)) return;
       const message = event.data;
+      if (message.type === "loading") {
+        // `ready` no es permanente: un Detail cacheado puede revalidarse y un
+        // iframe visitado puede desmontarse/recrearse. Invalidar su marca al
+        // inicio de cada carga evita que un A posterior use un ready viejo y
+        // revele el skeleton de la nueva carga.
+        setReadyIndices(current => {
+          if (!current.has(frameIndex)) return current;
+          const next = new Set(current);
+          next.delete(frameIndex);
+          return next;
+        });
+        if (frameIndex === index) {
+          setReady(false);
+          setRevealed(false);
+        }
+        return;
+      }
       if (message.type === "ready") {
         setReadyIndices(current => current.has(frameIndex) ? current : new Set(current).add(frameIndex));
         if (frameIndex === index) setReady(true);
@@ -243,6 +451,9 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
           : new Map(current).set(frameIndex, background));
         return;
       }
+      // El reveal solo va en sentido contrario (parent → iframe): si un iframe lo
+      // devolviera, se ignora en vez de caer en la rama de `navigate`.
+      if (message.type === "reveal") return;
       if (frameIndex !== index) return;
       // Back/B desde el detail expandido: volver al carrusel (colapsar), no
       // al home. Solo cierra del todo si ya estaba colapsado.
@@ -271,6 +482,8 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      // Con el overlay cerrado el teclado es del home, no del carrusel.
+      if (dismissedRef.current) return;
       const key = event.key;
       if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", "Escape", "Esc", "Tab"].includes(key)) return;
       const state = shellStateRef.current;
@@ -304,27 +517,46 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
         collapse();
         return;
       }
-      if (key === "Escape" || key === "Esc"
-        || (key === "ArrowUp" && (state.stage === "entering" || state.stage === "entered"))) {
+      if (key === "Escape" || key === "Esc" || (key === "ArrowUp" && isPreviewStage(state.stage))) {
         close();
         return;
       }
       // Analógico abajo en el carrusel (sin expandir): expande la shell como
       // Enter, pero sin navegar a la page detail (solo expandir). Se permite
       // el repeat para poder mantener y seguir bajando dentro del detalle.
-      if ((key === "ArrowDown" || (key === "Enter" && !event.repeat))
-        && (state.stage === "entering" || state.stage === "entered")) {
+      // Si el Detail esta listo, Enter/abajo puede saltarse el beat y expandir;
+      // expand() valida el readiness otra vez antes de mostrar el iframe.
+      if ((key === "ArrowDown" || (key === "Enter" && !event.repeat)) && isPreviewStage(state.stage)) {
         if (key === "Enter") expansionEnterRef.current = true;
         expandRef.current();
         return;
       }
-      if ((state.stage === "entering" || state.stage === "entered")
-        && (key === "ArrowLeft" || key === "ArrowRight")) {
-        const next = Math.max(0, Math.min(state.count - 1, state.index + (key === "ArrowRight" ? 1 : -1)));
-        if (next !== state.index) {
-          setReady(shellReadyRef.current.has(next));
-          setMountedIndices(current => current.has(next) ? current : new Set(current).add(next));
-          setIndex(next);
+      if (isPreviewStage(state.stage) && (key === "ArrowLeft" || key === "ArrowRight")) {
+        // El carrusel no tiene fin: `pos` no se acota nunca, así que desde la
+        // última se sigue por la primera y desde la primera se vuelve a la
+        // última (y al revés). El hueco de cada ficha se mide por wrapDelta, así
+        // el cruce del borde es un paso más y no un salto.
+        const step = key === "ArrowRight" ? 1 : -1;
+        const next = posRef.current + step;
+        const nextIndex = ((next % state.count) + state.count) % state.count;
+        if (nextIndex !== state.index) {
+          // `readyIndices` es memoria historica por ficha, pero un iframe que
+          // salio de la ventana ±2 se desmonta. Si vuelve a entrar, su marca
+          // anterior no vale para el nuevo documento: hasta que ese iframe
+          // vuelva a emitir `ready`, debe permanecer cerrado.
+          const frameStillMounted = iframeRefs.current.has(nextIndex);
+          if (!frameStillMounted) {
+            setReadyIndices(current => {
+              if (!current.has(nextIndex)) return current;
+              const refreshed = new Set(current);
+              refreshed.delete(nextIndex);
+              return refreshed;
+            });
+          }
+          setReady(frameStillMounted && shellReadyRef.current.has(nextIndex));
+          setMountedIndices(current => current.has(nextIndex) ? current : new Set(current).add(nextIndex));
+          setPos(next);
+          restartBeatRef.current();
         }
       }
     };
@@ -338,13 +570,13 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
 
   useEffect(() => {
     const onGamepadAction = (event: Event) => {
+      if (dismissedRef.current) return;
       const id = (event as CustomEvent<{ id?: GamepadActionId; repeat?: boolean }>).detail?.id;
       const state = shellStateRef.current;
       // Analógico/D-pad abajo en el carrusel (sin expandir): expande la shell
       // como Enter, pero sin navegar a la page detail (solo expandir). Se
       // reclama la acción para que useGamepad no sintetice ArrowDown de más.
-      if ((id === "open-controls" || id === "dpad-down")
-        && (state.stage === "entering" || state.stage === "entered")) {
+      if ((id === "open-controls" || id === "dpad-down") && isPreviewStage(state.stage)) {
         event.preventDefault();
         expandRef.current();
         return;
@@ -367,29 +599,43 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
 
   return createPortal(
     <div className="bp-shell-preview" data-shell-preview data-spatial-modal data-stage={stage}
+      data-opened={opened ? "true" : "false"}
+      hidden={dismissed || undefined}
       style={{
         "--shell-density": compact.density,
         "--shell-gap": `${12 * compact.density}px`,
         "--shell-collapse": `${SHELL_COLLAPSE_MS}ms`,
+        // Margen exterior del panel compacto: es lo que tienen que recorrer los
+        // vecinos para entrar por su lado (ver data-shell-side en el CSS).
+        "--shell-inset": `${compact.left}px`,
+        // Hueco que ocupa la ficha activa; el track lo compensa para centrarla.
+        "--shell-slot": pos,
       } as CSSProperties}>
       <div className="bp-shell-preview__backdrop" aria-hidden="true" />
       <div ref={surfaceRef} className="bp-shell-preview__viewport" role="dialog" aria-modal="true"
         aria-label={item.title} tabIndex={-1} onClick={!expanded ? expand : undefined}
-        style={{ ...bounds, "--shell-index": expanded ? 0 : index } as CSSProperties}>
+        style={bounds as CSSProperties}>
         <div className="bp-shell-preview__track">
           {items.map((entry, i) => {
+            // Hueco que ocupa esta ficha respecto a la activa, medido por el
+            // lado más corto porque el carrusel da la vuelta. Al cruzar el
+            // borde la ficha conserva su hueco y el desplazamiento del track
+            // hace de paso: nunca se ve el salto.
+            const slot = wrapDelta(i, index, count);
             // Ventana visible del carrusel: el activo mas dos vecinos por
             // lado (como el nativo). Los iframes solo se montan al visitar
             // cada shell y ya no se desmontan, para conservar su estado.
-            if (i !== index && (expanded || Math.abs(i - index) > 2)) return null;
-            // Capas sin desmontaje: base de la card siempre visible + imagen
-            // final del Detail fundida encima cuando está decodificada. Así
-            // nunca hay negro ni recarga visible al moverse entre shells: la
-            // base ya estaba pintada y el final hace dissolve sobre ella.
-             const resolved = artworkByIndex.get(i);
-             const baseBackground = fullResArtworkUrl(entry.background) ?? entry.background;
-            const showFinal = !!resolved && resolved !== baseBackground;
-            const baseArtworkKey = baseBackground ? `${entry.detailPath}:${baseBackground}` : "";
+            if (slot !== 0 && (expanded || Math.abs(slot) > 2)) return null;
+            // Capas sin desmontaje: la foto de la card primero (ya está en
+            // caché de la fila, así pinta en el primer frame y su entrada
+            // lateral se ve) y el `original` del Detail fundido encima cuando
+            // esté decodificado. Nunca hay negro ni recarga visible.
+            const resolved = artworkByIndex.get(i);
+            const finalArtwork = fullResArtworkUrl(entry.background) ?? entry.background;
+            const baseArtwork = entry.cardBackground ?? finalArtwork;
+            const showFinal = !!resolved && resolved !== baseArtwork && resolved !== finalArtwork;
+            const baseArtworkKey = baseArtwork ? `${entry.detailPath}:${baseArtwork}` : "";
+            const finalArtworkKey = finalArtwork !== baseArtwork && finalArtwork ? `${entry.detailPath}:${finalArtwork}` : "";
             const resolvedArtworkKey = resolved ? `${entry.detailPath}:${resolved}` : "";
             const resolvedPreviewKey = resolved ? `${i}:${resolved}` : "";
             const itemPreviewReady = i === index && ready && (!resolved
@@ -405,18 +651,31 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
             };
             return (
               <div className="bp-shell-preview__panel" key={entry.detailPath + i}
+                data-shell-side={slot === 0 ? "active" : slot < 0 ? "start" : "end"}
                 aria-hidden={i !== index} style={{
-                  left: expanded ? (i === index ? 0 : "100%") : `calc(${i} * (100% + var(--shell-gap)))`,
+                  left: `calc(${(pos + slot)} * (100% + var(--shell-gap)))`,
                   visibility: i === index || !expanded ? "visible" : "hidden",
                 }}>
-                {baseBackground ? <img
+                {baseArtwork ? <img
                   className={`bp-shell-preview__artwork${loadedArtworkKeys.has(baseArtworkKey) ? " is-loaded" : ""}`}
-                  src={baseBackground}
+                  src={baseArtwork}
                   alt=""
                   decoding="async"
-                  fetchPriority={i === index ? "high" : "low"}
+                  // Alta en las tres fichas visibles: la vecina tiene que estar
+                  // pintada en el mismo frame que entra, o su deslizamiento
+                  // lateral se vería sobre un hueco vacío.
+                  fetchPriority="high"
                   onLoad={() => markUrlLoaded(baseArtworkKey)}
                   onError={() => markUrlLoaded(baseArtworkKey)}
+                /> : null}
+                {finalArtworkKey ? <img
+                  className={`bp-shell-preview__artwork${loadedArtworkKeys.has(finalArtworkKey) ? " is-loaded" : ""}`}
+                  src={finalArtwork}
+                  alt=""
+                  decoding="async"
+                  fetchPriority="high"
+                  onLoad={() => markUrlLoaded(finalArtworkKey)}
+                  onError={() => markUrlLoaded(finalArtworkKey)}
                 /> : null}
                 {showFinal ? <img
                   className={`bp-shell-preview__artwork${loadedArtworkKeys.has(resolvedArtworkKey) ? " is-loaded" : ""}`}
@@ -431,6 +690,7 @@ export default function ShellDetailPreview({ request, onClose, onNavigate }: She
                   src={withShellPreviewQuery(entry.detailPath)} tabIndex={active && i === index ? 0 : -1}
                   inert={!active || i !== index} allow="autoplay; fullscreen; picture-in-picture"
                   referrerPolicy="same-origin" data-preview-ready={itemPreviewReady ? "true" : "false"}
+                  data-preview-revealed={i === index && revealed && previewReady ? "true" : "false"}
                   onLoad={sendActivation} /> : null}
               </div>
             );
@@ -449,12 +709,20 @@ export function ShellPreviewApp() {
   const initialPathRef = useRef(location.pathname);
   const [active, setActive] = useState(false);
   const [detailReady, setDetailReady] = useState(false);
+  // El padre manda cuándo entra el contenido: hasta ese momento el hero se ve
+  // solo y los bloques del detalle esperan escondidos (ver data-hero-reveal).
+  const [revealed, setRevealed] = useState(false);
   // Gracia anti-doble-Enter del lado iframe (cubre el teclado físico, que va
   // directo al iframe sin pasar por el forward del parent).
   const previewActiveSinceRef = useRef(0);
 
   const signalDetailBackground = useCallback((background: string) => {
     postShellPreviewMessage({ type: "background", background });
+  }, []);
+
+  const signalDetailLoading = useCallback(() => {
+    setDetailReady(false);
+    postShellPreviewMessage({ type: "loading" });
   }, []);
 
   const signalDetailReady = useCallback(() => {
@@ -483,6 +751,10 @@ export function ShellPreviewApp() {
         // Detail al recibir el evento (va por su propio scroll).
         if (!message.active) exitDetailContentZone();
         setActive(message.active);
+      }
+      if (message.type === "reveal" && typeof message.on === "boolean") {
+        setRevealed(message.on);
+        return;
       }
       if (message.type === "gamepad-action"
         && (message.id === "lb" || message.id === "rb")) {
@@ -562,11 +834,12 @@ export function ShellPreviewApp() {
 
   return (
     <div className="big-picture shell-preview-app" data-aetherio-big-picture data-preview-active={active}
-      data-detail-ready={detailReady}
+      data-preview-revealed={revealed} data-detail-ready={detailReady}
       style={{ "--app-shell-nav-height": "0px" } as CSSProperties}>
       <Suspense fallback={<div className="shell-preview-app__fallback" />}>
         <Routes>
           <Route path="/big-picture/detail/:type/:id" element={<DetailPage
+            onShellPreviewLoading={signalDetailLoading}
             onShellPreviewBackground={signalDetailBackground}
             onShellPreviewReady={signalDetailReady}
           />} />

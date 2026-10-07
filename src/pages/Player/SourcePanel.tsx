@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, Radio, Users } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Loader2, Radio, Users } from "lucide-react";
 import type { MediaStream } from "../../types/stream";
 import { getSourceLogo } from "../../utils/sourceLogos";
 import { getReportedSeeders } from "../../utils/torrentHealth";
+import { buildSourceChips, normalizeSourceKey } from "../../utils/sourceFilterOrder";
+import { sourceFilterPriority, useAddonStore } from "../../store/addonStore";
 import { getStreamKind } from "./utils";
 import PlayerSidePanel from "./PlayerSidePanel";
 
 interface SourcePanelProps {
   visible: boolean;
   streams: MediaStream[];
+  /** Resolviendo alternativas bajo demanda (no venia ninguna instantanea). */
+  loading?: boolean;
   currentStreamId: string;
   onClose: () => void;
   onSelect: (stream: MediaStream) => void;
@@ -17,23 +21,23 @@ interface SourcePanelProps {
 export default function SourcePanel({
   visible,
   streams,
+  loading = false,
   currentStreamId,
   onClose,
   onSelect,
 }: SourcePanelProps) {
   const providerRowRef = useRef<HTMLDivElement>(null);
   const [providerFilter, setProviderFilter] = useState<string | null>(null);
-  const providers = useMemo(() => {
-    const entries = new Map<string, { key: string; name: string; count: number }>();
-    for (const stream of streams) {
-      const name = streamProviderName(stream);
-      const key = normalizeProviderName(name);
-      const current = entries.get(key);
-      if (current) current.count += 1;
-      else entries.set(key, { key, name, count: 1 });
-    }
-    return [...entries.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-  }, [streams]);
+  const addonsById = useAddonStore(state => state.addons);
+  const providers = useMemo(() => buildSourceChips({
+    expectedSourceNames: [],
+    streams,
+    bundledById: new Map(addonsById.map(addon => [addon.id, Boolean(addon.bundled)])),
+    isAnime: false,
+    extractSourceName: stream => streamProviderName(stream),
+    priorityOf: sourceFilterPriority,
+  }).map(chip => ({ key: normalizeSourceKey(chip.name), name: chip.name, count: chip.count })),
+  [streams, addonsById]);
   const filteredStreams = useMemo(
     () => providerFilter
       ? streams.filter(stream => normalizeProviderName(streamProviderName(stream)) === providerFilter)
@@ -55,12 +59,14 @@ export default function SourcePanel({
     <PlayerSidePanel
       visible={visible}
       title="Fuentes"
-      subtitle={`${streams.length} ${streams.length === 1 ? "opción disponible" : "opciones disponibles"}`}
+      subtitle={loading
+        ? "Buscando fuentes…"
+        : `${streams.length} ${streams.length === 1 ? "opción disponible" : "opciones disponibles"}`}
       icon={<Radio size={18} />}
       onClose={onClose}
     >
       <div className="flex h-full min-h-0 flex-col">
-        {streams.length ? (
+        {streams.length && !loading ? (
           <div className="mb-3 flex shrink-0 items-center gap-1.5">
             <button
               type="button"
@@ -157,10 +163,19 @@ export default function SourcePanel({
           })}
           {!filteredStreams.length ? (
             <div className="flex h-full min-h-48 flex-col items-center justify-center text-center text-white/45">
-              <Radio size={24} className="mb-3" />
-              <p className="text-sm font-medium">
-                {streams.length ? "No hay fuentes de este proveedor." : "No hay otras fuentes en esta sesión."}
-              </p>
+              {loading ? (
+                <>
+                  <Loader2 size={24} className="mb-3 animate-spin" />
+                  <p className="text-sm font-medium">Buscando fuentes alternativas…</p>
+                </>
+              ) : (
+                <>
+                  <Radio size={24} className="mb-3" />
+                  <p className="text-sm font-medium">
+                    {streams.length ? "No hay fuentes de este proveedor." : "No hay otras fuentes para este contenido."}
+                  </p>
+                </>
+              )}
             </div>
           ) : null}
         </div>
@@ -210,7 +225,7 @@ function streamProviderName(stream: MediaStream) {
 }
 
 function normalizeProviderName(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return normalizeSourceKey(value);
 }
 
 function readBehaviorText(stream: MediaStream, key: string) {

@@ -1,11 +1,11 @@
 /**
- * VerificaciÃ³n offscreen de pÃ³sters SpatialPosters antes de mostrarlos.
+ * Verificación offscreen de pósters SpatialPosters antes de mostrarlos.
  *
- * Contexto: la instancia de SpatialPosters genera los pÃ³sters bajo demanda y puede tardar segundos
- * (o fallar con 404/429 si no conoce el tÃ­tulo). Si el `<img>` visible apunta
+ * Contexto: la instancia de SpatialPosters genera los pósters bajo demanda y puede tardar segundos
+ * (o fallar con 404/429 si no conoce el título). Si el `<img>` visible apunta
  * directamente a la URL SpatialPosters, la card se queda en negro (fondo #1c1c1e) todo
- * ese tiempo. Para evitarlo, `useSpatialPoster` mantiene el pÃ³ster base (TMDB)
- * hasta que esta verificaciÃ³n confirma que la URL SpatialPosters carga: solo entonces
+ * ese tiempo. Para evitarlo, `useSpatialPoster` mantiene el póster base (TMDB)
+ * hasta que esta verificación confirma que la URL SpatialPosters carga: solo entonces
  * se hace el swap. Si falla o agota el presupuesto, se conserva el base.
  *
  * - `verifiedUrls`: las URLs que ya cargaron una vez no se re-verifican.
@@ -41,10 +41,19 @@ export const POSTER_PROBE_TIMEOUT_MS = 180_000;
  * en vez de quedarse con el de TMDB.
  */
 export const POSTER_PROBE_FAIL_TTL_MS = 15 * 1000;
-// Sin lÃ­mite, un arranque en frÃ­o dispara cientos de verificaciones a la vez
-// y satura la conexiÃ³n (6 por host) y al propio la instancia de SpatialPosters: todo tarda mÃ¡s.
+// Sin límite, un arranque en frío dispara cientos de verificaciones a la vez
+// y satura la conexión (6 por host) y al propio la instancia de SpatialPosters: todo tarda más.
 // Un solo punto de estrangulamiento para probes de cards y prewarm.
-export const POSTER_PROBE_MAX_CONCURRENT = 6;
+//
+// Antes eran 6, que es el límite de conexiones por host del navegador
+// (HTTP/1.1). Ese número daba igual con la instancia remota, pero los pósteres
+// ahora se piden al proxy loopback de Aetherio (127.0.0.1), y ahí no hay red
+// externa que limitar: el freno real es la CPU del render. Medido en un arranque
+// en frío: 3.5 s por póster, o sea 148 pósteres a 6 en paralelo son 86 s de
+// splash y a 12 son 43 s. El proxy abre un hilo por petición, así que subirlo
+// no serializa nada, y el limitador propio de SpatialPosters (8 renders) sigue
+// siendo el freno de verdad.
+export const POSTER_PROBE_MAX_CONCURRENT = 12;
 
 const verifiedUrls = new Set<string>();
 const inFlight = new Map<string, Promise<boolean>>();
@@ -86,7 +95,7 @@ function timeoutAsFalse(ms: number): Promise<boolean> {
   });
 }
 
-/** Limpia todo el estado del mÃ³dulo. Pensado para tests; no usar en la app. */
+/** Limpia todo el estado del módulo. Pensado para tests; no usar en la app. */
 export function resetPosterProbeState() {
   verifiedUrls.clear();
   inFlight.clear();
@@ -95,21 +104,21 @@ export function resetPosterProbeState() {
   verifyQueue.length = 0;
 }
 
-/** Â¿Esta URL SpatialPosters ya demostrÃ³ que carga? (lectura sÃ­ncrona, sin red). */
+/** ¿Esta URL SpatialPosters ya demostró que carga? (lectura síncrona, sin red). */
 export function isPosterVerified(url: string): boolean {
   return verifiedUrls.has(url);
 }
 
 export interface VerifyPosterOptions {
-  /** Presupuesto mÃ¡ximo por verificaciÃ³n. Por defecto POSTER_PROBE_TIMEOUT_MS. */
+  /** Presupuesto máximo por verificación. Por defecto POSTER_PROBE_TIMEOUT_MS. */
   timeoutMs?: number;
   /** Cargador inyectable (tests). Por defecto un `Image` offscreen. */
   loadImage?: PosterImageLoader;
 }
 
 /**
- * Devuelve true si la URL carga (o ya habÃ­a cargado antes). Devuelve false
- * si falla, si agota `timeoutMs` o si fallÃ³ hace menos de
+ * Devuelve true si la URL carga (o ya había cargado antes). Devuelve false
+ * si falla, si agota `timeoutMs` o si falló hace menos de
  * POSTER_PROBE_FAIL_TTL_MS. Nunca lanza.
  */
 export function verifyPosterUrl(

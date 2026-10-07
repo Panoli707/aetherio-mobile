@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
+﻿import { useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import {
@@ -25,6 +25,7 @@ import {
 import PageContainer from "../../components/layout/PageContainer";
 import ProfileAvatar from "../../components/profile/ProfileAvatar";
 import SourcesPanel from "./SourcesPanel";
+import ToggleSwitch from "../../components/ui/ToggleSwitch";
 import aetherioLogo from "../../assets/aetheriologo.png";
 import { getApiKeys, saveApiKeys, type ApiKeys } from "../../config/apiKeys";
 import {
@@ -54,20 +55,8 @@ import { useSeekrApiKey } from "../../config/useSeekrApiKey";
 import {
   getSpatialPosterSettings,
   saveSpatialPosterSettings,
-  SPATIAL_BADGE_STYLE_OPTIONS,
-  DEFAULT_SPATIAL_POSTER_INSTANCE_URL,
-  SPATIAL_LANG_OPTIONS,
-  SPATIAL_QUALITY_OPTIONS,
-  SPATIAL_RANKING_BADGE_STYLE_OPTIONS,
-  SPATIAL_REGION_OPTIONS,
   type SpatialPosterSettings,
 } from "../../config/spatialPosters";
-import {
-  POSTER_CACHE_MESSAGES,
-  readPosterCacheConfig,
-  savePosterCacheConfig,
-  type PosterCacheConfig,
-} from "../../services/posterCacheConfig";
 import { useHomeCatalogs } from "../../hooks/useCatalogs";
 import { useProfileGradient } from "../../hooks/useProfileGradient";
 import { useAddonStore } from "../../store/addonStore";
@@ -77,6 +66,8 @@ import {
   getActiveProfile,
   getLocalProfiles,
   LOCAL_PROFILES_CHANGED_EVENT,
+  PIN_LENGTH,
+  pinLengthError,
   readImageFileAsDataUrl,
   removeLocalProfilePin,
   setActiveProfile,
@@ -106,6 +97,7 @@ import {
 import { openExternalUrl } from "../../runtime/platform";
 import { isBigPictureLocation } from "../../utils/bigPictureDetail";
 import packageJson from "../../../package.json";
+import PinPad from "../../components/pin/PinPad.tsx";
 
 type SettingsTab = "account" | "design" | "addons" | "sources" | "playback" | "about";
 type AccountView = "overview" | "profiles" | "manage-profiles" | "integrations" | "anime-skip" | "theintrodb" | "trakt" | "mdblist" | "discord" | "seekr";
@@ -314,6 +306,11 @@ export default function SettingsPage() {
       setProfileError("El perfil necesita un nombre.");
       return;
     }
+    const pinIssue = pinLengthError(profilePin);
+    if (pinIssue) {
+      setProfileError(pinIssue);
+      return;
+    }
     const updated = await updateLocalProfile(activeProfile.id, {
       name: profileName,
       pin: profilePin,
@@ -411,7 +408,7 @@ export default function SettingsPage() {
               }}
               onProfilePinChange={value => {
                 setSaved(current => ({ ...current, profile: false }));
-                setProfilePin(value.replace(/\D/g, "").slice(0, 8));
+                setProfilePin(value.replace(/\D/g, "").slice(0, PIN_LENGTH));
               }}
               onChooseProfileImage={chooseProfileImage}
               onSaveProfile={saveProfile}
@@ -1079,10 +1076,9 @@ function ManageProfiles({
   const [deletePin, setDeletePin] = useState("");
   const [deletePinError, setDeletePinError] = useState("");
   const [deletePinVerifying, setDeletePinVerifying] = useState(false);
-  const deletePinRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (confirmDelete) deletePinRef.current?.focus();
+    if (confirmDelete) deletePinError && setDeletePinError("");
   }, [confirmDelete]);
 
   async function handleDeletePinSubmit() {
@@ -1177,7 +1173,7 @@ function ManageProfiles({
 
       {confirmDelete ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-glass-sm"
           onClick={() => { setConfirmDelete(null); setDeletePin(""); setDeletePinError(""); }}
         >
           <div
@@ -1199,22 +1195,13 @@ function ManageProfiles({
             </p>
             {confirmDelete.pin ? (
               <div className="mb-4">
-                <label className="mb-1.5 block text-xs font-bold text-white/50">PIN del perfil</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={deletePinRef}
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={8}
-                    value={deletePin}
-                    onChange={e => { setDeletePin(e.target.value.replace(/\D/g, "")); setDeletePinError(""); }}
-                    onKeyDown={e => { if (e.key === "Enter") void handleDeletePinSubmit(); }}
-                    placeholder="Introduce el PIN"
-                    autoComplete="off"
-                    className="w-full rounded-full border border-white/12 bg-white px-4 py-2.5 text-sm font-semibold text-black outline-none placeholder:text-black/38 focus:border-white/42"
-                  />
-                </div>
-                {deletePinError ? <p className="mt-2 text-xs font-bold text-red-300">{deletePinError}</p> : null}
+                <PinPad
+                  value={deletePin}
+                  onChange={value => { setDeletePin(value.replace(/\D/g, "")); setDeletePinError(""); }}
+                  title="PIN del perfil"
+                  subtitle="Confírmalo para eliminar el perfil."
+                  error={deletePinError}
+                />
               </div>
             ) : null}
             <div className="flex gap-3">
@@ -1300,131 +1287,12 @@ function DesignPanel({
           </PillBlock>
 
           <PillBlock title="SPATIALPOSTERS">
-            <TextInputRow
-              title="URL de la instancia"
-              description={spatialPosters.instanceUrl
-                ? "Ya viene apuntando a tu instancia local. Cambiala solo si la moviste a otra máquina o puerto."
-                : "Sin instancia: los pósters usan las imágenes originales de TMDB."}
-              value={spatialPosters.instanceUrl}
-              maxLength={300}
-              placeholder={DEFAULT_SPATIAL_POSTER_INSTANCE_URL}
-              onChange={value => onSpatialPostersChange({ instanceUrl: value })}
-            />
             <ToggleRow
               title="Usar SpatialPosters"
               description="Pósters con etiquetas de género, año, rating, ranking y logo de distribuidora. Si la instancia no está corriendo, se usan los pósters originales de TMDB."
               checked={spatialPosters.enabled}
               onChange={checked => onSpatialPostersChange({ enabled: checked })}
             />
-            <SelectRow
-              title="Región"
-              description="Afecta el ranking de JustWatch, los logos y la metadata."
-              value={spatialPosters.region}
-              options={SPATIAL_REGION_OPTIONS}
-              onChange={value => onSpatialPostersChange({ region: value as SpatialPosterSettings["region"] })}
-            />
-            <SelectRow
-              title="Idioma del póster"
-              value={spatialPosters.lang}
-              options={SPATIAL_LANG_OPTIONS}
-              onChange={value => onSpatialPostersChange({ lang: value as SpatialPosterSettings["lang"] })}
-            />
-            <ToggleRow
-              title="Etiquetas de info"
-              description="Género, año y rating sobre el póster."
-              checked={spatialPosters.globalBadges}
-              onChange={checked => onSpatialPostersChange({ globalBadges: checked })}
-            />
-            <ToggleRow
-              title="Género"
-              checked={spatialPosters.badgeGenre}
-              onChange={checked => onSpatialPostersChange({ badgeGenre: checked })}
-            />
-            <ToggleRow
-              title="Año"
-              checked={spatialPosters.badgeYear}
-              onChange={checked => onSpatialPostersChange({ badgeYear: checked })}
-            />
-            <ToggleRow
-              title="Rating"
-              checked={spatialPosters.badgeRating}
-              onChange={checked => onSpatialPostersChange({ badgeRating: checked })}
-            />
-            <SelectRow
-              title="Estilo de etiqueta"
-              value={spatialPosters.badgeStyle}
-              options={SPATIAL_BADGE_STYLE_OPTIONS}
-              onChange={value => onSpatialPostersChange({ badgeStyle: value as SpatialPosterSettings["badgeStyle"] })}
-            />
-            <ToggleRow
-              title="Etiquetas de ranking"
-              description="Insignia #N del Top 20 de JustWatch y Top 10 de streaming."
-              checked={spatialPosters.rankingBadges}
-              onChange={checked => onSpatialPostersChange({ rankingBadges: checked })}
-            />
-            <SelectRow
-              title="Estilo de ranking"
-              value={spatialPosters.rankingBadgeStyle}
-              options={SPATIAL_RANKING_BADGE_STYLE_OPTIONS}
-              onChange={value => onSpatialPostersChange({ rankingBadgeStyle: value as SpatialPosterSettings["rankingBadgeStyle"] })}
-            />
-            <ToggleRow
-              title="Sellos de calidad"
-              description="4K, HDR, Dolby Vision, IMAX."
-              checked={spatialPosters.qualityBadges}
-              onChange={checked => onSpatialPostersChange({ qualityBadges: checked })}
-            />
-            <SelectRow
-              title="Calidad a destacar"
-              value={spatialPosters.manualQuality}
-              options={SPATIAL_QUALITY_OPTIONS}
-              onChange={value => onSpatialPostersChange({ manualQuality: value as SpatialPosterSettings["manualQuality"] })}
-            />
-            <ToggleRow
-              title="Logo de la distribuidora"
-              checked={spatialPosters.networkLogo}
-              onChange={checked => onSpatialPostersChange({ networkLogo: checked })}
-            />
-            <SelectRow
-              title="Lado del ribbon"
-              value={spatialPosters.ribbonSide}
-              options={[{ value: "left", label: "Izquierda" }, { value: "right", label: "Derecha" }]}
-              onChange={value => onSpatialPostersChange({ ribbonSide: value as SpatialPosterSettings["ribbonSide"] })}
-            />
-            <ToggleRow
-              title="Desenfoque inferior"
-              checked={spatialPosters.blurEnabled}
-              onChange={checked => onSpatialPostersChange({ blurEnabled: checked })}
-            />
-            <RangeRow suffix=""
-              title="Intensidad del desenfoque"
-              value={spatialPosters.blurIntensity}
-              min={1}
-              max={40}
-              onChange={value => onSpatialPostersChange({ blurIntensity: value })}
-            />
-            <RangeRow suffix=""
-              title="Atenuación"
-              value={spatialPosters.blurFade}
-              min={0}
-              max={100}
-              onChange={value => onSpatialPostersChange({ blurFade: value })}
-            />
-            <RangeRow suffix=""
-              title="Oscuridad"
-              value={spatialPosters.blurDarkness}
-              min={0}
-              max={100}
-              onChange={value => onSpatialPostersChange({ blurDarkness: value })}
-            />
-            <RangeRow suffix=""
-              title="Altura del degradado"
-              value={spatialPosters.gradientHeight}
-              min={5}
-              max={100}
-              onChange={value => onSpatialPostersChange({ gradientHeight: value })}
-            />
-            <PosterCacheBlock />
           </PillBlock>
 
           <section>
@@ -1449,7 +1317,11 @@ function DesignPanel({
                           <p className="mt-0.5 text-xs text-white/42">{row.items.length} títulos</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-2">
-                          <ToggleSwitch checked={!hidden} onChange={() => onToggleCatalog(row)} />
+                          <ToggleSwitch
+                            checked={!hidden}
+                            onChange={() => onToggleCatalog(row)}
+                            label={`Mostrar ${cleanCatalogTitle(row.name)}`}
+                          />
                           <div className="flex items-center gap-1">
                             <IconButton title="Mover arriba" disabled={index === 0} onClick={() => onMoveCatalog(row, "left")}>
                               <ArrowUp size={15} />
@@ -1610,8 +1482,8 @@ function PlaybackPanel({
             title="Sincronización automática de subtítulos"
             value={playback.autoSubtitleSync}
             options={[
-              { value: "learned", label: "Solo títulos ya sincronizados" },
               { value: "on", label: "Todos los títulos" },
+              { value: "learned", label: "Solo títulos ya sincronizados" },
               { value: "off", label: "Nunca" },
             ]}
             onChange={value => onPlaybackChange("autoSubtitleSync", value as PlaybackPreferences["autoSubtitleSync"])}
@@ -1935,29 +1807,8 @@ function PillRow({
 function ToggleRow({ title, description, checked, onChange }: { title: string; description?: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return (
     <PillRow title={title} description={description}>
-      <ToggleSwitch checked={checked} onChange={() => onChange(!checked)} />
+      <ToggleSwitch checked={checked} onChange={() => onChange(!checked)} label={title} />
     </PillRow>
-  );
-}
-
-function ToggleSwitch({ checked, onChange }: { checked: boolean; onChange: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onChange}
-      className={clsx(
-        "relative h-8 w-14 rounded-full gsap-transition",
-        checked ? "bg-white" : "bg-white/18",
-      )}
-      aria-pressed={checked}
-    >
-      <span
-        className={clsx(
-          "absolute top-1 h-6 w-6 rounded-full gsap-transition",
-          checked ? "left-7 bg-black" : "left-1 bg-white/54",
-        )}
-      />
-    </button>
   );
 }
 
@@ -1972,135 +1823,6 @@ function SelectRow({ title, description, value, options, onChange }: { title: st
         {options.map(option => <option key={option.value || "none"} value={option.value}>{option.label}</option>)}
       </select>
     </PillRow>
-  );
-}
-
-function TextInputRow({ title, description, value, maxLength, placeholder, onChange }: { title: string; description?: string; value: string; maxLength: number; placeholder: string; onChange: (value: string) => void }) {
-  return (
-    <PillRow title={title} description={description}>
-      <input
-        type="text"
-        value={value}
-        maxLength={maxLength}
-        placeholder={placeholder}
-        onChange={event => onChange(event.target.value)}
-        className="w-[240px] rounded-full border border-white/12 bg-[#171719] px-4 py-2.5 text-sm font-semibold text-white outline-none placeholder:text-white/30 gsap-transition focus:border-white/34"
-      />
-    </PillRow>
-  );
-}
-
-/**
- * Cache persistente de posters en Cloudflare R2.
- *
- * Opcional a proposito: sin esto SpatialPosters funciona igual, solo que
- * arranca en frio pidiendo ~260 posters a TMDB cada vez que se abre la app.
- */
-function PosterCacheBlock() {
-  const [config, setConfig] = useState<PosterCacheConfig | null>(null);
-  const [editing, setEditing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    void readPosterCacheConfig().then(value => { if (alive) setConfig(value); });
-    return () => { alive = false; };
-  }, []);
-
-  const configured = Boolean(config?.accountId && config?.accessKeyId && config?.secretAccessKey);
-
-  async function save() {
-    if (!config) return;
-    setSaving(true);
-    setError("");
-    setSaved(false);
-    try {
-      await savePosterCacheConfig(config);
-      setConfig(await readPosterCacheConfig());
-      setEditing(false);
-      setSaved(true);
-    } catch {
-      setError(POSTER_CACHE_MESSAGES.store);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  if (!config) return null;
-
-  return (
-    <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4">
-      <div className="mb-3 flex items-baseline justify-between gap-3">
-        <p className="text-sm font-black tracking-tight text-white">Caché persistente (R2)</p>
-        <span className="text-[11px] font-bold uppercase tracking-wide text-white/40">
-          {configured ? "Activa" : "Opcional"}
-        </span>
-      </div>
-      <p className="mb-3 text-xs leading-relaxed text-white/55">
-        Sin esto, cada arranque vuelve a descargar y renderizar todos los pósters desde
-        TMDB, y eso tarda unos 35 segundos. Con un bucket de Cloudflare R2 quedan
-        guardados entre arranques: la primera vez carga, después aparecen al instante.
-        Las credenciales se guardan en el almacén seguro de Windows, no en la app.
-      </p>
-
-      {editing ? (
-        <div className="grid gap-2">
-          {([
-            ["Account ID", "accountId", "El ID de tu cuenta de Cloudflare"],
-            ["Access Key ID", "accessKeyId", "Viene en R2 → Manage API tokens"],
-            ["Secret Access Key", "secretAccessKey", "Solo se muestra una vez al crearlo"],
-            ["Bucket", "bucketName", "Nombre del bucket R2"],
-          ] as const).map(([title, key, hint]) => (
-            <label key={key} className="grid gap-1">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-white/45">{title}</span>
-              <input
-                type="text"
-                value={config[key]}
-                placeholder={hint}
-                onChange={event => setConfig({ ...config, [key]: event.target.value })}
-                className="w-full rounded-full border border-white/12 bg-[#171719] px-4 py-2.5 text-sm font-semibold text-white outline-none placeholder:text-white/25 gsap-transition focus:border-white/34"
-              />
-            </label>
-          ))}
-          {error ? <p className="text-xs font-semibold text-red-300">{error}</p> : null}
-          <div className="mt-1 flex gap-2">
-            <button
-              type="button"
-              onClick={() => void save()}
-              disabled={saving}
-              className="rounded-full bg-white px-5 py-2.5 text-sm font-black text-black disabled:opacity-55 gsap-transition hover:bg-white/82"
-            >
-              {saving ? "Guardando..." : "Guardar"}
-            </button>
-            <button
-              type="button"
-              onClick={() => { setEditing(false); setError(""); setConfig({ ...config }); }}
-              className="rounded-full border border-white/14 px-5 py-2.5 text-sm font-black text-white gsap-transition hover:bg-white/10"
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-xs font-semibold text-white/50">
-            {configured
-              ? `Bucket "${config.bucketName}" · guardando los pósters entre arranques.`
-              : "No configurada. Los pósters se regeneran en cada arranque."}
-          </p>
-          <button
-            type="button"
-            onClick={() => { setEditing(true); setSaved(false); }}
-            className="shrink-0 rounded-full border border-white/14 px-5 py-2.5 text-sm font-black text-white gsap-transition hover:bg-white/10"
-          >
-            {configured ? "Cambiar" : "Configurar"}
-          </button>
-        </div>
-      )}
-      {saved ? <p className="mt-2 text-xs font-semibold text-emerald-300">Guardado. Reiniciá Aetherio para que el servidor lo use.</p> : null}
-    </div>
   );
 }
 

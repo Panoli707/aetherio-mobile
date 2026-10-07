@@ -63,7 +63,7 @@ export default function SearchPage() {
     <PageContainer fullBleed className="min-h-screen bg-[#1f1f1f] pb-12 pt-24 text-white">
       <form
         onSubmit={submitSearch}
-        className="mx-auto flex items-center gap-3 rounded-full border border-white/70 bg-white/10 px-4 py-3 backdrop-blur-2xl"
+        className="mx-auto flex items-center gap-3 rounded-full border border-white/70 bg-white/10 px-4 py-3 backdrop-blur-glass-lg"
         style={{ width: 768, maxWidth: "calc(100vw - 260px)", marginBottom: 34 }}
       >
         <Search size={18} className="text-white/58" />
@@ -236,8 +236,8 @@ function SearchRowArrow({ visible, side, onClick }: { visible: boolean; side: "l
         borderRadius: "50%",
         border: "1px solid rgba(255,255,255,0.18)",
         background: "rgba(18,18,18,0.72)",
-        backdropFilter: "blur(6px)",
-        WebkitBackdropFilter: "blur(6px)",
+    backdropFilter: "var(--lg-filter-sm)",
+    WebkitBackdropFilter: "var(--lg-filter-sm)",
         color: "#fff",
         display: "flex",
         alignItems: "center",

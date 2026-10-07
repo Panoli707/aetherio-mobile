@@ -1,14 +1,15 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, Children, Component, lazy, Suspense, type LazyExoticComponent, type ComponentType } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useBackAction } from "../../input/inputActions.ts";
-import { BookmarkMinus, BookmarkPlus, Image as ImageIcon, MoreHorizontal, Play, X, Check, EyeOff, UsersRound } from "lucide-react";
+import { BookmarkMinus, Image as ImageIcon, MoreHorizontal, Play, X, Check, EyeOff, UsersRound } from "lucide-react";
 import addImageIcon from "../../assets/add-image-svgrepo-com.svg";
 import { tmdbFetch } from "../../config/apiKeys";
 import { useHomePreferences } from "../../config/homePreferences";
 import { useMdbListSettings, type MdbListRatings } from "../../config/mdblist";
 import { useAddonStore } from "../../store/addonStore";
 import ContextMenu from "../../components/ui/ContextMenu";
+import LibraryIcon from "../../components/ui/LibraryIcon";
 import MDBListRatingsRow from "../../components/ratings/MDBListRatingsRow";
 import type { MediaStream } from "../../types/stream";
 import { fetchMdbListRatingsForMedia } from "../../services/MDBListService";
@@ -54,6 +55,7 @@ import SeasonTabs from "./SeasonTabs.tsx";
 import { readPageDataCache, writePageDataCache } from "../../utils/pageDataCache";
 import { buildDetailPath, buildEntityPath, buildEpisodePath, buildPersonPath, buildPlayerPath, detailDataMatchesRoute, isBigPictureLocation } from "../../utils/bigPictureDetail";
 import { pickTmdbSearchCandidate, type TmdbSearchCandidate } from "../../utils/tmdbIdentity";
+import { formatAirDate, formatRuntime, runtimeMinutes } from "../../utils/mediaLabels";
 import { DETAIL_ENTER_CONTENT_EVENT, DETAIL_EXIT_HERO_EVENT, useBigPictureActive } from "../../navigation/spatialNav.ts";
 import { useLongPressAction } from "../../hooks/useLongPressAction.ts";
 import { GAMEPAD_ACTION_EVENT } from "../../hooks/useGamepad.ts";
@@ -283,6 +285,36 @@ async function hydrateAnimeIdentity(detail: DetailData): Promise<DetailData> {
   };
 }
 
+/**
+ * Reparto anime: MAL → personajes (Jikan o AniList) → una búsqueda de TMDB por
+ * voz actor para poder enlazar a su Person. Se resuelve aparte del primer
+ * pintado porque no bloquea nada de lo que se ve al abrir la ficha.
+ */
+async function resolveAnimeCastFor(detail: DetailData, tmdbId: number, main: unknown) {
+  const payload = main as { name?: string; original_name?: string; original_title?: string } | null;
+  const malId = await resolveMalId({
+    malId: detail.ids?.mal,
+    imdbId: detail.ids?.imdb,
+    tmdbId: Number.isFinite(tmdbId) && tmdbId > 0 ? tmdbId : undefined,
+    title: detail.name || payload?.name || payload?.original_name || payload?.original_title,
+    year: detail.year,
+  }).catch(() => undefined);
+  if (!malId || !Number.isFinite(malId)) return { malId: undefined, cast: [] as CastMember[] };
+  const chars = await fetchAnimeCast(malId).catch(() => []);
+  console.log("[anime-cast]", malId, chars.length, "personajes");
+  return {
+    malId,
+    cast: chars.map(ch => ({
+      id: ch.voiceActorId || `jikan-char:${ch.malId}`,
+      name: ch.name,
+      character: ch.voiceActor || "",
+      profile_path: ch.image,
+      voiceActorId: ch.voiceActorId,
+      _role: ch.role,
+    } as CastMember & { _role?: string })),
+  };
+}
+
 function dedupeCastMembers(cast?: CastMember[]) {
   const seen = new Set<string>();
   return (cast ?? []).filter(member => {
@@ -311,41 +343,6 @@ function seasonNumberValue(value: unknown) {
 
 function seasonSortKey(value: number) {
   return value <= 0 ? Number.MAX_SAFE_INTEGER : value;
-}
-
-function runtimeMinutes(value: unknown) {
-  const numeric = numberValue(value);
-  if (numeric) return numeric > 300 ? Math.round(numeric / 60) : Math.round(numeric);
-  if (typeof value !== "string") return undefined;
-  const hours = value.match(/(\d+)\s*h/i);
-  const mins = value.match(/(\d+)\s*m/i);
-  if (hours || mins) return (hours ? Number(hours[1]) * 60 : 0) + (mins ? Number(mins[1]) : 0);
-  return undefined;
-}
-
-function formatRuntime(value: unknown) {
-  const minutes = runtimeMinutes(value);
-  if (!minutes) return "";
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  if (!hours) return `${rest}min`;
-  return rest ? `${hours}h ${rest}min` : `${hours}h`;
-}
-
-function formatDateLabel(value?: string) {
-  if (!value) return "";
-  const trimmed = value.trim();
-  if (!trimmed) return "";
-  const dateOnly = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/)?.[0];
-  const date = dateOnly
-    ? new Date(`${dateOnly}T00:00:00`)
-    : new Date(trimmed);
-  if (Number.isNaN(date.getTime())) return trimmed;
-  return date.toLocaleDateString("es", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function detailPageCacheKey(type?: string, id?: string) {
@@ -908,6 +905,7 @@ function mapAddonSeasons(meta: any): DetailData["seasons"] | undefined {
 }
 
 export default function DetailPage({
+  onShellPreviewLoading,
   onShellPreviewReady,
   onShellPreviewBackground,
   onBigPictureBackground,
@@ -915,6 +913,7 @@ export default function DetailPage({
   bigPictureEpisodeTransitioning = false,
   initialEpisodeRequest,
 }: {
+  onShellPreviewLoading?: () => void;
   onShellPreviewReady?: () => void;
   onShellPreviewBackground?: (background: string) => void;
   onBigPictureBackground?: (background: string) => void;
@@ -957,6 +956,7 @@ export default function DetailPage({
   // El seed reserva el layout y puede mantenerse visible mientras la
   // revalidación resuelve el backdrop definitivo.
   const [loading, setLoading]   = useState(() => isBigPictureLocation(location.pathname) || !initialDetail);
+  const [episodesLoading, setEpisodesLoading] = useState(false);
   const [season, setSeason]     = useState(1);
   const [showMore, setShowMore] = useState(false);
   const [synopsisTop, setSynopsisTop] = useState<number | null>(null);
@@ -1252,9 +1252,14 @@ export default function DetailPage({
       metadataVignetteRef.current,
       darkOverlayRef.current,
     ]);
-    backdropBlurAmountRef.current = 0;
-    metadataVignetteOpacityRef.current = 1;
-    darkOverlayOpacityRef.current = 0;
+backdropBlurAmountRef.current = 0;
+    // Las dos capas de oscurecido se restauran a lo que les toca, no siempre
+    // al tope: si la sección de streams sigue abierta al cambiar de ruta, sus
+    // fundidos a 0 se respetan.
+    const vignetteReset = vignetteTargetOpacity(0);
+    const darkReset = darkTargetOpacity(0);
+    metadataVignetteOpacityRef.current = vignetteReset;
+    darkOverlayOpacityRef.current = darkReset;
     pastHeroRef.current = false;
     detailScrollTopRef.current = 0;
     detailScrollRef.current?.removeAttribute("data-past-hero");
@@ -1264,7 +1269,8 @@ export default function DetailPage({
     if (heroCopyRef.current) gsap.set(heroCopyRef.current, { opacity: 1, y: 0 });
     if (heroCreditsRef.current) gsap.set(heroCreditsRef.current, { opacity: 1, y: 0 });
     gsap.set(backdropImageRef.current, { opacity: 1, filter: "blur(0px)", scale: 1 });
-    gsap.set(metadataVignetteRef.current, { opacity: 1 });
+    gsap.set(metadataVignetteRef.current, { opacity: vignetteReset });
+    gsap.set(darkOverlayRef.current, { opacity: darkReset });
     gsap.set(darkOverlayRef.current, { opacity: 0 });
   }, [bigPicture, type, id, location.pathname]);
 
@@ -1346,9 +1352,25 @@ export default function DetailPage({
     return () => gsap.killTweensOf([prevEl, currEl]);
   }, [logoStack]);
 
+  // La entrada se coreografía una vez por medio. La page puede montar con el
+  // seed del hero (id ya conocido desde la card de origen) y completar la
+  // carga real después: al entrar desde Home en picture la page ya está
+  // visible cuando `loading` pasa a false, así que re-animar la entrada la
+  // parpadeaba entera como si recargara. Con seed no hay entrada que
+  // coreografiar (la hace el fade de ruta) y la zona de contenido se reserva
+  // con el esqueleto; sin seed, la entrada corre una sola vez por medio.
+  const entranceAnimatedIdRef = useRef<string | null>(null);
+  const seededEntryIdRef = useRef<string | null>(
+    normalizedInitialDetail ? null : initialSeed ? id : null,
+  );
+
   useLayoutEffect(() => {
     const root = detailContentRef.current;
     if (loading || !data || !root) return;
+    const mediaId = data.id;
+    if (entranceAnimatedIdRef.current === mediaId) return;
+    entranceAnimatedIdRef.current = mediaId;
+    if (seededEntryIdRef.current === mediaId) return;
     const items = Array.from(root.querySelectorAll<HTMLElement>(
       ".detail-page-hero > div, .detail-page-content > *:not(.detail-content-logo)",
     ));
@@ -1434,8 +1456,12 @@ export default function DetailPage({
   }, [data?.backdrop, data?.poster, onBigPictureBackground, onShellPreviewBackground]);
 
   useEffect(() => {
-    if (!loading && data) onShellPreviewReady?.();
-  }, [loading, data, onShellPreviewReady]);
+    if (loading) {
+      onShellPreviewLoading?.();
+      return;
+    }
+    if (data) onShellPreviewReady?.();
+  }, [loading, data, onShellPreviewLoading, onShellPreviewReady]);
 
   // Al entrar a un detail en picture, el foco principal cae en Reproducir.
   //
@@ -1487,10 +1513,10 @@ export default function DetailPage({
     };
   }, [bigPicture, loading, data?.id, episodeOpen]);
 
-  // Transición Detail <-> sección Episodie sobre el MISMO fondo: el contenido
-  // del Detail se funde hacia abajo, el fondo pasa a grayscale y la sección
-  // entra. Solo corre cuando la sección confirma contenido (ready): nunca hay
-  // dos imágenes ni un fondo vacío atascado.
+// Transición Detail <-> sección Episodie sobre el MISMO fondo: el contenido
+// del Detail se funde hacia abajo, el fondo pasa a grayscale y se le apaga la
+// viñeta, y la sección entra. Solo corre cuando la sección confirma contenido
+// (ready): nunca hay dos imágenes ni un fondo vacío atascado.
   useLayoutEffect(() => {
     const wasOpen = episodeWasOpenRef.current;
     if (wasOpen === episodeShown) return;
@@ -1500,7 +1526,7 @@ export default function DetailPage({
     const shell = detailScrollRef.current;
     const reduced = prefersReducedMotion();
     shell?.scrollTo({ top: 0, behavior: "auto" as ScrollBehavior });
-    gsap.killTweensOf([content, section, backdropImageRef.current]);
+    gsap.killTweensOf([content, section, backdropImageRef.current, metadataVignetteRef.current, darkOverlayRef.current]);
     if (episodeShown) {
       if (content) {
         content.inert = true;
@@ -1526,6 +1552,20 @@ export default function DetailPage({
         opacity: 1,
         visibility: "inherit",
         filter: "blur(0px) grayscale(1)",
+        duration: reduced ? 0.16 : 0.72,
+        ease: "power3.out",
+        overwrite: "auto",
+      }, 0);
+      // La viñeta se va con el mismo fundido que el grayscale: el listado de
+      // fuentes queda sobre el fondo a secas, sin el oscurecido de bordes. El
+      // negro plano se apaga con ella —si no, al scrollear el listado (que
+      // vive en este mismo shell) se oscurece el fondo igual que antes—. Los
+      // refs se adelantan al tween para que un scroll durante la transición no
+      // los devuelva a la cola.
+      metadataVignetteOpacityRef.current = 0;
+      darkOverlayOpacityRef.current = 0;
+      timeline.to([metadataVignetteRef.current, darkOverlayRef.current], {
+        opacity: 0,
         duration: reduced ? 0.16 : 0.72,
         ease: "power3.out",
         overwrite: "auto",
@@ -1562,6 +1602,10 @@ export default function DetailPage({
         ease: "power3.out",
         overwrite: "auto",
       });
+      // Y la viñeta vuelve al valor que le toque por scroll, con el mismo
+      // ritmo que el grayscale para que el fondo se recomponga de una pieza.
+      applyVignetteOpacity(detailScrollTopRef.current, reduced ? 0.16 : 0.56);
+      applyDarkOpacity(detailScrollTopRef.current, reduced ? 0.16 : 0.56);
     }
   }, [episodeShown]);
 
@@ -1683,20 +1727,48 @@ export default function DetailPage({
     const backgroundOverride = readDetailBackgroundOverride(t, mediaId);
     const cachedDetail = readPageDataCache<DetailData>("detail", cacheKey);
     if (cachedDetail) {
-      const hydrated = normalizeDetailData(await hydrateAnimeIdentity(cachedDetail));
+      // Tampoco aquí la identidad anime bloquea: la caché ya tiene la page
+      // entera, y hacer esperar a arm.haglund.dev en cada reapertura devolvía
+      // el "tarda mucho" justo en la fila que ya estaba descargada.
       const resolved = {
-        ...hydrated,
-        backdrop: ensureOriginalTmdbImage(backgroundOverride ?? hydrated.backdrop)
+        ...cachedDetail,
+        backdrop: ensureOriginalTmdbImage(backgroundOverride ?? cachedDetail.backdrop)
           ?? backgroundOverride
-          ?? hydrated.backdrop,
+          ?? cachedDetail.backdrop,
       };
       if (!isCurrent()) return;
       if (resolved !== cachedDetail) writePageDataCache("detail", cacheKey, resolved);
       setData(resolved);
       setLoading(false);
+      setEpisodesLoading(false);
+      if (cachedDetail.type === "anime") {
+        void hydrateAnimeIdentity(cachedDetail).then(hydrated => {
+          if (!isCurrent() || hydrated === cachedDetail) return;
+          setData(current => current && current.id === hydrated.id ? { ...current, ids: hydrated.ids } : current);
+        });
+        // Las fichas anime cacheadas de versiones anteriores pueden tener el
+        // reparto de TMDB (actores) en vez de personajes Jikan/AniList. Refresca
+        // ese cast tambien en el camino cacheado; si no, nunca se llegaba a la
+        // rama de abajo que recupera las caras de los personajes.
+        void resolveAnimeCastFor(resolved, resolved.ids?.tmdb ?? parseMediaIds(mediaId).tmdb ?? 0, resolved).then(({ malId, cast }) => {
+          if (!isCurrent() || !cast.length) return;
+          const cached = readPageDataCache<DetailData>("detail", cacheKey) ?? resolved;
+          writePageDataCache("detail", cacheKey, {
+            ...cached,
+            ids: malId ? { ...cached.ids, mal: malId } : cached.ids,
+            cast,
+          });
+          setData(current => {
+            if (!current || current.id !== resolved.id) return current;
+            const ids = malId ? { ...current.ids, mal: malId } : current.ids;
+            return { ...current, ids, cast };
+          });
+        });
+      }
       return;
     }
     setLoading(true);
+    setEpisodesLoading(false);
     // Al cambiar de ruta sí descartamos el detalle anterior. En una
     // revalidación de la misma ruta conservamos el seed para no volver a
     // mostrar una pantalla de carga mientras TMDB/Jikan responden.
@@ -1731,25 +1803,68 @@ export default function DetailPage({
         cachedMediaLogo ? { url: cachedMediaLogo, label: "Cache", source: "cache" } : null,
       ]),
     };
+    let animeCastResult: { malId?: number; cast: CastMember[] } | null = null;
+    let detailFinished = false;
     // La ficha sembrada por Home conserva la identidad humana correcta. Los
     // add-ons son útiles para enriquecerla, pero no deben cambiar el título
     // que usaremos para desambiguar namespaces movie/tv.
     const requestedIdentityName = d.name;
     const requestedIdentityYear = d.year;
+    // Addon metadata can supply episode IDs for anime aliases; cap that lookup
+    // to one short shared deadline. Canonical anime TMDB/IMDb IDs can render
+    // directly from TMDB and don't need this serial provider lookup.
+    const addonMetadataDeadline = Date.now() + 2_000;
     // Home/Big Picture ya tiene metadata suficiente para pintar el shell.
     // Se muestra mientras addon/TMDB revalidan y enriquecen la página.
     if (d.name || d.poster || d.backdrop || d.logo) setData(d);
-    const finish = async (next: DetailData) => {
-      next = normalizeDetailData(await hydrateAnimeIdentity(next));
+    const patchDetail = (patch: Partial<DetailData>) => {
+      const cached = readPageDataCache<DetailData>("detail", cacheKey) ?? d;
+      const cachedSeasons = patch.seasons ? mergeSeasons(cached.seasons, patch.seasons) : cached.seasons;
+      const next = normalizeDetailData({
+        ...cached,
+        ...patch,
+        ...(cachedSeasons ? { seasons: cachedSeasons } : {}),
+      });
+      d = next;
+      writePageDataCache("detail", cacheKey, next);
+      if (isCurrent()) {
+        setData(current => {
+          if (!current || current.id !== mediaId) return current;
+          const currentSeasons = patch.seasons ? mergeSeasons(current.seasons, patch.seasons) : current.seasons;
+          return normalizeDetailData({
+            ...current,
+            ...patch,
+            ...(currentSeasons ? { seasons: currentSeasons } : {}),
+          });
+        });
+      }
+      if (patch.mdbListRatings) {
+        writeDetailMediaMeta({
+          id: next.id,
+          type: next.type,
+          name: next.name,
+          poster: next.poster,
+          background: next.backdrop,
+          logo: next.logo,
+          description: next.description,
+          year: next.year,
+          mdbListRatings: patch.mdbListRatings,
+        });
+      }
+    };
+    const finish = (next: DetailData) => {
       if (!isCurrent()) return;
+      if (animeCastResult) {
+        next = {
+          ...next,
+          ids: animeCastResult.malId ? { ...next.ids, mal: animeCastResult.malId } : next.ids,
+          ...(animeCastResult.cast.length ? { cast: animeCastResult.cast } : {}),
+        };
+      }
+      next = normalizeDetailData(next);
       logoLog("detail data ready", { resolvedLogo: next.logo ?? null });
       if (next.logo) setCachedLogo(writeCachedLogo(getDetailLogoKey(t, mediaId), next.logo) ?? null);
       else setCachedLogo(null);
-      await Promise.all([
-        preloadImage(next.backdrop),
-        preloadImage(next.poster),
-        preloadImage(next.logo),
-      ]);
       writeDetailMediaMeta({
         id: next.id,
         type: next.type,
@@ -1764,30 +1879,55 @@ export default function DetailPage({
       writePageDataCache("detail", cacheKey, next);
       setData(next);
       setLoading(false);
+      detailFinished = true;
+      // Antes se esperaba a la identidad MAL/AniList y a que cargaran los tres <img>
+      // antes de bajar `loading`, y en un anime eso encadenaba arm.haglund.dev,
+      // AniList y los preloads: segundos de esqueleto, y como el preview shell
+      // espera a este `ready`, el panel se quedaba en artwork todo ese rato.
+      //
+      // Los ids llegan despues y parchean el detail en el sitio. El backdrop no
+      // puede dar un flash al pintar sin esperar: el shell tiene esa misma URL
+      // pintada justo detras del iframe.
+      if (next.type === "anime") {
+        void hydrateAnimeIdentity(next).then(hydrated => {
+          if (!isCurrent() || hydrated === next) return;
+          setData(current => current && current.id === hydrated.id ? { ...current, ids: hydrated.ids } : current);
+        });
+      }
+      void Promise.all([
+        preloadImage(next.backdrop),
+        preloadImage(next.poster),
+        preloadImage(next.logo),
+      ]);
     };
-    const finishWithRatings = async (next: DetailData) => {
+    const finishWithRatings = (next: DetailData) => {
+      finish(next);
       if (!mdbListSettings.enabled || !mdbListSettings.apiKey.trim()) {
-        await finish(next);
         return;
       }
-      const ratings = await fetchMdbListRatingsForMedia({
+      void fetchMdbListRatingsForMedia({
         settings: mdbListSettings,
         mediaType: next.type,
         mediaId: typeof next.ids?.tmdb === "number" && next.ids.tmdb > 0 ? `tmdb:${next.ids.tmdb}` : next.id,
         imdbId: resolveDetailImdbId(next),
-      }).catch(() => null);
-      await finish(ratings ? { ...next, mdbListRatings: ratings } : next);
+      }).then(ratings => {
+        if (ratings) patchDetail({ mdbListRatings: ratings });
+      }).catch(() => undefined);
     };
-    for (const addon of getEnabled()) {
+    const shouldLoadAddonMetadata = t !== "anime" || (!mediaId.startsWith("tmdb:") && !mediaId.startsWith("tt"));
+    for (const addon of (shouldLoadAddonMetadata ? getEnabled() : [])) {
+      if (Date.now() >= addonMetadataDeadline) break;
       try {
         const base = addon.url.replace(/\/manifest\.json$/,"").replace(/\/$/,"");
         const metaTypes = t === "series" ? ["series", "tv"] : [t];
         let json: any = null;
         for (const metaType of metaTypes) {
+          if (Date.now() >= addonMetadataDeadline) break;
           if (!addonSupportsMeta(addon, metaType, mediaId)) continue;
           const endpoint = `${base}/meta/${metaType}/${encodeURIComponent(mediaId)}.json`;
           logoLog("meta request start", { addonId: addon.id, endpoint });
-          const res  = await fetch(endpoint);
+          const timeoutMs = Math.max(1, Math.min(1_500, addonMetadataDeadline - Date.now()));
+          const res  = await fetch(endpoint, { signal: AbortSignal.timeout(timeoutMs) });
           logoLog("meta response", { addonId: addon.id, endpoint, status: res.status, ok: res.ok });
           if (!res.ok) continue;
           json = await res.json();
@@ -1914,7 +2054,7 @@ export default function DetailPage({
           resolvedType = selected.kind;
         }
       }
-      if (!tmdbId) { await finishWithRatings(d); return; }
+      if (!tmdbId) { finishWithRatings(d); return; }
 
       let ep2Type: TmdbKind = resolvedType ?? (t === "movie" ? "movie" : "tv");
       let ep2 = `/${ep2Type}/${tmdbId}`;
@@ -1952,7 +2092,7 @@ export default function DetailPage({
       }
       const main=mainEs ?? mainEn;
       const imgs=imgRes ?? {};
-      if (!main) { await finishWithRatings(d); return; }
+      if (!main) { finishWithRatings(d); return; }
       const explicitTmdbIdentity = /^tmdb:\d+$/i.test(mediaId);
       if (explicitTmdbIdentity) {
         // A numeric tmdb id is the stable identity. Once its namespace has
@@ -2070,84 +2210,136 @@ export default function DetailPage({
       if (combinedCast.length) d.cast=combinedCast;
 
       if (isActuallyAnime) {
-        console.log("[anime-cast] isActuallyAnime=true, ids:", { mal: d.ids?.mal, imdb: d.ids?.imdb, tmdb: d.ids?.tmdb, type: t, name: d.name, year: d.year });
-        const malId = await resolveMalId({
-          malId: d.ids?.mal,
-          imdbId: d.ids?.imdb,
-          tmdbId: typeof tmdbId === "number" ? tmdbId : Number(tmdbId),
-          title: d.name || main.name || main.original_name || main.original_title,
-          year: d.year,
+        // El cast anime no bloquea el primer pintado. Resolverlo son una
+        // busqueda de MAL, una de personajes en Jikan y N busquedas de TMDB en
+        // paralelo (una por voz actor japones, ver resolveVoiceActorIds). Awaitado
+        // aqui, el esqueleto de la zona de contenido se quedaba esperando a un
+        // scoop de reparto que no hace falta para pintar logo, sinopsis,
+        // temporadas ni botones. Va en segundo plano y parchea el cast cuando
+        // llega.
+        void resolveAnimeCastFor(d, tmdbId, main).then(({ malId, cast }) => {
+          if (!isCurrent()) return;
+          animeCastResult = { malId, cast };
+          d = {
+            ...d,
+            ids: malId ? { ...d.ids, mal: malId } : d.ids,
+            ...(cast.length ? { cast } : {}),
+          };
+          // Si el cast llega antes del resto de la ficha, `finish` lo incorpora
+          // al resultado final. Si llega después, parchea estado y caché sin
+          // pisar el resto del Detail.
+          if (!detailFinished) return;
+          const cached = readPageDataCache<DetailData>("detail", cacheKey) ?? d;
+          writePageDataCache("detail", cacheKey, {
+            ...cached,
+            ids: malId ? { ...cached.ids, mal: malId } : cached.ids,
+            ...(cast.length ? { cast } : {}),
+          });
+          setData(current => {
+            if (!current || current.id !== d.id) return current;
+            const ids = malId ? { ...current.ids, mal: malId } : current.ids;
+            return { ...current, ids, ...(cast.length ? { cast } : {}) };
+          });
         });
-        console.log("[anime-cast] resolved malId:", malId);
-        if (malId && Number.isFinite(malId)) {
-          d.ids.mal = malId;
-          try {
-            console.log("[anime-cast] fetching characters for mal:", malId);
-            const jikanChars = await fetchAnimeCast(malId);
-            console.log("[anime-cast] returned", jikanChars.length, "characters");
-            if (jikanChars.length) {
-              d.cast = jikanChars.map((ch) => ({
-                id: ch.voiceActorId || `jikan-char:${ch.malId}`,
-                name: ch.name,
-                character: ch.voiceActor || "",
-                profile_path: ch.image,
-                voiceActorId: ch.voiceActorId,
-                _role: ch.role,
-              } as CastMember & { _role?: string }));
-            }
-          } catch (err) {
-            console.warn("[anime-cast] Jikan fetch failed:", err);
-          }
-        } else {
-          console.warn("[anime-cast] no malId resolved, falling back to TMDB cast");
-        }
       }
 
        if (explicitTmdbIdentity || !d.director){ const crew = [...(main.credits?.crew ?? []), ...(main.aggregate_credits?.crew ?? [])]; const dir = crew.find((c:any)=>c.job==="Director" || c.jobs?.some((j:any)=>j.job==="Director")); if(dir) { d.director=dir.name; d.directorId=dir.id; } }
-      let trailerResults = (main.videos?.results??[]).filter((v:any)=>v.site==="YouTube"&&(v.type==="Trailer"||v.type==="Teaser"));
-      if (!trailerResults.length) {
-        try {
-          const videosJson = await tmdbFetch<any>(`${ep2}/videos`, { params: { language: "en-US" } });
-          trailerResults = (videosJson?.results??[]).filter((v:any)=>v.site==="YouTube"&&(v.type==="Trailer"||v.type==="Teaser"));
-        } catch {}
-      }
+      const trailerResults = (main.videos?.results??[]).filter((v:any)=>v.site==="YouTube"&&(v.type==="Trailer"||v.type==="Teaser"));
       if (!d.trailers?.length) d.trailers=trailerResults.slice(0,5).map((v:any)=>({key:v.key,name:v.name}));
       d.related=mergeRelatedItems(d.related, buildRelatedItems(main, t));
 
-      const collection = await fetchDetailCollection({
+      const collectionPromise = fetchDetailCollection({
         mediaId,
         mediaType: t,
         tmdbId,
         title: d.name,
         tmdbData: main,
       }).catch(() => null);
-      if (collection?.items.length) {
-        d.collection = collection.items;
-        d.collectionName = collection.name;
-        const collectionIds = new Set(collection.items.map(item => `${item.type}:${item.id}`));
-        d.related = d.related?.filter(item => !collectionIds.has(`${item.media_type}:tmdb:${item.id}`));
+      if (!d.trailers?.length && !trailerResults.length) {
+        void tmdbFetch<any>(`${ep2}/videos`, { params: { language: "en-US" } }).then(videosJson => {
+          const fallbackTrailers = (videosJson?.results ?? [])
+            .filter((video: any) => video?.site === "YouTube" && (video?.type === "Trailer" || video?.type === "Teaser"))
+            .slice(0, 5)
+            .map((video: any) => ({ key: video.key, name: video.name }));
+          if (fallbackTrailers.length) patchDetail({ trailers: fallbackTrailers });
+        }).catch(() => undefined);
       }
 
       if (t!=="movie"&&main.seasons&&(!d.seasons?.length || !hasRegularEpisodes(d.seasons))) {
-        const seasonResults = await Promise.allSettled(
-          (main.seasons ?? []).filter((s: any) => s.season_number >= 0).map(async (s: any) => {
+        const seasonNumbers = (main.seasons ?? [])
+          .map((item: any) => Number(item?.season_number))
+          .filter((number: number) => Number.isInteger(number) && number >= 0);
+        const preferredSeason = typeof episodeRequest?.season === "number" && seasonNumbers.includes(episodeRequest.season)
+          ? episodeRequest.season
+          : seasonNumbers.includes(1) ? 1 : seasonNumbers[0];
+        const orderedSeasonNumbers = [
+          ...(preferredSeason === undefined ? [] : [preferredSeason]),
+          ...seasonNumbers.filter((number: number) => number !== preferredSeason),
+        ];
+
+        if (orderedSeasonNumbers.length) {
+          setEpisodesLoading(true);
+          const loadSeason = async (seasonNumber: number) => {
+            const seasonData = await tmdbFetch<any>(`/tv/${tmdbId}/season/${seasonNumber}`, { params: { language: "es-ES" } })
+              ?? await tmdbFetch<any>(`/tv/${tmdbId}/season/${seasonNumber}`, { params: { language: "en-US" } });
+            if (!seasonData) return null;
+            return {
+              number: seasonNumber,
+              episodes: (seasonData.episodes ?? []).map((episode: any) => ({
+                id: `${tmdbId}:${seasonNumber}:${episode.episode_number}`,
+                episode: episode.episode_number,
+                season: seasonNumber,
+                name: episode.name,
+                overview: episode.overview,
+                still: episode.still_path ? `${IMG}/original${episode.still_path}` : undefined,
+                runtime: episode.runtime,
+                airDate: episode.air_date,
+              })),
+            };
+          };
+          void (async () => {
+            const firstSeason = orderedSeasonNumbers[0];
             try {
-              const sd2 = await tmdbFetch<any>(`/tv/${tmdbId}/season/${s.season_number}`, { params: { language: "es-ES" } })
-                ?? await tmdbFetch<any>(`/tv/${tmdbId}/season/${s.season_number}`, { params: { language: "en-US" } });
-              if (!sd2) return null;
-              return { number: s.season_number, episodes: (sd2.episodes ?? []).map((e: any) => ({ id: `${tmdbId}:${s.season_number}:${e.episode_number}`, episode: e.episode_number, season: s.season_number, name: e.name, overview: e.overview, still: e.still_path ? `${IMG}/original${e.still_path}` : undefined, runtime: e.runtime, airDate: e.air_date })) };
-            } catch { return null; }
-          }),
-        );
-        const seasons: Array<{ number: number; episodes: Episode[] }> = [];
-        for (const r of seasonResults) {
-          if (r.status === "fulfilled" && r.value) seasons.push(r.value);
+              const first = await loadSeason(firstSeason).catch(() => null);
+              if (first) patchDetail({ seasons: [first] });
+              if (isCurrent()) {
+                setEpisodesLoading(false);
+              }
+
+              // Prioritize the season shown on entry. Fetch the rest in small
+              // batches so long-running anime do not flood the TMDB proxy.
+              const remaining = orderedSeasonNumbers.slice(1);
+              let cursor = 0;
+              const worker = async () => {
+                while (cursor < remaining.length) {
+                  const seasonNumber = remaining[cursor++];
+                  const seasonData = await loadSeason(seasonNumber).catch(() => null);
+                  if (seasonData) patchDetail({ seasons: [seasonData] });
+                }
+              };
+              await Promise.all(Array.from({ length: Math.min(3, remaining.length) }, () => worker()));
+            } catch {
+              if (isCurrent()) setEpisodesLoading(false);
+            }
+          })();
         }
-        d.seasons = mergeSeasons(d.seasons, seasons);
       }
+      // Release the base detail before waiting on optional franchise data,
+      // season episodes, extra trailers, or third-party ratings.
+      finishWithRatings(d);
+      void collectionPromise.then(collection => {
+        if (!collection?.items.length) return;
+        const collectionIds = new Set(collection.items.map(item => `${item.type}:${item.id}`));
+        patchDetail({
+          collection: collection.items,
+          collectionName: collection.name,
+          related: (d.related ?? []).filter(item => !collectionIds.has(`${item.media_type}:${item.id}`)),
+        });
+      });
+      return;
     } catch(e){ console.warn("TMDB:",e); }
 
-    await finishWithRatings(d);
+    finishWithRatings(d);
   }
 
   const playbackEntries = useMemo(() => readPlaybackStateEntries(), [progressVersion]);
@@ -2389,6 +2581,11 @@ export default function DetailPage({
   }, [bigPicture, regularSeasons, curSeason?.number, season, data?.id, episodeProgressMap]);
 
   const dataMatchesRoute = detailDataMatchesRoute(data, id);
+  // Seed del hero ya pintado y carga real todavía en vuelo: la zona de
+  // contenido se reserva con un esqueleto para no entrar vacía. Cuando
+  // aterrizan temporadas/episodios el esqueleto se sustituye en el mismo
+  // lugar, sin salto ni repintado de la page entera.
+  const contentPending = (loading || episodesLoading) && dataMatchesRoute;
   if (loading && !dataMatchesRoute) {
     if (bigPicture) return <LoadingState label="Cargando detalle" shellPreviewLoading />;
     return (
@@ -2836,10 +3033,50 @@ export default function DetailPage({
     setLogoPickerOpen(false);
   }
 
-  function updateBackdropBlur(scrollTop: number) {
+  /**
+ * Opacidad que le toca a la viñeta radial del fondo.
+ *
+ * Con la sección de streams abierta la viñeta se apaga: el fondo ya pasa a
+ * grayscale y, encima, la viñeta solo añade ruido sobre el listado de fuentes.
+ * El scroll no la revive mientras la sección está puesta —de ahí el
+ * `episodeShown`—, así que un scroll residual no la deja a medio fundir.
+ */
+function vignetteTargetOpacity(scrollTop: number) {
+  if (episodeShown) return 0;
+  return Math.max(0, 1 - scrollTop / 240);
+}
+
+/**
+ * Opacidad del negro plano que sustituye a la viñeta al bajar.
+ *
+ * Misma regla que la viñeta y por el mismo motivo: la sección de streams se
+ * scrollea dentro del MISMO shell que el Detail, así que sin este corte su
+ * scroll oscurecía el fondo del listado hasta 0.55 — el mismo sintoma que la
+ * viñeta, solo que(layer) distinto.
+ */
+function darkTargetOpacity(scrollTop: number) {
+  if (episodeShown) return 0;
+  return Math.min(0.55, Math.max(0, scrollTop / 400));
+}
+
+/** Único escritor de la opacidad de la viñeta: scroll y transición van por aquí. */
+function applyVignetteOpacity(scrollTop: number, duration = 0.24) {
+  const next = Math.round(vignetteTargetOpacity(scrollTop) * 100) / 100;
+  if (next === metadataVignetteOpacityRef.current) return;
+  metadataVignetteOpacityRef.current = next;
+  tweenTo(metadataVignetteRef.current, { opacity: next }, duration);
+}
+
+/** Idem para el negro plano: mismo por que y mismo unico escritor. */
+function applyDarkOpacity(scrollTop: number, duration = 0.24) {
+  const next = Math.round(darkTargetOpacity(scrollTop) * 100) / 100;
+  if (next === darkOverlayOpacityRef.current) return;
+  darkOverlayOpacityRef.current = next;
+  tweenTo(darkOverlayRef.current, { opacity: next }, duration);
+}
+
+function updateBackdropBlur(scrollTop: number) {
     const blur = Math.round(Math.min(28, Math.max(0, scrollTop / 12)));
-    const vignetteOpacity = Math.round(Math.max(0, 1 - scrollTop / 240) * 100) / 100;
-    const darkOpacity = Math.round(Math.min(0.55, Math.max(0, scrollTop / 400)) * 100) / 100;
     if (blur !== backdropBlurAmountRef.current) {
       backdropBlurAmountRef.current = blur;
       if (episodeWasOpenRef.current) {
@@ -2856,14 +3093,8 @@ export default function DetailPage({
       }
       }
     }
-    if (vignetteOpacity !== metadataVignetteOpacityRef.current) {
-      metadataVignetteOpacityRef.current = vignetteOpacity;
-      tweenTo(metadataVignetteRef.current, { opacity: vignetteOpacity }, 0.24);
-    }
-    if (darkOpacity !== darkOverlayOpacityRef.current) {
-      darkOverlayOpacityRef.current = darkOpacity;
-      tweenTo(darkOverlayRef.current, { opacity: darkOpacity }, 0.24);
-    }
+    applyVignetteOpacity(scrollTop);
+    applyDarkOpacity(scrollTop);
     // Zona de contenido: al bajar del héroe el logo se despliega y empuja las
     // tabs/episodios a su sitio (misma medida del rail).
     const heroEl = heroRef.current;
@@ -3051,7 +3282,7 @@ export default function DetailPage({
       <div className="detail-page-hero" ref={heroRef} data-hero-panel={bigPicture ? true : undefined} style={{ position:"relative", width:"100vw", left:"50%", marginLeft:"-50vw", height:bigPicture ? BIG_PICTURE_DETAIL_HERO_HEIGHT : DETAIL_HERO_HEIGHT, minHeight:540, overflow:"hidden" }}>
         <div ref={heroCopyRef} data-detail-hero-copy style={{ position:"absolute",bottom:4,left:0,padding:"0 var(--app-safe-x) 22px",maxWidth:520 }}>
           {displayLogo && logoStatus !== "error" ? (
-            <div style={{ minHeight:100,display:"flex",alignItems:"center",marginBottom:14,position:"relative" }}>
+            <div data-hero-reveal style={{ minHeight:100,display:"flex",alignItems:"center",marginBottom:14,position:"relative", "--reveal-delay":"0ms" } as CSSProperties}>
               {bigPicture ? (
                 // En picture el logo es solo visual: ni clicable ni seleccionable
                 // (sin crossfade por refs: cambio directo).
@@ -3107,22 +3338,22 @@ export default function DetailPage({
               )}
             </div>
           ) : (
-            <h1 style={{ fontSize:"2.6rem",fontWeight:900,color:"#fff",marginBottom:14,lineHeight:1.05,textShadow:"0 2px 20px rgba(0,0,0,0.8)" }}>{data.name}</h1>
+            <h1 data-hero-reveal style={{ fontSize:"2.6rem",fontWeight:900,color:"#fff",marginBottom:14,lineHeight:1.05,textShadow:"0 2px 20px rgba(0,0,0,0.8)", "--reveal-delay":"0ms" } as CSSProperties}>{data.name}</h1>
           )}
-          <div style={{ display:"flex",alignItems:"center",gap:6,marginBottom:10,flexWrap:"wrap" }}>
+          <div data-hero-reveal style={{ display:"flex",alignItems:"center",gap:6,marginBottom:10,flexWrap:"wrap", "--reveal-delay":"0ms" } as CSSProperties}>
             <span style={{ fontSize:15,color:"rgba(255,255,255,0.8)",fontWeight:500 }}>{typeLabel}</span>
             {data.genres?.slice(0,2).map(g=><span key={g} style={{ fontSize:15,color:"rgba(255,255,255,0.75)" }}>· {g}</span>)}
           </div>
-          <div style={{ marginBottom:12 }}>
+          <div data-hero-reveal style={{ marginBottom:12, "--reveal-delay":"120ms" } as CSSProperties}>
             <span style={{ fontSize:15,color:"rgba(255,255,255,0.8)",lineHeight:1.6 }}>{descShort}</span>
             {hasMore&&<button onClick={openShowMore} style={{ fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.85)",background:"none",border:"none",cursor:"pointer",marginLeft:6 }}>MÁS</button>}
           </div>
           {data.mdbListRatings ? <MDBListRatingsRow ratings={data.mdbListRatings} compact /> : null}
-          <div style={{ display:"flex",alignItems:"center",gap:7,marginTop:8,marginBottom:18,flexWrap:"wrap" }}>
+          <div data-hero-reveal style={{ display:"flex",alignItems:"center",gap:7,marginTop:8,marginBottom:18,flexWrap:"wrap", "--reveal-delay":"120ms" } as CSSProperties}>
             {data.year&&<span style={{ fontSize:13,color:"rgba(255,255,255,0.7)" }}>{data.year}</span>}
             {data.runtime&&<span style={{ fontSize:13,color:"rgba(255,255,255,0.7)" }}>· {formatRuntime(data.runtime) || data.runtime}</span>}
           </div>
-          <div style={{ display:"flex",alignItems:"center",gap:12 }}>
+          <div data-hero-reveal style={{ display:"flex",alignItems:"center",gap:12, "--reveal-delay":"240ms" } as CSSProperties}>
             {/* Reproducir -> /episode */}
             <button ref={playButtonRef} data-hero-primary data-hero-action onClick={playFromDetail}
               style={{ display:"flex",alignItems:"center",gap:8,padding:"11px 30px",background:"#fff",color:"#000",fontWeight:700,borderRadius:999,fontSize:15,border:"none",cursor:"pointer",boxShadow:"0 3px 12px rgba(0,0,0,0.38)",textShadow:"none" }}>
@@ -3134,7 +3365,7 @@ export default function DetailPage({
               data-hero-action
               aria-label="Opciones del medio"
               onClick={() => setDetailMenuOpen(value => !value)}
-              style={{ width:42,height:42,borderRadius:999,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.08)",backdropFilter:"blur(12px)",WebkitBackdropFilter:"blur(12px)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:"0 3px 12px rgba(0,0,0,0.28)" }}
+              style={{ width:42,height:42,borderRadius:999,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.08)",backdropFilter:"var(--lg-filter-sm)",WebkitBackdropFilter:"var(--lg-filter-sm)",color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",boxShadow:"0 3px 12px rgba(0,0,0,0.28)" }}
             >
               <MoreHorizontal size={20} />
             </button>
@@ -3147,7 +3378,10 @@ export default function DetailPage({
               items={[
                 {
                   label: inLibrary ? "Quitar de la biblioteca" : "Añadir a la biblioteca",
-                  icon: inLibrary ? <BookmarkMinus size={15} /> : <BookmarkPlus size={15} />,
+                  // El alta usa el glifo de biblioteca de la app; la baja
+                  // conserva la variante con guion para que las dos acciones
+                  // sigan siendo distinguibles de un vistazo.
+                  icon: inLibrary ? <BookmarkMinus size={15} /> : <LibraryIcon size={15} />,
                   onSelect: toggleDetailLibrary,
                 },
                 {
@@ -3180,6 +3414,10 @@ export default function DetailPage({
 
         {(data.cast?.length || data.director || awards.featured)&&(
           <div ref={heroCreditsRef} className="detail-hero-credits" style={{ position:"absolute",bottom:4,right:0,padding:"0 var(--app-safe-x) 22px",textAlign:"right",maxWidth:300 }}>
+            {/* El reveal va en un hijo, no en este contenedor: el scroll del hero
+                escribe opacity/y inline sobre el credits (updateBackdropBlur) y
+                la cascada no podría ganar. */}
+            <div data-hero-reveal style={{ "--reveal-delay":"360ms" } as CSSProperties}>
             {awards.featured && (
               <div
                 ref={awardBadgeRef}
@@ -3212,13 +3450,14 @@ export default function DetailPage({
             )}
             {!!data.cast?.length&&(<p style={{ fontSize:13,color:"rgba(255,255,255,0.55)",marginBottom:5,...(bigPicture ? { userSelect:"none" as const } : null) }}><span style={{ color:"rgba(255,255,255,0.3)" }}>Reparto </span>{data.cast.slice(0,3).map((castMember, index) => (<span key={castMember.id}>{index > 0 ? ", " : ""}{bigPicture ? (<span style={{ color:"rgba(255,255,255,0.8)",userSelect:"none" }}>{castMember.name}</span>) : (<button type="button" onClick={() => navigate(`/person/${encodeURIComponent(String(castMember.id))}`)} onMouseEnter={e=>e.currentTarget.style.color="#fff"} onMouseLeave={e=>e.currentTarget.style.color="rgba(255,255,255,0.8)"} style={{ background:"none",border:"none",padding:0,color:"rgba(255,255,255,0.8)",cursor:"pointer",fontSize:13,textDecoration:"none",transition:"color 0.2s ease" }}>{castMember.name}</button>)}</span>))}</p>)}
             {data.director&&<p style={{ fontSize:13,color:"rgba(255,255,255,0.55)",...(bigPicture ? { userSelect:"none" as const } : null) }}><span style={{ color:"rgba(255,255,255,0.3)" }}>Director </span>{bigPicture ? (<span style={{ color:"rgba(255,255,255,0.8)",userSelect:"none" }}>{data.director}</span>) : (<button type="button" onClick={() => data.directorId && navigate(`/person/${encodeURIComponent(String(data.directorId))}`)} disabled={!data.directorId} onMouseEnter={data.directorId?(e)=>e.currentTarget.style.color="#fff":undefined} onMouseLeave={data.directorId?(e)=>e.currentTarget.style.color="rgba(255,255,255,0.8)":undefined} style={{ background:"none",border:"none",padding:0,color:"rgba(255,255,255,0.8)",cursor:data.directorId ? "pointer" : "default",fontSize:13,textDecoration:"none",transition:"color 0.2s ease" }}>{data.director}</button>)}</p>}
+            </div>
           </div>
         )}
         {showMore&&(
           <div
             onClick={()=>setShowMore(false)}
             data-aetherio-synopsis-popup={bigPicture ? "true" : undefined}
-            style={{ position:"fixed",inset:0,zIndex:20,padding:"var(--app-safe-x)",background:"rgba(0,0,0,0.64)",backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)" }}
+            style={{ position:"fixed",inset:0,zIndex:20,padding:"var(--app-safe-x)",background:"rgba(0,0,0,0.64)",backdropFilter:"var(--lg-filter-sm)",WebkitBackdropFilter:"var(--lg-filter-sm)" }}
           >
             <div
               className="liquid-glass-dark"
@@ -3265,6 +3504,24 @@ export default function DetailPage({
 
       {/* SECCIONES INFERIORES */}
       <div className="detail-page-content" style={{ padding:"24px var(--app-safe-x)",display:"flex",flexDirection:"column",gap:28,background:"transparent" }}>
+
+        {/* Esqueleto de la zona de contenido mientras la primera carga real
+            no resuelve (page abierta desde una card con solo el seed del
+            hero). Mantiene la altura reservada: la fila de episodios entra en
+            su sitio al aterrizar los datos, sin zona vacía ni salto. */}
+        {contentPending && (
+          <div data-content-pending style={{ display:"flex",flexDirection:"column",gap:28 }} aria-hidden="true">
+            <section>
+              <div className="skeleton" style={{ width:150,height:18,borderRadius:999,marginBottom:18 }} />
+              <div style={{ display:"flex",gap:DETAIL_EPISODE_CARD_GAP }}>
+                {[0,1,2,3,4].map(item => (
+                  <div key={item} className="skeleton" style={{ width:302,height:196,borderRadius:14,flexShrink:0 }} />
+                ))}
+              </div>
+            </section>
+            <div className="skeleton" style={{ width:"62%",height:18,borderRadius:999 }} />
+          </div>
+        )}
 
         {/* Zona de contenido: el logo se mantiene dentro de la zona, pero
             permanece colapsado mientras el hero todavía está visible para
@@ -3482,8 +3739,8 @@ export default function DetailPage({
                         display:"flex",
                         alignItems:"center",
                         justifyContent:"center",
-                        backdropFilter:"blur(10px)",
-                        WebkitBackdropFilter:"blur(10px)",
+    backdropFilter:"var(--lg-filter-sm)",
+    WebkitBackdropFilter:"var(--lg-filter-sm)",
                       }}
                     >
                       <Check size={15} style={{ color:"rgba(16,18,20,0.94)" }} />
@@ -3975,7 +4232,7 @@ function EpCard({
   const progress = progressEntry ? progressPercent(progressEntry) : 0;
   const showProgress = !watched && progress > 0.5;
   const timeLabel = locked
-    ? ep.airDate ? `Estrena ${formatDateLabel(ep.airDate)}` : "Proximamente"
+    ? ep.airDate ? `Estrena ${formatAirDate(ep.airDate)}` : "Proximamente"
     : showProgress && progressEntry
       ? formatResumeTime(progressEntry.currentTime)
       : ep.runtime
@@ -4086,7 +4343,7 @@ function EpCard({
         {ep.overview ? (
           <p className="detail-episode-card__overview" style={focused ? { color:"rgba(255,255,255,0.92)" } : undefined}>{ep.overview}</p>
         ) : ep.airDate ? (
-          <p className="detail-episode-card__overview">{formatDateLabel(ep.airDate)}</p>
+          <p className="detail-episode-card__overview">{formatAirDate(ep.airDate)}</p>
         ) : null}
       </div>
       {!locked&&<ContextMenu

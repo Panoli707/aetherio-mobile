@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import clsx from "clsx";
 import { ExternalLink, Plus, RefreshCw, Settings2, Trash2, X } from "lucide-react";
+import ToggleSwitch from "../../components/ui/ToggleSwitch";
 import {
   getSourcePreferences,
   isProviderEnabled,
@@ -25,7 +26,7 @@ import {
   type MediaExtensionInventory,
   type MediaExtensionManifest,
 } from "../../services/mediaExtensionService.ts";
-import { useAddonStore } from "../../store/addonStore.ts";
+import { listableAddons, useAddonStore } from "../../store/addonStore.ts";
 import {
   CNCVERSE_BRIDGE_ID,
   CNCVERSE_BRIDGE_LOGO,
@@ -82,7 +83,7 @@ function getSourceLogo(sourceName: string): string | null {
 }
 
 export default function SourcesPanel() {
-  const addons = useAddonStore(state => state.addons);
+  const addons = listableAddons(useAddonStore(state => state.addons));
   const enableAddon = useAddonStore(state => state.enableAddon);
   const disableAddon = useAddonStore(state => state.disableAddon);
   const setCncVerseBridgeUrl = useAddonStore(state => state.setCncVerseBridgeUrl);
@@ -710,32 +711,15 @@ function SourceRow({
       <div className="flex shrink-0 items-center gap-1">
         {action}
         {typeof checked === "boolean" && onChange ? (
-          <SourceSwitch checked={checked} disabled={disabled} onChange={() => onChange(!checked)} />
+          <SourceSwitch checked={checked} disabled={disabled} onChange={() => onChange(!checked)} label={title} />
         ) : null}
       </div>
     </div>
   );
 }
 
-function SourceSwitch({ checked, disabled, onChange }: { checked: boolean; disabled: boolean; onChange: () => void }) {
-  return (
-    <button
-      type="button"
-      onClick={onChange}
-      disabled={disabled}
-      className={clsx(
-        "relative h-7 w-12 rounded-full gsap-transition",
-        checked ? "bg-white" : "bg-white/18",
-        disabled && "cursor-not-allowed",
-      )}
-      aria-pressed={checked}
-    >
-      <span className={clsx(
-        "absolute top-1 h-5 w-5 rounded-full gsap-transition",
-        checked ? "left-6 bg-black" : "left-1 bg-white/54",
-      )} />
-    </button>
-  );
+function SourceSwitch({ checked, disabled, onChange, label }: { checked: boolean; disabled: boolean; onChange: () => void; label: string }) {
+  return <ToggleSwitch checked={checked} disabled={disabled} onChange={onChange} label={label} />;
 }
 
 function EmptyRow({ label }: { label: string }) {
@@ -787,6 +771,7 @@ function MediaExtensionConfigDialog({ extension, onClose }: { extension: MediaEx
                   checked={values[field.name] === "true"}
                   disabled={false}
                   onChange={() => updateValue(field.name, values[field.name] === "true" ? "false" : "true")}
+                  label={field.label}
                 />
               ) : (
                 <input

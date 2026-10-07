@@ -6,6 +6,25 @@ import { getPlaybackPreferences } from "../../config/playbackPreferences";
 
 export const SELECTED_STREAM_KEY = "aetherio-selected-stream";
 export const AVAILABLE_STREAMS_KEY = "aetherio-available-streams";
+/**
+ * Identifica a que medio pertenece una lista de `AVAILABLE_STREAMS_KEY`.
+ *
+ * Sin esta clave la lista de la sesion anterior se reutilizaba para el
+ * contenido nuevo: el panel de fuentes salia con las del otro titulo, o no
+ * salia porque la anterior venia vacia. Se compara con el query del Player y,
+ * si no coincide, se resuelve la lista en el propio Player.
+ */
+export function availableStreamsMediaKey(query: {
+  type?: string | null;
+  id?: string | null;
+  season?: number | null;
+  episode?: number | null;
+} | null | undefined): string {
+  if (!query?.type || !query.id) return "";
+  const season = typeof query.season === "number" ? query.season : "";
+  const episode = typeof query.episode === "number" ? query.episode : "";
+  return `${query.type}:${query.id}:${season}:${episode}`;
+}
 export const SELECTED_ENGINE_KEY = "aetherio-selected-engine";
 export const SELECTED_MEDIA_META_KEY = "aetherio-selected-media-meta";
 export const SELECTED_PLAYBACK_OVERRIDES_KEY = "aetherio-selected-playback-overrides";

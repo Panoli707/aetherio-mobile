@@ -159,6 +159,7 @@ async function main() {
         };
       });
       report.align = alignState;
+      const sectionState = await page.evaluate(() => {
         const sections = Array.from(document.querySelectorAll("[data-aetherio-episode-section]"));
         const overlay = sections[0] ?? null;
         const overlayStyle = overlay ? getComputedStyle(overlay) : null;

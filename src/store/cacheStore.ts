@@ -100,11 +100,24 @@ export const useCacheStore = create<CacheStore>()(
 );
 
 export async function rehydrateHomeCacheForActiveProfile() {
-  useCacheStore.persist.setOptions({
-    name: getScopedStorageKey("aetherio-home-cache-v1"),
-  });
-  useCacheStore.setState({ home: null });
-  await useCacheStore.persist.rehydrate();
+  const scopedName = getScopedStorageKey("aetherio-home-cache-v1");
+  useCacheStore.persist.setOptions({ name: scopedName });
+  // No usar setState({ home: null }) + persist.rehydrate(): en zustand 5 cada
+  // setState externo persiste el estado al storage, asi que el null pisaba la
+  // cache del perfil ANTES de que rehydrate() la leyera y Home re-descargaba
+  // todo en cada arranque. Se lee la entrada persistida directamente y se
+  // aplica en un solo setState.
+  let loaded: HomeCacheSnapshot | null = null;
+  const raw = safeLocalStorage.getItem(scopedName);
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw) as { state?: { home?: HomeCacheSnapshot | null } } | null;
+      loaded = parsed?.state?.home ?? null;
+    } catch {
+      loaded = null;
+    }
+  }
+  useCacheStore.setState({ home: loaded });
 }
 
 export function isFreshHomeCache(updatedAt: number) {

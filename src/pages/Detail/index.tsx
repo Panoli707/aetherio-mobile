@@ -164,6 +164,10 @@ const CONTENT_LOGO_REVEAL_DISTANCE = 520;
 // Duración del recorrido hero → contenido en Big Picture (referencia Akira).
 const DETAIL_ZONE_TRAVEL_S = 0.74;
 const DETAIL_LOGO_KEY = "aetherio-detail-logo";
+// Oscurecido fijo del fondo con la sección de streams visible: el backdrop
+// llega en grayscale y sin viñeta, así que sobre imágenes claras los textos
+// del picker quedaban sin contraste. Lo aplica el negro plano.
+const EPISODE_SCRIM_OPACITY = 0.5;
 const DETAIL_HERO_HEIGHT = "calc(78vh + var(--app-shell-nav-height) - 60px)";
 const BIG_PICTURE_DETAIL_HERO_HEIGHT = "calc(78vh - 60px)";
 const DETAIL_VERTICAL_CARD_GAP = 22;
@@ -1254,8 +1258,8 @@ export default function DetailPage({
     ]);
 backdropBlurAmountRef.current = 0;
     // Las dos capas de oscurecido se restauran a lo que les toca, no siempre
-    // al tope: si la sección de streams sigue abierta al cambiar de ruta, sus
-    // fundidos a 0 se respetan.
+    // al tope: si la sección de streams sigue abierta al cambiar de ruta, se
+    // respeta su estado (viñeta apagada y negro plano en el scrim del picker).
     const vignetteReset = vignetteTargetOpacity(0);
     const darkReset = darkTargetOpacity(0);
     metadataVignetteOpacityRef.current = vignetteReset;
@@ -1271,7 +1275,6 @@ backdropBlurAmountRef.current = 0;
     gsap.set(backdropImageRef.current, { opacity: 1, filter: "blur(0px)", scale: 1 });
     gsap.set(metadataVignetteRef.current, { opacity: vignetteReset });
     gsap.set(darkOverlayRef.current, { opacity: darkReset });
-    gsap.set(darkOverlayRef.current, { opacity: 0 });
   }, [bigPicture, type, id, location.pathname]);
 
   useLayoutEffect(() => {
@@ -1558,14 +1561,20 @@ backdropBlurAmountRef.current = 0;
       }, 0);
       // La viñeta se va con el mismo fundido que el grayscale: el listado de
       // fuentes queda sobre el fondo a secas, sin el oscurecido de bordes. El
-      // negro plano se apaga con ella —si no, al scrollear el listado (que
-      // vive en este mismo shell) se oscurece el fondo igual que antes—. Los
+      // negro plano baja al scrim fijo del picker: es la capa oscura que
+      // sostiene el contraste de los textos cuando el backdrop es claro. Los
       // refs se adelantan al tween para que un scroll durante la transición no
       // los devuelva a la cola.
       metadataVignetteOpacityRef.current = 0;
-      darkOverlayOpacityRef.current = 0;
-      timeline.to([metadataVignetteRef.current, darkOverlayRef.current], {
+      darkOverlayOpacityRef.current = EPISODE_SCRIM_OPACITY;
+      timeline.to(metadataVignetteRef.current, {
         opacity: 0,
+        duration: reduced ? 0.16 : 0.72,
+        ease: "power3.out",
+        overwrite: "auto",
+      }, 0);
+      timeline.to(darkOverlayRef.current, {
+        opacity: EPISODE_SCRIM_OPACITY,
         duration: reduced ? 0.16 : 0.72,
         ease: "power3.out",
         overwrite: "auto",
@@ -3063,13 +3072,13 @@ function vignetteTargetOpacity(scrollTop: number) {
 /**
  * Opacidad del negro plano que sustituye a la viñeta al bajar.
  *
- * Misma regla que la viñeta y por el mismo motivo: la sección de streams se
- * scrollea dentro del MISMO shell que el Detail, así que sin este corte su
- * scroll oscurecía el fondo del listado hasta 0.55 — el mismo sintoma que la
- * viñeta, solo que(layer) distinto.
+ * Misma regla que la viñeta para el scroll. Con la sección de streams visible
+ * no se apaga: queda en `EPISODE_SCRIM_OPACITY` y hace de capa oscura del
+ * picker — el fondo va en grayscale y sin viñeta, y sobre backdrops claros
+ * los textos de la sección quedaban sin contraste.
  */
 function darkTargetOpacity(scrollTop: number) {
-  if (episodeShown) return 0;
+  if (episodeShown) return EPISODE_SCRIM_OPACITY;
   return Math.min(0.55, Math.max(0, scrollTop / 400));
 }
 
@@ -3081,7 +3090,7 @@ function applyVignetteOpacity(scrollTop: number, duration = 0.24) {
   tweenTo(metadataVignetteRef.current, { opacity: next }, duration);
 }
 
-/** Idem para el negro plano: mismo por que y mismo unico escritor. */
+/** Idem para el negro plano: mismo unico escritor (scrim fijo con la sección abierta). */
 function applyDarkOpacity(scrollTop: number, duration = 0.24) {
   const next = Math.round(darkTargetOpacity(scrollTop) * 100) / 100;
   if (next === darkOverlayOpacityRef.current) return;

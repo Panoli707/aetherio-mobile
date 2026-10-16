@@ -1609,6 +1609,20 @@ backdropBlurAmountRef.current = 0;
     }
   }, [episodeShown]);
 
+  // Con la sección Episodie abierta (normal) el overlay ocupa el viewport y su
+  // lista lleva el scroll interno: se bloquea el scroll del shell para que la
+  // página no se desplace por detrás (el picker se deslizaría fuera de vista).
+  useEffect(() => {
+    if (!episodeShown || bigPicture) return;
+    const shell = detailScrollRef.current;
+    if (!shell) return;
+    const previousOverflowY = shell.style.overflowY;
+    shell.style.overflowY = "hidden";
+    return () => {
+      shell.style.overflowY = previousOverflowY;
+    };
+  }, [bigPicture, episodeShown]);
+
   // Esc con la sección abierta la cierra (captura, antes del back exterior).
   useEffect(() => {
     if (!episodeOpen) return;

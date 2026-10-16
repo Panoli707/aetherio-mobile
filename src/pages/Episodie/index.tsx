@@ -1013,8 +1013,9 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
   }
 
   // En Big Picture el overlay del Detail es fijo (viewport): el layout es el
-  // original de altura fija con la lista en scroll interno, igual que la page
-  // standalone. En modo normal embebido se usa flujo con scroll del overlay.
+  // original de altura fija con la lista en scroll interno (programático, del
+  // mando). En modo normal embebido el overlay no scrollea: la lista es la que
+  // scrollea, y el shell del Detail se queda bloqueado mientras está abierta.
   return (
     <div ref={pageRef} className={bigPicture
       ? `relative h-[100dvh] max-h-[100dvh] overflow-hidden overscroll-none ${sharedTransparent ? "bg-transparent" : "bg-[#111111]"} text-white`
@@ -1948,7 +1949,7 @@ function SourcePickerPanel({
           </>
         ) : null}
       </div>
-      <div data-bp-episode-streams={bigPicture ? true : undefined} className={fixedHeightPanel ? "min-h-0 flex-1 overflow-hidden overscroll-none px-5 py-3" : "max-h-[calc(100vh-210px)] overflow-y-auto p-3"}>
+      <div data-bp-episode-streams={bigPicture ? true : undefined} className={bigPicture ? "min-h-0 flex-1 overflow-hidden overscroll-none px-5 py-3" : fixedHeightPanel ? "min-h-0 flex-1 overflow-y-auto overscroll-none px-5 py-3" : "max-h-[calc(100vh-210px)] overflow-y-auto p-3"}>
         {error ? (
           <p className="mb-2 rounded-xl border border-white/[0.08] bg-black/24 px-4 py-3 text-sm font-semibold text-white/58">{error}</p>
         ) : null}

@@ -142,10 +142,45 @@ describe("posterArtworkCache", () => {
     flushPosterArtworkCacheForTests();
 
     const stored = storage.get("aetherio.spatial-posters.ready.v1") ?? "";
-    // La clave guardada lleva `firma::url`: al resolver, `split("::")` debe dar
-    // la URL completa, no un fragmento. Una URL con `?a=1&b=2` es el caso que
-    // rompe si se parte por cualquier separador.
-    expect(stored).toContain("sig-1::" + url);
+    // La clave guardada lleva `firma::ruta canónica`: al resolver, `split("::")`
+    // debe dar la ruta completa, no un fragmento. Una URL con `?a=1&b=2` es el
+    // caso que rompe si se parte por cualquier separador.
+    expect(stored).toContain("sig-1::/api/poster/movie/11?lang=es");
     expect(Object.keys(JSON.parse(stored).ready)).toHaveLength(1);
+  });
+
+  // El proxy Rust escucha en un puerto efímero distinto en cada arranque. Antes
+  // la clave persistida incluía ese puerto, así que ningún veredicto sobrevivía
+  // al reinicio y todo se re-verificaba por red.
+  it("no vuelve a verificar si solo cambió el puerto efímero del proxy", async () => {
+    const settings = DEFAULT_SPATIAL_POSTER_SETTINGS;
+    const signature = "sig-home";
+    const firstSession = "http://127.0.0.1:50001/api/poster/movie/11?lang=es";
+    const secondSession = "http://127.0.0.1:50002/api/poster/movie/11?lang=es";
+
+    await preloadPosterArtwork(firstSession, settings, signature);
+    flushPosterArtworkCacheForTests();
+    expect(loads).toBe(1);
+
+    // Reinicio: mismo query, puerto nuevo. Se resuelve con la URL de esta sesión.
+    resetPosterArtworkCacheForTests();
+    expect(await preloadPosterArtwork(secondSession, settings, signature)).toBe(secondSession);
+    expect(loads).toBe(1);
+  });
+
+  it("migra las claves guardadas por versiones anteriores al cargar el registro", async () => {
+    const settings = DEFAULT_SPATIAL_POSTER_SETTINGS;
+    const signature = "sig-home";
+    storage.set("aetherio.spatial-posters.ready.v1", JSON.stringify({
+      v: 1,
+      ready: {
+        [`${signature}::http://127.0.0.1:39999/api/poster/movie/11?lang=es`]: Date.now(),
+      },
+      failed: {},
+    }));
+
+    const url = "http://127.0.0.1:50002/api/poster/movie/11?lang=es";
+    expect(await preloadPosterArtwork(url, settings, signature)).toBe(url);
+    expect(loads).toBe(0);
   });
 });

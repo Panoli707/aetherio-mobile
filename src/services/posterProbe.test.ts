@@ -1,9 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   POSTER_PROBE_FAIL_TTL_MS,
   POSTER_PROBE_MAX_CONCURRENT,
   POSTER_PROBE_TIMEOUT_MS,
+  forgetPosterFailure,
+  resetPosterProbeState,
+  verifyPosterUrl,
 } from "./posterProbe";
 
 describe("presupuestos del probe de pósteres", () => {
@@ -47,5 +50,35 @@ describe("presupuestos del probe de pósteres", () => {
     const colaSegundos = (posters / POSTER_PROBE_MAX_CONCURRENT) * renderSeconds;
     const presupuestoSplash = 90;
     expect(colaSegundos).toBeLessThan(presupuestoSplash);
+  });
+});
+
+describe("reintento de pósteres fallidos", () => {
+  afterEach(() => resetPosterProbeState());
+
+  it("un fallo reciente no vuelve a sondear la red hasta que expira el TTL", async () => {
+    let intentos = 0;
+    const loadImage = () => {
+      intentos += 1;
+      return Promise.reject(new Error("image-error"));
+    };
+    expect(await verifyPosterUrl("u-muerta", { loadImage })).toBe(false);
+    expect(await verifyPosterUrl("u-muerta", { loadImage })).toBe(false);
+    expect(intentos).toBe(1);
+  });
+
+  it("forgetPosterFailure fuerza el sondeo real aunque el fallo sea reciente", async () => {
+    // El bucle de espera del arranque depende de esto: sin olvidar el fallo,
+    // cada vuelta respondia desde el TTL y un 404 terminal agotaba el
+    // presupuesto del splash esperando algo que nunca se recupera.
+    let intentos = 0;
+    const loadImage = () => {
+      intentos += 1;
+      return intentos >= 2 ? Promise.resolve() : Promise.reject(new Error("image-error"));
+    };
+    expect(await verifyPosterUrl("u-flaky", { loadImage })).toBe(false);
+    forgetPosterFailure("u-flaky");
+    expect(await verifyPosterUrl("u-flaky", { loadImage })).toBe(true);
+    expect(intentos).toBe(2);
   });
 });

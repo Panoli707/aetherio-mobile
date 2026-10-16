@@ -212,7 +212,9 @@ describe("buildSpatialPosterUrl", () => {
   });
 
   it("omite los parámetros cuando los toggles están activos", () => {
-    const p = paramsOf(buildSpatialPosterUrl(1, "movie", BASE));
+    // `badgeRating` viene apagado por defecto desde 0.9.0 (emite `br=0`), así que
+    // se enciende explícitamente para cubrir también la omisión de `br`.
+    const p = paramsOf(buildSpatialPosterUrl(1, "movie", { ...BASE, badgeRating: true }));
     for (const key of ["badges", "ranking", "bg", "by", "br", "netLogo", "be"]) {
       expect(p.get(key)).toBeNull();
     }

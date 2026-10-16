@@ -15,7 +15,7 @@ import { probeSpatialInstance, resetSpatialAvailability } from "../services/spat
 import { resolvePosterEndpoint } from "../services/posterServer.ts";
 import { clearSpatialRankCache, fetchSpatialRankMap, spatialRankOf } from "../services/spatialRank.ts";
 import { preloadArtworkImage, preloadPosterArtwork, isPosterArtworkFailed } from "../services/posterArtworkCache.ts";
-import { POSTER_PROBE_MAX_CONCURRENT } from "../services/posterProbe.ts";
+import { POSTER_PROBE_MAX_CONCURRENT, forgetPosterFailure } from "../services/posterProbe.ts";
 import { isTopFormatRow } from "../utils/topRows.ts";
 import { getMdbListSettings } from "../config/mdblist.ts";
 import {
@@ -217,7 +217,12 @@ function isoDate(offsetDays = 0) {
 }
 
 function todayKey() {
-  return new Date().toISOString().slice(0, 10);
+  // Fecha LOCAL, no UTC: con `toISOString()` el ranking "Hoy" y su firma rotaban
+  // varias horas antes de medianoche en husos al oeste de UTC.
+  const date = new Date();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${month}-${day}`;
 }
 
 function hashValue(value: string) {
@@ -1222,13 +1227,17 @@ async function enrichHeroRatings(items: MediaItem[]) {
 
 function cachedRows(signature: string) {
   const home = useCacheStore.getState().home;
-  if (!home || home.rowsSignature !== signature || !isFreshHomeCache(home.rowsUpdatedAt)) return undefined;
+  if (!home || home.rowsSignature !== signature || !isFreshHomeCache(home.rowsUpdatedAt)) {
+    return undefined;
+  }
   return home.rows;
 }
 
 function cachedHero(signature: string) {
   const home = useCacheStore.getState().home;
-  if (!home || home.heroSignature !== signature || !isFreshHomeCache(home.heroUpdatedAt)) return undefined;
+  if (!home || home.heroSignature !== signature || !isFreshHomeCache(home.heroUpdatedAt)) {
+    return undefined;
+  }
   return home.heroItems.map(item => ({
     ...item,
     background: upgradeTmdbImage(item.background, HOME_BACKGROUND_IMAGE_SIZE),
@@ -1385,8 +1394,11 @@ export async function warmHomeStartup(
   // rompio. El mensaje lleva los numeros que explican cuanto faltaba y cuanto se
   // espero, que es lo que haria falta para diagnosticar sin instrumentar.
   if (pending > 0) {
+    const waitedS = Math.round(
+      Math.max(0, SPLASH_POSTER_BUDGET_MS - (postersDeadline - Date.now())) / 1000,
+    );
     console.warn(
-      `[posters] ${pending} póster(es) sin SpatialPosters tras ${Math.round(SPLASH_POSTER_BUDGET_MS / 1000)} s de presupuesto; ` +
+      `[posters] ${pending} póster(es) sin SpatialPosters tras ${waitedS} s de espera; ` +
         "se entra a Home y esas cards usan el póster de TMDB.",
     );
   }
@@ -1394,15 +1406,20 @@ export async function warmHomeStartup(
 }
 
 /**
- * Espera a que se vacíe la lista de posters pendientes, hasta `deadlineMs`.
+ * Espera a que se vacíe la lista de posters pendientes, hasta `remainingMs`.
  * Devuelve los que siguen faltando.
  *
  * El presupuesto es TOTAL y corre para todo lo que queda de arranque: la
- * primera pasada del prewarm mas estas esperas. Antes cada una tenia su propio
- * techo (120 s aqui, 300 s en `PREWARM_TIMEOUT_MS`) y el splash acababa
- * esperando hasta 7 minutos: la app se veia trabada en el logo sin explicacion.
- * Ahora hay un unico deadline que se comparte, asi que el tiempo de espera en
- * el splash esta acotado por una sola cifra.
+ * primera pasada del prewarm mas estas esperas.
+ *
+ * Cada vuelta re-verifica de verdad a los que faltan: les borra el fallo
+ * recordado antes de sondearlos, asi los que cayeron por cola congestionada se
+ * recuperan apenas la cola baja. Un fallo terminal (un 404 de un titulo que la
+ * instancia no sabe renderizar) no se recupera por mas que se reintente, asi
+ * que si el conjunto pendiente no baja en dos vueltas seguidas se corta ahi y
+ * esas cards usan el poster de TMDB. Antes se seguia hasta el deadline
+ * esperando cada TTL de 15 s: con un solo 404 el splash quemaba los 75 s
+ * completos en cada arranque aunque el resto ya estuviera en el registro.
  */
 async function waitForPostersOrGiveUp(
   rows: CatalogRowData[],
@@ -1412,20 +1429,31 @@ async function waitForPostersOrGiveUp(
   const settings = getSpatialPosterSettings();
   if (!isSpatialPostersConfigured(settings)) return 0;
   const startedAt = Date.now();
-  // Cada vuelta reintenta los que faltan y duerme un poco. El duerme importa:
-  // sin el, este bucle corre requests seguidas sin pausas y compite con el
-  // propio SpatialPosters por CPU, que es justo lo que hace que los renders
-  // tarden mas.
+  const signature = spatialPosterSignature(settings);
+  let noProgressStreak = 0;
   while (Date.now() - startedAt < remainingMs) {
+    const missing = collectMissingPosterTargets(rows, settings, signature);
+    // Sin pendientes no hay nada que esperar: se entra ya.
+    if (!missing.length) return 0;
+    for (const url of missing) forgetPosterFailure(url);
     const pending = await retryMissingPosters(
       rows,
       posterProgress,
       remainingMs - (Date.now() - startedAt),
     );
     if (pending === 0) return 0;
+    if (pending < missing.length) {
+      noProgressStreak = 0;
+    } else {
+      noProgressStreak += 1;
+      if (noProgressStreak >= 2) return pending;
+    }
+    // La pausa entre vueltas importa: sin ella este bucle corre requests
+    // seguidas y compite con el propio SpatialPosters por CPU, que es justo lo
+    // que hace que los renders tarden mas.
     await delay(SPLASH_POSTER_POLL_MS);
   }
-  return collectMissingPosterTargets(rows, settings, spatialPosterSignature(settings)).length;
+  return collectMissingPosterTargets(rows, settings, signature).length;
 }
 
 function delay(ms: number): Promise<void> {
@@ -1583,8 +1611,9 @@ async function prewarmHomePosters(
  *
  * Solo cuenta los que tienen id TMDB: sin id no hay URL de SpatialPosters que
  * construir, y ese item ya está en su fallback de forma correcta y permanente.
- * Los que sí tienen id pero fallaron por cola congestedionada son los que la
- * segunda pasada intenta de nuevo.
+ * Los que sí tienen id y fallaron -cola congestionada o fallo terminal- son
+ * los que las re rondas reintentan; el corte por falta de progreso de
+ * `waitForPostersOrGiveUp` evita esperar por los que no se van a recuperar.
  */
 function collectMissingPosterTargets(
   rows: CatalogRowData[],

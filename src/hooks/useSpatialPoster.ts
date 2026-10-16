@@ -50,8 +50,11 @@ export function useSpatialPoster(
   fallbackPoster?: string,
 ): ResolvedPoster {
   const settings = useSpatialPosterSettings();
-  const rankingOverride = overrides?.rankingBadges;
-  const signature = `${spatialPosterSignature(settings)}|rank:${rankingOverride ?? "auto"}`;
+  // La firma NO lleva sufijo de ranking: el override ya vive en la URL
+  // (ranking=0 via buildSpatialPosterUrl) y prewarm/SpatialPosterImage marcan
+  // con la firma base. Duplicarlo aquí hacía que cada arranque re-sondeara por
+  // red todo póster ya verificado.
+  const signature = spatialPosterSignature(settings);
   const [verification, setVerification] = useState<{ url: string; ok: boolean } | null>(null);
 
   const enabled = isSpatialPostersConfigured(settings) && !disabled;

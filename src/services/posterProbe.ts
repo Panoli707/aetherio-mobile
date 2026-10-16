@@ -104,6 +104,15 @@ export function resetPosterProbeState() {
   verifyQueue.length = 0;
 }
 
+/**
+ * Olvida el fallo registrado de una URL. El siguiente `verifyPosterUrl` vuelve
+ * a sondear la red en vez de responder `false` desde el TTL. Lo usa el bucle de
+ * espera del arranque para reintentar de verdad, sin depender del reloj.
+ */
+export function forgetPosterFailure(url: string) {
+  failedAt.delete(url);
+}
+
 /** ¿Esta URL SpatialPosters ya demostró que carga? (lectura síncrona, sin red). */
 export function isPosterVerified(url: string): boolean {
   return verifiedUrls.has(url);
@@ -160,15 +169,20 @@ export function verifyPosterUrl(
           } else {
             failedAt.set(url, Date.now());
           }
+          // Liberar antes de resolver: quien espera esta promesa puede
+          // reintentar la misma URL en el mismo tick (bucle de espera del
+          // arranque) y debe empezar una verificacion nueva, no recibir el
+          // resultado viejo ya resuelto.
+          if (inFlight.get(url) === task) inFlight.delete(url);
           resolve(ok);
         },
         () => {
           failedAt.set(url, Date.now());
+          if (inFlight.get(url) === task) inFlight.delete(url);
           resolve(false);
         },
       ).finally(() => {
         verifyActive -= 1;
-        if (inFlight.get(url) === task) inFlight.delete(url);
         verifyDrain();
       });
     };

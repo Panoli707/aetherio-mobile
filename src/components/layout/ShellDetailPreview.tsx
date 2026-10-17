@@ -86,6 +86,21 @@ const SHELL_COLLAPSE_MS = 460;
 // reenvían (scroll/movimiento).
 const SHELL_ENTER_ARM_MS = 900;
 
+/**
+ * El picker de arte o un menú contextual pueden abrirse ENCIMA de la shell
+ * (p. ej. desde el menú de una card con el preview aún montado). En ese caso el
+ * teclado/el mando son de esa capa: la shell no debe consumirlos ni
+ * reenviarlos, o las flechas moverían el carrusel o expandirían el detalle
+ * detrás del panel. `data-shell-preview` excluye la propia shell; los overlays
+ * de dentro de un iframe viven en otro documento y no cuentan aquí (los cubre
+ * la navegación espacial del propio iframe).
+ */
+function hasOverlayAboveShell(): boolean {
+  return Boolean(document.querySelector(
+    '[data-aetherio-context-menu][data-context-open="true"], [data-spatial-modal]:not([data-shell-preview]):not([hidden])',
+  ));
+}
+
 export default function ShellDetailPreview({ request, dismissed = false, onClose, onNavigate }: ShellDetailPreviewProps) {
   const items = request.items?.length ? request.items : [request];
   const count = items.length;
@@ -486,6 +501,10 @@ useEffect(() => {
       if (dismissedRef.current) return;
       const key = event.key;
       if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Enter", "Escape", "Esc", "Tab"].includes(key)) return;
+      // Con otra capa encima (picker de arte, menú contextual) el teclado es
+      // suyo: la shell ni consume ni reenvía, o las flechas moverían el
+      // carrusel/expandirían el detalle detrás del panel.
+      if (hasOverlayAboveShell()) return;
       const state = shellStateRef.current;
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -571,6 +590,9 @@ useEffect(() => {
   useEffect(() => {
     const onGamepadAction = (event: Event) => {
       if (dismissedRef.current) return;
+      // Igual que el teclado: con una capa encima (picker/menú) las acciones
+      // son para ella, no para el carrusel de debajo.
+      if (hasOverlayAboveShell()) return;
       const id = (event as CustomEvent<{ id?: GamepadActionId; repeat?: boolean }>).detail?.id;
       const state = shellStateRef.current;
       // Analógico/D-pad abajo en el carrusel (sin expandir): expande la shell

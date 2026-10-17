@@ -403,14 +403,6 @@
   .bp-addons-page * { transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
 }
 
-@media (prefers-reduced-transparency: reduce) {
-  .bp-settings-page__group-body,
-  .bp-addons-page__install,
-  .bp-addons-page__card,
-  .bp-addons-page__keyboard,
-  .bp-addons-page__confirm { background: #1c1e22; backdrop-filter: none; }
-}
-
 @media (prefers-contrast: more) {
   .bp-settings-page__group-body,
   .bp-settings-page__nav-item,

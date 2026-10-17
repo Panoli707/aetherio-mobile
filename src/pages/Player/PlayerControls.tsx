@@ -26,7 +26,7 @@ import {
 import type { EpisodeOption, SelectOption, VideoScaleMode } from "./types";
 import { formatTime } from "./utils";
 import ContextMenu from "../../components/ui/ContextMenu";
-import { getContextGlassStyle } from "../../components/ui/glassSurface";
+import { getPlayerGlassSurface } from "../../components/ui/glassSurface";
 import type { StreamFormatBadge } from "../../utils/streamFormatters";
 import { formatAirDate, formatRuntime } from "../../utils/mediaLabels";
 import { gsap, springTo, prefersReducedMotion, anchorTransformOrigin } from "../../utils/motion";
@@ -1031,16 +1031,9 @@ useEffect(() => {
     </span>
   ) : null;
 
-  // Mismo material que el sidebar de Big Picture (.bp-rail__box).
-  // El relleno opaco y el backdropFilter se juzgan por la MISMA condicion: si el
-  // relleno se vuelve opaco por una preferencia que el filtro no comparte, el
-  // vidrio queda tapado por un panel casi solido y no se ve. Por eso el
-  // reduced-transparency se resuelve una vez aqui y gobierna ambos ramos.
-  // (Que antes el relleno gateara por prefersReducedMotion era el bug: con
-  // reduced motion activo ponia rgba(28,28,30,0.94) mientras el filtro seguia
-  // en url(#frosted-lg) — 94% opaco encima, refraccion invisible.)
-  const reducedTransparency = typeof window !== "undefined"
-    && window.matchMedia?.("(prefers-reduced-transparency: reduce)").matches;
+  // Mismo material que el sidebar de Big Picture (.bp-rail__box): el relleno
+  // semitransparente y el filtro permanecen juntos para que el vidrio no quede
+  // tapado por una superficie casi sólida.
 
   // Big Picture: la barra ya no es una capsula de vidrio. Es contenido sobre el
   // video con una SOMBRA DEGRADADA (como la referencia): el panel se apoya en la
@@ -1053,9 +1046,9 @@ useEffect(() => {
   const glassStyle: CSSProperties = bigPicture
     ? { background: "transparent" }
     : {
-        background: reducedTransparency ? "rgba(28,28,30,0.94)" : "rgba(70, 70, 70, 0.22)",
-        backdropFilter: reducedTransparency ? "none" : "var(--lg-filter-lg)",
-        WebkitBackdropFilter: reducedTransparency ? "none" : "var(--lg-filter-lg)",
+        background: "rgba(70, 70, 70, 0.22)",
+        backdropFilter: "var(--lg-filter-lg)",
+        WebkitBackdropFilter: "var(--lg-filter-lg)",
         border: "1px solid rgba(255,255,255,0.08)",
         willChange: "transform, backdrop-filter",
         transform: "translateZ(0)",
@@ -2211,7 +2204,16 @@ if (bigPicture) {
     backdropFilter: "var(--lg-filter-sm)",
     WebkitBackdropFilter: "var(--lg-filter-sm)",
                     }
-                  : getContextGlassStyle()),
+                  : {
+                      // Vidrio oscuro del reproductor; el desenfoque lo pone el
+                      // shader de MPV (este panel lleva
+                      // data-player-floating-panel-glass y subtitleAlpha ya lo
+                      // cubre en buildGeometry), igual que en los menús: CSS no
+                      // filtra el video nativo de forma fiable en WebView2.
+                      ...getPlayerGlassSurface(),
+                      backdropFilter: "none",
+                      WebkitBackdropFilter: "none",
+                    }),
                 ...(bigPicture
                   ? {}
                   : {

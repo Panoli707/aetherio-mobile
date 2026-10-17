@@ -511,8 +511,16 @@ function collectCandidates(): HTMLElement[] {
   // Se ignoran las ocultas: el preview shell sigue en el DOM (con `hidden`)
   // para que sus iframes conserven la cache del Detail, y si contara, el mando
   // se quedaría encerrado en un overlay que ya no se ve.
-  const modal = Array.from(document.querySelectorAll<HTMLElement>("[data-spatial-modal]"))
-    .find(el => !el.hidden);
+  //
+  // Gana la última superficie visible del DOM: los overlays que se abren
+  // encima de otro ya montado (p. ej. el picker de arte sobre el preview
+  // shell) portalean al final de `body`, y elegir la primera dejaba al mando
+  // moviéndose por la capa de debajo. Las anidadas se resuelven por su
+  // ancestro visible más externo (el diálogo dentro del panel no cambia nada).
+  const modals = Array.from(document.querySelectorAll<HTMLElement>("[data-spatial-modal]"))
+    .filter(el => !el.hidden);
+  const topLevel = modals.filter(el => !modals.some(other => other !== el && other.contains(el)));
+  const modal = topLevel[topLevel.length - 1] ?? modals[modals.length - 1] ?? null;
   const scope = modal ?? document;
   return Array.from(scope.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(isVisibleFocusable);
 }

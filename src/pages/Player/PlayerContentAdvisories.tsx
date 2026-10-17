@@ -6,7 +6,6 @@ import {
   gsap,
   prefersContrastMore,
   prefersReducedMotion,
-  prefersReducedTransparency,
 } from "../../utils/motion";
 import { resolveTmdbId } from "./utils";
 
@@ -323,11 +322,8 @@ export default function PlayerContentAdvisories({
     };
   }, [bigPicture, dismissed, itemKey, onComplete]);
 
-  const reducedTransparency = prefersReducedTransparency();
   const increasedContrast = prefersContrastMore();
-  const panelBackground = reducedTransparency
-    ? "rgba(20, 20, 22, 0.96)"
-    : "rgba(20, 20, 22, 0.68)";
+  const panelBackground = "rgba(20, 20, 22, 0.68)";
   const panelBorder = increasedContrast ? "rgba(255, 255, 255, 0.42)" : "rgba(255, 255, 255, 0.12)";
   const panelColor = "rgba(255, 255, 255, 0.96)";
   const mutedColor = "rgba(255, 255, 255, 0.56)";
@@ -366,8 +362,8 @@ export default function PlayerContentAdvisories({
           background: panelBackground,
           border: `1px solid ${panelBorder}`,
           boxShadow: "0 18px 52px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.1)",
-    backdropFilter: reducedTransparency ? "none" : "var(--lg-filter-lg)",
-    WebkitBackdropFilter: reducedTransparency ? "none" : "var(--lg-filter-lg)",
+          backdropFilter: "var(--lg-filter-lg)",
+          WebkitBackdropFilter: "var(--lg-filter-lg)",
           willChange: "transform, opacity, filter",
         }}
       >

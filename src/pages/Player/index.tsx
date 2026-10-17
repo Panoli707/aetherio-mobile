@@ -96,7 +96,6 @@ import { useDiscordPresence } from "../../hooks/useDiscordPresence";
 import {
   AUTO_NEXT_SOURCE_KEY,
   AVAILABLE_STREAMS_KEY,
-  DIRECT_STREAM_FALLBACKS_KEY,
   SELECTED_ENGINE_KEY,
   SELECTED_MEDIA_META_KEY,
   SELECTED_PLAYBACK_OVERRIDES_KEY,
@@ -266,8 +265,6 @@ export default function PlayerPage() {
   const traktStartedKeyRef = useRef("");
   const traktStoppedKeyRef = useRef("");
   const nextEpisodePromptKeyRef = useRef("");
-  const directFallbacksRef = useRef<MediaStream[]>([]);
-  const attemptedDirectTargetsRef = useRef(new Set<string>());
   const skipButtonRef = useRef<HTMLButtonElement | null>(null);
   const fallbackRetryButtonRef = useRef<HTMLButtonElement | null>(null);
   const autoSubtitlePathRef = useRef("");
@@ -674,24 +671,6 @@ export default function PlayerPage() {
           setSelectedResumeTime(0);
         }
       }
-      try {
-        const rawFallbacks = sessionStorage.getItem(DIRECT_STREAM_FALLBACKS_KEY);
-        const parsedFallbacks = rawFallbacks ? JSON.parse(rawFallbacks) as unknown : [];
-        directFallbacksRef.current = Array.isArray(parsedFallbacks)
-          ? parsedFallbacks
-              .filter((candidate): candidate is MediaStream => (
-                Boolean(candidate)
-                && typeof candidate === "object"
-                && isPlayableMediaStream(candidate as MediaStream)
-                && getStreamKind(candidate as MediaStream) === "https"
-              ))
-              .slice(0, 6)
-          : [];
-      } catch {
-        directFallbacksRef.current = [];
-      }
-      const selectedTarget = getPlaybackTarget(parsed);
-      if (selectedTarget) attemptedDirectTargetsRef.current.add(selectedTarget);
       setStream(parsed);
       sessionStorage.setItem(SELECTED_ENGINE_KEY, "mpv");
     } catch {
@@ -700,27 +679,27 @@ export default function PlayerPage() {
   }, [localPlaybackKey]);
 
   useEffect(() => {
-    if (isP2pStream || !mpvStatus?.startsWith("MPV no pudo cargar esta fuente") || leavingPlayerRef.current) return;
-    const next = directFallbacksRef.current.find(candidate => {
-      const target = getPlaybackTarget(candidate);
-      return target && !attemptedDirectTargetsRef.current.has(target);
-    });
-    if (!next) return;
-    const failed = stream;
-    const nextTarget = getPlaybackTarget(next);
-    attemptedDirectTargetsRef.current.add(nextTarget);
-    sessionStorage.setItem(SELECTED_STREAM_KEY, JSON.stringify(next));
-    console.warn("[AETHERIO:DIRECT] automatic fallback", {
-      failedProvider: failed?.addonName ?? failed?.name,
-      nextProvider: next.addonName ?? next.name,
-      attempted: attemptedDirectTargetsRef.current.size,
-      remaining: directFallbacksRef.current.filter(candidate => (
-        !attemptedDirectTargetsRef.current.has(getPlaybackTarget(candidate))
-      )).length,
-    });
-    setMpvStatus(`La fuente ${failed?.name ?? "seleccionada"} no respondio. Probando ${next.name ?? next.addonName ?? "otra fuente"}...`);
-    setStream(next);
-  }, [isP2pStream, mpvStatus, stream]);
+    // Sin fallback automatico: si la fuente elegida no llega a cargar (error
+    // de MPV, timeout de carga o archivo sin cuadros reproducibles), se vuelve
+    // al picker de Episodie (`fromPlayer=1`) para que el usuario elija otra.
+    // El Player nunca cambia de stream por su cuenta.
+    // Los directos (`type=live`) quedan fuera: no tienen picker al que volver
+    // (Episodie no maneja eventos live) y conservan el panel de Fuentes del
+    // reproductor para cambiar de fuente a mano.
+    if (isP2pStream || params.get("type") === "live" || !mpvStatus?.startsWith("MPV no pudo cargar esta fuente") || leavingPlayerRef.current) return;
+    leavingPlayerRef.current = true;
+    setIsLeavingPlayer(true);
+    setMpvStatus(null);
+    const target = getStreamsPath() ?? getDetailPath();
+    void stopNativePlayback()
+      .finally(() => {
+        if (target) {
+          navigate(target, { replace: true });
+          return;
+        }
+        navigate(-1);
+      });
+  }, [isP2pStream, mpvStatus, params, navigate]);
 
   useEffect(() => {
     getPlaybackCapabilities()
@@ -1624,17 +1603,6 @@ export default function PlayerPage() {
     } catch {
       sessionStorage.setItem(SELECTED_STREAM_KEY, JSON.stringify(nextStream));
     }
-    const directFallbacks = availableStreams
-      .filter(candidate => (
-        candidate.id !== nextStream.id
-        && getStreamKind(candidate) === "https"
-        && candidate.behaviorHints?.scraperPlayback !== "iframe"
-      ))
-      .slice(0, 6);
-    directFallbacksRef.current = directFallbacks;
-    const nextTarget = getPlaybackTarget(nextStream);
-    attemptedDirectTargetsRef.current = new Set(nextTarget ? [nextTarget] : []);
-    sessionStorage.setItem(DIRECT_STREAM_FALLBACKS_KEY, JSON.stringify(directFallbacks));
     console.info("[AETHERIO:SOURCE-PANEL] switching source", {
       from: stream?.addonName ?? stream?.name,
       to: nextStream.addonName ?? nextStream.name,
@@ -3168,7 +3136,6 @@ useEffect(() => {
   try {
     sessionStorage.removeItem(SELECTED_STREAM_KEY);
     sessionStorage.removeItem(AVAILABLE_STREAMS_KEY);
-    sessionStorage.removeItem(DIRECT_STREAM_FALLBACKS_KEY);
     sessionStorage.setItem(SELECTED_ENGINE_KEY, "mpv");
     sessionStorage.setItem(SELECTED_MEDIA_META_KEY, JSON.stringify({
       name: ("title" in target && target.title) || target.id,

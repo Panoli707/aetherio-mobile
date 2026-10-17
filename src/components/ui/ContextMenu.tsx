@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject, type Reac
 import { createPortal } from "react-dom";
 import { AudioWaveform } from "lucide-react";
 import { gsap, tweenTo, springTo, prefersReducedMotion, anchorTransformOrigin } from "../../utils/motion";
-import { getContextGlassStyle } from "./glassSurface";
+import { getPlayerGlassSurface } from "./glassSurface";
 
 /** Hay algún menú contextual abierto (portal con data-aetherio-context-menu). */
 export function isContextMenuOpen(): boolean {
@@ -314,9 +314,17 @@ export default function ContextMenu({
   // Si tras filtrar no queda nada, no renderiza el menú vacío que provocaba el artefacto "TO AI"
   if (!sanitizedItems.length) return null;
 
-  // §14 — respect reduced-transparency / contrast
-  const glassStyle = getContextGlassStyle();
+  // §14 — getPlayerGlassSurface mantiene el estilo de contraste alto. Dentro
+  // del reproductor, el shader de MPV pone el desenfoque: este panel lleva
+  // `data-player-floating-panel-glass`,
+  // así que su rectángulo entra en la geometría del blur por GPU, y el
+  // `backdrop-filter` de CSS encima era una segunda superficie de muestreo
+  // sobre la superficie nativa del video, que en WebView2 sale a ratos; por eso
+  // ahí se apaga. Fuera del reproductor no hay shader: el vidrio lo hace la
+  // superficie de blur --lg-blur-xl.
+  const glassStyle = getPlayerGlassSurface();
   const apple = variant === "apple";
+  const inPlayer = Boolean(anchorRef.current?.closest("[data-player-controls-glass]"));
   return createPortal(
     <div
       ref={menuRef}
@@ -327,21 +335,8 @@ export default function ContextMenu({
       className="aetherio-context-menu"
       role="menu"
       style={{
-        ...(apple
-          ? {
-              // El desenfoque lo pone el shader de MPV: este panel lleva
-              // `data-player-floating-panel-glass`, asi que su rectangulo entra
-              // en la geometria del blur por GPU. El `backdrop-filter` de CSS
-              // encima era una segunda superficie de muestreo sobre la
-              // superficie nativa del video, y en WebView2 sale a ratos:
-              // por eso el material parecia poco fiable. Aqui solo la velo,mas
-              // claro para que el blur del shader se lea por debajo.
-              ...glassStyle,
-              background: "rgba(20,21,24,0.42)",
-              backdropFilter: "none",
-              WebkitBackdropFilter: "none",
-              boxShadow: "0 28px 70px rgba(0,0,0,0.55), 0 2px 10px rgba(0,0,0,0.4)",
-            }
+        ...(inPlayer
+          ? { ...glassStyle, backdropFilter: "none", WebkitBackdropFilter: "none" }
           : glassStyle),
         position: "fixed",
         left: position.left,

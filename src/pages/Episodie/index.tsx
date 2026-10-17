@@ -103,7 +103,6 @@ const FROM_PLAYER_PARAM = "fromPlayer";
 const AUTO_OPTION = "auto";
 const NO_SUBTITLES_OPTION = "none";
 const PLAYER_HANDOFF_DELAY_MS = 90;
-const DIRECT_STREAM_FALLBACKS_KEY = "aetherio-direct-stream-fallbacks";
 const PRIORITY_ANIME_SOURCES = ["AnimeAV1", "AnimES", "AnimeFLV", "GojoWtf", "AnimeKai", "Torrentio", "Nyaa.si", "SeaDex", "AnimeTosho", "AnimeSaturn", "AnimeSaturn (Mirror)", "AnimeUnity", "AnimeUnity (Mirror)", "AnimeWorld"] as const;
 
 function numberValue(value: unknown) {
@@ -297,7 +296,6 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
     try {
       sessionStorage.removeItem(SELECTED_STREAM_KEY);
       sessionStorage.removeItem(AVAILABLE_STREAMS_KEY);
-      sessionStorage.removeItem(DIRECT_STREAM_FALLBACKS_KEY);
       sessionStorage.setItem(SELECTED_ENGINE_KEY, "mpv");
       sessionStorage.setItem(SELECTED_MEDIA_META_KEY, JSON.stringify({
         name: target.title || target.id,
@@ -951,18 +949,6 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
       key: availableStreamsMediaKey(query),
       streams: allStreams,
     }));
-    if (getStreamKind(stream) === "https") {
-      const fallbacks = allStreams
-        .filter((candidate: MediaStream) => (
-          candidate.id !== stream.id
-          && getStreamKind(candidate) === "https"
-          && candidate.behaviorHints?.scraperPlayback !== "iframe"
-        ))
-        .slice(0, 6);
-      sessionStorage.setItem(DIRECT_STREAM_FALLBACKS_KEY, JSON.stringify(fallbacks));
-    } else {
-      sessionStorage.removeItem(DIRECT_STREAM_FALLBACKS_KEY);
-    }
     sessionStorage.setItem(SELECTED_ENGINE_KEY, "mpv");
     sessionStorage.setItem(SELECTED_MEDIA_META_KEY, JSON.stringify({
       name: mainTitle,

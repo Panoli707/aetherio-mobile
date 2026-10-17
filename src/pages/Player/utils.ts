@@ -29,14 +29,6 @@ export const SELECTED_ENGINE_KEY = "aetherio-selected-engine";
 export const SELECTED_MEDIA_META_KEY = "aetherio-selected-media-meta";
 export const SELECTED_PLAYBACK_OVERRIDES_KEY = "aetherio-selected-playback-overrides";
 export const AUTO_NEXT_SOURCE_KEY = "aetherio-auto-next-source";
-/**
- * Alternativas https que el Player reintenta solo cuando una fuente muere.
- *
- * Vive aqui y no en el componente porque tambien la escribe quien prepara la
- * sesion de un directo (`primeLivePlaybackSession`): sin esta clave, un evento
- * con varias fuentes se queda clavado en la primera muerta.
- */
-export const DIRECT_STREAM_FALLBACKS_KEY = "aetherio-direct-stream-fallbacks";
 export const TMDB = "https://api.themoviedb.org/3";
 export const IMG = "https://image.tmdb.org/t/p";
 export const DETAIL_LOGO_KEY = "aetherio-detail-logo";

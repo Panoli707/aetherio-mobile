@@ -3,19 +3,19 @@ import gsap from "gsap";
 import type { ContentRating } from "./contentRating";
 import { elegantEase } from "../../utils/motion";
 
-// Ciclo del aviso: entra con fundido, aguanta ocho segundos y se va con
+// Ciclo del aviso: entra con fundido, aguanta seis segundos y se va con
 // otro fundido. El descanso es generoso a proposito -- da tiempo a leerlo sin
 // que estorbe -- y los dos extremos lentos evitan el parpadeo que daria una
 // aparicion instantanea.
-const HOLD_MS = 8_000;
+const HOLD_MS = 6_000;
 const ENTER_MS = 0.72;
 const EXIT_MS = 0.6;
 
 interface PlayerContentRatingProps {
   rating: ContentRating;
   bigPicture: boolean;
-  /** Algo mas urgente tiene la pantalla: el aviso se retira sin ceremonia. */
-  dismissed: boolean;
+  /** Algo accionable ocupaba la pantalla (barra, Up Next): el aviso se retira ya. */
+  dismissed?: boolean;
   onComplete: () => void;
 }
 
@@ -34,14 +34,16 @@ interface PlayerContentRatingProps {
 export default function PlayerContentRating({
   rating,
   bigPicture,
-  dismissed,
+  dismissed = false,
   onComplete,
 }: PlayerContentRatingProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const finishedRef = useRef(false);
   const holdTimerRef = useRef<number | null>(null);
   const exitStartedRef = useRef(false);
-  const dismissRequestedRef = useRef(false);
+  // `startExit` vive dentro del efecto del ciclo (temporizadores y tween), pero
+  // el descarte lo necesita desde fuera: se publica en un ref.
+  const startExitRef = useRef<(() => void) | null>(null);
   const contentKey = `${rating.age}:${rating.advisories.join("|")}`;
 
   useEffect(() => {
@@ -82,31 +84,35 @@ export default function PlayerContentRating({
       });
     };
 
-    if (dismissed) dismissRequestedRef.current = true;
-    if (dismissRequestedRef.current) {
-      startExit();
-    } else {
-      gsap.fromTo(
-        root,
-        { opacity: 0 },
-        {
-          opacity: 1,
-          duration: ENTER_MS,
-          ease: elegantEase,
-          overwrite: "auto",
-          onComplete: () => {
-            if (active) holdTimerRef.current = window.setTimeout(startExit, HOLD_MS);
-          },
+    startExitRef.current = startExit;
+
+    gsap.fromTo(
+      root,
+      { opacity: 0 },
+      {
+        opacity: 1,
+        duration: ENTER_MS,
+        ease: elegantEase,
+        overwrite: "auto",
+        onComplete: () => {
+          if (active) holdTimerRef.current = window.setTimeout(startExit, HOLD_MS);
         },
-      );
-    }
+      },
+    );
 
     return () => {
       active = false;
+      startExitRef.current = null;
       if (holdTimerRef.current !== null) window.clearTimeout(holdTimerRef.current);
       gsap.killTweensOf(root);
     };
-  }, [contentKey, dismissed, onComplete]);
+  }, [contentKey, onComplete]);
+
+  // Descartado antes de tiempo (barra de controles o Up Next en pantalla): el
+  // aviso se va con su mismo fundido en vez de esperar a cumplir los 6 s.
+  useEffect(() => {
+    if (dismissed) startExitRef.current?.();
+  }, [dismissed]);
 
   const age = rating.age ?? "";
 

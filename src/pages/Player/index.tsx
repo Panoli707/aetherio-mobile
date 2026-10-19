@@ -4010,7 +4010,6 @@ if (!stream) {
           key={`${contentRatingKey}:${contentRating.age}:${contentRating.advisories.join("|")}`}
           rating={contentRating}
           bigPicture={isBigPicturePlayer}
-          dismissed={controlsActive || showUpNext}
           onComplete={completeContentRating}
         />
       ) : null}

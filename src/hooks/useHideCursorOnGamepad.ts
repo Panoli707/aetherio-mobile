@@ -1,5 +1,9 @@
 import { useEffect, useRef } from "react";
 import { GAMEPAD_ACTIVITY_EVENT } from "./useGamepad.ts";
+import { holdCursorHidden, releaseCursorHidden } from "./useHiddenCursor.ts";
+
+/** Motivo propio del onboarding: no comparte contador con Big Picture. */
+const REASON = "onboarding-gamepad";
 
 /**
  * Con el mando en la mano el cursor sobra: al moverlo se esconde, y vuelve con
@@ -7,12 +11,13 @@ import { GAMEPAD_ACTIVITY_EVENT } from "./useGamepad.ts";
  *
  * El hook del mando sintetiza flechas/Enter/Escape con `new KeyboardEvent`
  * (isTrusted = false). Si el teclado se escuchara sin mirar eso, el primer stick
- * de la sesión traeria el cursor de vuelta y la page se quedaria en modo mando
+ * de la sesión traería el cursor de vuelta y la page se quedaría en modo mando
  * con el puntero delante.
  *
- * Es la misma regla que aplica ProfileSelection al alternar entre Big Picture y
- * modo normal; aquí solo se comparte el cursor, porque el flujo de creación no
- * cambia el modo de la app.
+ * A diferencia de `useHiddenCursor("gamepad")` aquí no se autoesconde tras unos
+ * segundos: el onboarding espera a que el usuario retome el ratón. El estado lo
+ * lleva `useHiddenCursor` para que varias superficies puedan pedir el cursor
+ * oculto a la vez sin pisarse.
  */
 export function useHideCursorOnGamepad(callbacks?: {
   /** Actividad del mando: el cursor se esconde. */
@@ -25,14 +30,12 @@ export function useHideCursorOnGamepad(callbacks?: {
   handlersRef.current = callbacks;
 
   useEffect(() => {
-    const root = document.documentElement;
-
     const onGamepad = () => {
-      root.classList.add("aetherio-bp-hide-cursor");
+      holdCursorHidden(REASON);
       handlersRef.current?.onGamepad?.();
     };
     const onNormalInput = () => {
-      root.classList.remove("aetherio-bp-hide-cursor");
+      releaseCursorHidden(REASON);
       handlersRef.current?.onNormalInput?.();
     };
     const onKey = (event: KeyboardEvent) => {
@@ -47,6 +50,7 @@ export function useHideCursorOnGamepad(callbacks?: {
       window.removeEventListener(GAMEPAD_ACTIVITY_EVENT, onGamepad);
       window.removeEventListener("mousemove", onNormalInput);
       window.removeEventListener("keydown", onKey, true);
+      releaseCursorHidden(REASON);
     };
   }, []);
 }

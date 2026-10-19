@@ -3,6 +3,7 @@ import { Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import LoadingState from "../../components/ui/LoadingState";
 import { useHomePreferences } from "../../config/homePreferences.ts";
 import { useHomeCatalogs } from "../../hooks/useCatalogs.ts";
+import { useHiddenCursor } from "../../hooks/useHiddenCursor.ts";
 import {
   closeWindow,
   enterBigPictureWindow,
@@ -187,30 +188,10 @@ export default function BigPicturePage() {
 
   // Steam: el cursor del SO desaparece; reaparece al mover el ratón y se
   // auto-oculta tras unos segundos quieto (o al navegar con mando/teclado).
-  useEffect(() => {
-    const root = document.documentElement;
-    const HIDE_AFTER_MS = 2500;
-    let timer = 0;
-    const hide = () => root.classList.add("aetherio-bp-hide-cursor");
-    const showTemporarily = () => {
-      root.classList.remove("aetherio-bp-hide-cursor");
-      window.clearTimeout(timer);
-      timer = window.setTimeout(hide, HIDE_AFTER_MS);
-    };
-    hide();
-    const onMouseMove = () => showTemporarily();
-    const onControllerNav = (e: KeyboardEvent) => {
-      if (e.key.startsWith("Arrow") || e.key === "Enter") hide();
-    };
-    window.addEventListener("mousemove", onMouseMove, { passive: true });
-    window.addEventListener("keydown", onControllerNav, true);
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("keydown", onControllerNav, true);
-      root.classList.remove("aetherio-bp-hide-cursor");
-    };
-  }, []);
+  // El reproductor de Big Picture hereda esta misma política (comparte motivo),
+  // de modo que el puntero no asoma ni al cambiar de sección ni durante la
+  // reproducción.
+  useHiddenCursor("gamepad", { idleMs: 2500 });
 
   // Mismo scroll con inercia de la app normal (rueda del ratón).
   useEffect(() => {

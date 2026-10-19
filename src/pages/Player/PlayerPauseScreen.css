@@ -1,0 +1,45 @@
+/*
+ * Entrada y salida de la pantalla de pausa.
+ *
+ * Van como ANIMACION y no como `transition` sobre `opacity` a proposito. La
+ * transicion necesita un frame anterior en el valor de partida para tener de
+ * donde arrancar: cuando el overlay se monta ya con `opacity: 1` --que es lo
+ * que pasaba al aparecer tras los 3 s-- no hay estado previo, la transicion no
+ * se ejecuta y la pantalla salta de golpe. Una animacion siempre reproduce su
+ * frame `from` en el montaje, entre o no hubiera nada antes.
+ *
+ * `player-pause-screen-out` termina en 0 y lo deja en 0 (`fill: both`), asi que
+ * el nodo se ve transparente durante todo el desmontaje y no hay un destello
+ * en el ultimo frame.
+ *
+ * La duracion esta en `FADE_MS` (PlayerPauseScreen.tsx) porque el temporizador
+ * que mantiene el nodo montado durante la salida tiene que durar lo mismo: si
+ * el nodo se desmonta antes de que termine la animacion, la salida se corta.
+ */
+
+@keyframes player-pause-screen-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes player-pause-screen-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.player-pause-screen {
+  animation: player-pause-screen-in 280ms ease both;
+}
+
+/* La animacion manda sobre esta opacidad; esto cubre el caso sin animacion. */
+.player-pause-screen[data-leaving="true"] {
+  opacity: 0;
+  animation: player-pause-screen-out 280ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .player-pause-screen,
+  .player-pause-screen[data-leaving="true"] {
+    animation: none;
+  }
+}

@@ -53,15 +53,18 @@ import SourcePanel from "./SourcePanel";
 import SourceResolver from "./SourceResolver";
 import PlayerControls from "./PlayerControls";
 import PlayerLoadingOverlay from "./PlayerLoadingOverlay";
+import PlayerPauseScreen, { usePauseScreenDelay } from "./PlayerPauseScreen";
 import { LiveBadge, LiveEndedNotice } from "./LiveOverlays";
 import PlayerActionFeedback, { type PlayerActionFeedbackData, type PlayerFeedbackKind } from "./PlayerActionFeedback";
 import PlayerContentRating from "./PlayerContentRating";
 import { useContentRating } from "./useContentRating";
+
 import { buildSeekrContent } from "./seekPreview/seekr";
 import { seekrLog } from "./seekPreview/seekrDebug";
 import UpNext from "../../components/upnext/UpNext";
 import { useRelatedRecommendation } from "../../hooks/useRelatedRecommendation";
 import { useControlsVisibility } from "./useControlsVisibility";
+import { useHiddenCursor } from "../../hooks/useHiddenCursor";
 import { useEpisodeMetadata, usePlayerLogos } from "./usePlayerMetadata";
 import { usePlayerKeyboardShortcuts } from "./usePlayerKeyboardShortcuts";
 import { usePlayerGamepad } from "./usePlayerGamepad";
@@ -442,6 +445,26 @@ export default function PlayerPage() {
   const isBigPicturePlayer = isBigPictureLocation();
   const trailerRequested = params.get("trailer") === "1";
   const isTrailerStream = trailerRequested || Boolean(safeStream?.ytId);
+
+  // El medio ya está en marcha: es la condición para esconder el puntero (y
+  // la que enciende la barra de controles más abajo).
+  const controlsReady = playbackStarted || (mpvReadyForCommands && mpvFileLoaded);
+
+  // Puntero del reproductor, con la misma política en los dos modos:
+  //  - Big Picture: manda el mando. El cursor se esconde al primer input del
+  //    mando y solo vuelve (temporalmente) al mover el ratón. Aquí importa
+  //    `GAMEPAD_ACTIVITY_EVENT` y no el teclado: el gamepad de este player
+  //    reclama sus acciones con preventDefault(), así que no llega ninguna
+  //    flecha sintética que pueda esconderlo.
+  //  - Modo normal: con medio en marcha, 3 s sin ratón ni teclado esconden el
+  //    cursor; el primer movimiento lo devuelve.
+  // Se apoya en la clase global de `useHiddenCursor` (cursor: none !important)
+  // y no en un estilo en línea: así también desaparece sobre la barra de
+  // controles, cuyos botones traen `cursor: pointer` propio que lo pisaría.
+  useHiddenCursor(isBigPicturePlayer ? "gamepad" : "idle", {
+    idleMs: isBigPicturePlayer ? 2500 : 3000,
+    enabled: controlsReady,
+  });
 
   // Entrar en la fila pausa sólo si la reproducción estaba avanzando. Al
   // volver al timeline se reanuda esa pausa automática; una pausa manual previa
@@ -3797,6 +3820,33 @@ const bufferingSignal = !manualPaused
 const initialPlaybackLoading = !playerVisuallyReady;
 const showPrePlaybackBackdrop = !showFallbackPanel && !playbackStarted && !mpvError;
 
+  // ---- Pantalla de pausa (estilo Netflix) -------------------------------
+  // Va ANTES de los `return` de carga y de estado vacio: el hook del retraso
+  // tiene que ejecutarse en todos los renders, o React complains con
+  // "Rendered more hooks than during the previous render".
+  //
+  // Sustituye a los controles en vez de superponerse: aparece 3 s despues de
+  // pausar, cuando la barra ya se ocultó sola, y cualquier `wakeControls()` la
+  // retira. Todo lo que bloquea (avisos, paneles, Up Next, lobby de Party,
+  // buffering) la mantiene oculta para que nunca tape algo accionable.
+  const pauseScreenBlocked = showUpNext
+    || activeSidePanel !== null
+    || bigPictureEpisodesOpen
+    || playerMenu !== null
+    || subtitleSync.open
+    || partyLobby
+    || stalledPlayback
+    || seekBuffering
+    || loadingOverlayVisible;
+  const pauseScreenArmed = manualPaused
+    && playbackStarted
+    && !showFallbackPanel
+    && !isLiveStream
+    && !isTrailerStream
+    && !pauseScreenBlocked;
+  const pauseScreenReady = usePauseScreenDelay(pauseScreenArmed, 3000);
+  const pauseScreenVisible = pauseScreenReady && !controlsVisible;
+
 useEffect(() => {
   if (loadingOverlayTimerRef.current !== null) {
     window.clearTimeout(loadingOverlayTimerRef.current);
@@ -3919,16 +3969,25 @@ if (!stream) {
     || seriesLogoUrl
     || null;
   const backgroundArtwork = contrastArtwork;
-  const controlsReady = playbackStarted || (mpvReadyForCommands && mpvFileLoaded);
-  const playerCursor = playbackStarted && !controlsActive ? "none" : "default";
   const playerShellClassName = !showFallbackPanel
     ? `relative h-screen w-screen overflow-hidden ${nativeSurfaceVisible ? "bg-transparent" : "bg-black"} text-white`
     : "relative h-screen w-screen overflow-hidden bg-[#1e1e1e] text-white";
+
+  // El logo del medio. Para una serie manda el logo de la serie; si no hay, el
+  // que resolvio el catalogo (mismo orden de preferencia que `loadingArtwork`).
+  const pauseScreenLogo = query
+    ? (seriesLogoUrl || selectedMediaLogo || detailLogoUrl || addonLogoUrl || null)
+    : null;
+  const pauseScreenOverview = query
+    ? (currentEpisode?.overview?.trim()
+      || readDetailMediaMeta(query.type, query.id)?.description?.trim()
+      || "")
+    : "";
   
   return (
     <div
       className={playerShellClassName}
-      style={{ cursor: playerCursor, fontFamily: "Inter, system-ui, sans-serif" }}
+      style={{ fontFamily: "Inter, system-ui, sans-serif" }}
       onPointerMove={() => wakeControls()}
       onPointerDown={startHoldToAccelerate}
       onPointerUp={stopHoldToAccelerate}
@@ -4152,6 +4211,18 @@ if (!stream) {
           }}
         />
       ) : null}
+
+      {/* Pantalla de pausa: solo cuando los controles ya se ocultaron solos. */}
+      <PlayerPauseScreen
+        visible={pauseScreenVisible}
+        mediumTitle={mediaTitle}
+        logoUrl={pauseScreenLogo}
+        isSeries={!isMovie}
+        season={query?.season}
+        episode={query?.episode}
+        episodeTitle={currentEpisode?.name ?? null}
+        overview={pauseScreenOverview}
+      />
 
       <PlayerControls
         active={controlsReady && controlsActive && !showUpNext}

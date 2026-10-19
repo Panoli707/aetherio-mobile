@@ -43,6 +43,13 @@ export function prefersContrastMore() {
   return window.matchMedia("(prefers-contrast: more)").matches;
 }
 
+// Con transparencia reducida el desenfoque de fondo no se puede usar: se apaga
+// el backdrop-filter y se sube el fondo opaco del panel.
+export function prefersReducedTransparency() {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false;
+  return window.matchMedia("(prefers-reduced-transparency: reduce)").matches;
+}
+
 // §9 Rubber-banding — progressive resistance at boundaries
 export function rubberband(overshoot: number, dimension: number, constant = 0.55) {
   return (overshoot * dimension * constant) / (dimension + constant * Math.abs(overshoot));

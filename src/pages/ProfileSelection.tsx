@@ -19,6 +19,7 @@ import { getLastAppMode, setLastAppMode } from "../utils/appMode.ts";
 import { getHomePreferences } from "../config/homePreferences.ts";
 import { prefersReducedMotion } from "../utils/motion.ts";
 import { GAMEPAD_ACTIVITY_EVENT } from "../hooks/useGamepad.ts";
+import { holdCursorHidden, releaseCursorHidden } from "../hooks/useHiddenCursor.ts";
 import packageJson from "../../package.json";
 import "./ProfileSelection.css";
 
@@ -189,6 +190,10 @@ interface ProfileSelectionProps {
   ) => Promise<void>;
 }
 
+// Motivo propio de esta pantalla en el contador de cursor oculto de
+// useHiddenCursor: no se pisa con Big Picture ni con Quick Start.
+const CURSOR_REASON = "profile-selection";
+
 export default function ProfileSelection({ onProfileSelected }: ProfileSelectionProps) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -300,7 +305,6 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
   // `enterProfile`, cuando ya hay un dueño al que atribuírselo, y esto solo
   // decide cómo se ve esta pantalla.
   useEffect(() => {
-    const root = document.documentElement;
     // Evita un write a state por cada mousemove: solo al cambiar de modo.
     const modeRef = { current: null as boolean | null };
 
@@ -311,11 +315,11 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
     };
 
     const onGamepad = () => {
-      root.classList.add("aetherio-bp-hide-cursor");
+      holdCursorHidden(CURSOR_REASON);
       applyMode(true);
     };
     const onNormalInput = () => {
-      root.classList.remove("aetherio-bp-hide-cursor");
+      releaseCursorHidden(CURSOR_REASON);
       applyMode(false);
     };
     const onKey = (event: KeyboardEvent) => {
@@ -333,7 +337,7 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
       window.removeEventListener(GAMEPAD_ACTIVITY_EVENT, onGamepad);
       window.removeEventListener("mousemove", onNormalInput);
       window.removeEventListener("keydown", onKey, true);
-      root.classList.remove("aetherio-bp-hide-cursor");
+      releaseCursorHidden(CURSOR_REASON);
     };
   }, []);
 

@@ -801,9 +801,7 @@
   scroll-margin-top: calc(5vh + 81px);
 }
 
-/* Steam: en Big Picture el cursor del SO desaparece; el JS lo muestra de
-   forma temporal al mover el ratón (aetherio-bp-hide-cursor ausente). */
-.aetherio-bp-hide-cursor,
-.aetherio-bp-hide-cursor * {
-  cursor: none !important;
-}
+/* Big Picture: el cursor del SO desaparece (policy `gamepad` de
+   useHiddenCursor -> .aetherio-hide-cursor en index.css). El JS lo muestra de
+   forma temporal al mover el raton. Aqui no hace falta regla propia: la del
+   shell es global y esta ruta vive dentro de el. */

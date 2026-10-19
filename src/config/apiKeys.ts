@@ -1,4 +1,11 @@
 import { getScopedStorageKey } from "../utils/localProfiles.ts";
+import {
+  normalizedTmdbPath,
+  persistentTmdbCacheKey,
+  persistentTmdbCacheTtlMs,
+  readPersistentTmdbCache,
+  writePersistentTmdbCache,
+} from "./tmdbTextCache";
 
 /**
  * Las credenciales de servicio ya NO viajan en el cliente: sin key propia
@@ -197,6 +204,8 @@ export async function tmdbFetch<T = any>(path: string, init?: RequestInit & { pa
   }
 
   const cacheKey = `${path}?${url.search}`;
+  const persistentKey = persistentTmdbCacheKey(url);
+  const persistentTtlMs = persistentTmdbCacheTtlMs(url);
   cleanExpiredCache();
   const cached = responseCache.get(cacheKey);
   if (cached) {
@@ -205,11 +214,18 @@ export async function tmdbFetch<T = any>(path: string, init?: RequestInit & { pa
   }
 
   const { params: _params, ...fetchInit } = init ?? {};
+  const fetchWithCaches = (): Promise<T | null> => requestTmdbWithPersistentCache<T>(
+    url,
+    fetchInit,
+    cacheKey,
+    persistentKey,
+    persistentTtlMs,
+  );
 
   // Las peticiones con signal del llamador son cancelables (pantallas de
   // detalle). No se comparten: que uno aborte no debe tumbar a los demas.
   if (fetchInit.signal) {
-    return requestTmdb<T>(url, fetchInit, cacheKey);
+    return fetchWithCaches();
   }
 
   // Varias filas del Home piden los mismos titulos a la vez. Compartir la
@@ -217,14 +233,63 @@ export async function tmdbFetch<T = any>(path: string, init?: RequestInit & { pa
   const pending = inFlight.get(cacheKey);
   if (pending) return pending as Promise<T | null>;
 
-  const request = requestTmdb<T>(url, fetchInit, cacheKey).finally(() => {
+  const request = fetchWithCaches().finally(() => {
     if (inFlight.get(cacheKey) === request) inFlight.delete(cacheKey);
   });
   inFlight.set(cacheKey, request);
   return request;
 }
 
-async function requestTmdb<T>(url: URL, fetchInit: RequestInit, cacheKey: string): Promise<T | null> {
+async function requestTmdbWithPersistentCache<T>(
+  url: URL,
+  fetchInit: RequestInit,
+  cacheKey: string,
+  persistentKey: string | null,
+  persistentTtlMs: number,
+): Promise<T | null> {
+  const method = (fetchInit.method ?? "GET").toUpperCase();
+  if (persistentKey && method === "GET") {
+    const diskEntry = await readPersistentTmdbCache(persistentKey);
+    if (diskEntry) {
+      const data = await attachFreshImageMetadata(url, diskEntry.data);
+      responseCache.set(cacheKey, { data, expiresAt: diskEntry.expiresAt });
+      return data as T;
+    }
+  }
+
+  return requestTmdb<T>(url, fetchInit, cacheKey, persistentKey && method === "GET"
+    ? { key: persistentKey, ttlMs: persistentTtlMs }
+    : null);
+}
+
+/**
+ * `images` nunca se persiste en AppData. Si el caller pidió ese append, un hit
+ * del texto persistido recupera solo `/images` y lo vuelve a unir a la respuesta.
+ */
+async function attachFreshImageMetadata(url: URL, data: unknown): Promise<unknown> {
+  const append = url.searchParams.get("append_to_response");
+  if (!append?.split(",").some(resource => resource.trim().toLowerCase() === "images")) {
+    return data;
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) return data;
+
+  const params: Record<string, string> = {};
+  for (const name of ["language", "include_image_language"]) {
+    const value = url.searchParams.get(name);
+    if (value) params[name] = value;
+  }
+  const imageData = await tmdbFetch<unknown>(`${normalizedTmdbPath(url)}/images`, { params });
+  return imageData && typeof imageData === "object" && !Array.isArray(imageData)
+    ? { ...data, images: imageData }
+    : data;
+}
+
+async function requestTmdb<T>(
+  url: URL,
+  fetchInit: RequestInit,
+  cacheKey: string,
+  persistent?: { key: string; ttlMs: number } | null,
+): Promise<T | null> {
   let response: Response;
   try {
     response = await fetch(url.toString(), {
@@ -261,6 +326,7 @@ async function requestTmdb<T>(url: URL, fetchInit: RequestInit, cacheKey: string
   try {
     const data = await response.json() as T;
     responseCache.set(cacheKey, { data, expiresAt: Date.now() + SUCCESS_TTL_MS });
+    if (persistent) writePersistentTmdbCache(persistent.key, data, persistent.ttlMs);
     return data;
   } catch {
     responseCache.set(cacheKey, { data: null, expiresAt: Date.now() + FAILURE_TTL_MS });

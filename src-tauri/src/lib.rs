@@ -2,6 +2,7 @@ mod discord_rpc;
 mod embedded_subtitles;
 mod poster_cache;
 mod poster_server;
+mod tmdb_text_cache;
 pub mod p2p;
 mod scraper;
 mod secure_credentials;
@@ -6240,7 +6241,9 @@ pub fn run() {
             poster_server::start_posters_server,
             poster_server::stop_posters_server,
             poster_server::posters_server_status,
-            poster_cache::poster_cache_url
+            poster_cache::poster_cache_url,
+            tmdb_text_cache::tmdb_text_cache_get,
+            tmdb_text_cache::tmdb_text_cache_set_many
         ])
         .on_window_event(|window, event| {
             let state = window.state::<MpvState>();

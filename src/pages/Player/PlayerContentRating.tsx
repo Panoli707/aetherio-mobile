@@ -109,7 +109,9 @@ export default function PlayerContentRating({
       style={{
         top: bigPicture ? "clamp(28px, 5vh, 56px)" : "clamp(18px, 3.6vh, 40px)",
         left: bigPicture ? "clamp(24px, 3.6vw, 60px)" : "clamp(18px, 3vw, 44px)",
-        maxWidth: bigPicture ? 420 : 360,
+        // El ancho escala con el cuerpo para que la linea de avisos siga
+        // cabiendo en una sola fila: a 18-19px el tope anterior la partia.
+        maxWidth: bigPicture ? 630 : 540,
         color: "#fff",
         textShadow: bigPicture
           ? "0 1px 2px rgba(0,0,0,0.55), 0 2px 14px rgba(0,0,0,0.7)"
@@ -120,13 +122,13 @@ export default function PlayerContentRating({
     >
       <div ref={rootRef} style={{ opacity: 0 }}>
         <p
-          className={`${bigPicture ? "text-[30px] leading-none" : "text-[26px] leading-none"} font-bold tracking-[-0.02em]`}
+          className={`${bigPicture ? "text-[45px] leading-none" : "text-[39px] leading-none"} font-bold tracking-[-0.02em]`}
         >
           {age}
         </p>
         {rating.advisories.length ? (
           <p
-            className={`${bigPicture ? "mt-1.5 text-[13px] leading-[1.45]" : "mt-1.5 text-[12px] leading-[1.45]"} text-white/78`}
+            className={`${bigPicture ? "mt-[9px] text-[19.5px] leading-[1.45]" : "mt-[9px] text-[18px] leading-[1.45]"} text-white/78`}
           >
             {rating.advisories.join(" · ")}
           </p>

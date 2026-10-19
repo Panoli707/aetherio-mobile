@@ -291,18 +291,23 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
 
   // §El mando manda: al moverlo esta page entra en Big Picture y esconde el
   // cursor; al mover el ratón o pulsar una tecla real vuelve al modo normal y
-  // enseña el cursor. El último modo queda persistido para que al elegir
-  // perfil se entre directamente en /big-picture o /home.
+  // enseña el cursor.
+  //
+  // Aquí NO se persiste el modo. A diferencia de antes, escribir aquí lo
+  // grababa para toda la app y lo hacía antes de saber qué perfil se iba a
+  // elegir: el ratón se movía al apuntar una tarjeta y machacaba el modo que
+  // el usuario había dejado en el perfil 1. Ahora el modo se persiste en
+  // `enterProfile`, cuando ya hay un dueño al que atribuírselo, y esto solo
+  // decide cómo se ve esta pantalla.
   useEffect(() => {
     const root = document.documentElement;
-    // Evita un write a localStorage por cada mousemove: solo al cambiar de modo.
+    // Evita un write a state por cada mousemove: solo al cambiar de modo.
     const modeRef = { current: null as boolean | null };
 
     const applyMode = (next: boolean) => {
       if (modeRef.current === next) return;
       modeRef.current = next;
       setModeOverride(next);
-      setLastAppMode(next ? "big-picture" : "normal");
     };
 
     const onGamepad = () => {
@@ -484,6 +489,17 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
     if (selectingId || welcomeProfile) return;
     setSelectingId(profile.id);
     setActiveProfile(profile.id);
+    // El modo se resuelve AQUI, cuando ya se sabe que perfil entra. Antes se
+    // resolvia antes de elegir, contra un valor global: por eso entrar en el
+    // perfil 2 arrastraba el modo que habia dejado el perfil 1.
+    //
+    // El modo del perfil manda. El dispositivo (mando / ratón) solo decide
+    // cuando el perfil entra por primera vez y no hay nada que recordar, y
+    // `?from=big-picture` manda sobre un perfil recien creado desde Big Picture.
+    const remembered = getLastAppMode(profile.id);
+    const fromBigPicture = new URLSearchParams(location.search).get("from") === "big-picture";
+    const nextMode = remembered ?? (fromBigPicture || modeOverride === true ? "big-picture" : "normal");
+    setLastAppMode(nextMode, profile.id);
     setWelcomeProfile(profile);
     setProfileProgress(0);
     setProfileProgressLabel("Preparando tu perfil…");
@@ -496,7 +512,7 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
       setProfileProgress(100);
       setProfileProgressLabel("Listo");
       await new Promise(resolve => window.setTimeout(resolve, 180));
-      navigate(bigPicture ? "/big-picture" : "/home", { replace: true, state: { freshEntrance: true } });
+      navigate(nextMode === "big-picture" ? "/big-picture" : "/home", { replace: true, state: { freshEntrance: true } });
     }
   }
 

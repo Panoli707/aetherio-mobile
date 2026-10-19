@@ -556,7 +556,10 @@ export default function App() {
     );
   }
 
-  const defaultRoute = "/home";
+  // "/" aterriza aquí. Tiene que caer donde el usuario lo dejó, no siempre en
+  // Home: `/home` es una ruta estable que consolida "normal", así que aterrizar
+  // ahí borraba el Big Picture del perfil antes de que nadie llegara a elegir.
+  const defaultRoute = getLastAppMode() === "big-picture" ? "/big-picture" : "/home";
 
   const isBigPicture = location.pathname.startsWith("/big-picture");
 

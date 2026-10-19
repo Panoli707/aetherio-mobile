@@ -130,9 +130,11 @@ test("el boton de saltar cumple la referencia", async ({ page }) => {
   expect(ratio).toBeGreaterThan(3.4);
   expect(ratio).toBeLessThan(6);
 
-  // Alto y aire lateral proportionally al alto (referencia: ~1.0-1.3 x).
-  expect(measured.paddingLeft / measured.height).toBeGreaterThan(0.8);
-  expect(measured.paddingLeft / measured.height).toBeLessThan(1.5);
+  // Alto y aire lateral proporcional al alto. La referencia de la TV da ~1.3 x;
+  // aqui se cierra a 0.85 x porque la etiqueta espanola es mas larga y en
+  // pantalla la pastilla debia pesar menos.
+  expect(measured.paddingLeft / measured.height).toBeGreaterThan(0.7);
+  expect(measured.paddingLeft / measured.height).toBeLessThan(1.2);
 
   // Radio: rectangulo muy redondeado, NO un circulo (seria height/2).
   expect(measured.radius / measured.height).toBeGreaterThan(0.18);

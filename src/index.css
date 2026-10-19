@@ -247,20 +247,13 @@ html.aetherio-android-tv .shell-preview-app .spatial-focus{
 }
 
 .artwork-picker__panel{
-  scrollbar-width:thin;
-  scrollbar-color:rgba(255,255,255,0.15) transparent;
-  -ms-overflow-style:auto;
+  scrollbar-width:none;
+  -ms-overflow-style:none;
 }
 .artwork-picker__panel::-webkit-scrollbar{
-  width:3px;
-  height:3px;
-}
-.artwork-picker__panel::-webkit-scrollbar-track{
-  background:transparent;
-}
-.artwork-picker__panel::-webkit-scrollbar-thumb{
-  background:rgba(255,255,255,0.15);
-  border-radius:99px;
+  display:none;
+  width:0;
+  height:0;
 }
 .artwork-picker__panel button:focus,
 .artwork-picker__panel button:focus-visible,
@@ -298,13 +291,18 @@ html.aetherio-android-tv .bp-player-controls .spatial-focus{
    resolucion en vez de deformarse como haria con padding fijo. La posicion
    (right/bottom) la fija el componente, no aqui: el `right` replica el padding
    de la barra para que el extremo derecho coincida con el de la linea de tiempo.
+
+   Escala reducida un 15% respecto a la medicion de la referencia (y aire lateral
+   de 1.02x a 0.85x del alto): en pantalla la pastilla pesaba mas de lo que
+   aporta. El cuerpo de texto baja en la misma proporcion para no descuadrar la
+   relacion fuente/alto, que es la que fija la lectura a distancia.
 */
 .bp-skip-button{
-  --bp-skip-height:clamp(58px, 6.4vh, 84px);
+  --bp-skip-height:clamp(52px, 5.4vh, 72px);
   height:var(--bp-skip-height);
-  padding-inline:calc(var(--bp-skip-height) * 1.02);
+  padding-inline:calc(var(--bp-skip-height) * 0.85);
   border-radius:calc(var(--bp-skip-height) * 0.3);
-  font-size:clamp(20px, 2.7vh, 30px);
+  font-size:clamp(18px, 2.3vh, 26px);
   font-weight:800;
   letter-spacing:-0.01em;
   background-color:#f6f6f7;
@@ -1165,12 +1163,13 @@ section[data-row-key]:focus-within{
   transition:color 0.25s ease;
 }
 
-/* Steam Big Picture: con el mando al mando (o en Big Picture) el cursor del SO
-   desaparece. El JS lo muestra de nuevo al mover el raton o al pulsar una tecla
-   real (la clase etherio-bp-hide-cursor se quita). Vive aquf (global) para
-   que tambien aplique en superficies fuera del chunk de Big Picture, como la
-   seleccion de perfil. */
-.aetherio-bp-hide-cursor,
-.aetherio-bp-hide-cursor * {
+/* Puntero de la app. La clase la pondera `useHiddenCursor` (un contador por
+   motivo, para que el shell de Big Picture y el reproductor puedan pedirla y
+   soltarla sin pisarse) y se apoya en !important para ganar tambien a los
+   `cursor: pointer` en linea de los botones, que si no dejarian el cursor
+   asomando sobre la barra de controles. Vive aqui (global) y no en el chunk de
+   Big Picture para que aplique en cualquier ruta. */
+.aetherio-hide-cursor,
+.aetherio-hide-cursor * {
   cursor: none !important;
 }

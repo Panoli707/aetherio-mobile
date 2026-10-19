@@ -539,14 +539,12 @@ export default function PlayerPage() {
   const originalLanguage = useOriginalLanguage(metadataQuery, safeStream);
   const contentRating = useContentRating(metadataQuery);
   const [contentRatingVisible, setContentRatingVisible] = useState(false);
-  const contentRatingShownKeyRef = useRef("");
   const contentRatingKey = query
     ? `${query.type}:${query.id}:${query.season ?? ""}:${query.episode ?? ""}`
     : "";
   const completeContentRating = useCallback(() => {
     setContentRatingVisible(false);
-    if (contentRatingKey) contentRatingShownKeyRef.current = contentRatingKey;
-  }, [contentRatingKey]);
+  }, []);
   const resumeEntry = useMemo(() => getExactResumeForQuery(query), [query]);
   const savedAudioSelection = useMemo(() => getContinueWatchingAudioSelection(query), [query]);
   const selectedPlaybackOverrides = useMemo(() => readSelectedPlaybackOverrides(query), [query]);
@@ -2329,25 +2327,15 @@ export default function PlayerPage() {
     || bigPictureEpisodesOpen
     || partyLobbyRef.current;
 
-  // Aviso de clasificacion por edad: entra con el video arrancado, una vez por
-  // titulo, y se aparta en cuanto hay algo mas urgente en pantalla (barra,
-  // paneles, Up Next) para no competir con ellos.
+  // Aviso de clasificacion por edad: entra con el video arrancado y se retira
+  // solo cuando termina su ciclo. No guarda memoria entre entradas a proposito:
+  // quien vuelve a la pelicula -- aunque sea al dia siguiente y continue donde
+  // la dejo -- tiene que volver a ver el aviso. PlayerPage se desmonta al salir,
+  // asi que cada entrada arranca con el estado limpio.
   useEffect(() => {
-    if (contentRatingShownKeyRef.current === contentRatingKey) return;
-    if (
-      !playbackStarted
-      || isIframeStream
-      || !contentRatingKey
-      || !contentRating
-    ) return;
+    if (!playbackStarted || isIframeStream || !contentRatingKey || !contentRating) return;
     setContentRatingVisible(true);
-    return () => setContentRatingVisible(false);
-  }, [
-    contentRating,
-    contentRatingKey,
-    isIframeStream,
-    playbackStarted,
-  ]);
+  }, [contentRating, contentRatingKey, isIframeStream, playbackStarted]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("aetherio-player-controls", { detail: { visible: controlsActive } }));

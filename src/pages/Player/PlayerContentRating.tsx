@@ -1,15 +1,12 @@
 import { useEffect, useRef } from "react";
 import gsap from "gsap";
 import type { ContentRating } from "./contentRating";
-import { elegantEase } from "../../utils/motion";
 
-// Ciclo del aviso: entra con fundido, aguanta seis segundos y se va con
-// otro fundido. El descanso es generoso a proposito -- da tiempo a leerlo sin
-// que estorbe -- y los dos extremos lentos evitan el parpadeo que daria una
-// aparicion instantanea.
+// El player decide el instante de entrada desde el inicio real del stream;
+// este componente anima el fundido desde el primer frame en que se monta.
 const HOLD_MS = 6_000;
-const ENTER_MS = 0.72;
-const EXIT_MS = 0.6;
+const ENTER_MS = 1.6;
+const EXIT_MS = 1.6;
 
 interface PlayerContentRatingProps {
   rating: ContentRating;
@@ -78,7 +75,7 @@ export default function PlayerContentRating({
       gsap.to(root, {
         opacity: 0,
         duration: EXIT_MS,
-        ease: "power2.in",
+        ease: "sine.inOut",
         overwrite: "auto",
         onComplete: finish,
       });
@@ -92,7 +89,7 @@ export default function PlayerContentRating({
       {
         opacity: 1,
         duration: ENTER_MS,
-        ease: elegantEase,
+        ease: "sine.inOut",
         overwrite: "auto",
         onComplete: () => {
           if (active) holdTimerRef.current = window.setTimeout(startExit, HOLD_MS);

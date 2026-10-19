@@ -23,11 +23,15 @@ function keywordList(...names: unknown[]) {
 }
 
 describe("normalizeAgeLabel", () => {
-  it("acepta edades con y sin signo mas", () => {
-    expect(normalizeAgeLabel("16")).toBe("16");
+  it("normaliza siempre al formato con signo mas", () => {
+    expect(normalizeAgeLabel("16")).toBe("16+");
     expect(normalizeAgeLabel("16+")).toBe("16+");
-    expect(normalizeAgeLabel(" 12 ")).toBe("12");
-    expect(normalizeAgeLabel("7")).toBe("7");
+    expect(normalizeAgeLabel(" 12 ")).toBe("12+");
+    expect(normalizeAgeLabel("7")).toBe("7+");
+  });
+
+  it("no duplica el signo que ya viene", () => {
+    expect(normalizeAgeLabel("18+")).toBe("18+");
   });
 
   it("rechaza todo lo que no es una edad", () => {
@@ -50,7 +54,7 @@ describe("parseAgeRating", () => {
       { iso_3166_1: "US", release_dates: [{ certification: "R" }] },
       { iso_3166_1: "ES", release_dates: [{ certification: "16" }] },
     ]);
-    expect(parseAgeRating(detail, "movie")).toBe("16");
+    expect(parseAgeRating(detail, "movie")).toBe("16+");
   });
 
   it("usa Argentina con su signo mas cuando no hay Espana", () => {
@@ -63,7 +67,7 @@ describe("parseAgeRating", () => {
 
   it("cae en USA solo cuando no hay nada mejor", () => {
     const detail = movieDetail([{ iso_3166_1: "US", release_dates: [{ certification: "13" }] }]);
-    expect(parseAgeRating(detail, "movie")).toBe("13");
+    expect(parseAgeRating(detail, "movie")).toBe("13+");
   });
 
   it("respeta el orden de prioridad de la lista", () => {
@@ -72,14 +76,14 @@ describe("parseAgeRating", () => {
       { iso_3166_1: "MX", release_dates: [{ certification: "16" }] },
       { iso_3166_1: "ES", release_dates: [{ certification: "12" }] },
     ]);
-    expect(parseAgeRating(detail, "movie")).toBe("12");
+    expect(parseAgeRating(detail, "movie")).toBe("12+");
   });
 
   it("salta una certificacion vacia en lugar de asumir la primera fecha", () => {
     const detail = movieDetail([
       { iso_3166_1: "ES", release_dates: [{ certification: "" }, { certification: "16" }] },
     ]);
-    expect(parseAgeRating(detail, "movie")).toBe("16");
+    expect(parseAgeRating(detail, "movie")).toBe("16+");
   });
 
   it("descarta una clasificacion no numerica y usa la de otro pais", () => {
@@ -87,12 +91,12 @@ describe("parseAgeRating", () => {
       { iso_3166_1: "ES", release_dates: [{ certification: "NR" }] },
       { iso_3166_1: "MX", release_dates: [{ certification: "15" }] },
     ]);
-    expect(parseAgeRating(detail, "movie")).toBe("15");
+    expect(parseAgeRating(detail, "movie")).toBe("15+");
   });
 
   it("acepta cualquier edad numerica cuando no hay pais de la lista", () => {
     const detail = movieDetail([{ iso_3166_1: "JP", release_dates: [{ certification: "15" }] }]);
-    expect(parseAgeRating(detail, "movie")).toBe("15");
+    expect(parseAgeRating(detail, "movie")).toBe("15+");
   });
 
   it("lee series desde content_ratings", () => {
@@ -100,7 +104,7 @@ describe("parseAgeRating", () => {
       { iso_3166_1: "US", rating: "TV-MA" },
       { iso_3166_1: "ES", rating: "16" },
     ]);
-    expect(parseAgeRating(detail, "series")).toBe("16");
+    expect(parseAgeRating(detail, "series")).toBe("16+");
   });
 
   it("devuelve null si no hay ninguna edad utilizable", () => {
@@ -199,7 +203,7 @@ describe("resolveContentRating", () => {
       ...movieDetail([{ iso_3166_1: "ES", release_dates: [{ certification: "12" }] }]),
       keywords: keywordList("revenge", "time travel"),
     };
-    expect(resolveContentRating(detail, "movie")).toEqual({ age: "12", advisories: [] });
+    expect(resolveContentRating(detail, "movie")).toEqual({ age: "12+", advisories: [] });
   });
 
   it("lee los keywords anidados dentro del detalle", () => {

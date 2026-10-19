@@ -99,7 +99,12 @@ function normalizeKeyword(value: unknown): string {
 export function normalizeAgeLabel(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const match = AGE_LABEL_RE.exec(value.trim());
-  return match ? `${match[1]}${match[2]}` : null;
+  // Se normaliza siempre a "N+" porque el signo no es decorativo: marca que la
+  // edad es el minimo, no un rango cerrado. Espana y Mexico escriben "16" a
+  // secas y solo Argentina pone "16+", asi que sin esto la misma pelicula
+  // cambiaba de formato segun el pais que tocara. Lo que no se admite son las
+  // clasificaciones sin edad ("TV-MA", "NR", "UR"): esas no son un numero.
+  return match ? `${match[1]}+` : null;
 }
 
 /**

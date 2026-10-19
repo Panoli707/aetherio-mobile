@@ -539,6 +539,8 @@ export default function PlayerPage() {
   const originalLanguage = useOriginalLanguage(metadataQuery, safeStream);
   const contentRating = useContentRating(metadataQuery);
   const [contentRatingVisible, setContentRatingVisible] = useState(false);
+  const contentRatingPlaybackKeyRef = useRef("");
+  const contentRatingPlaybackStartedAtRef = useRef(0);
   const contentRatingKey = query
     ? `${query.type}:${query.id}:${query.season ?? ""}:${query.episode ?? ""}`
     : "";
@@ -2327,14 +2329,30 @@ export default function PlayerPage() {
     || bigPictureEpisodesOpen
     || partyLobbyRef.current;
 
-  // Aviso de clasificacion por edad: entra con el video arrancado y se retira
-  // solo cuando termina su ciclo. No guarda memoria entre entradas a proposito:
-  // quien vuelve a la pelicula -- aunque sea al dia siguiente y continue donde
-  // la dejo -- tiene que volver a ver el aviso. PlayerPage se desmonta al salir,
-  // asi que cada entrada arranca con el estado limpio.
+  // Cronometra desde el arranque efectivo de cada stream/episodio, no desde que
+  // termina la consulta de TMDB. Si la metadata tarda mas de 3 s, el aviso entra
+  // con el fade en cuanto llega; si llega antes, espera el tiempo restante.
+  useEffect(() => {
+    if (!playbackStarted || !contentRatingKey) {
+      contentRatingPlaybackKeyRef.current = "";
+      contentRatingPlaybackStartedAtRef.current = 0;
+      return;
+    }
+    if (contentRatingPlaybackKeyRef.current !== contentRatingKey) {
+      contentRatingPlaybackKeyRef.current = contentRatingKey;
+      contentRatingPlaybackStartedAtRef.current = Date.now();
+    }
+  }, [contentRatingKey, playbackStarted]);
+
+  // No guarda memoria de "ya mostrado": una nueva entrada vuelve a mostrarlo.
   useEffect(() => {
     if (!playbackStarted || isIframeStream || !contentRatingKey || !contentRating) return;
-    setContentRatingVisible(true);
+    const startedAt = contentRatingPlaybackKeyRef.current === contentRatingKey
+      ? contentRatingPlaybackStartedAtRef.current
+      : Date.now();
+    const remainingDelay = Math.max(0, 3_000 - (Date.now() - startedAt));
+    const timer = window.setTimeout(() => setContentRatingVisible(true), remainingDelay);
+    return () => window.clearTimeout(timer);
   }, [contentRating, contentRatingKey, isIframeStream, playbackStarted]);
 
   useEffect(() => {

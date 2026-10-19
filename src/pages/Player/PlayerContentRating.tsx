@@ -3,7 +3,11 @@ import gsap from "gsap";
 import type { ContentRating } from "./contentRating";
 import { elegantEase } from "../../utils/motion";
 
-const HOLD_MS = 4_200;
+// Ciclo del aviso: entra con fundido, aguanta ocho segundos y se va con
+// otro fundido. El descanso es generoso a proposito -- da tiempo a leerlo sin
+// que estorbe -- y los dos extremos lentos evitan el parpadeo que daria una
+// aparicion instantanea.
+const HOLD_MS = 8_000;
 const ENTER_MS = 0.72;
 const EXIT_MS = 0.6;
 
@@ -54,7 +58,13 @@ export default function PlayerContentRating({
     };
 
     const startExit = () => {
-      if (exitStartedRef.current || finishedRef.current) return;
+      // Reentrante: si el efecto se vuelve a ejecutar mientras ya estamos
+      // saliendo, el tween anterior murio con el cleanup y sin su onComplete
+      // el aviso se quedaria montado e invisible para siempre. Cerramos aqui.
+      if (exitStartedRef.current) {
+        finish();
+        return;
+      }
       exitStartedRef.current = true;
       if (holdTimerRef.current !== null) {
         window.clearTimeout(holdTimerRef.current);
@@ -63,8 +73,13 @@ export default function PlayerContentRating({
       gsap.killTweensOf(root);
       // Desde el valor que hubiera en pantalla: si el descarte llega durante la
       // entrada, el fundido sale desde ahi y no da un salto.
-      gsap.to(root, { opacity: 0, duration: EXIT_MS, ease: "power2.in", overwrite: "auto" });
-      window.setTimeout(finish, EXIT_MS * 1000);
+      gsap.to(root, {
+        opacity: 0,
+        duration: EXIT_MS,
+        ease: "power2.in",
+        overwrite: "auto",
+        onComplete: finish,
+      });
     };
 
     if (dismissed) dismissRequestedRef.current = true;

@@ -55,7 +55,8 @@ import PlayerControls from "./PlayerControls";
 import PlayerLoadingOverlay from "./PlayerLoadingOverlay";
 import { LiveBadge, LiveEndedNotice } from "./LiveOverlays";
 import PlayerActionFeedback, { type PlayerActionFeedbackData, type PlayerFeedbackKind } from "./PlayerActionFeedback";
-import PlayerContentAdvisories, { useContentAdvisories } from "./PlayerContentAdvisories";
+import PlayerContentRating from "./PlayerContentRating";
+import { useContentRating } from "./useContentRating";
 import { buildSeekrContent } from "./seekPreview/seekr";
 import { seekrLog } from "./seekPreview/seekrDebug";
 import UpNext from "../../components/upnext/UpNext";
@@ -512,17 +513,17 @@ export default function PlayerPage() {
     eofReached: mpvEofReached,
     playing,
   });
-  const contentAdvisories = useContentAdvisories(metadataQuery, safeStream);
-  const [contentAdvisoriesVisible, setContentAdvisoriesVisible] = useState(false);
-  const contentAdvisoriesShownKeyRef = useRef("");
-  const contentAdvisoriesKey = query
+  const originalLanguage = useOriginalLanguage(metadataQuery, safeStream);
+  const contentRating = useContentRating(metadataQuery);
+  const [contentRatingVisible, setContentRatingVisible] = useState(false);
+  const contentRatingShownKeyRef = useRef("");
+  const contentRatingKey = query
     ? `${query.type}:${query.id}:${query.season ?? ""}:${query.episode ?? ""}`
     : "";
-  const completeContentAdvisories = useCallback(() => {
-    setContentAdvisoriesVisible(false);
-    if (contentAdvisoriesKey) contentAdvisoriesShownKeyRef.current = contentAdvisoriesKey;
-  }, [contentAdvisoriesKey]);
-  const originalLanguage = useOriginalLanguage(metadataQuery, safeStream);
+  const completeContentRating = useCallback(() => {
+    setContentRatingVisible(false);
+    if (contentRatingKey) contentRatingShownKeyRef.current = contentRatingKey;
+  }, [contentRatingKey]);
   const resumeEntry = useMemo(() => getExactResumeForQuery(query), [query]);
   const savedAudioSelection = useMemo(() => getContinueWatchingAudioSelection(query), [query]);
   const selectedPlaybackOverrides = useMemo(() => readSelectedPlaybackOverrides(query), [query]);
@@ -2305,19 +2306,22 @@ export default function PlayerPage() {
     || bigPictureEpisodesOpen
     || partyLobbyRef.current;
 
+  // Aviso de clasificacion por edad: entra con el video arrancado, una vez por
+  // titulo, y se aparta en cuanto hay algo mas urgente en pantalla (barra,
+  // paneles, Up Next) para no competir con ellos.
   useEffect(() => {
-    if (contentAdvisoriesShownKeyRef.current === contentAdvisoriesKey) return;
+    if (contentRatingShownKeyRef.current === contentRatingKey) return;
     if (
       !playbackStarted
       || isIframeStream
-      || !contentAdvisoriesKey
-      || contentAdvisories.length === 0
+      || !contentRatingKey
+      || !contentRating
     ) return;
-    setContentAdvisoriesVisible(true);
-    return () => setContentAdvisoriesVisible(false);
+    setContentRatingVisible(true);
+    return () => setContentRatingVisible(false);
   }, [
-    contentAdvisories,
-    contentAdvisoriesKey,
+    contentRating,
+    contentRatingKey,
     isIframeStream,
     playbackStarted,
   ]);
@@ -4001,13 +4005,13 @@ if (!stream) {
       ) : null}
       {/* OSD central: play/pausa/seek/volumen por teclado o click. No despierta la barra. */}
       {actionFeedback ? <PlayerActionFeedback feedback={actionFeedback} /> : null}
-      {contentAdvisoriesVisible ? (
-        <PlayerContentAdvisories
-          key={`${contentAdvisoriesKey}:${contentAdvisories.map(item => `${item.id}:${item.severity}`).join("|")}`}
-          items={contentAdvisories}
+      {contentRatingVisible && contentRating ? (
+        <PlayerContentRating
+          key={`${contentRatingKey}:${contentRating.age}:${contentRating.advisories.join("|")}`}
+          rating={contentRating}
           bigPicture={isBigPicturePlayer}
-          dismissed={controlsActive || showUpNext || !playbackStarted}
-          onComplete={completeContentAdvisories}
+          dismissed={controlsActive || showUpNext}
+          onComplete={completeContentRating}
         />
       ) : null}
       {fileDropNotice ? (

@@ -10,8 +10,8 @@ import {
 import { GAMEPAD_ACTION_EVENT } from "../../hooks/useGamepad";
 import type { MediaItem } from "../../types/ui";
 import type { HomeCardArtworkMode } from "../../utils/homeCardArtwork";
-import { tweenTo } from "../../utils/motion";
-import { getContextGlassStyle } from "../../components/ui/glassSurface";
+import { installInertialScroll, tweenTo } from "../../utils/motion";
+import { getPlayerGlassSurface } from "../../components/ui/glassSurface";
 
 const TMDB_IMAGE_BASE = "https://image.tmdb.org/t/p";
 
@@ -190,6 +190,15 @@ export default function CardArtworkPicker({
 
   useEffect(() => {
     if (!open) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    // El picker vive en un portal fuera del scroll shell; instala aquí la misma
+    // inercia de rueda/trackpad de la app para que el panel no use scroll nativo.
+    return installInertialScroll(panel);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     let cancelled = false;
 
     async function loadOptions() {
@@ -298,7 +307,7 @@ export default function CardArtworkPicker({
         aria-label={description}
         onClick={event => event.stopPropagation()}
         style={{
-          ...getContextGlassStyle(),
+          ...getPlayerGlassSurface(),
           width: "min(920px, calc(100vw - 80px))",
           maxHeight: "min(78vh, 680px)",
           overflowY: "auto",
@@ -327,6 +336,8 @@ export default function CardArtworkPicker({
               <button
                 key={`${option.url}-${index}`}
                 type="button"
+                aria-pressed={active}
+                data-selected={active ? "true" : undefined}
                 ref={element => {
                   if (element) optionRefs.current.set(option.url, element);
                   else optionRefs.current.delete(option.url);

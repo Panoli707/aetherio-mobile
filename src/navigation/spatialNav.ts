@@ -493,6 +493,13 @@ function isVisibleFocusable(el: HTMLElement): boolean {
   return true;
 }
 
+function topSpatialModal(): HTMLElement | null {
+  const modals = Array.from(document.querySelectorAll<HTMLElement>("[data-spatial-modal]"))
+    .filter(el => !el.hidden);
+  const topLevel = modals.filter(el => !modals.some(other => other !== el && other.contains(el)));
+  return topLevel[topLevel.length - 1] ?? modals[modals.length - 1] ?? null;
+}
+
 function collectCandidates(): HTMLElement[] {
   // Menú contextual abierto: zona espacial cerrada y exclusiva. El mando no
   // debe saltar al contenido que queda detrás; salir es solo con B/Escape
@@ -517,10 +524,7 @@ function collectCandidates(): HTMLElement[] {
   // shell) portalean al final de `body`, y elegir la primera dejaba al mando
   // moviéndose por la capa de debajo. Las anidadas se resuelven por su
   // ancestro visible más externo (el diálogo dentro del panel no cambia nada).
-  const modals = Array.from(document.querySelectorAll<HTMLElement>("[data-spatial-modal]"))
-    .filter(el => !el.hidden);
-  const topLevel = modals.filter(el => !modals.some(other => other !== el && other.contains(el)));
-  const modal = topLevel[topLevel.length - 1] ?? modals[modals.length - 1] ?? null;
+  const modal = topSpatialModal();
   const scope = modal ?? document;
   return Array.from(scope.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)).filter(isVisibleFocusable);
 }
@@ -898,6 +902,29 @@ function bringIntoView(el: HTMLElement, dir: SpatialDir, fast = false) {
   el.scrollIntoView({ block: "nearest", inline: "nearest", behavior });
 }
 
+function bringModalCandidateIntoView(modal: HTMLElement, candidate: HTMLElement, fast: boolean) {
+  const modalRect = modal.getBoundingClientRect();
+  const viewportTop = modalRect.top + modal.clientTop;
+  const viewportBottom = viewportTop + modal.clientHeight;
+  const candidateRect = candidate.getBoundingClientRect();
+  const gutter = Math.min(12, modal.clientHeight / 4);
+  let nextScrollTop = modal.scrollTop;
+
+  if (candidateRect.top < viewportTop + gutter) {
+    nextScrollTop += candidateRect.top - (viewportTop + gutter);
+  } else if (candidateRect.bottom > viewportBottom - gutter) {
+    nextScrollTop += candidateRect.bottom - (viewportBottom - gutter);
+  }
+
+  nextScrollTop = Math.min(
+    Math.max(0, modal.scrollHeight - modal.clientHeight),
+    Math.max(0, nextScrollTop),
+  );
+  if (Math.abs(nextScrollTop - modal.scrollTop) < 1) return;
+
+  tweenVerticalScroll(modal, nextScrollTop, fast);
+}
+
 /** Foco inicial de pantalla: primer candidato fuera del rail (el rail no es foco inicial). */
 function focusInitialContent() {
   if (!isSpatialNavMode()) return;
@@ -921,8 +948,15 @@ function moveFocus(dir: SpatialDir): boolean {
   const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   const all = collectCandidates();
   if (!all.length) return false;
+  const spatialModal = topSpatialModal();
 
   if (!active || active === document.body || active === document.documentElement) {
+    if (spatialModal) {
+      const initial = all.find(el => el.dataset.selected === "true") ?? all[0];
+      initial.focus({ preventScroll: true });
+      bringModalCandidateIntoView(spatialModal, initial, false);
+      return true;
+    }
     if (dir === "left" && isBigPictureMode() && !isContextMenuOpen()) {
       // Sin foco y a la izquierda: abre el rail (scaffold nativo).
       if (!document.querySelector(".bp-rail__expanded.is-visible")) openPictureRail();
@@ -970,6 +1004,35 @@ function moveFocus(dir: SpatialDir): boolean {
     }
     // A menu is an exclusive vertical list; left/right never escape into the
     // playback controls behind it. B/Escape is the only exit.
+    return true;
+  }
+  // Un modal visible es una zona de navegación exclusiva. Si la apertura del
+  // panel aún dejó el foco en el detalle, el primer movimiento lo recupera
+  // dentro del modal; nunca debe pasar por moveRowAware ni desplazar la página
+  // que queda debajo. Dentro del modal se usa geometría para conservar la
+  // navegación natural de la cuadrícula de imágenes.
+  if (spatialModal) {
+    const currentCandidate = all.find(candidate => (
+      candidate === active || candidate.contains(active)
+    ));
+    if (!currentCandidate) {
+      const initial = all.find(el => el.dataset.selected === "true") ?? all[0];
+      initial.focus({ preventScroll: true });
+      bringModalCandidateIntoView(spatialModal, initial, fast);
+      return true;
+    }
+
+    const currentRect = currentCandidate.getBoundingClientRect();
+    const next = findBestCandidate(currentRect, dir, all
+      .filter(candidate => candidate !== currentCandidate)
+      .map(candidate => {
+        const rect = candidate.getBoundingClientRect();
+        return { el: candidate, left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      }));
+    if (next) {
+      next.el.focus({ preventScroll: true });
+      bringModalCandidateIntoView(spatialModal, next.el, fast);
+    }
     return true;
   }
   // Al filo con acción marcada (Siguiente del hero): empujar la dispara

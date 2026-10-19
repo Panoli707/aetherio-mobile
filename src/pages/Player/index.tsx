@@ -2329,31 +2329,31 @@ export default function PlayerPage() {
     || bigPictureEpisodesOpen
     || partyLobbyRef.current;
 
-  // Cronometra desde el arranque efectivo de cada stream/episodio, no desde que
-  // termina la consulta de TMDB. Si la metadata tarda mas de 3 s, el aviso entra
-  // con el fade en cuanto llega; si llega antes, espera el tiempo restante.
-  useEffect(() => {
-    if (!playbackStarted || !contentRatingKey) {
-      contentRatingPlaybackKeyRef.current = "";
-      contentRatingPlaybackStartedAtRef.current = 0;
-      return;
-    }
-    if (contentRatingPlaybackKeyRef.current !== contentRatingKey) {
-      contentRatingPlaybackKeyRef.current = contentRatingKey;
-      contentRatingPlaybackStartedAtRef.current = Date.now();
-    }
-  }, [contentRatingKey, playbackStarted]);
+// Cronometra desde el arranque efectivo de cada stream/episodio, no desde que
+// termina la consulta de TMDB. Si la metadata tarda mas de 3 s, el aviso entra
+// con el fade en cuanto llega; si llega antes, espera el tiempo restante.
+useEffect(() => {
+  if (!playbackStarted || !contentRatingKey) {
+    contentRatingPlaybackKeyRef.current = "";
+    contentRatingPlaybackStartedAtRef.current = 0;
+    return;
+  }
+  if (contentRatingPlaybackKeyRef.current !== contentRatingKey) {
+    contentRatingPlaybackKeyRef.current = contentRatingKey;
+    contentRatingPlaybackStartedAtRef.current = Date.now();
+  }
+}, [contentRatingKey, playbackStarted]);
 
-  // No guarda memoria de "ya mostrado": una nueva entrada vuelve a mostrarlo.
-  useEffect(() => {
-    if (!playbackStarted || isIframeStream || !contentRatingKey || !contentRating) return;
-    const startedAt = contentRatingPlaybackKeyRef.current === contentRatingKey
-      ? contentRatingPlaybackStartedAtRef.current
-      : Date.now();
-    const remainingDelay = Math.max(0, 3_000 - (Date.now() - startedAt));
-    const timer = window.setTimeout(() => setContentRatingVisible(true), remainingDelay);
-    return () => window.clearTimeout(timer);
-  }, [contentRating, contentRatingKey, isIframeStream, playbackStarted]);
+// No guarda memoria de "ya mostrado": una nueva entrada vuelve a mostrarlo.
+useEffect(() => {
+  if (!playbackStarted || isIframeStream || !contentRatingKey || !contentRating) return;
+  const startedAt = contentRatingPlaybackKeyRef.current === contentRatingKey
+    ? contentRatingPlaybackStartedAtRef.current
+    : Date.now();
+  const remainingDelay = Math.max(0, 3_000 - (Date.now() - startedAt));
+  const timer = window.setTimeout(() => setContentRatingVisible(true), remainingDelay);
+  return () => window.clearTimeout(timer);
+}, [contentRating, contentRatingKey, isIframeStream, playbackStarted]);
 
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("aetherio-player-controls", { detail: { visible: controlsActive } }));
@@ -4069,7 +4069,7 @@ if (!stream) {
         />
       ) : null}
       {/* OSD central: play/pausa/seek/volumen por teclado o click. No despierta la barra. */}
-      {actionFeedback ? <PlayerActionFeedback feedback={actionFeedback} /> : null}
+      <PlayerActionFeedback feedback={actionFeedback} />
       {contentRatingVisible && contentRating ? (
         <PlayerContentRating
           key={`${contentRatingKey}:${contentRating.age}:${contentRating.advisories.join("|")}`}

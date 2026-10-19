@@ -197,6 +197,16 @@ export default function BigPictureRail() {
       }
       const heroBottom = hero.getBoundingClientRect().bottom;
       const shellTop = shell.getBoundingClientRect().top;
+      const isHome =
+        location.pathname === "/big-picture" || location.pathname === "/big-picture/";
+      if (isHome) {
+        const continueWatchingRow = document.querySelector<HTMLElement>(
+          '[data-aetherio-big-picture] [data-row-key="continue-watching"]',
+        );
+        if (continueWatchingRow) {
+          return continueWatchingRow.getBoundingClientRect().top - shellTop <= 220;
+        }
+      }
       return heroBottom - shellTop <= 8;
     }
     function onScroll() {
@@ -221,7 +231,7 @@ export default function BigPictureRail() {
       window.clearTimeout(t2);
       if (raf) cancelAnimationFrame(raf);
     };
-  }, []);
+  }, [location.pathname]);
 
   // Fase 2: aparcar fuera de pantalla una vez contraída.
   useEffect(() => {

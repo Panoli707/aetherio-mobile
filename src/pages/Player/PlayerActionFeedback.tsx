@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pause, Play, RotateCcw, RotateCw, Volume1, Volume2, VolumeX } from "lucide-react";
 import { prefersReducedMotion, springTo } from "../../utils/motion";
 
@@ -17,6 +17,9 @@ interface Props {
   feedback: PlayerActionFeedbackData | null;
 }
 
+const FEEDBACK_FADE_OUT_MS = 280;
+const REDUCED_MOTION_FADE_OUT_MS = 200;
+
 /**
  * OSD de feedback (§1 Respuesta inmediata).
  *
@@ -33,20 +36,46 @@ interface Props {
 export default function PlayerActionFeedback({ feedback }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const visibleRef = useRef(false);
+  const hideTimerRef = useRef<number | null>(null);
+  const [mounted, setMounted] = useState(feedback !== null);
+  const [renderedFeedback, setRenderedFeedback] = useState(feedback);
 
   useEffect(() => {
     const el = cardRef.current;
-    if (!el) return;
+    if (hideTimerRef.current !== null) {
+      window.clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+
     if (!feedback) {
-      if (!visibleRef.current) return;
+      if (!mounted || !el) {
+        visibleRef.current = false;
+        setRenderedFeedback(null);
+        return;
+      }
+
       visibleRef.current = false;
-      // Solo icono: salida por el mismo camino (opacidad + escala, §7).
-      springTo(el, { opacity: 0, scale: 0.92 } as never, {
+      const reduceMotion = prefersReducedMotion();
+      springTo(el, reduceMotion ? { opacity: 0 } as never : { opacity: 0, scale: 0.92 } as never, {
         damping: 1.0,
-        duration: 0.28,
+        duration: reduceMotion ? 0.2 : FEEDBACK_FADE_OUT_MS / 1000,
       });
+      hideTimerRef.current = window.setTimeout(() => {
+        hideTimerRef.current = null;
+        setMounted(false);
+        setRenderedFeedback(null);
+      }, reduceMotion ? REDUCED_MOTION_FADE_OUT_MS : FEEDBACK_FADE_OUT_MS);
       return;
     }
+
+    setRenderedFeedback(feedback);
+    if (!mounted) {
+      // El primer render no tiene nodo todavía. Montarlo y dejar que el efecto
+      // vuelva a correr con la referencia ya disponible antes de animar.
+      setMounted(true);
+      return;
+    }
+    if (!el) return;
 
     visibleRef.current = true;
     if (prefersReducedMotion()) {
@@ -68,13 +97,18 @@ export default function PlayerActionFeedback({ feedback }: Props) {
         if (visibleRef.current) springTo(el, { scale: 1 } as never, { damping: 1.0, duration: 0.3 });
       }, 180);
     }
-  }, [feedback]);
+  }, [feedback, mounted]);
 
-  if (!feedback) return null;
+  useEffect(() => () => {
+    visibleRef.current = false;
+    if (hideTimerRef.current !== null) window.clearTimeout(hideTimerRef.current);
+  }, []);
 
-  const isVolume = feedback.kind === "volume";
-  const volumePct = Math.round((feedback.volume ?? 0) * 100);
-  const muted = (feedback.volume ?? 0) <= 0.001;
+  if (!mounted || !renderedFeedback) return null;
+
+  const isVolume = renderedFeedback.kind === "volume";
+  const volumePct = Math.round((renderedFeedback.volume ?? 0) * 100);
+  const muted = (renderedFeedback.volume ?? 0) <= 0.001;
   const VolumeIcon = muted ? VolumeX : volumePct < 60 ? Volume1 : Volume2;
   // HUD macOS: barra de nivel continua 0..100% (el rango llega a 200% por
   // mpv, pero la barra se llena al 100%, como el OSD de Apple).
@@ -83,9 +117,9 @@ export default function PlayerActionFeedback({ feedback }: Props) {
   // Adelantar → símbolo a la derecha; retroceder → símbolo a la izquierda;
   // resto centrado (§7 consistencia espacial: el icono sale hacia donde va el gesto).
   const wrapperAlign =
-    feedback.kind === "forward"
+    renderedFeedback.kind === "forward"
       ? "justify-end pr-[12vw]"
-      : feedback.kind === "rewind"
+      : renderedFeedback.kind === "rewind"
         ? "justify-start pl-[12vw]"
         : "justify-center";
 
@@ -95,25 +129,25 @@ export default function PlayerActionFeedback({ feedback }: Props) {
       className={`pointer-events-none absolute inset-0 z-[70] flex items-center ${wrapperAlign}`}
     >
       <div ref={cardRef} style={{ opacity: 0 }}>
-        {feedback.kind === "play" ? (
+        {renderedFeedback.kind === "play" ? (
           <Play
             size={64}
             className="fill-white text-white [filter:drop-shadow(0_4px_20px_rgba(0,0,0,0.65))]"
             strokeWidth={1.5}
           />
-        ) : feedback.kind === "pause" ? (
+        ) : renderedFeedback.kind === "pause" ? (
           <Pause
             size={64}
             className="fill-white text-white [filter:drop-shadow(0_4px_20px_rgba(0,0,0,0.65))]"
             strokeWidth={1.5}
           />
-        ) : feedback.kind === "forward" ? (
+        ) : renderedFeedback.kind === "forward" ? (
           <RotateCw
             size={60}
             className="text-white [filter:drop-shadow(0_4px_20px_rgba(0,0,0,0.65))]"
             strokeWidth={1.8}
           />
-        ) : feedback.kind === "rewind" ? (
+        ) : renderedFeedback.kind === "rewind" ? (
           <RotateCcw
             size={60}
             className="text-white [filter:drop-shadow(0_4px_20px_rgba(0,0,0,0.65))]"

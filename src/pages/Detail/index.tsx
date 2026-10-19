@@ -198,6 +198,8 @@ const DETAIL_CAST_ARROW_TOP = DETAIL_ROW_SHADOW_TOP_GUTTER + DETAIL_CAST_PORTRAI
 const DETAIL_RELATED_ARROW_TOP = DETAIL_RELATED_ROW_SHADOW_GUTTER.top + DETAIL_VERTICAL_POSTER_HEIGHT / 2;
 const DETAIL_COLLECTION_ARROW_TOP = DETAIL_COLLECTION_ROW_SHADOW_GUTTER.top + DETAIL_COLLECTION_HEIGHT / 2;
 const DETAIL_COMMENTS_ARROW_TOP = DETAIL_COMMENTS_ROW_SHADOW_GUTTER.top + DETAIL_COMMENTS_CARD_HEIGHT / 2;
+const SEASON_HOLD_REPEAT_DELAY_MS = 400;
+const SEASON_REPEAT_INTERVAL_MS = 240;
 
 function preloadImage(url?: string | null, timeoutMs = 6000) {
   if (!url) return Promise.resolve();
@@ -962,6 +964,7 @@ export default function DetailPage({
   const [loading, setLoading]   = useState(() => isBigPictureLocation(location.pathname) || !initialDetail);
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [season, setSeason]     = useState(1);
+  const seasonRepeatAtRef = useRef(0);
   const [showMore, setShowMore] = useState(false);
   const [synopsisTop, setSynopsisTop] = useState<number | null>(null);
   const [progressVersion, setProgressVersion] = useState(0);
@@ -2582,9 +2585,18 @@ backdropBlurAmountRef.current = 0;
       return true;
     };
     const onGamepadAction = (event: Event) => {
-      const actionId = (event as CustomEvent<{ id?: string }>).detail?.id;
-      if (actionId !== "lb" && actionId !== "rb") return;
-      if (switchSeason(actionId === "lb" ? -1 : 1)) event.preventDefault();
+      const action = (event as CustomEvent<{ id?: string; repeat?: boolean }>).detail;
+      if (action?.id !== "lb" && action?.id !== "rb") return;
+      const now = performance.now();
+      if (action.repeat && now < seasonRepeatAtRef.current) {
+        event.preventDefault();
+        return;
+      }
+      const actionId = action.id;
+      if (switchSeason(actionId === "lb" ? -1 : 1)) {
+        seasonRepeatAtRef.current = now + (action.repeat ? SEASON_REPEAT_INTERVAL_MS : SEASON_HOLD_REPEAT_DELAY_MS);
+        event.preventDefault();
+      }
     };
     // Respaldo de teclado (PageUp/PageDown es lo que emite el mando si nadie
     // reclama lb/rb): permite probar sin gamepad físico.

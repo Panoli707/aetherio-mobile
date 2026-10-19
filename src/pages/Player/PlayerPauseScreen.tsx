@@ -21,7 +21,7 @@ import "./PlayerPauseScreen.css";
  * Duracion del fade de entrada y de salida. Tiene que coincidir con la de las
  * animaciones en `PlayerPauseScreen.css`: este es el tiempo que el nodo sigue
  * montado durante la salida, y si termina antes que la animacion el overlay se
- * corta a media CUADRA.
+ * corta a mitad de camino.
  */
 const FADE_MS = 280;
 
@@ -76,21 +76,31 @@ const LOGO_S = 1.5 * 1.5 * 1.3 * 1.3;
  */
 const GAP = {
   eyebrow: 9.79,
-  logo: 4.60,
+  logo: 7.60,
   season: 15.80,
   desc: 8.44,
 } as const;
 
+/**
+ * Margen izquierdo de la columna. En la referencia es el 11,3 % del ANCHO del
+ * frame (79 px de 701), y multiplicarlo por la escala lo convertia en ~15,4 %
+ * a 16:9 -- con la columna de descripcion ancha, el bloque se leia opticamente
+ * centrado. 88 px de lienzo devolvian el 11,3 % medido; con la reduccion actual
+ * queda en 8,7 %. Ver seccion 12 de artifacts/pause-screen/ANALYSIS.md.
+ */
+const MARGIN_LEFT = 88 / SHRINK;
+
+/**
+ * Margen derecho: el del borde del frame, el mismo que separa "Pausado" de la
+ * esquina. La descripcion llega HASTA AQUI, no a un ancho fijo, asi que crece y
+ * se encoge con el frame en vez de dejar un columna mas estrecha que el lienzo
+ * en pantallas anchas.
+ */
+const MARGIN_RIGHT = 72 * S;
+
 const T = {
-  // Margenes. El IZQUIERDO es el unico que no cuelga de `S`: en la referencia es
-  // 11,3 % del ANCHO del frame (79 px de 701), y multiplicarlo por la escala lo
-  // convertia en ~15,4 % a 16:9 -- con la columna de descripcion ancha, el
-  // bloque se leia opticamente centrado. 88 px de lienzo devolvian el 11,3 %
-  // medido; con la reduccion actual queda en 8,7 %. Ver seccion 12 de
-  // artifacts/pause-screen/ANALYSIS.md.
-  marginLeft: 88 / SHRINK,
-  marginRight: 72 * S,    // 83.1
-  descWidth: 308 * S,     // 355
+  marginLeft: MARGIN_LEFT,
+  marginRight: MARGIN_RIGHT,
   // Pesos y blancos de la escala de Home/Detail (400/500/600/700/750/800 y
   // 0.55/0.6/0.7/0.8/0.82/0.9). El ajuste automatico contra la referencia
   // daba pesos raros (350/450/550) que hacian que las letras se vieran ajenas
@@ -170,9 +180,15 @@ export default function PlayerPauseScreen({
   const logoRef = useRef<HTMLDivElement>(null);
   const logoFitFor = useRef<string | null>(null);
   const [scale, setScale] = useState(1);
+  // Ancho del frame expresado en unidades del lienzo de referencia. Se mide
+  // aparte del alto porque en 16:9 (y ultrawide) el video es mas ancho que el
+  // lienzo 701x438: la descripcion debe llegar hasta el margen de la pantalla,
+  // no quedarse en el ancho de referencia.
+  const [frameWidth, setFrameWidth] = useState(REF_WIDTH);
   const [logoFit, setLogoFit] = useState(1);
   const [descLines, setDescLines] = useState(3);
   const [mounted, setMounted] = useState(visible);
+  const descWidth = Math.max(0, frameWidth - T.marginLeft - T.marginRight);
 
   // La escala depende del alto real del contenedor, no de la ventana. El
   // contenedor NO existe hasta que `mounted` es true (el overlay entra con
@@ -183,7 +199,11 @@ export default function PlayerPauseScreen({
   useLayoutEffect(() => {
     const el = rootRef.current;
     if (!el) return;
-    const read = () => setScale(el.clientHeight / REF_HEIGHT || 1);
+    const read = () => {
+      const nextScale = el.clientHeight / REF_HEIGHT || 1;
+      setScale(nextScale);
+      setFrameWidth(el.clientWidth / nextScale || REF_WIDTH);
+    };
     read();
     const observer = new ResizeObserver(read);
     observer.observe(el);
@@ -198,7 +218,7 @@ export default function PlayerPauseScreen({
     const line = T.desc.lineHeight * scale;
     const lines = line > 0 ? Math.round(el.offsetHeight / line) : 3;
     setDescLines(prev => (prev === lines ? prev : Math.max(1, lines)));
-  }, [overview, scale, isSeries, season, episode, episodeTitle]);
+  }, [overview, scale, descWidth, isSeries, season, episode, episodeTitle]);
 
 // El logo NO sigue la reduccion del resto y se le ha pedido mas tamano por
   // separado, asi que puede no caber en el ancho que le queda al bloque. Se mide
@@ -335,7 +355,7 @@ export default function PlayerPauseScreen({
         style={{
           left: px(T.marginLeft),
           top: px(at("eyebrow")),
-          width: px(T.descWidth),
+          width: px(descWidth),
         }}
       >
         <p
@@ -436,7 +456,7 @@ export default function PlayerPauseScreen({
             style={{
               top: px(descTop - at("eyebrow")),
               left: 0,
-              width: px(T.descWidth),
+              width: px(descWidth),
               fontSize: px(T.desc.size),
               fontWeight: T.desc.weight,
               lineHeight: px(T.desc.lineHeight),

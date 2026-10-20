@@ -311,17 +311,13 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
     const applyMode = (next: boolean) => {
       if (modeRef.current === next) return;
       modeRef.current = next;
+      if (next) holdCursorHidden(CURSOR_REASON);
+      else releaseCursorHidden(CURSOR_REASON);
       setModeOverride(next);
     };
 
-    const onGamepad = () => {
-      holdCursorHidden(CURSOR_REASON);
-      applyMode(true);
-    };
-    const onNormalInput = () => {
-      releaseCursorHidden(CURSOR_REASON);
-      applyMode(false);
-    };
+    const onGamepad = () => applyMode(true);
+    const onNormalInput = () => applyMode(false);
     const onKey = (event: KeyboardEvent) => {
       // El hook del mando sintetiza flechas/Enter/Escape con `new KeyboardEvent`
       // (isTrusted = false). Si las contáramos, mover el stick nos devolvería
@@ -337,7 +333,7 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
       window.removeEventListener(GAMEPAD_ACTIVITY_EVENT, onGamepad);
       window.removeEventListener("mousemove", onNormalInput);
       window.removeEventListener("keydown", onKey, true);
-      releaseCursorHidden(CURSOR_REASON);
+      if (modeRef.current === true) releaseCursorHidden(CURSOR_REASON);
     };
   }, []);
 

@@ -142,6 +142,31 @@ test("el cambio de modo dentro de la app se recuerda", async ({ page }) => {
   expect(await modo(page, "perfil-1")).toBe("normal");
 });
 
+test("la actividad del mando en Big Picture no deja el cursor oculto en normal", async ({ page }) => {
+  test.setTimeout(120_000);
+  await sembrar(page);
+
+  await page.goto("/big-picture");
+  await page.waitForTimeout(900);
+
+  await page.evaluate(() => {
+    for (let i = 0; i < 5; i += 1) {
+      window.dispatchEvent(new CustomEvent("aetherio-gamepad-activity"));
+    }
+  });
+  const oculto = () => page.evaluate(() =>
+    document.documentElement.classList.contains("aetherio-hide-cursor"));
+  expect(await oculto()).toBe(true);
+
+  await page.keyboard.press("F10");
+  await page.waitForURL("**/home", { timeout: 15_000 });
+
+  await expect.poll(oculto, {
+    message: "el cursor debe volver al salir de Big Picture",
+    timeout: 10_000,
+  }).toBe(false);
+});
+
 test("sin perfiles sembrados la app arranca en la puerta de entrada", async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto("/");

@@ -7,8 +7,8 @@ import { GAMEPAD_ACTIVITY_EVENT } from "./useGamepad.ts";
  * El shell de Big Picture y el reproductor comparten el mismo <html>: si cada
  * uno alternase su propia clase por su cuenta, el que se montara o desmontara
  * último borraría la del otro y el cursor reaparecería a mitad de reproducción.
- * Por eso la clase se cuenta por "motivos": la esconden todos los que la
- * piden y basta con que uno la suelte para que vuelva.
+ * Por eso la clase se cuenta por "motivos": se esconde si alguno la pide y
+ * solo vuelve cuando todos la sueltan.
  */
 
 const HIDDEN_CURSOR_CLASS = "aetherio-hide-cursor";
@@ -76,6 +76,7 @@ export function useHiddenCursor(
     if (!enabled || !policy) return;
     const reason = `aetherio-cursor:${policy}`;
     let timer = 0;
+    let holding = false;
 
     const clearTimer = () => {
       if (timer) window.clearTimeout(timer);
@@ -84,15 +85,23 @@ export function useHiddenCursor(
 
     const hide = () => {
       clearTimer();
+      if (holding) return;
+      holding = true;
       holdCursorHidden(reason);
     };
 
     // El ratón devuelve el cursor y, si la política lo pide, se vuelve a
     // esconder solo pasado el rato (así no se queda clavado en pantalla).
     const show = () => {
-      releaseCursorHidden(reason);
       clearTimer();
-      if (idleMs > 0) timer = window.setTimeout(() => holdCursorHidden(reason), idleMs);
+      if (holding) {
+        holding = false;
+        releaseCursorHidden(reason);
+      }
+      if (idleMs > 0) timer = window.setTimeout(() => {
+        timer = 0;
+        hide();
+      }, idleMs);
     };
 
     const onGamepad = () => hide();
@@ -124,7 +133,10 @@ export function useHiddenCursor(
       window.removeEventListener("mousemove", onMouse);
       window.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("keydown", onKey, true);
-      releaseCursorHidden(reason);
+      if (holding) {
+        holding = false;
+        releaseCursorHidden(reason);
+      }
     };
   }, [policy, idleMs, enabled]);
 }

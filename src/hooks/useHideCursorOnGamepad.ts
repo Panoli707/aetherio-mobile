@@ -30,12 +30,19 @@ export function useHideCursorOnGamepad(callbacks?: {
   handlersRef.current = callbacks;
 
   useEffect(() => {
+    let holding = false;
     const onGamepad = () => {
-      holdCursorHidden(REASON);
+      if (!holding) {
+        holding = true;
+        holdCursorHidden(REASON);
+      }
       handlersRef.current?.onGamepad?.();
     };
     const onNormalInput = () => {
-      releaseCursorHidden(REASON);
+      if (holding) {
+        holding = false;
+        releaseCursorHidden(REASON);
+      }
       handlersRef.current?.onNormalInput?.();
     };
     const onKey = (event: KeyboardEvent) => {
@@ -50,7 +57,10 @@ export function useHideCursorOnGamepad(callbacks?: {
       window.removeEventListener(GAMEPAD_ACTIVITY_EVENT, onGamepad);
       window.removeEventListener("mousemove", onNormalInput);
       window.removeEventListener("keydown", onKey, true);
-      releaseCursorHidden(REASON);
+      if (holding) {
+        holding = false;
+        releaseCursorHidden(REASON);
+      }
     };
   }, []);
 }

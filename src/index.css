@@ -1228,15 +1228,15 @@ html.aetherio-android-tv .scroll-row{
   }
 }
 
-/* Detail: headers de secci�n en gris; se iluminan en blanco cuando su row
-   tiene el foco (mando/teclado). El color vive en una variable heredada para
-   no pelear con los estilos inline: cada h2 usa
-   color: var(--detail-h, rgba(255,255,255,0.6)). */
-.detail-page-content section h2{
+/* Detail: igual que Home, headers atenuados hasta que la row está activa.
+   En modo normal se activa con hover; en TV, con foco del mando/teclado. */
+.detail-page-content .detail-row-title{
+  color:rgba(255,255,255,0.6);
   transition:color 0.25s ease;
 }
-.detail-page-content section:focus-within{
-  --detail-h:#fff;
+.detail-page-content section:hover .detail-row-title,
+.detail-page-content section:focus-within .detail-row-title{
+  color:#fff;
 }
 
 /* Home: headers atenuados hasta que una card de su fila está activa. En modo

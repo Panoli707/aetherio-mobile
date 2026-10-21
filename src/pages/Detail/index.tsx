@@ -3576,7 +3576,7 @@ function updateBackdropBlur(scrollTop: number) {
               </div>
             ) : (
               <div className="detail-season-header" style={{ display:"flex",alignItems:"center",gap:14,marginBottom:bigPicture ? 24 : 12 }}>
-                <h2 style={{ fontSize:20,fontWeight:750,color:"var(--detail-h, rgba(255,255,255,0.6))",lineHeight:1.1 }}>Temporada {curSeason.number}</h2>
+                <h2 className="detail-row-title" style={{ fontSize:20,fontWeight:750,lineHeight:1.1 }}>Temporada {curSeason.number}</h2>
               </div>
             )}
             <div style={{ marginTop: bigPicture ? 12 : 0 }}>
@@ -3613,7 +3613,7 @@ function updateBackdropBlur(scrollTop: number) {
 
         {!isMovie&&Boolean(specialSeason?.episodes.length)&&(
           <section style={{ marginTop: bigPicture ? -26 : undefined }}>
-            <h2 style={{ fontSize:20,fontWeight:750,color:"var(--detail-h, rgba(255,255,255,0.6))",lineHeight:1.1,marginBottom:bigPicture ? 24 : 12 }}>Especiales</h2>
+            <h2 className="detail-row-title" style={{ fontSize:20,fontWeight:750,lineHeight:1.1,marginBottom:bigPicture ? 24 : 12 }}>Especiales</h2>
             <div style={{ marginTop: bigPicture ? 12 : 0 }}>
             <ScrollRow rowKey={`detail:${type}:${id}:specials`} gap={DETAIL_EPISODE_CARD_GAP} arrowTop={DETAIL_MEDIA_ARROW_TOP}>
               {specialSeason!.episodes.map(ep=>(
@@ -3838,7 +3838,7 @@ function CompanyGroup({ title, kind, items, startIndex, background }: { title: s
 
   return (
     <div className="liquid-glass-dark" style={{ borderRadius:18,padding:"22px 24px",minHeight:138 }}>
-    <h2 style={{ fontSize:19,fontWeight:750,color:"var(--detail-h, rgba(255,255,255,0.6))",marginBottom:16,lineHeight:1.1 }}>{title}</h2>
+    <h2 className="detail-row-title" style={{ fontSize:19,fontWeight:750,marginBottom:16,lineHeight:1.1 }}>{title}</h2>
       <div style={{ display:"flex",alignItems:"center",gap:14,flexWrap:"wrap" }}>
         {items.map((item, offset) => (
           <button
@@ -3886,7 +3886,7 @@ function CompanyGroup({ title, kind, items, startIndex, background }: { title: s
 function SectionH({ title }:{title:string}) {
   return (
     <div className="detail-section-header" style={{ display:"flex",alignItems:"center",marginBottom:12, transition:"transform 0.32s cubic-bezier(0.16,1,0.3,1)" }}>
-      <h2 style={{ fontSize:20,fontWeight:750,color:"var(--detail-h, rgba(255,255,255,0.6))",lineHeight:1.1 }}>{title}</h2>
+      <h2 className="detail-row-title" style={{ fontSize:20,fontWeight:750,lineHeight:1.1 }}>{title}</h2>
     </div>
   );
 }
@@ -3910,7 +3910,7 @@ function TmdbCommentsSection({
     <section>
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",gap:16,marginBottom:12 }}>
         <div>
-          <h2 style={{ fontSize:20,fontWeight:750,color:"var(--detail-h, rgba(255,255,255,0.6))",lineHeight:1.1 }}>Comentarios de TMDB</h2>
+          <h2 className="detail-row-title" style={{ fontSize:20,fontWeight:750,lineHeight:1.1 }}>Comentarios de TMDB</h2>
           <p style={{ marginTop:6,fontSize:12,color:"rgba(255,255,255,0.42)" }}>Comentarios del título</p>
         </div>
       </div>

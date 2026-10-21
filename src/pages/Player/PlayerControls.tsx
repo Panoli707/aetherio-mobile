@@ -48,6 +48,7 @@ type MpvBlurGeometry = {
   cornerRadius: number;
   viewportWidth: number;
   viewportHeight: number;
+  controlSurfaces?: { left: number; top: number; right: number; bottom: number; cornerRadius: number }[];
   episodePanel?: {
     left: number;
     top: number;
@@ -282,7 +283,7 @@ export default function PlayerControls({
   const lastBlurGeometryRef = useRef("");
   const blurErrorLoggedRef = useRef(false);
   const blurCommandQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const pendingBlurCommandRef = useRef<{ enabled: boolean; rect?: MpvBlurGeometry; alpha?: { blurAlpha?: number; episodeBlurAlpha?: number; subtitleBlurAlpha?: number } } | null>(null);
+  const pendingBlurCommandRef = useRef<{ enabled: boolean; rect?: MpvBlurGeometry; alpha?: { blurAlpha?: number; episodeBlurAlpha?: number; subtitleBlurAlpha?: number; controlAlpha?: number } } | null>(null);
   const blurCommandInFlightRef = useRef(false);
   const subtitlePositionQueueRef = useRef<Promise<void>>(Promise.resolve());
   const lastSubtitlePositionRef = useRef<number | null>(null);
@@ -852,7 +853,7 @@ useEffect(() => {
     const queueBlurCommand = (
       enabled: boolean,
       rect?: MpvBlurGeometry,
-      alpha?: { blurAlpha?: number; episodeBlurAlpha?: number; subtitleBlurAlpha?: number },
+      alpha?: { blurAlpha?: number; episodeBlurAlpha?: number; subtitleBlurAlpha?: number; controlAlpha?: number },
     ) => {
       pendingBlurCommandRef.current = { enabled, rect, alpha };
       if (blurCommandInFlightRef.current) return;
@@ -878,14 +879,32 @@ useEffect(() => {
       if ((openMenu || subtitleSyncOpen) && !floatingPanel) return null;
       const scale = window.devicePixelRatio || 1;
       const r = (v: number) => Math.round(v * scale);
+      const player = controlsRef.current?.parentElement;
+      const controlSurfaces = bigPicture && player
+        ? Array.from(player.querySelectorAll<HTMLElement>("[data-player-control-glass], [data-player-skip]"))
+          .filter(element => !element.parentElement?.closest("[data-player-control-glass]"))
+          .map(element => {
+            const box = element.getBoundingClientRect();
+            const left = Math.max(0, box.left);
+            const top = Math.max(0, box.top);
+            const right = Math.min(window.innerWidth, box.right);
+            const bottom = Math.min(window.innerHeight, box.bottom);
+            return {
+              left: r(left), top: r(top), right: r(right), bottom: r(bottom),
+              cornerRadius: r(Math.min(parseFloat(getComputedStyle(element).borderTopLeftRadius) || 0, box.width / 2, box.height / 2)),
+            };
+          })
+          .filter(box => box.right > box.left && box.bottom > box.top)
+        : [];
       return {
-        left: r(rect.left),
-        top: r(rect.top),
-        right: r(rect.right),
-        bottom: r(rect.bottom),
+        left: r(Math.max(0, rect.left)),
+        top: r(Math.max(0, rect.top)),
+        right: r(Math.min(window.innerWidth, rect.right)),
+        bottom: r(Math.min(window.innerHeight, rect.bottom)),
         cornerRadius: Math.round(26 * scale),
         viewportWidth: r(window.innerWidth),
         viewportHeight: r(window.innerHeight),
+        controlSurfaces,
         episodePanel: episodeRect
           ? {
               left: r(episodeRect.left),
@@ -921,7 +940,8 @@ useEffect(() => {
         return;
       }
       const alpha = {
-        blurAlpha: barAlphaRef.current.v,
+        blurAlpha: bigPicture ? 0 : barAlphaRef.current.v,
+        controlAlpha: bigPicture ? barAlphaRef.current.v : 0,
         episodeBlurAlpha: episodeAlphaRef.current.v,
         subtitleBlurAlpha: subtitleAlphaRef.current.v,
       };
@@ -931,15 +951,17 @@ useEffect(() => {
       const barCounts = !bigPicture && alpha.blurAlpha > 0.01;
       const shouldBeEnabled =
         barCounts ||
+        alpha.controlAlpha > 0.01 ||
         alpha.episodeBlurAlpha > 0.01 ||
         alpha.subtitleBlurAlpha > 0.01 ||
-        (!bigPicture && active) ||
+        active ||
         !!activeSidePanel ||
         !!openMenu ||
         !!subtitleSyncOpen;
       queueBlurCommand(shouldBeEnabled, geometry, alpha);
       if (!shouldBeEnabled) {
         window.setTimeout(() => {
+          if (disposed) return;
           lastBlurGeometryRef.current = "";
           queueBlurCommand(false);
         }, 80);
@@ -955,10 +977,7 @@ useEffect(() => {
       }, 16);
     };
 
-    // Barra exagerada (0.62/0.44) y menús con misma elegancia que nav (0.48/0.36)
-    // Big Picture queda fuera: su barra no se desenfoca, se apoya en el video
-    // con una sombra degradada (el rect del shader dibujaria un corte recto).
-    const targetBar = bigPicture ? 0 : (active && !controlsLocked ? 1 : 0);
+    const targetBar = active && !controlsLocked ? 1 : 0;
     const targetEpisode = activeSidePanel || episodesRowOpen ? 1 : 0;
     const targetSubtitle = openMenu || subtitleSyncOpen ? 1 : 0;
 
@@ -1058,10 +1077,7 @@ useEffect(() => {
   // video con una SOMBRA DEGRADADA (como la referencia): el panel se apoya en la
   // imagen, sin borde, sin radio y sin ancho maximo.
   //
-  // Ni backdrop-filter ni blur de MPV: cualquier recorte —el rect del shader o el
-  // rect del webview— devuelve el corte recto que se quejo. El degradado vive en
-  // `.bp-player-controls::before` (index.css) porque tiene que subir mas alla de
-  // esta caja; aqui la superficie queda transparente.
+  // El contenedor queda transparente; el vidrio se recorta a cada control.
   const glassStyle: CSSProperties = bigPicture
     ? { background: "transparent" }
     : {
@@ -1073,6 +1089,13 @@ useEffect(() => {
         transform: "translateZ(0)",
         backfaceVisibility: "hidden",
       };
+  const controlSurface = getPlayerGlassSurface();
+  const controlMaterial = {
+    "--player-control-background": controlSurface.background,
+    "--player-control-border": controlSurface.border,
+    "--player-control-shadow": controlSurface.boxShadow,
+    "--player-control-filter": nativeSurfaceVisible ? "none" : controlSurface.backdropFilter,
+  } as CSSProperties;
   // Hover informa, no conduce: solo un arrastre real mueve la barra visible.
   const timelineDisplayTime = timelineScrubbing && seekPreviewTime !== null ? seekPreviewTime : currentTime;
 
@@ -1085,7 +1108,7 @@ useEffect(() => {
         // la ventana, que es lo que hace que la sombra "agarre" todo.
         ? "absolute inset-x-0 bottom-0 z-40 will-change-transform"
         : "absolute inset-x-0 bottom-0 z-40 px-4 pb-3 will-change-transform"}
-      style={{ opacity: 0, pointerEvents: active ? "auto" : "none", willChange: "transform, opacity, filter", transform: "translateZ(0)" }}
+      style={{ ...controlMaterial, opacity: 0, pointerEvents: active ? "auto" : "none", willChange: "transform, opacity, filter", transform: "translateZ(0)" }}
       onMouseEnter={onControlsEnter}
       onMouseLeave={() => {
         if (controlsGlassRef.current?.contains(document.activeElement)) return;
@@ -1359,8 +1382,9 @@ useEffect(() => {
                 <Repeat size={18} />
               </IconButton>
             ) : null}
-            <div className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/12 px-2.5 py-2">
+            <div data-player-control-glass className="flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/12 px-2.5 py-2">
               <button
+                data-player-control-glass
                 type="button"
                 onClick={() => runControlAction(onToggleMute)}
                 disabled={controlsLocked}
@@ -1371,6 +1395,7 @@ useEffect(() => {
                 {volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
               </button>
               <input
+                data-player-volume
                 type="range"
                 min={0}
                 max={2}
@@ -1378,7 +1403,8 @@ useEffect(() => {
                 value={volume}
                 onChange={event => onVolumeChange(Number(event.target.value))}
                 disabled={controlsLocked}
-                className="h-1 w-32 accent-white"
+                style={{ "--player-volume-progress": `${Math.min(100, Math.max(0, volume * 50))}%` } as CSSProperties}
+                className="w-32"
               />
             </div>
           </div>
@@ -1498,8 +1524,9 @@ useEffect(() => {
                   <Repeat size={18} />
                 </IconButton>
               ) : null}
-              <div className="flex h-10 items-center gap-2 rounded-full border border-white/[0.08] bg-white/12 px-2.5">
+              <div data-player-control-glass className="flex h-10 items-center gap-2 rounded-full border border-white/[0.08] bg-white/12 px-2.5">
                 <button
+                  data-player-control-glass
                   type="button"
                   onClick={() => runControlAction(onToggleMute)}
                   disabled={controlsLocked}
@@ -1520,7 +1547,8 @@ useEffect(() => {
                   value={volume}
                   onChange={event => onVolumeChange(Number(event.target.value))}
                   disabled={controlsLocked}
-                  className="h-1 w-24 accent-white xl:w-32"
+                  style={{ "--player-volume-progress": `${Math.min(100, Math.max(0, volume * 50))}%` } as CSSProperties}
+                  className="w-24 xl:w-32"
                 />
               </div>
             </div>
@@ -1548,6 +1576,7 @@ useEffect(() => {
                   onClick={() => runControlAction(onToggleEpisodePanel)}
                   disabled={transportLocked}
                   data-bp-episodes-label
+                  data-player-control-glass
                   aria-expanded={episodesRowOpen}
                   aria-controls="bp-episode-row"
                   className={`flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold text-white gsap-transition ${
@@ -2109,6 +2138,7 @@ if (bigPicture) {
   return (
     <div className="relative" data-player-menu data-menu-id="subtitles">
       <button
+        data-player-control-glass
         ref={buttonRef}
         type="button"
         disabled={disabled}
@@ -2564,6 +2594,7 @@ function IconButton({
     <button
       onClick={onClick}
       disabled={disabled}
+      data-player-control-glass
       data-player-playpause={playPause || undefined}
       onPointerDown={e => {
         if (disabled) return;
@@ -2586,9 +2617,6 @@ function IconButton({
       style={{
         transform: "translateZ(0)",
         willChange: "transform, background-color",
-        backdropFilter: "var(--lg-filter-md)",
-        WebkitBackdropFilter: "var(--lg-filter-md)",
-        boxShadow: "0 2px 10px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.10)",
       }}
       title={label}
       aria-label={label}
@@ -2704,6 +2732,7 @@ function VideoEnhancementMenu({
   return (
     <div className="relative" data-player-menu data-menu-id="video-enhancements">
       <button
+        data-player-control-glass
         ref={buttonRef}
         type="button"
         disabled={disabled}
@@ -2776,6 +2805,7 @@ function IconMenu({
   return (
     <div className="relative" data-player-menu data-menu-id={id}>
       <button
+        data-player-control-glass
         ref={buttonRef}
         type="button"
         disabled={disabled}

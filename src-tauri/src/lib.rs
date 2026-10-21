@@ -1,5 +1,6 @@
 mod discord_rpc;
 mod embedded_subtitles;
+mod player_glass;
 mod poster_cache;
 mod poster_server;
 mod tmdb_text_cache;
@@ -1089,8 +1090,9 @@ fn ensure_player_controls_blur_shader(app: &tauri::AppHandle) -> Result<PathBuf,
         .map_err(|error| format!("No se pudo crear el cache para el shader de MPV: {error}"))?;
     let shader_path = shader_dir.join("aetherio-player-controls-blur.glsl");
     let current = fs::read_to_string(&shader_path).ok();
-    if current.as_deref() != Some(PLAYER_CONTROLS_BLUR_SHADER_SOURCE) {
-        fs::write(&shader_path, PLAYER_CONTROLS_BLUR_SHADER_SOURCE)
+    let source = player_glass::shader_source(PLAYER_CONTROLS_BLUR_SHADER_SOURCE);
+    if current.as_deref() != Some(source.as_str()) {
+        fs::write(&shader_path, source)
             .map_err(|error| format!("No se pudo instalar el shader de blur de MPV: {error}"))?;
     }
     Ok(shader_path)
@@ -5452,6 +5454,8 @@ fn update_mpv_controls_blur(
     blur_alpha: f64,
     episode_blur_alpha: f64,
     subtitle_blur_alpha: f64,
+    control_surfaces: &[player_glass::ControlGlassRect],
+    control_alpha: f64,
 ) -> Result<(), String> {
     if !enabled {
         return mpv_command_value_async(
@@ -5518,7 +5522,7 @@ fn update_mpv_controls_blur(
         return Err(String::from("La geometria del blur del reproductor es invalida."));
     }
 
-    let shader_options = format!(
+    let mut shader_options = format!(
         "aetherio_blur_left={:.3},aetherio_blur_top={:.3},aetherio_blur_right={:.3},aetherio_blur_bottom={:.3},aetherio_blur_radius={:.3},aetherio_blur_viewport_width={:.3},aetherio_blur_viewport_height={:.3},aetherio_episode_blur_enabled={},aetherio_episode_blur_left={:.3},aetherio_episode_blur_top={:.3},aetherio_episode_blur_right={:.3},aetherio_episode_blur_bottom={:.3},aetherio_episode_blur_radius={:.3},aetherio_subtitle_blur_enabled={},aetherio_subtitle_blur_left={:.3},aetherio_subtitle_blur_top={:.3},aetherio_subtitle_blur_right={:.3},aetherio_subtitle_blur_bottom={:.3},aetherio_subtitle_blur_radius={:.3},aetherio_blur_alpha={:.3},aetherio_episode_blur_alpha={:.3},aetherio_subtitle_blur_alpha={:.3},aetherio_blur_enabled=1",
         left,
         top,
@@ -5543,6 +5547,12 @@ fn update_mpv_controls_blur(
         episode_blur_alpha,
         subtitle_blur_alpha,
     );
+    shader_options.push_str(&player_glass::shader_options(
+        control_surfaces,
+        control_alpha,
+        viewport_width,
+        viewport_height,
+    )?);
     mpv_command_value_async(
         client,
         serde_json::json!(["set", "glsl-shader-opts", shader_options]),
@@ -5575,6 +5585,8 @@ async fn set_mpv_controls_blur(
     blur_alpha: Option<f64>,
     episode_blur_alpha: Option<f64>,
     subtitle_blur_alpha: Option<f64>,
+    control_surfaces: Option<Vec<player_glass::ControlGlassRect>>,
+    control_alpha: Option<f64>,
 ) -> Result<(), String> {
     let client = {
         let state = app.state::<MpvState>();
@@ -5583,6 +5595,8 @@ async fn set_mpv_controls_blur(
     let blur_alpha = blur_alpha.unwrap_or(if enabled { 1.0 } else { 0.0 });
     let episode_blur_alpha = episode_blur_alpha.unwrap_or(if episode_enabled { 1.0 } else { 0.0 });
     let subtitle_blur_alpha = subtitle_blur_alpha.unwrap_or(if subtitle_panel_enabled { 1.0 } else { 0.0 });
+    let control_surfaces = control_surfaces.unwrap_or_default();
+    let control_alpha = control_alpha.unwrap_or(0.0);
     tauri::async_runtime::spawn_blocking(move || {
         let result = update_mpv_controls_blur(
             &client,
@@ -5609,6 +5623,8 @@ async fn set_mpv_controls_blur(
             blur_alpha,
             episode_blur_alpha,
             subtitle_blur_alpha,
+            &control_surfaces,
+            control_alpha,
         );
         if result.is_ok() {
             mpv_bridge_log(
@@ -5637,6 +5653,8 @@ async fn set_mpv_controls_blur(
                     "blurAlpha": blur_alpha,
                     "episodeBlurAlpha": episode_blur_alpha,
                     "subtitleBlurAlpha": subtitle_blur_alpha,
+                    "controlSurfaces": control_surfaces,
+                    "controlAlpha": control_alpha,
                 }),
             );
         }

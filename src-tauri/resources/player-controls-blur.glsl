@@ -136,6 +136,20 @@
 //!MAXIMUM 1.0
 1.0
 
+//!PARAM aetherio_controls_count
+//!TYPE DYNAMIC float
+//!MINIMUM 0.0
+//!MAXIMUM 16.0
+0.0
+
+//!PARAM aetherio_controls_alpha
+//!TYPE DYNAMIC float
+//!MINIMUM 0.0
+//!MAXIMUM 1.0
+0.0
+
+// AETHERIO_CONTROL_PARAMETERS
+
 //!HOOK OUTPUT
 //!BIND HOOKED
 //!SAVE AETHERIO_BLUR_HORIZONTAL
@@ -167,15 +181,18 @@ bool aetherio_inside_expanded_rect(
     );
 }
 
+// AETHERIO_CONTROL_MASK
+
 bool aetherio_inside_blur_source(vec2 pixel) {
     return (
-        aetherio_inside_expanded_rect(
+        (aetherio_blur_alpha > 0.01 && aetherio_inside_expanded_rect(
             pixel,
             aetherio_blur_left,
             aetherio_blur_top,
             aetherio_blur_right,
             aetherio_blur_bottom
-        ) ||
+        )) ||
+        (aetherio_controls_alpha > 0.01 && aetherio_controls_mask(pixel, 32.0) > 0.0) ||
         (
             aetherio_episode_blur_enabled > 0.5 &&
             aetherio_inside_expanded_rect(
@@ -205,7 +222,7 @@ vec4 hook() {
     if (!aetherio_inside_blur_source(pixel)) {
         return original;
     }
-    float maxAlpha = max(aetherio_blur_alpha, max(aetherio_episode_blur_alpha, aetherio_subtitle_blur_alpha));
+    float maxAlpha = max(aetherio_controls_alpha, max(aetherio_blur_alpha, max(aetherio_episode_blur_alpha, aetherio_subtitle_blur_alpha)));
     if (maxAlpha <= 0.01) {
         return original;
     }
@@ -246,6 +263,8 @@ vec2 aetherio_window_pixel(vec2 texture_position) {
     vec2 visible_origin = 0.5 * (viewport_size - target_size);
     return visible_origin + texture_position * target_size;
 }
+
+// AETHERIO_CONTROL_MASK
 
 bool aetherio_inside_rounded_rect(
     vec2 pixel,
@@ -321,7 +340,7 @@ vec4 hook() {
     vec4 original = HOOKED_texOff(vec2(0.0));
     vec2 pixel = aetherio_window_pixel(HOOKED_pos);
 
-    float maskAlpha = 0.0;
+    float maskAlpha = aetherio_controls_alpha * aetherio_controls_mask(pixel, 0.0);
     if (aetherio_inside_rounded_rect(pixel, aetherio_blur_left, aetherio_blur_top, aetherio_blur_right, aetherio_blur_bottom, aetherio_blur_radius)) {
         maskAlpha = max(maskAlpha, aetherio_blur_alpha);
     }

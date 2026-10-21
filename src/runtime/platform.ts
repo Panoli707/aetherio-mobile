@@ -419,6 +419,13 @@ export async function setNativeMpvControlsBlur(
     cornerRadius: number;
     viewportWidth: number;
     viewportHeight: number;
+    controlSurfaces?: {
+      left: number;
+      top: number;
+      right: number;
+      bottom: number;
+      cornerRadius: number;
+    }[];
     episodePanel?: {
       left: number;
       top: number;
@@ -438,6 +445,7 @@ export async function setNativeMpvControlsBlur(
     blurAlpha?: number;
     episodeBlurAlpha?: number;
     subtitleBlurAlpha?: number;
+    controlAlpha?: number;
   },
 ) {
   if (!isTauriRuntime()) return;
@@ -465,5 +473,7 @@ export async function setNativeMpvControlsBlur(
     blurAlpha: alpha?.blurAlpha ?? (enabled ? 1 : 0),
     episodeBlurAlpha: alpha?.episodeBlurAlpha ?? (rect?.episodePanel ? 1 : 0),
     subtitleBlurAlpha: alpha?.subtitleBlurAlpha ?? (rect?.subtitlePanel ? 1 : 0),
+    controlSurfaces: rect?.controlSurfaces ?? [],
+    controlAlpha: alpha?.controlAlpha ?? 0,
   });
 }

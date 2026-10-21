@@ -167,7 +167,7 @@ const DETAIL_LOGO_KEY = "aetherio-detail-logo";
 // Oscurecido fijo del fondo con la sección de streams visible: sobre imágenes
 // claras, los textos del picker necesitan contraste. Lo aplica el negro plano.
 const EPISODE_SCRIM_OPACITY = 0.5;
-const DETAIL_HERO_HEIGHT = "calc(78vh + var(--app-shell-nav-height) - 60px)";
+const DETAIL_HERO_HEIGHT = "calc(78vh - 60px)";
 const BIG_PICTURE_DETAIL_HERO_HEIGHT = "calc(78vh - 60px)";
 const DETAIL_VERTICAL_CARD_GAP = 22;
 const DETAIL_EPISODE_CARD_GAP = 22;
@@ -333,6 +333,46 @@ function dedupeCastMembers(cast?: CastMember[]) {
 function normalizeDetailData(detail: DetailData): DetailData {
   const cast = dedupeCastMembers(detail.cast);
   return cast.length === (detail.cast?.length ?? 0) ? detail : { ...detail, cast };
+}
+
+function DetailPageLoading({ background, showSpinner }: { background?: string; showSpinner: boolean }) {
+  return (
+    <div
+      data-vt-hero-claim
+      data-detail-loading
+      aria-busy="true"
+      style={{
+        position: "relative",
+        display: "grid",
+        placeItems: "center",
+        width: "100vw",
+        height: "100vh",
+        left: "50%",
+        marginLeft: "-50vw",
+        marginTop: "calc(-1 * var(--app-shell-nav-height))",
+        overflow: "hidden",
+        background: "#08090b",
+      }}
+    >
+      {background ? (
+        <img
+          src={background}
+          alt=""
+          aria-hidden="true"
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover" }}
+        />
+      ) : null}
+      <div
+        aria-hidden="true"
+        style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(0,0,0,0.38), rgba(0,0,0,0.68))" }}
+      />
+      {showSpinner ? (
+        <div role="status" aria-label="Cargando detalle" style={{ position: "relative", zIndex: 1 }}>
+          <span className="aetherio-loading-spinner" aria-hidden="true" />
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function numberValue(value: unknown) {
@@ -958,9 +998,9 @@ export default function DetailPage({
       mdbListRatings: initialSeed.mdbListRatings,
     } : null);
   const [data, setData]         = useState<DetailData|null>(() => initialDetail);
-  // El seed reserva el layout y puede mantenerse visible mientras la
-  // revalidación resuelve el backdrop definitivo.
-  const [loading, setLoading]   = useState(() => isBigPictureLocation(location.pathname) || !initialDetail);
+  // Solo un detalle completo de caché se muestra de inmediato. El seed de la
+  // card conserva el fondo, pero espera a que termine la carga de sus filas.
+  const [loading, setLoading]   = useState(() => isBigPictureLocation(location.pathname) || !normalizedInitialDetail);
   const [episodesLoading, setEpisodesLoading] = useState(false);
   const [season, setSeason]     = useState(1);
   const seasonRepeatAtRef = useRef(0);
@@ -1017,6 +1057,8 @@ export default function DetailPage({
   // En picture el detail es la misma page de PC pero con foco = escala sin
   // bordes, logo y créditos del hero no clicables, y foco inicial en Reproducir.
   const bigPicture = useBigPictureActive();
+  const dataMatchesRoute = detailDataMatchesRoute(data, id);
+  const contentPending = (loading || episodesLoading || (!bigPicture && tmdbCommentsLoading)) && dataMatchesRoute;
   // Episodie como sección embebida: nunca se sale del Detail, solo cambia de
   // sección sobre el MISMO fondo (una sola imagen). La sección se pilota con
   // el state del historial: abrir empuja una entrada, Atrás la cierra.
@@ -1357,39 +1399,34 @@ backdropBlurAmountRef.current = 0;
     return () => gsap.killTweensOf([prevEl, currEl]);
   }, [logoStack]);
 
-  // La entrada se coreografía una vez por medio. La page puede montar con el
-  // seed del hero (id ya conocido desde la card de origen) y completar la
-  // carga real después: al entrar desde Home en picture la page ya está
-  // visible cuando `loading` pasa a false, así que re-animar la entrada la
-  // parpadeaba entera como si recargara. Con seed no hay entrada que
-  // coreografiar (la hace el fade de ruta) y la zona de contenido se reserva
-  // con el esqueleto; sin seed, la entrada corre una sola vez por medio.
+  // La entrada se coreografía una vez por medio, después de que el detalle y
+  // sus filas hayan terminado de cargar. Así el seed no aparece antes que el
+  // contenido y la entrada se mantiene suave en caché y en carga real.
   const entranceAnimatedIdRef = useRef<string | null>(null);
-  const seededEntryIdRef = useRef<string | null>(
-    normalizedInitialDetail ? null : initialSeed ? id : null,
-  );
 
   useLayoutEffect(() => {
     const root = detailContentRef.current;
-    if (loading || !data || !root) return;
+    if (loading || contentPending || !data || !root) return;
     const mediaId = data.id;
     if (entranceAnimatedIdRef.current === mediaId) return;
-    entranceAnimatedIdRef.current = mediaId;
-    if (seededEntryIdRef.current === mediaId) return;
     const items = Array.from(root.querySelectorAll<HTMLElement>(
       ".detail-page-hero > div, .detail-page-content > *:not(.detail-content-logo)",
     ));
-    const timeline = gsap.timeline({ defaults: { ease: "power3.out" } });
+    const reduced = prefersReducedMotion();
+    const timeline = gsap.timeline({
+      defaults: { ease: "power3.out" },
+      onComplete: () => { entranceAnimatedIdRef.current = mediaId; },
+    });
     timeline.fromTo(
       backdropImageRef.current,
-      { opacity: 0, scale: 1.02 },
-      { opacity: 1, scale: 1, duration: 0.68 },
+      { opacity: 0, scale: reduced ? 1 : 1.02 },
+      { opacity: 1, scale: 1, duration: reduced ? 0.18 : 0.68 },
       0,
     );
     timeline.fromTo(
       items,
-      { opacity: 0, y: 16 },
-      { opacity: 1, y: 0, duration: 0.5, stagger: 0.06, clearProps: "transform" },
+      { opacity: 0, y: reduced ? 0 : 16 },
+      { opacity: 1, y: 0, duration: reduced ? 0.2 : 0.5, stagger: reduced ? 0 : 0.06, clearProps: "transform" },
       0.08,
     );
     return () => {
@@ -1397,7 +1434,7 @@ backdropBlurAmountRef.current = 0;
       gsap.set(backdropImageRef.current, { opacity: 1, filter: "blur(0px)", scale: 1, visibility: "inherit" });
       gsap.set(items, { clearProps: "opacity,visibility,transform" });
     };
-  }, [loading, data?.id]);
+  }, [loading, contentPending, data?.id]);
 
   useLayoutEffect(() => {
     const badge = awardBadgeRef.current;
@@ -2614,54 +2651,14 @@ backdropBlurAmountRef.current = 0;
     };
   }, [bigPicture, regularSeasons, curSeason?.number, season, data?.id, episodeProgressMap]);
 
-  const dataMatchesRoute = detailDataMatchesRoute(data, id);
-  // Seed del hero ya pintado y carga real todavía en vuelo: la zona de
-  // contenido se reserva con un esqueleto para no entrar vacía. Cuando
-  // aterrizan temporadas/episodios el esqueleto se sustituye en el mismo
-  // lugar, sin salto ni repintado de la page entera.
-  const contentPending = (loading || episodesLoading) && dataMatchesRoute;
+  // Mantener solo el fondo mientras se resuelven las filas que todavía
+  // mostrarían skeletons; el detalle completo entra cuando ya está listo.
   if (loading && !dataMatchesRoute) {
     if (bigPicture) return <LoadingState label="Cargando detalle" shellPreviewLoading />;
-    return (
-    <div
-      data-vt-hero-claim
-      style={{
-        position: "relative",
-        width: "100vw",
-        left: "50%",
-        marginLeft: "-50vw",
-        height: "100vh",
-        marginTop: "calc(-1 * var(--app-shell-nav-height))",
-        overflow: "hidden",
-        background: "#08090b",
-      }}
-    >
-      <div className="detail-page-scale" style={{ position:"relative",minHeight:"100vh" }}>
-        <div className="detail-page-hero" style={{ position:"relative",width:"100vw",left:"50%",marginLeft:"-50vw",height:bigPicture ? BIG_PICTURE_DETAIL_HERO_HEIGHT : DETAIL_HERO_HEIGHT,minHeight:540,overflow:"hidden" }}>
-          <div className="skeleton" style={{ position:"absolute",inset:0,opacity:0.38 }} />
-          <div style={{ position:"absolute",inset:0,background:"linear-gradient(90deg, rgba(0,0,0,0.78), rgba(0,0,0,0.18) 58%, transparent)" }} />
-          <div style={{ position:"absolute",left:"var(--app-safe-x)",bottom:4,width:460,maxWidth:"42vw",paddingBottom:22,display:"flex",flexDirection:"column",gap:11 }}>
-            <div className="skeleton" style={{ width:250,height:72,borderRadius:12 }} />
-            <div className="skeleton" style={{ width:285,height:15,borderRadius:999 }} />
-            <div className="skeleton" style={{ width:"100%",height:13,borderRadius:999 }} />
-            <div className="skeleton" style={{ width:"82%",height:13,borderRadius:999 }} />
-            <div style={{ display:"flex",gap:12,marginTop:9 }}>
-              <div className="skeleton" style={{ width:180,height:48,borderRadius:999 }} />
-              <div className="skeleton" style={{ width:48,height:48,borderRadius:999 }} />
-            </div>
-          </div>
-        </div>
-        <div style={{ padding:"24px var(--app-safe-x)",overflow:"hidden" }}>
-          <div className="skeleton" style={{ width:150,height:18,borderRadius:999,marginBottom:18 }} />
-          <div style={{ display:"flex",gap:10 }}>
-            {[0,1,2,3,4].map(item => (
-              <div key={item} className="skeleton" style={{ width:302,height:196,borderRadius:14,flexShrink:0 }} />
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-    );
+    return <DetailPageLoading showSpinner background={undefined} />;
+  }
+  if (contentPending) {
+    return <DetailPageLoading background={data?.backdrop ?? data?.poster} showSpinner={!bigPicture} />;
   }
   if (!dataMatchesRoute || !data) return <div style={{ display:"flex",alignItems:"center",justifyContent:"center",height:"80vh",color:"rgba(255,255,255,0.4)" }}>Error cargando.</div>;
   const detailData = data;
@@ -3537,24 +3534,6 @@ function updateBackdropBlur(scrollTop: number) {
 
       {/* SECCIONES INFERIORES */}
       <div className="detail-page-content" style={{ padding:"24px var(--app-safe-x)",display:"flex",flexDirection:"column",gap:28,background:"transparent" }}>
-
-        {/* Esqueleto de la zona de contenido mientras la primera carga real
-            no resuelve (page abierta desde una card con solo el seed del
-            hero). Mantiene la altura reservada: la fila de episodios entra en
-            su sitio al aterrizar los datos, sin zona vacía ni salto. */}
-        {contentPending && (
-          <div data-content-pending style={{ display:"flex",flexDirection:"column",gap:28 }} aria-hidden="true">
-            <section>
-              <div className="skeleton" style={{ width:150,height:18,borderRadius:999,marginBottom:18 }} />
-              <div style={{ display:"flex",gap:DETAIL_EPISODE_CARD_GAP }}>
-                {[0,1,2,3,4].map(item => (
-                  <div key={item} className="skeleton" style={{ width:302,height:196,borderRadius:14,flexShrink:0 }} />
-                ))}
-              </div>
-            </section>
-            <div className="skeleton" style={{ width:"62%",height:18,borderRadius:999 }} />
-          </div>
-        )}
 
         {/* Zona de contenido: el logo se mantiene dentro de la zona, pero
             permanece colapsado mientras el hero todavía está visible para

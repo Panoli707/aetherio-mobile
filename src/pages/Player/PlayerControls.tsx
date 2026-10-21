@@ -1135,7 +1135,7 @@ useEffect(() => {
               {title ? (
                 <p className="bp-eyebrow truncate text-[clamp(15px,1.15vw,20px)] font-semibold leading-[1.2] text-white/72">{title}</p>
               ) : null}
-              <p className={`bp-title truncate text-[clamp(28px,2.75vw,56px)] font-bold leading-[1.04] tracking-[-0.022em] text-white ${streamingServiceBadge?.imageUrl || videoFormatBadges.length ? "mt-0" : "mt-[0.3em]"}`}>
+              <p className={`bp-title truncate text-[clamp(28px,2.75vw,56px)] font-bold leading-[1.14] tracking-[-0.022em] text-white ${streamingServiceBadge?.imageUrl || videoFormatBadges.length ? "mt-0" : "mt-[0.3em]"}`}>
                 {currentMetaTitle}
               </p>
               {partyPill}

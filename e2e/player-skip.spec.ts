@@ -18,6 +18,7 @@ async function stubPlayback(page: Page) {
   await page.addInitScript(() => {
     const w = window as unknown as Record<string, unknown>;
     let nextId = 1;
+    let statusTick = 0;
     const STATUS = {
       timePos: 806,
       duration: 3646,
@@ -36,8 +37,9 @@ async function stubPlayback(page: Page) {
     w.__TAURI_INTERNALS__ = {
       transformCallback() { return nextId++; },
       async invoke(cmd: string) {
-        if (cmd === "mpv_status") return { ...STATUS, timePos: STATUS.timePos + 1 };
+        if (cmd === "mpv_status") return { ...STATUS, timePos: STATUS.timePos + 1 + statusTick++ * 0.5 };
         if (cmd === "playback_capabilities") return { hardwareDecode: true, secondAudio: true };
+        if (cmd === "fetch_introdb_segments") return { intro: { start_sec: 780, end_sec: 900 } };
         if (cmd.startsWith("plugin:event|")) return nextId++;
         return null;
       },
@@ -47,16 +49,17 @@ async function stubPlayback(page: Page) {
     };
     w.__TAURI__ = { event: { listen: async () => () => undefined } };
     localStorage.setItem("aetherio-local-mode-v1", "1");
+    localStorage.setItem("aetherio-playback-preferences", JSON.stringify({ skipSegmentsEnabled: true, animeSkipEnabled: false }));
     sessionStorage.setItem("aetherio-selected-stream", JSON.stringify({
-      name: "La nobleza de las flores",
+      name: "Magia asesina",
       addonName: "Fuente de prueba",
       url: "https://cdn.example/flores.mkv",
       behaviorHints: { headers: {} },
       technicalMetadata: { audioCodec: "eac3", audioChannels: 6, dynamicRange: "Dolby Atmos" },
     }));
     sessionStorage.setItem("aetherio-selected-media-meta", JSON.stringify({
-      name: "La nobleza de las flores",
-      resumeTime: 48,
+      name: "Magia asesina",
+      resumeTime: 806,
     }));
   });
 }
@@ -104,13 +107,10 @@ test("el boton de saltar cumple la referencia", async ({ page }) => {
     const glass = document.querySelector("[data-player-controls-glass]")!;
     const timeline = glass.querySelector("input[type='range']") as HTMLInputElement | null;
     const timelineBox = timeline?.getBoundingClientRect() ?? null;
-    const icons = glass.querySelector("[data-bar-actions] button, .bp-bar-actions button");
-    const iconsBox = icons?.getBoundingClientRect() ?? null;
     return {
       width: box.width,
       height: box.height,
       right: window.innerWidth - box.right,
-      bottom: window.innerHeight - box.bottom,
       radius: Number.parseFloat(style.borderTopLeftRadius),
       fontSize: Number.parseFloat(style.fontSize),
       fontWeight: style.fontWeight,
@@ -119,8 +119,6 @@ test("el boton de saltar cumple la referencia", async ({ page }) => {
       borderTopWidth: style.borderTopWidth,
       paddingLeft: Number.parseFloat(style.paddingLeft),
       timelineRight: timelineBox ? window.innerWidth - timelineBox.right : null,
-      iconsBottom: iconsBox ? window.innerHeight - iconsBox.top : null,
-      glassTop: window.innerHeight - glass.getBoundingClientRect().top,
     };
   });
 
@@ -151,11 +149,6 @@ test("el boton de saltar cumple la referencia", async ({ page }) => {
   // Alineacion: el extremo derecho coincide con el de la linea de tiempo.
   if (measured.timelineRight !== null) {
     expect(Math.abs(measured.right - measured.timelineRight)).toBeLessThanOrEqual(2);
-  }
-
-  // Vertical: por encima del contenido de la barra (iconos), no encima.
-  if (measured.iconsBottom !== null) {
-    expect(measured.bottom).toBeGreaterThan(measured.iconsBottom);
   }
 
   await page.screenshot({ path: "artifacts/player-skip/measure/skip-1920x1080.png" });
@@ -200,4 +193,47 @@ test("una etiqueta larga no rompe la forma", async ({ page }) => {
   expect(box.height).toBeLessThan(80);
   expect(box.radius / box.height).toBeLessThan(0.45);
   expect(box.overflows).toBe(false);
+});
+
+test("Saltar intro no se solapa con las acciones en rutas normal y TV, ni a 720p", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await stubPlayback(page);
+  await page.route(/\/media\?/, route => route.fulfill({ status: 200, contentType: "application/json", body: "[]" }));
+  await page.route("https://arm.haglund.dev/**", route => route.fulfill({ status: 200, contentType: "application/json", body: "[]" }));
+
+  const assertClearGap = async () => {
+    const geometry = await page.locator("[data-player-skip]").evaluate(button => {
+      const skip = button.getBoundingClientRect();
+      const actions = document.querySelector(".bp-bar-actions")?.getBoundingClientRect();
+      if (!actions) throw new Error("no se encontró la fila de acciones");
+      const overlapWidth = Math.max(0, Math.min(skip.right, actions.right) - Math.max(skip.left, actions.left));
+      const overlapHeight = Math.max(0, Math.min(skip.bottom, actions.bottom) - Math.max(skip.top, actions.top));
+      return { gap: actions.top - skip.bottom, overlaps: overlapWidth > 0 && overlapHeight > 0 };
+    });
+    expect(geometry.overlaps).toBe(false);
+    expect(geometry.gap).toBeGreaterThanOrEqual(12);
+  };
+
+  for (const route of ["/big-picture/player", "/player"]) {
+    await page.goto(`${route}?type=series&id=tt1234567&season=1&ep=3`);
+    await page.waitForTimeout(2500);
+    await page.mouse.move(960, 540);
+    await expect(page.locator("[data-player-skip]")).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".bp-title")).toHaveText("Magia asesina");
+    await page.waitForTimeout(100);
+    await assertClearGap();
+
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect.poll(async () => {
+      const geometry = await page.locator("[data-player-skip]").evaluate(button => {
+        const skip = button.getBoundingClientRect();
+        const actions = document.querySelector(".bp-bar-actions")?.getBoundingClientRect();
+        return actions ? actions.top - skip.bottom : -Infinity;
+      });
+      return geometry;
+    }).toBeGreaterThanOrEqual(12);
+    await assertClearGap();
+    await page.setViewportSize({ width: 1920, height: 1080 });
+  }
 });

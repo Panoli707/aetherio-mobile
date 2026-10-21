@@ -268,6 +268,7 @@ export default function PlayerPage() {
   const traktStoppedKeyRef = useRef("");
   const nextEpisodePromptKeyRef = useRef("");
   const skipButtonRef = useRef<HTMLButtonElement | null>(null);
+  const playerShellRef = useRef<HTMLDivElement | null>(null);
   const fallbackRetryButtonRef = useRef<HTMLButtonElement | null>(null);
   const autoSubtitlePathRef = useRef("");
   const throughputAccumulatorRef = useRef<ThroughputAccumulator>(createThroughputAccumulator(""));
@@ -2984,6 +2985,39 @@ usePlayerGamepad({
 const activeSkipKey = activeSkipSegment
   ? `${activeSkipSegment.id}:${activeSkipSegment.start}:${activeSkipSegment.end}`
   : "";
+useLayoutEffect(() => {
+  if (
+    !isBigPicturePlayer
+    || !activeSkipKey
+    || !playbackPreferences.skipSegmentsEnabled
+    || !mpvReadyForCommands
+    || !playbackStarted
+  ) return;
+  const player = playerShellRef.current;
+  const button = skipButtonRef.current;
+  const actions = player?.querySelector<HTMLElement>(".bp-bar-actions");
+  if (!player || !button || !actions) return;
+
+  const syncPosition = () => {
+    const playerRect = player.getBoundingClientRect();
+    const actionsRect = actions.getBoundingClientRect();
+    button.style.right = `${Math.max(0, playerRect.right - actionsRect.right)}px`;
+    button.style.bottom = `${Math.max(0, playerRect.bottom - actionsRect.top + 32)}px`;
+  };
+  syncPosition();
+
+  const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(syncPosition);
+  observer?.observe(player);
+  observer?.observe(actions);
+  if (actions.parentElement) observer?.observe(actions.parentElement);
+  const glass = actions.closest<HTMLElement>("[data-player-controls-glass]");
+  if (glass) observer?.observe(glass);
+  window.addEventListener("resize", syncPosition);
+  return () => {
+    observer?.disconnect();
+    window.removeEventListener("resize", syncPosition);
+  };
+}, [activeSkipKey, controlsActive, isBigPicturePlayer, playbackPreferences.skipSegmentsEnabled, mpvReadyForCommands, playbackStarted]);
 useEffect(() => {
   if (!isBigPicturePlayer) return;
   if (!activeSkipSegment || !playbackPreferences.skipSegmentsEnabled) return;
@@ -4007,6 +4041,7 @@ if (!stream) {
   
   return (
     <div
+      ref={playerShellRef}
       className={playerShellClassName}
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
       data-player-direct-input={!showFallbackPanel && !subtitleSync.open && playerMenu === null && activeSidePanel === null && !showUpNext && !gamepadBarMode ? "true" : "false"}

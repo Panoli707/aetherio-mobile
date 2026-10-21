@@ -80,13 +80,10 @@ export async function resolvePosterEndpoint(
   settings: SpatialPosterSettings,
 ): Promise<string> {
   if (isTauri()) {
-    const status = await ensurePosterServer(settings.instanceUrl);
-    // Solo tiene sentido apuntar al proxy si Rust confirmo que hay algo
-    // escuchando: `poster_cache_url` puede devolver el puerto aunque el cache
-    // se haya quedado sin arrancar.
-    if (status?.running) {
-      setPosterCacheUrl(await getPosterCacheUrl());
-    }
+    // El proxy de AppData arranca antes que el generador: puede servir hits de
+    // disco aunque SpatialPosters todavía esté calentando Node.
+    await ensurePosterServer(settings.instanceUrl);
+    setPosterCacheUrl(await getPosterCacheUrl());
   }
   return getEffectiveInstanceUrl(settings);
 }

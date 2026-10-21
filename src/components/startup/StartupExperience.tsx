@@ -2,7 +2,7 @@ import { emitTo } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import aetherioLogo from "../../assets/aetheriologo.png";
-import { isTauriRuntime } from "../../runtime/platform";
+import { isTauriRuntime, markNativeStartupReady } from "../../runtime/platform";
 import { gsap, prefersReducedMotion } from "../../utils/motion";
 import { STARTUP_COMPLETE_EVENT, STARTUP_STATUS_EVENT } from "./startupEvents";
 import "./StartupExperience.css";
@@ -55,7 +55,9 @@ function NativeMainStartupCoordinator({ children, ready, status, onComplete }: S
           const mainWindow = getCurrentWindow();
           await mainWindow.show();
           await mainWindow.setFocus();
+          markNativeStartupReady();
         } catch {
+          markNativeStartupReady();
           gsap.set(contentRef.current, { autoAlpha: 1, clearProps: "transform" });
           return;
         } finally {

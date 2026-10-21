@@ -475,15 +475,27 @@ pub async fn start_posters_server(
     app: tauri::AppHandle,
     configured_url: String,
 ) -> Result<PosterServerStatus, String> {
-    let handle = app.clone();
-    let status = tauri::async_runtime::spawn_blocking(move || start(&handle))
-        .await
-        .map_err(|e| format!("Fallo el arranque del server de posters: {e}"))??;
-
-    // El cache va despues: necesita que el server este vivo para poder ser su
-    // upstream, y si falla no importa, los posters siguen funcionando sin el.
+    // Levanta el proxy local antes de Node. Los pósteres ya guardados en
+    // AppData quedan disponibles inmediatamente, aunque SpatialPosters tarde
+    // varios segundos en iniciar; los misses empiezan a renderizarse cuando
+    // el proceso upstream esté listo.
     start_cache_if_default(&app, &configured_url);
-    Ok(status)
+
+    let handle = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = tauri::async_runtime::spawn_blocking(move || start(&handle)).await;
+    });
+
+    // La apertura de Aetherio no depende de Next.js/SpatialPosters. El estado
+    // real del generador se puede consultar después con posters_server_status.
+    Ok(PosterServerStatus {
+        running: false,
+        ready: false,
+        pid: None,
+        port: PORT,
+        r2_enabled: r2_credentials().0,
+        detail: None,
+    })
 }
 
 #[tauri::command]

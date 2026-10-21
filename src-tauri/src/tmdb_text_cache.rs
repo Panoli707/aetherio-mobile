@@ -14,8 +14,10 @@ use std::{
 use tauri::{AppHandle, Manager};
 
 const CACHE_DIRECTORY: &str = "tmdb-text-cache";
-const MAX_CACHE_ENTRIES: usize = 750;
-const MAX_CACHE_BYTES: u64 = 128 * 1024 * 1024;
+// Conserva varios días de datos de Home y de navegación. 750 entradas se
+// alcanzaban con un catálogo amplio y expulsaban metadatos todavía vigentes.
+const MAX_CACHE_ENTRIES: usize = 3_000;
+const MAX_CACHE_BYTES: u64 = 256 * 1024 * 1024;
 const MAX_ENTRY_BYTES: usize = 2 * 1024 * 1024;
 
 static CACHE_FILESYSTEM_LOCK: Mutex<()> = Mutex::new(());

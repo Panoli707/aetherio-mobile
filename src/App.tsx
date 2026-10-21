@@ -176,8 +176,9 @@ export default function App() {
   // justo la primera pantalla que ve la persona. El cache en disco se pone
   // despues, cuando ya se sabe el puerto.
   useEffect(() => {
-    void ensurePosterServer(getSpatialPosterSettings().instanceUrl).then(async started => {
-      if (started?.running) setPosterCacheUrl(await getPosterCacheUrl());
+    void ensurePosterServer(getSpatialPosterSettings().instanceUrl).then(async () => {
+      const cacheUrl = await getPosterCacheUrl();
+      if (cacheUrl) setPosterCacheUrl(cacheUrl);
     });
   }, []);
 
@@ -254,25 +255,9 @@ export default function App() {
         if (!disposed) setProfileRevision(value => value + 1);
       }
 
-      // Recarga (F5) o deep link: el splash no espera. La página que venía se
-      // repinta desde la caché persistida — `useHomeCatalogs` la siembra como
-      // `initialData` — y se calienta sola en background al montarse, así que
-      // el prewarm de aquí solo añadiría una espera de hasta 75 s delante de una
-      // pantalla que el usuario ya tenía abierta. En un arranque en frío, en
-      // cambio, el splash es lo único en pantalla: ahí sí se espera.
-      if (needsProfileGate) {
-        const startupHomePrefs = getHomePreferences();
-        setStartupStatus("Cargando tu biblioteca");
-        await warmHomeStartup(
-          queryClient,
-          enabledAddons,
-          startupHomePrefs.contentOrientation,
-          startupHomePrefs.bothPreference,
-          () => {
-            if (!disposed) setStartupStatus("Preparando imágenes");
-          },
-        );
-      }
+      // Nunca bloquear la apertura por los catálogos o los pósteres. El Home
+      // reutiliza primero su snapshot persistido y `prefetchHomeData` (más
+      // abajo) actualiza catálogo, héroe y arte en segundo plano.
       if (!disposed) {
         setStartupStatus("Todo listo");
         setStartupReady(true);
@@ -535,19 +520,16 @@ export default function App() {
               await rehydrateHomeCacheForActiveProfile();
               queryClient.removeQueries({ queryKey: ["home"] });
               const nextHomePrefs = getHomePreferences();
-              // Siempre mostrar la pantalla de cargando al seleccionar un perfil,
-              // destacados los catálogos y pósters. Si el cambio de perfil/cuenta
-              // desencadena un prewarm completo. No SKIP aunque exista caché local:
-              // el usuario quiere ver tres pasos de carga (catálogos, pósters, listo).
-              onProgress(45, "Cargando catálogo…");
-              await warmHomeStartup(
+              // Al perfil se entra con su snapshot local; el prewarm se ejecuta
+              // en segundo plano para que ni catálogo ni renders de pósteres
+              // bloqueen la navegación a Home.
+              onProgress(72, "Abriendo tu biblioteca…");
+              void warmHomeStartup(
                 queryClient,
                 nextEnabledAddons,
                 nextHomePrefs.contentOrientation,
                 nextHomePrefs.bothPreference,
-                undefined,
-                progress => onProgress(45 + progress * 50, progress < 0.55 ? "Cargando catálogo…" : "Generando pósters…"),
-              );
+              ).catch(error => console.warn("[startup] No se pudo precargar Home en segundo plano:", error));
               onProgress(100, "Listo");
             }}
           />

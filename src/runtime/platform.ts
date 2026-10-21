@@ -8,6 +8,18 @@ import { installSpatialNavigation } from "../navigation/spatialNav.ts";
 
 export type RuntimeKind = "desktop" | "web";
 
+let nativeStartupReady = false;
+let resolveNativeStartupReady: (() => void) | undefined;
+const nativeStartupReadyPromise = new Promise<void>(resolve => {
+  resolveNativeStartupReady = resolve;
+});
+
+export function markNativeStartupReady() {
+  if (nativeStartupReady) return;
+  nativeStartupReady = true;
+  resolveNativeStartupReady?.();
+}
+
 export interface PlaybackOpenRequest {
   target: string;
   subtitle?: string;
@@ -271,6 +283,9 @@ export async function enterBigPictureWindow() {
     }
     return;
   }
+  // Big Picture puede montarse mientras el coordinador mantiene oculta la
+  // ventana principal. Espera a que el splash haya terminado de ceder el foco.
+  if (!nativeStartupReady) await nativeStartupReadyPromise;
   await showAndFocusWindow();
   try {
     const win = getCurrentWindow();

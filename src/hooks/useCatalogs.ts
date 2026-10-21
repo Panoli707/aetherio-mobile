@@ -37,7 +37,8 @@ import {
 } from "../services/jikan.ts";
 import { fetchMdbListRatingsForMedia } from "../services/MDBListService.ts";
 import type { InstalledAddon } from "../store/addonStore.ts";
-import { HOME_CACHE_MAX_AGE, isFreshHomeCache, useCacheStore } from "../store/cacheStore.ts";
+import { HOME_CACHE_MAX_AGE, useCacheStore } from "../store/cacheStore.ts";
+import { isReusableHomeCache, normalizeDailyHeroSignature, normalizeDailyRowsSignature } from "./homeCachePolicy.ts";
 import { homeImagePreloadConcurrency } from "../utils/hardware.ts";
 import type { CatalogRowData, MediaItem } from "../types/ui.ts";
 import { DEFAULT_HOME_PREFERENCES, matchesContentOrientation, type BothContentPreference, type ContentOrientation } from "../config/homePreferences.ts";
@@ -1227,7 +1228,11 @@ async function enrichHeroRatings(items: MediaItem[]) {
 
 function cachedRows(signature: string) {
   const home = useCacheStore.getState().home;
-  if (!home || home.rowsSignature !== signature || !isFreshHomeCache(home.rowsUpdatedAt)) {
+  if (
+    !home
+    || !isReusableHomeCache(home.rowsUpdatedAt)
+    || normalizeDailyRowsSignature(home.rowsSignature) !== normalizeDailyRowsSignature(signature)
+  ) {
     return undefined;
   }
   return home.rows;
@@ -1235,7 +1240,11 @@ function cachedRows(signature: string) {
 
 function cachedHero(signature: string) {
   const home = useCacheStore.getState().home;
-  if (!home || home.heroSignature !== signature || !isFreshHomeCache(home.heroUpdatedAt)) {
+  if (
+    !home
+    || !isReusableHomeCache(home.heroUpdatedAt)
+    || normalizeDailyHeroSignature(home.heroSignature) !== normalizeDailyHeroSignature(signature)
+  ) {
     return undefined;
   }
   return home.heroItems.map(item => ({
@@ -1255,6 +1264,8 @@ export function prefetchHomeData(
   const home = useCacheStore.getState().home;
   const rows = cachedRows(rowsSignature);
   const hero = cachedHero(currentHeroSignature);
+  const rowsStaleTime = home?.rowsSignature === rowsSignature ? HOME_ROWS_STALE_TIME : 0;
+  const heroStaleTime = home?.heroSignature === currentHeroSignature ? HOME_HERO_STALE_TIME : 0;
 
   if (rows) {
     queryClient.setQueryData(homeCatalogKeys.rows(rowsSignature), rows, { updatedAt: home?.rowsUpdatedAt });
@@ -1270,13 +1281,13 @@ export function prefetchHomeData(
     queryFn: () => fetchHomeRows(addons, contentOrientation, phased => {
       queryClient.setQueryData(homeCatalogKeys.rows(rowsSignature), phased);
     }, bothPreference),
-    staleTime: HOME_ROWS_STALE_TIME,
+    staleTime: rowsStaleTime,
     gcTime: HOME_GC_TIME,
   });
   const heroPromise = queryClient.prefetchQuery({
     queryKey: homeCatalogKeys.hero(currentHeroSignature),
     queryFn: fetchHomeHero,
-    staleTime: HOME_HERO_STALE_TIME,
+    staleTime: heroStaleTime,
     gcTime: HOME_GC_TIME,
   });
   return Promise.allSettled([rowsPromise, heroPromise]);
@@ -1297,6 +1308,8 @@ export async function warmHomeStartup(
   const home = useCacheStore.getState().home;
   const rows = cachedRows(rowsSignature);
   const hero = cachedHero(currentHeroSignature);
+  const rowsStaleTime = home?.rowsSignature === rowsSignature ? HOME_ROWS_STALE_TIME : 0;
+  const heroStaleTime = home?.heroSignature === currentHeroSignature ? HOME_HERO_STALE_TIME : 0;
 
   // Un solo sondeo, antes de nada: si SpatialPosters no esta levantado se
   // apaga el pipeline de posters de una vez en vez de fallar una vez por
@@ -1321,13 +1334,13 @@ export async function warmHomeStartup(
     queryFn: () => fetchHomeRows(addons, contentOrientation, phased => {
       queryClient.setQueryData(homeCatalogKeys.rows(rowsSignature), phased);
     }, bothPreference),
-    staleTime: HOME_ROWS_STALE_TIME,
+    staleTime: rowsStaleTime,
     gcTime: HOME_GC_TIME,
   });
   const heroPromise = queryClient.prefetchQuery({
     queryKey: homeCatalogKeys.hero(currentHeroSignature),
     queryFn: fetchHomeHero,
-    staleTime: HOME_HERO_STALE_TIME,
+    staleTime: heroStaleTime,
     gcTime: HOME_GC_TIME,
   });
   // `Promise.allSettled` arriba espera a que las filas queden completas (base +
@@ -1709,6 +1722,9 @@ export function useHomeCatalogs(
 
   const initialRows = cachedRows(rowsSignature);
   const initialHero = cachedHero(currentHeroSignature);
+  const homeSnapshot = useCacheStore.getState().home;
+  const rowsStaleTime = homeSnapshot?.rowsSignature === rowsSignature ? HOME_ROWS_STALE_TIME : 0;
+  const heroStaleTime = homeSnapshot?.heroSignature === currentHeroSignature ? HOME_HERO_STALE_TIME : 0;
 
   const rowsQuery = useQuery({
     queryKey: homeCatalogKeys.rows(rowsSignature),
@@ -1720,7 +1736,7 @@ export function useHomeCatalogs(
     enabled: tmdbReady,
     initialData: initialRows,
     initialDataUpdatedAt: initialRows ? useCacheStore.getState().home?.rowsUpdatedAt : undefined,
-    staleTime: HOME_ROWS_STALE_TIME,
+    staleTime: rowsStaleTime,
     gcTime: HOME_GC_TIME,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -1732,7 +1748,7 @@ export function useHomeCatalogs(
     enabled: tmdbReady,
     initialData: initialHero,
     initialDataUpdatedAt: initialHero ? useCacheStore.getState().home?.heroUpdatedAt : undefined,
-    staleTime: HOME_HERO_STALE_TIME,
+    staleTime: heroStaleTime,
     gcTime: HOME_GC_TIME,
     refetchOnMount: false,
     refetchOnWindowFocus: false,

@@ -1295,6 +1295,12 @@ export function installSpatialNavigation() {
     // only after expansion. Never move focus in the Home behind it.
     if (isShellPreviewOpen()) return;
 
+    // With mouse/keyboard direct playback active, arrows belong to transport
+    // (seek/volume), not spatial focus. Synthetic gamepad keys keep the map.
+    if (event.isTrusted && document.querySelector('[data-player-direct-input="true"]')) {
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight" || event.key === "ArrowUp" || event.key === "ArrowDown") return;
+    }
+
     // En el Player Big Picture, teclado y mando comparten el mismo mapa de
     // zonas. PlayerGamepad resuelve flechas/escape según timeline, controles o
     // fila de episodios; si no reclama la acción (por ejemplo, un menú abierto),

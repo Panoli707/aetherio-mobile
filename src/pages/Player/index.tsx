@@ -48,7 +48,6 @@ import {
   stopNativePlayback,
 } from "../../runtime/platform";
 import type { ChapterOption, MpvStatusSnapshot, MpvTrack, VideoScaleMode } from "./types";
-import EpisodePanel from "./EpisodePanel";
 import SourcePanel from "./SourcePanel";
 import SourceResolver from "./SourceResolver";
 import PlayerControls from "./PlayerControls";
@@ -76,7 +75,6 @@ import { shouldShowMovieRecommendation, shouldShowNextEpisodeCard } from "./next
 import { useParty } from "../../party/PartyContext";
 import { partyMediaKey, type PartyStreamEvent } from "../../party/protocol";
 import { buildShareableOffer, describeUnshareableReason, partyOfferToMediaStream } from "../../party/streamShare";
-import SubtitleSyncDialog from "./SubtitleSyncDialog";
 import { appleEase, gsap } from "../../utils/motion";
 import { getUpNextMiniRect } from "../../utils/upnextMiniRect";
 import {
@@ -298,13 +296,16 @@ export default function PlayerPage() {
   // explícita para que D-pad, stick y flechas sigan el mismo mapa.
   const [gamepadBarMode, setGamepadBarMode] = useState(false);
   const [barZone, setBarZone] = useState<"timeline" | "buttons" | "episodes">("timeline");
+  const [barFocusWithin, setBarFocusWithin] = useState(false);
   const [bigPictureEpisodesOpen, setBigPictureEpisodesOpen] = useState(false);
   const episodeRowWasOpenRef = useRef(false);
   const episodeRowShouldResumeRef = useRef(false);
   const episodeRowPauseOwnedRef = useRef(false);
   const handleBarFocusChange = useCallback((zone: "timeline" | "buttons" | "episodes") => {
-    setGamepadBarMode(true);
     setBarZone(zone);
+  }, []);
+  const handleBarFocusWithinChange = useCallback((within: boolean) => {
+    setBarFocusWithin(within);
   }, []);
   // OSD central: iconos de play/pausa/seek/volumen SIN despertar la barra (§1 respuesta inmediata).
   const [actionFeedback, setActionFeedback] = useState<PlayerActionFeedbackData | null>(null);
@@ -441,8 +442,10 @@ export default function PlayerPage() {
     [safeStream],
   );
   const isIframeStream = safeStream?.behaviorHints?.scraperPlayback === "iframe";
-  // Variante visual Big Picture + gestos de mando: solo en /big-picture/player.
-  const isBigPicturePlayer = isBigPictureLocation();
+  // La ruta conserva identidad propia (back links, deep links), pero el
+  // reproductor comparte la presentacion inmersiva en ambos modos.
+  const isBigPictureRoute = isBigPictureLocation();
+  const isBigPicturePlayer = true;
   const trailerRequested = params.get("trailer") === "1";
   const isTrailerStream = trailerRequested || Boolean(safeStream?.ytId);
 
@@ -461,8 +464,8 @@ export default function PlayerPage() {
   // Se apoya en la clase global de `useHiddenCursor` (cursor: none !important)
   // y no en un estilo en línea: así también desaparece sobre la barra de
   // controles, cuyos botones traen `cursor: pointer` propio que lo pisaría.
-  useHiddenCursor(isBigPicturePlayer ? "gamepad" : "idle", {
-    idleMs: isBigPicturePlayer ? 2500 : 3000,
+  useHiddenCursor(isBigPictureRoute ? "gamepad" : "idle", {
+    idleMs: isBigPictureRoute ? 2500 : 3000,
     enabled: controlsReady,
   });
 
@@ -504,6 +507,16 @@ export default function PlayerPage() {
     void sendMpvCommand(["set_property", "pause", false]);
     void sendMpvCommand(["set_property", "speed", Number(selectedSpeed) || 1.0]);
   }, [bigPictureEpisodesOpen, isBigPicturePlayer, playbackStarted, playing, selectedSpeed]);
+
+  useEffect(() => {
+    if (!bigPictureEpisodesOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      closeEpisodeRow();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [bigPictureEpisodesOpen]);
 
   // El panel de fuentes ya no depende de que haya una instantanea guardada: se
   // ofrece siempre que el medio pueda tener alternativas y se resuelve al abrir.
@@ -565,6 +578,7 @@ export default function PlayerPage() {
 
   const hasMpvError = !isLeavingPlayer && (mpvBundled === false || mpvStatus?.startsWith("MPV no"));
   const nativeSurfaceVisible = !isIframeStream && Boolean(stream && playbackStarted && !hasMpvError);
+const showFallbackPanel = Boolean(hasMpvError) && !isLeavingPlayer;
 
   const currentEpisode = query?.season && query?.episode
     ? episodeOptions.find(ep => ep.episode === query.episode) ?? null
@@ -2311,22 +2325,26 @@ export default function PlayerPage() {
     flash: flashActionFeedback,
     startSpaceAcceleration,
     stopSpaceAcceleration,
+    revealControls: () => {
+      setGamepadBarMode(false);
+      wakeControls();
+    },
     volume,
     playing,
-    // En Big Picture con menú, panel lateral o sync abiertos las flechas y el
-    // espacio pertenecen a la navegación del overlay (motor espacial): sin
-    // esto, ←/→ harían seek y ↑/↓ volumen con el menú abierto. En desktop se
-    // conserva el comportamiento anterior.
-    enabled: !showUpNext && (!isBigPicturePlayer || (playerMenu === null && !subtitleSync.open && activeSidePanel === null)),
+    // Con un overlay abierto las flechas y el espacio pertenecen a su
+    // navegación. La fila de episodios no bloquea: sus cards gestionan sus
+    // propias teclas.
+    enabled: !showUpNext && !showFallbackPanel && playerMenu === null && !subtitleSync.open && activeSidePanel === null,
   });
-  // La barra se mantiene visible con panel lateral, menú flotante o sync
-  // abiertos (el mando los recorre sin ratón).
+  // La barra se mantiene visible con panel lateral, menú flotante, sync o foco
+  // de teclado dentro de ella.
   const controlsActive =
     controlsVisible
     || activeSidePanel !== null
     || playerMenu !== null
     || subtitleSync.open
     || bigPictureEpisodesOpen
+    || barFocusWithin
     || partyLobbyRef.current;
 
 // Cronometra desde el arranque efectivo de cada stream/episodio, no desde que
@@ -2933,16 +2951,15 @@ usePlayerGamepad({
     focusPlayerOverlay();
   },
   openEpisodesOrSources: () => {
-    if (episodeOptions.length > 0 && isBigPicturePlayer) {
+    if (episodeOptions.length > 0) {
       holdControls();
       setGamepadBarMode(true);
       setBigPictureEpisodesOpen(true);
       setBarZone("episodes");
       return;
     }
-    if (episodeOptions.length > 0) setActiveSidePanel("episodes");
-    else if (canHaveSources) setActiveSidePanel("sources");
-    else return;
+    if (!canHaveSources) return;
+    setActiveSidePanel("sources");
     holdControls();
     focusPlayerOverlay();
   },
@@ -3808,7 +3825,6 @@ function completeUpNextExit() {
 }
 
 const mpvError = hasMpvError;
-const showFallbackPanel = Boolean(mpvError) && !isLeavingPlayer;
 // Panel fallback (error MPV): el mando/teclado se enfoca solo en
 // "Reintentar reproducción" (A lo activa, B/Esc sale). Normal y Big Picture.
 useEffect(() => {
@@ -3966,7 +3982,6 @@ if (!stream) {
   }
   const selectedSubtitleValue = selectedMpvSubtitle;
   const currentMetaTitle = isMovie ? mediaTitle : (currentEpisode?.name ?? mediaTitle);
-  const currentOverview = currentEpisode?.overview?.trim() || "Sin descripción disponible para este episodio.";
   const loadingArtwork =
     selectedMediaLogo
     || sanitizeLogoUrl(resumeEntry?.logo)
@@ -3994,7 +4009,11 @@ if (!stream) {
     <div
       className={playerShellClassName}
       style={{ fontFamily: "Inter, system-ui, sans-serif" }}
-      onPointerMove={() => wakeControls()}
+      data-player-direct-input={!showFallbackPanel && !subtitleSync.open && playerMenu === null && activeSidePanel === null && !showUpNext && !gamepadBarMode ? "true" : "false"}
+      onPointerMove={() => {
+        if (gamepadBarMode) setGamepadBarMode(false);
+        wakeControls();
+      }}
       onPointerDown={startHoldToAccelerate}
       onPointerUp={stopHoldToAccelerate}
       onPointerCancel={stopHoldToAccelerate}
@@ -4103,30 +4122,6 @@ if (!stream) {
         </div>
       ) : null}
 
-      <SubtitleSyncDialog
-        open={subtitleSync.open && !isBigPicturePlayer}
-        loading={subtitleSync.loading}
-        error={subtitleSync.error}
-        canUseManual={subtitleSync.canUseManual}
-        stage={subtitleSync.stage}
-        cues={subtitleSync.visibleCues}
-        capturedVideoMs={subtitleSync.capturedVideoMs}
-        trackLabel={subtitleOptions.find(option => option.value === selectedMpvSubtitle)?.label ?? ""}
-        bigPicture={isBigPicturePlayer}
-        onClose={subtitleSync.closeSync}
-        onCapture={() => void subtitleSync.capture()}
-        onApplyCue={subtitleSync.applyCue}
-        onUseManualSync={subtitleSync.fallbackToManual}
-        onForgetTitle={subtitleTitleKey ? () => {
-          clearAutoSyncTitleMode(subtitleTitleKey);
-          subtitleSync.closeSync();
-        } : undefined}
-        onPickTrack={() => {
-          subtitleSync.closeSync();
-          focusSubtitleMenuTrack();
-        }}
-      />
-
       {playbackPreferences.skipSegmentsEnabled && activeSkipSegment && mpvReadyForCommands && playbackStarted ? (
         <button
           ref={skipButtonRef}
@@ -4165,21 +4160,6 @@ if (!stream) {
         </button>
       ) : null}
 
-      <EpisodePanel
-        visible={activeSidePanel === "episodes" && showPanelToggle}
-        title={title}
-        streamName={mediaTitle}
-        seriesLogoUrl={seriesLogoUrl}
-        currentEpisode={currentEpisode}
-        currentOverview={currentOverview}
-        items={panelItems}
-        hasEpisodeOptions={episodeOptions.length > 0}
-        canGoPrevEpisode={canGoPrevEpisode}
-        canGoNextEpisode={canGoNextEpisode}
-        bigPicture={isBigPicturePlayer}
-        onClose={() => setActiveSidePanel(null)}
-        onNavigateEpisode={navigateEpisode}
-      />
       <SourcePanel
         visible={activeSidePanel === "sources"}
         streams={availableStreams}
@@ -4277,7 +4257,7 @@ if (!stream) {
         onOpenMenuChange={setPlayerMenu}
         showPanelToggle={showPanelToggle}
         activeSidePanel={activeSidePanel}
-        episodesRowOpen={isBigPicturePlayer && bigPictureEpisodesOpen}
+        episodesRowOpen={bigPictureEpisodesOpen}
         episodeOptions={episodeOptions}
         currentEpisodeNumber={query?.episode}
         hasEpisodeOptions={episodeOptions.length > 0}
@@ -4289,6 +4269,7 @@ if (!stream) {
         canGoNextEpisode={canGoNextEpisode}
         canChangeSource={canHaveSources}
         onBarFocusChange={handleBarFocusChange}
+        onBarFocusWithinChange={handleBarFocusWithinChange}
         onCloseEpisodeRow={closeEpisodeRow}
         onSelectEpisode={episode => {
           const nextParams = new URLSearchParams({
@@ -4369,6 +4350,10 @@ if (!stream) {
         }}
         onOpenSubtitleSync={subtitleSync.openSync}
         onCloseSubtitleSync={subtitleSync.closeSync}
+        onForgetTitle={subtitleTitleKey ? () => {
+          clearAutoSyncTitleMode(subtitleTitleKey);
+          subtitleSync.closeSync();
+        } : undefined}
         onCaptureSubtitleSync={() => void subtitleSync.capture()}
         onApplySubtitleSyncCue={subtitleSync.applyCue}
         onUseManualSubtitleSync={subtitleSync.fallbackToManual}
@@ -4383,13 +4368,7 @@ if (!stream) {
         onVideoProfileChange={applyVideoProfile}
         onToggleVideoScale={toggleVideoScale}
         onToggleSourcePanel={() => setActiveSidePanel(value => value === "sources" ? null : "sources")}
-        onToggleEpisodePanel={() => {
-          if (isBigPicturePlayer) {
-            setBigPictureEpisodesOpen(value => !value);
-          } else {
-            setActiveSidePanel(value => value === "episodes" ? null : "episodes");
-          }
-        }}
+        onToggleEpisodePanel={() => setBigPictureEpisodesOpen(value => !value)}
         onNavigateEpisode={navigateEpisode}
       />
 

@@ -9,6 +9,7 @@ interface KeyboardShortcutHandlers {
   flash: (kind: PlayerFeedbackKind, extra?: { deltaSeconds?: number; volume?: number }) => void;
   startSpaceAcceleration: () => boolean;
   stopSpaceAcceleration: () => void;
+  revealControls: () => void;
   volume: number;
   playing: boolean;
   enabled?: boolean;
@@ -21,6 +22,7 @@ export function usePlayerKeyboardShortcuts({
   flash,
   startSpaceAcceleration,
   stopSpaceAcceleration,
+  revealControls,
   volume,
   playing,
   enabled = true,
@@ -32,6 +34,7 @@ export function usePlayerKeyboardShortcuts({
     flash,
     startSpaceAcceleration,
     stopSpaceAcceleration,
+    revealControls,
     volume,
     playing,
   });
@@ -42,6 +45,7 @@ export function usePlayerKeyboardShortcuts({
     flash,
     startSpaceAcceleration,
     stopSpaceAcceleration,
+    revealControls,
     volume,
     playing,
   };
@@ -51,6 +55,8 @@ export function usePlayerKeyboardShortcuts({
 
   useEffect(() => {
     if (!enabled) return;
+    const isNativeActivationTarget = (el: EventTarget | null) =>
+      el instanceof HTMLElement && Boolean(el.closest("button, a, [role='button']"));
     const onKeyDown = (event: KeyboardEvent) => {
       // Big Picture spatial navigation and focused controls own any key they
       // already consumed. Do not turn the same Arrow press into a second seek
@@ -79,7 +85,13 @@ export function usePlayerKeyboardShortcuts({
         if (isTextEntry) return;
       }
 
+      if (event.key === "Tab") {
+        handlersRef.current.revealControls();
+        return;
+      }
+
       if (event.key === " " || event.code === "Space") {
+        if (isNativeActivationTarget(event.target)) return;
         event.preventDefault();
         // Espacio: solo OSD al soltar (toggle) o aceleración al mantener.
         // No despierta la barra — el feedback visual lo da el icono central.
@@ -142,6 +154,10 @@ export function usePlayerKeyboardShortcuts({
 
     const onKeyUp = (event: KeyboardEvent) => {
       if (event.key !== " " && event.code !== "Space") return;
+      if (isNativeActivationTarget(event.target)) {
+        releaseSpace(false);
+        return;
+      }
       event.preventDefault();
       releaseSpace(true);
     };

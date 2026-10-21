@@ -153,6 +153,7 @@ interface PlayerControlsProps {
   onSubtitleVerticalChange: (next: number) => void;
   onOpenSubtitleSync: () => void;
   onCloseSubtitleSync: () => void;
+  onForgetTitle?: () => void;
   onCaptureSubtitleSync: () => void;
   onApplySubtitleSyncCue: (cueStartTimeMs: number) => void;
   onUseManualSubtitleSync: () => void;
@@ -165,6 +166,8 @@ interface PlayerControlsProps {
   onToggleEpisodePanel: () => void;
   /** Refleja el foco del reproductor para compartir navegación teclado/mando. */
   onBarFocusChange: (zone: "timeline" | "buttons" | "episodes") => void;
+  /** Indica si el foco de teclado sigue dentro de la barra. */
+  onBarFocusWithinChange?: (within: boolean) => void;
   /** Colapsa la fila de episodios y devuelve el foco al timeline. */
   onCloseEpisodeRow: () => void;
   onSelectEpisode: (episode: EpisodeOption) => void;
@@ -249,6 +252,7 @@ export default function PlayerControls({
   onSubtitleVerticalChange,
   onOpenSubtitleSync,
   onCloseSubtitleSync,
+  onForgetTitle,
   onCaptureSubtitleSync,
   onApplySubtitleSyncCue,
   onUseManualSubtitleSync,
@@ -260,12 +264,14 @@ export default function PlayerControls({
   onToggleSourcePanel,
   onToggleEpisodePanel,
   onBarFocusChange,
+  onBarFocusWithinChange,
   onCloseEpisodeRow,
   onSelectEpisode,
   onNavigateEpisode,
 }: PlayerControlsProps) {
   const controlsRef = useRef<HTMLDivElement>(null);
   const controlsGlassRef = useRef<HTMLDivElement>(null);
+  const controlsPointerTimerRef = useRef<number | null>(null);
   const episodeRowRef = useRef<HTMLDivElement>(null);
   const episodeRowScrollLeftRef = useRef(0);
   const hasEpisodeRowScrollMemoryRef = useRef(false);
@@ -351,13 +357,14 @@ export default function PlayerControls({
       return control && root.contains(control) ? control : null;
     };
     const syncBarFocus = () => {
-      const active = getActiveControl();
+      const activeControl = getActiveControl();
       clearBarFocus();
-      if (!active) return;
-      active.setAttribute("data-bar-active", "true");
-      const zone = active.closest("[data-bp-episode-row]")
+      onBarFocusWithinChange?.(Boolean(activeControl));
+      if (!activeControl) return;
+      activeControl.setAttribute("data-bar-active", "true");
+      const zone = activeControl.closest("[data-bp-episode-row]")
         ? "episodes"
-        : active.matches("[data-player-timeline]")
+        : activeControl.matches("[data-player-timeline]")
           ? "timeline"
           : "buttons";
       onBarFocusChange(zone);
@@ -372,8 +379,9 @@ export default function PlayerControls({
       root.removeEventListener("focusout", syncBarFocus);
       window.clearInterval(focusSyncTimer);
       clearBarFocus();
+      onBarFocusWithinChange?.(false);
     };
-  }, [bigPicture, onBarFocusChange]);
+  }, [bigPicture, onBarFocusChange, onBarFocusWithinChange]);
 
 useEffect(() => {
     if (!bigPicture || !episodesRowOpen || episodeOptions.length === 0) return;
@@ -701,6 +709,10 @@ useEffect(() => {
   useEffect(() => {
     const el = controlsRef.current;
     if (!el) return;
+    if (controlsPointerTimerRef.current !== null) {
+      window.clearTimeout(controlsPointerTimerRef.current);
+      controlsPointerTimerRef.current = null;
+    }
     gsap.killTweensOf(el);
     if (prefersReducedMotion()) {
       gsap.set(el, { opacity: active ? 1 : 0, y: 0, scale: 1, filter: "blur(0px)" });
@@ -709,15 +721,22 @@ useEffect(() => {
     }
     if (active) {
       el.style.pointerEvents = "auto";
-      // §3 Always animate from presentation value — gsap.set then springTo does it; no jump
+      // A3 Always animate from presentation value — gsap.set then springTo does it; no jump
       gsap.set(el, { opacity: 0, y: 14, scale: 0.97, filter: "blur(8px)" });
       springTo(el, { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" } as unknown as gsap.TweenVars, { damping: 1.0, duration: 0.45 });
     } else {
       springTo(el, { opacity: 0, y: 8, scale: 0.985, filter: "blur(6px)" } as unknown as gsap.TweenVars, { damping: 1.0, duration: 0.32 });
-      window.setTimeout(() => {
+      controlsPointerTimerRef.current = window.setTimeout(() => {
+        controlsPointerTimerRef.current = null;
         if (el && !active) el.style.pointerEvents = "none";
       }, 340);
     }
+    return () => {
+      if (controlsPointerTimerRef.current !== null) {
+        window.clearTimeout(controlsPointerTimerRef.current);
+        controlsPointerTimerRef.current = null;
+      }
+    };
   }, [active, bigPicture]);
 
   useEffect(() => {
@@ -1068,7 +1087,10 @@ useEffect(() => {
         : "absolute inset-x-0 bottom-0 z-40 px-4 pb-3 will-change-transform"}
       style={{ opacity: 0, pointerEvents: active ? "auto" : "none", willChange: "transform, opacity, filter", transform: "translateZ(0)" }}
       onMouseEnter={onControlsEnter}
-      onMouseLeave={onControlsLeave}
+      onMouseLeave={() => {
+        if (controlsGlassRef.current?.contains(document.activeElement)) return;
+        onControlsLeave();
+      }}
       onMouseMove={event => event.stopPropagation()}
       onClick={event => event.stopPropagation()}
     >
@@ -1148,6 +1170,7 @@ useEffect(() => {
                 onSubtitleVerticalChange={onSubtitleVerticalChange}
                 onOpenSubtitleSync={onOpenSubtitleSync}
                 onCloseSubtitleSync={onCloseSubtitleSync}
+                onForgetTitle={onForgetTitle}
                 onCaptureSubtitleSync={onCaptureSubtitleSync}
                 onApplySubtitleSyncCue={onApplySubtitleSyncCue}
                 onUseManualSubtitleSync={onUseManualSubtitleSync}
@@ -1399,6 +1422,7 @@ useEffect(() => {
                onSubtitleVerticalChange={onSubtitleVerticalChange}
                onOpenSubtitleSync={onOpenSubtitleSync}
                onCloseSubtitleSync={onCloseSubtitleSync}
+               onForgetTitle={onForgetTitle}
                onCaptureSubtitleSync={onCaptureSubtitleSync}
                 onApplySubtitleSyncCue={onApplySubtitleSyncCue}
                 onUseManualSubtitleSync={onUseManualSubtitleSync}
@@ -1428,62 +1452,6 @@ useEffect(() => {
               onClose={() => setOpenMenu(null)}
             />
 
-<IconButton
-              label={videoScaleMode === "crop" ? "Recortar" : "Original"}
-              disabled={transportLocked}
-              onClick={() => runControlAction(onToggleVideoScale)}
-            >
-              <Crop size={18} />
-            </IconButton>
-            {canChangeSource ? (
-              <IconButton
-                label={activeSidePanel === "sources" ? "Cerrar fuentes" : "Fuentes"}
-                disabled={transportLocked}
-                onClick={() => runControlAction(onToggleSourcePanel)}
-              >
-                <Radio size={18} />
-              </IconButton>
-            ) : null}
-
-            {showPanelToggle && (
-              <button
-                onClick={() => runControlAction(onToggleEpisodePanel)}
-                disabled={transportLocked}
-                className={`flex h-10 w-10 items-center justify-center rounded-full border text-white gsap-transition ${
-                  activeSidePanel === "episodes"
-                    ? "border-white/[0.11] bg-white/18 text-white"
-                    : "border-white/[0.07] bg-white/10 text-white/90 hover:bg-white/14"
-                }`}
-                style={{
-    backdropFilter: "var(--lg-filter-md)",
-    WebkitBackdropFilter: "var(--lg-filter-md)",
-                  boxShadow: "0 2px 10px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.10)",
-                }}
-                title="Episodios"
-                aria-label="Episodios"
-              >
-                <ListVideo size={16} />
-              </button>
-            )}
-
-            {hasEpisodeOptions && (
-              <>
-                <IconButton
-                  label="Episodio anterior"
-                  onClick={() => runControlAction(() => onNavigateEpisode("prev"))}
-                  disabled={transportLocked || !canGoPrevEpisode}
-                >
-                  <ChevronLeft size={18} />
-                </IconButton>
-                <IconButton
-                  label="Episodio siguiente"
-                  onClick={() => runControlAction(() => onNavigateEpisode("next"))}
-                  disabled={transportLocked || !canGoNextEpisode}
-                >
-                  <ChevronRight size={18} />
-                </IconButton>
-              </>
-            )}
           </div>
         </div>
         )}
@@ -1509,22 +1477,114 @@ useEffect(() => {
         ) : null}
 
         {bigPicture ? (
-          <div className="mt-[clamp(12px,2vh,26px)] flex flex-wrap items-center gap-x-[clamp(20px,1.8vw,34px)] gap-y-1">
-            {showPanelToggle ? (
-              // La etiqueta ya no es un botón: abrir la fila es sólo con la
-              // cruceta abajo (o Y). Nada clickeable/seleccionable aquí.
-              <span
-                data-bp-episodes-label
-                aria-expanded={episodesRowOpen}
-                className="bp-eyebrow truncate text-[clamp(15px,1.15vw,20px)] font-semibold leading-[1.2] text-white/72"
+          <div className="bp-bar-transport mt-[clamp(12px,2vh,26px)] flex flex-wrap items-center justify-between gap-x-[clamp(16px,2vw,34px)] gap-y-2">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <IconButton label="Retroceder 10 segundos" disabled={transportLocked} onClick={() => runControlAction(() => onJump(-10))}>
+                <RotateCcw size={19} />
+              </IconButton>
+              <IconButton label={playing ? "Pausar" : "Reproducir"} disabled={transportLocked} onClick={() => runControlAction(onTogglePlay)} large playPause>
+                {playing ? <Pause size={24} fill="white" /> : <Play size={24} fill="white" />}
+              </IconButton>
+              <IconButton label="Avanzar 10 segundos" disabled={transportLocked} onClick={() => runControlAction(() => onJump(10))}>
+                <RotateCw size={19} />
+              </IconButton>
+              {isLocalPlayback ? (
+                <IconButton
+                  label={repeatEnabled ? "Desactivar repetición" : "Repetir"}
+                  disabled={transportLocked}
+                  active={repeatEnabled}
+                  onClick={() => runControlAction(onToggleRepeat)}
+                >
+                  <Repeat size={18} />
+                </IconButton>
+              ) : null}
+              <div className="flex h-10 items-center gap-2 rounded-full border border-white/[0.08] bg-white/12 px-2.5">
+                <button
+                  type="button"
+                  onClick={() => runControlAction(onToggleMute)}
+                  disabled={controlsLocked}
+                  className="flex h-7 w-7 items-center justify-center rounded-full text-white/84 gsap-transition hover:bg-white/12 hover:text-white disabled:opacity-35"
+                  title={volume === 0 ? "Restaurar volumen" : "Silenciar"}
+                  aria-label={volume === 0 ? "Restaurar volumen" : "Silenciar"}
+                >
+                  {volume === 0 ? <VolumeX size={17} /> : <Volume2 size={17} />}
+                </button>
+                <input
+                  data-player-volume
+                  aria-label="Volumen"
+                  tabIndex={-1}
+                  type="range"
+                  min={0}
+                  max={2}
+                  step={0.01}
+                  value={volume}
+                  onChange={event => onVolumeChange(Number(event.target.value))}
+                  disabled={controlsLocked}
+                  className="h-1 w-24 accent-white xl:w-32"
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-end gap-2.5">
+              <IconButton
+                label={videoScaleMode === "crop" ? "Recortar" : "Original"}
+                disabled={transportLocked}
+                onClick={() => runControlAction(onToggleVideoScale)}
               >
-                Episodios
-              </span>
-            ) : null}
+                <Crop size={18} />
+              </IconButton>
+              {canChangeSource ? (
+                <IconButton
+                  label={activeSidePanel === "sources" ? "Cerrar fuentes" : "Fuentes"}
+                  disabled={transportLocked}
+                  onClick={() => runControlAction(onToggleSourcePanel)}
+                >
+                  <Radio size={18} />
+                </IconButton>
+              ) : null}
+              {showPanelToggle ? (
+                <button
+                  type="button"
+                  onClick={() => runControlAction(onToggleEpisodePanel)}
+                  disabled={transportLocked}
+                  data-bp-episodes-label
+                  aria-expanded={episodesRowOpen}
+                  aria-controls="bp-episode-row"
+                  className={`flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold text-white gsap-transition ${
+                    episodesRowOpen
+                      ? "border-white/[0.11] bg-white/18"
+                      : "border-white/[0.07] bg-white/10 hover:bg-white/16"
+                  }`}
+                  title="Episodios"
+                >
+                  <ListVideo size={16} />
+                  Episodios
+                </button>
+              ) : null}
+              {hasEpisodeOptions && (
+                <>
+                  <IconButton
+                    label="Episodio anterior"
+                    onClick={() => runControlAction(() => onNavigateEpisode("prev"))}
+                    disabled={transportLocked || !canGoPrevEpisode}
+                  >
+                    <ChevronLeft size={18} />
+                  </IconButton>
+                  <IconButton
+                    label="Episodio siguiente"
+                    onClick={() => runControlAction(() => onNavigateEpisode("next"))}
+                    disabled={transportLocked || !canGoNextEpisode}
+                  >
+                    <ChevronRight size={18} />
+                  </IconButton>
+                </>
+              )}
+            </div>
           </div>
         ) : null}
         {bigPicture && episodesMounted && episodeOptions.length > 0 ? (
           <div
+            id="bp-episode-row"
             data-bp-episode-row
             data-row-scroller
             data-focus-center
@@ -1707,6 +1767,7 @@ function SubtitleMenu({
   onSubtitleVerticalChange,
   onOpenSubtitleSync,
   onCloseSubtitleSync,
+  onForgetTitle,
   onCaptureSubtitleSync,
   onApplySubtitleSyncCue,
   onUseManualSubtitleSync,
@@ -1737,6 +1798,7 @@ function SubtitleMenu({
   onSubtitleVerticalChange: (next: number) => void;
   onOpenSubtitleSync: () => void;
   onCloseSubtitleSync: () => void;
+  onForgetTitle?: () => void;
   onCaptureSubtitleSync: () => void;
   onApplySubtitleSyncCue: (cueStartTimeMs: number) => void;
   onUseManualSubtitleSync: () => void;
@@ -2177,6 +2239,7 @@ if (bigPicture) {
                 onCapture={onCaptureSubtitleSync}
                 onApplyCue={onApplySubtitleSyncCue}
                 onUseManualSync={onUseManualSubtitleSync}
+                onForgetTitle={onForgetTitle}
                 onPickTrack={onPickSubtitleTrack}
               />
             </div>
@@ -2296,6 +2359,7 @@ if (bigPicture) {
                   onCapture={onCaptureSubtitleSync}
                   onApplyCue={onApplySubtitleSyncCue}
                   onUseManualSync={onUseManualSubtitleSync}
+                  onForgetTitle={onForgetTitle}
                   onPickTrack={onPickSubtitleTrack}
                 />
               </div>

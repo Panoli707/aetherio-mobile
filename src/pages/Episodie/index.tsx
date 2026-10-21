@@ -360,6 +360,26 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
   const playStreamRef = useRef<(stream: MediaStream, options?: { replace?: boolean; transition?: boolean }) => void>(() => {});
   const allStreamsRef = useRef<MediaStream[]>([]);
 
+  useLayoutEffect(() => {
+    if (!embedded) return;
+
+    // Detail pages stay mounted in React Activity while the player is open.
+    // When Activity reveals this picker again, discard any handoff overlay
+    // retained from the previous visit before the browser paints the page.
+    setPlayerTransitioning(false);
+    if (playerTransitionTimerRef.current !== null) {
+      window.clearTimeout(playerTransitionTimerRef.current);
+      playerTransitionTimerRef.current = null;
+    }
+
+    return () => {
+      if (playerTransitionTimerRef.current !== null) {
+        window.clearTimeout(playerTransitionTimerRef.current);
+        playerTransitionTimerRef.current = null;
+      }
+    };
+  }, [embedded]);
+
   const handleSelectStream = useCallback((streamId: string) => {
     const stream = allStreamsRef.current.find(c => c.id === streamId);
     if (!stream) return;
@@ -967,6 +987,7 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
     setPlayerTransitioning(true);
     if (playerTransitionTimerRef.current !== null) window.clearTimeout(playerTransitionTimerRef.current);
     playerTransitionTimerRef.current = window.setTimeout(() => {
+      playerTransitionTimerRef.current = null;
       navigate(to, { replace: options?.replace ?? false });
     }, PLAYER_HANDOFF_DELAY_MS);
   }

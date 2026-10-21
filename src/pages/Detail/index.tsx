@@ -164,9 +164,8 @@ const CONTENT_LOGO_REVEAL_DISTANCE = 520;
 // Duración del recorrido hero → contenido en Big Picture (referencia Akira).
 const DETAIL_ZONE_TRAVEL_S = 0.74;
 const DETAIL_LOGO_KEY = "aetherio-detail-logo";
-// Oscurecido fijo del fondo con la sección de streams visible: el backdrop
-// llega en grayscale y sin viñeta, así que sobre imágenes claras los textos
-// del picker quedaban sin contraste. Lo aplica el negro plano.
+// Oscurecido fijo del fondo con la sección de streams visible: sobre imágenes
+// claras, los textos del picker necesitan contraste. Lo aplica el negro plano.
 const EPISODE_SCRIM_OPACITY = 0.5;
 const DETAIL_HERO_HEIGHT = "calc(78vh + var(--app-shell-nav-height) - 60px)";
 const BIG_PICTURE_DETAIL_HERO_HEIGHT = "calc(78vh - 60px)";
@@ -1520,9 +1519,9 @@ backdropBlurAmountRef.current = 0;
   }, [bigPicture, loading, data?.id, episodeOpen]);
 
 // Transición Detail <-> sección Episodie sobre el MISMO fondo: el contenido
-// del Detail se funde hacia abajo, el fondo pasa a grayscale y se le apaga la
-// viñeta, y la sección entra. Solo corre cuando la sección confirma contenido
-// (ready): nunca hay dos imágenes ni un fondo vacío atascado.
+// del Detail se funde hacia abajo, se apaga la viñeta y entra la sección. Solo
+// corre cuando la sección confirma contenido (ready): nunca hay dos imágenes
+// ni un fondo vacío atascado.
   useLayoutEffect(() => {
     const wasOpen = episodeWasOpenRef.current;
     if (wasOpen === episodeShown) return;
@@ -1557,13 +1556,13 @@ backdropBlurAmountRef.current = 0;
       timeline.to(backdropImageRef.current, {
         opacity: 1,
         visibility: "inherit",
-        filter: "blur(0px) grayscale(1)",
+        filter: "blur(0px)",
         duration: reduced ? 0.16 : 0.72,
         ease: "power3.out",
         overwrite: "auto",
       }, 0);
-      // La viñeta se va con el mismo fundido que el grayscale: el listado de
-      // fuentes queda sobre el fondo a secas, sin el oscurecido de bordes. El
+      // La viñeta se va con el mismo fundido: el listado de fuentes queda sobre
+      // el fondo a secas, sin el oscurecido de bordes. El
       // negro plano baja al scrim fijo del picker: es la capa oscura que
       // sostiene el contraste de los textos cuando el backdrop es claro. Los
       // refs se adelantan al tween para que un scroll durante la transición no
@@ -1609,13 +1608,13 @@ backdropBlurAmountRef.current = 0;
       gsap.to(backdropImageRef.current, {
         opacity: 1,
         visibility: "inherit",
-        filter: `blur(${backdropBlurAmountRef.current}px) grayscale(0)`,
+        filter: `blur(${backdropBlurAmountRef.current}px)`,
         duration: reduced ? 0.16 : 0.56,
         ease: "power3.out",
         overwrite: "auto",
       });
-      // Y la viñeta vuelve al valor que le toque por scroll, con el mismo
-      // ritmo que el grayscale para que el fondo se recomponga de una pieza.
+      // Y la viñeta vuelve al valor que le toque por scroll para que el fondo
+      // se recomponga de una pieza.
       applyVignetteOpacity(detailScrollTopRef.current, reduced ? 0.16 : 0.56);
       applyDarkOpacity(detailScrollTopRef.current, reduced ? 0.16 : 0.56);
     }
@@ -3071,8 +3070,8 @@ backdropBlurAmountRef.current = 0;
   /**
  * Opacidad que le toca a la viñeta radial del fondo.
  *
- * Con la sección de streams abierta la viñeta se apaga: el fondo ya pasa a
- * grayscale y, encima, la viñeta solo añade ruido sobre el listado de fuentes.
+ * Con la sección de streams abierta la viñeta se apaga para no añadir ruido
+ * sobre el listado de fuentes.
  * El scroll no la revive mientras la sección está puesta —de ahí el
  * `episodeShown`—, así que un scroll residual no la deja a medio fundir.
  */
@@ -3086,8 +3085,7 @@ function vignetteTargetOpacity(scrollTop: number) {
  *
  * Misma regla que la viñeta para el scroll. Con la sección de streams visible
  * no se apaga: queda en `EPISODE_SCRIM_OPACITY` y hace de capa oscura del
- * picker — el fondo va en grayscale y sin viñeta, y sobre backdrops claros
- * los textos de la sección quedaban sin contraste.
+ * picker — sobre backdrops claros los textos de la sección necesitan contraste.
  */
 function darkTargetOpacity(scrollTop: number) {
   if (episodeShown) return EPISODE_SCRIM_OPACITY;
@@ -3115,8 +3113,8 @@ function updateBackdropBlur(scrollTop: number) {
     if (blur !== backdropBlurAmountRef.current) {
       backdropBlurAmountRef.current = blur;
       if (episodeWasOpenRef.current) {
-        // No interrumpir el filtro grayscale que se anima sobre la imagen
-        // compartida mientras la sección Episodie está visible.
+        // No interrumpir el tratamiento del fondo compartido mientras la
+        // sección Episodie está visible.
       } else {
       // The hero background blur is a readability function of the detail page,
       // not decorative motion — apply it directly so it works even with

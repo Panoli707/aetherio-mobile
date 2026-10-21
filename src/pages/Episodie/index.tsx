@@ -1004,7 +1004,7 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
             src={background}
             alt=""
             decoding="async"
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center grayscale"
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover object-center"
           />
         ) : null}
         <div className="pointer-events-none absolute inset-0 bg-black/66" />
@@ -1036,7 +1036,7 @@ export default function EpisodiePage({ useSharedBackground = false, embedded = f
             src={background}
             alt=""
             decoding="async"
-            className="absolute inset-0 h-full w-full object-cover object-top opacity-50 grayscale"
+            className="absolute inset-0 h-full w-full object-cover object-top opacity-50"
             style={{ aspectRatio: "16/9" }}
           />
         ) : null}

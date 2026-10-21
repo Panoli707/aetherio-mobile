@@ -138,7 +138,7 @@ export default function BigPicturePage() {
     setHeroContentVisible(visible);
   }, []);
   // Sin backdrop duplicado: el Detail es dueño del único fondo. La sección
-  // Episodie vive dentro del Detail y lo reutiliza en grayscale.
+  // Episodie vive dentro del Detail y reutiliza ese mismo fondo.
 
   // Círculo (Guía/combo/F10) doble dentro de Big Picture → advertencia de salida.
   useEffect(() => {

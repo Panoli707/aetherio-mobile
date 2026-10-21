@@ -134,7 +134,6 @@ function CatalogRow({ row, posterLayout, hideHeader = false, embedded = false, o
     [row.items, maxCards, hiddenMediaKeys, row.type],
   );
   const showViewMore = rowItems.length > 0;
-  const showHeaderViewMore = !bigPicture && !hideHeader && rowItems.length > 0;
   const rowKey = makeRowKey(row.addonId, row.catalogId, row.type);
   const cardSize = ranked ? RANKED_CARD : posterLayout === "vertical" ? VERTICAL_CARD : HORIZONTAL_CARD;
   const viewMoreSize = Math.min(cardSize.width, cardSize.height, 160);
@@ -285,14 +284,14 @@ function CatalogRow({ row, posterLayout, hideHeader = false, embedded = false, o
   if (rowItems.length === 0) return null;
 
   return (
-    <section data-row-key={rowKey} data-row-count={rowItems.length + (showViewMore ? 1 : 0)} style={{ paddingLeft: 0, paddingRight: 0, marginBottom: -24 }}>
+    <section data-row-key={rowKey} data-row-count={rowItems.length + (showViewMore ? 1 : 0)} data-row-hovered={hovered ? "true" : undefined} style={{ paddingLeft: 0, paddingRight: 0, marginBottom: -24 }}>
       {!hideHeader ? (
         bigPicture ? (
           <div
             data-row-header
             style={{ position: "relative", zIndex: 1, display: "flex", alignItems: "center", gap: 4, marginBottom: 14, paddingLeft: "var(--app-gutter-x)", paddingRight: "var(--app-gutter-x)" }}
           >
-            <span style={{ fontSize: 20, lineHeight: 1.1, fontWeight: 800, letterSpacing: "-0.02em", color: "var(--home-h, rgba(255,255,255,0.78))", textShadow: "0 2px 12px rgba(0,0,0,0.38)" }}>{title}</span>
+            <span className="home-row-title" style={{ fontSize: 20, lineHeight: 1.1, fontWeight: 800, letterSpacing: "-0.02em", textShadow: "0 2px 12px rgba(0,0,0,0.38)" }}>{title}</span>
           </div>
         ) : (
         <div
@@ -304,20 +303,9 @@ function CatalogRow({ row, posterLayout, hideHeader = false, embedded = false, o
             onClick={disableHeaderNavigation ? undefined : openCatalog}
             style={{ display: "flex", alignItems: "center", gap: 4, minWidth: 0, flex: 1, background: "none", border: "none", color: "inherit", cursor: disableHeaderNavigation ? "default" : "pointer", padding: 0, textAlign: "left" }}
           >
-            <span style={{ fontSize: 20, fontWeight: 700, color: "var(--home-h, rgba(255,255,255,0.6))" }}>{title}</span>
+            <span className="home-row-title" style={{ fontSize: 20, fontWeight: 700 }}>{title}</span>
             {!disableHeaderNavigation ? <ChevronRight size={15} style={{ color: "rgba(255,255,255,0.4)", marginTop: 1 }} /> : null}
           </button>
-          {showHeaderViewMore ? (
-            <button
-              type="button"
-              onClick={openCatalog}
-              aria-label={`Ver más: ${title}`}
-              style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0, height: 30, padding: "0 11px", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 999, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.62)", cursor: "pointer", fontSize: 12, fontWeight: 700, backdropFilter: "var(--lg-filter-md)", WebkitBackdropFilter: "var(--lg-filter-md)" }}
-            >
-              Ver más
-              <ChevronRight size={13} />
-            </button>
-          ) : null}
         </div>
         )
       ) : null}

@@ -321,9 +321,9 @@ export default function ContinueWatchingRow() {
   }
 
   return (
-    <section data-row-key="continue-watching" data-row-count={items.length} style={{ paddingLeft: 0, paddingRight: 0, paddingTop: 0, marginBottom: -24 }}>
+    <section data-row-key="continue-watching" data-row-count={items.length} data-row-hovered={hovered ? "true" : undefined} style={{ paddingLeft: 0, paddingRight: 0, paddingTop: 0, marginBottom: -24 }}>
       <div data-row-header style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14, paddingLeft: "var(--app-gutter-x)", paddingRight: "var(--app-gutter-x)" }}>
-        <span style={{ fontSize: 20, fontWeight: 700, color: "var(--home-h, rgba(255,255,255,0.6))" }}>Continuar viendo</span>
+        <span className="home-row-title" style={{ fontSize: 20, fontWeight: 700 }}>Continuar viendo</span>
       </div>
       <div
         style={{ position: "relative" }}

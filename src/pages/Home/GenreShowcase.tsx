@@ -167,6 +167,7 @@ async function fetchGenreData(
 function GenreShowcase() {
   const navigate = useNavigate();
   const [activeIndex, setActiveIndex] = useState(0);
+  const [cardHovered, setCardHovered] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const labelRef = useRef<HTMLDivElement>(null);
@@ -320,9 +321,9 @@ setTimeout(() => {
   const hasPosters = currentData.posters.some(p => p);
 
   return (
-    <section data-row-key="genre-showcase" data-row-count={1} style={{ paddingLeft: 48, paddingRight: 48, paddingTop: 8, paddingBottom: 28 }}>
+    <section data-row-key="genre-showcase" data-row-count={1} data-row-hovered={cardHovered ? "true" : undefined} style={{ paddingLeft: 48, paddingRight: 48, paddingTop: 8, paddingBottom: 28 }}>
       <div data-row-header style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 14 }}>
-        <span style={{ fontSize: 20, fontWeight: 700, color: "var(--home-h, rgba(255,255,255,0.6))" }}>Explorar géneros - Anime</span>
+        <span className="home-row-title" style={{ fontSize: 20, fontWeight: 700 }}>Explorar géneros - Anime</span>
       </div>
       <div
         ref={cardRef}
@@ -330,6 +331,8 @@ setTimeout(() => {
         data-genre-showcase={bigPicture ? "true" : undefined}
         data-row-card
         data-item-index={0}
+        onMouseEnter={() => setCardHovered(true)}
+        onMouseLeave={() => setCardHovered(false)}
         aria-label={bigPicture ? `Explorar género ${GENRE_LABELS[currentGenre] ?? currentGenre}` : undefined}
         role={bigPicture ? "button" : undefined}
         tabIndex={bigPicture ? 0 : undefined}

@@ -1179,14 +1179,15 @@ html.aetherio-android-tv .scroll-row{
   --detail-h:#fff;
 }
 
-/* Home: mismo lenguaje que el Detail � headers de row en gris, blancos
-   cuando su row tiene el foco (mando/teclado). Cada header usa
-   color: var(--home-h, rgba(255,255,255,0.6)). */
-section[data-row-key]:focus-within{
-  --home-h:#fff;
-}
-[data-row-header] span{
+/* Home: headers atenuados hasta que una card de su fila está activa. En modo
+   normal se activa con hover; en TV, con foco del mando/teclado. */
+.home-row-title{
+  color:rgba(255,255,255,0.6);
   transition:color 0.25s ease;
+}
+section[data-row-key][data-row-hovered="true"] .home-row-title,
+section[data-row-key]:focus-within .home-row-title{
+  color:#fff;
 }
 
 /* Puntero de la app. La clase la pondera `useHiddenCursor` (un contador por

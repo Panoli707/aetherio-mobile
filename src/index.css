@@ -925,6 +925,82 @@ html.aetherio-android-tv .scroll-row{
   background:linear-gradient(90deg,#1c1c1e 25%,#2c2c2e 50%,#1c1c1e 75%);
   background-size:200% 100%;
 }
+
+/* Card depth follows NuvioMobile's shared card treatment: a 1dp vertical
+   gradient stroke plus a restrained sheen over the upper 22% of the artwork. */
+:root{
+  --media-card-edge-top:rgba(255,255,255,0.28);
+  --media-card-edge-middle:rgba(255,255,255,0.13);
+  --media-card-edge-bottom:rgba(255,255,255,0.056);
+  --media-card-sheen:rgba(255,255,255,0.10);
+}
+
+:where(
+  .media-card-frame,
+  .bp-library__poster,
+  .bp-genre__poster,
+  .bp-genre__skeleton,
+  .bp-search__card,
+  .bp-search__poster,
+  .bp-search__skeleton,
+  .detail-episode-card__media
+){
+  position:relative;
+  isolation:isolate;
+}
+
+:where(
+  .media-card-frame,
+  .bp-library__poster,
+  .bp-genre__poster,
+  .bp-genre__skeleton,
+  .bp-search__card,
+  .bp-search__poster,
+  .bp-search__skeleton,
+  .detail-episode-card__media
+)::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:3;
+  padding:1px;
+  border-radius:inherit;
+  background:linear-gradient(
+    to bottom,
+    var(--media-card-edge-top) 0%,
+    var(--media-card-edge-middle) 50%,
+    var(--media-card-edge-bottom) 100%
+  );
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;
+  mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  mask-composite:exclude;
+  pointer-events:none;
+}
+
+:where(
+  .media-card-frame,
+  .bp-library__poster,
+  .bp-genre__poster,
+  .bp-genre__skeleton,
+  .bp-search__card,
+  .bp-search__poster,
+  .bp-search__skeleton,
+  .detail-episode-card__media
+)::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:1;
+  border-radius:inherit;
+  background:linear-gradient(
+    to bottom,
+    var(--media-card-sheen) 0%,
+    rgba(255,255,255,0) 22%
+  );
+  pointer-events:none;
+}
+
 .aetherio-loading-spinner{
   display:block;
   width:46px;

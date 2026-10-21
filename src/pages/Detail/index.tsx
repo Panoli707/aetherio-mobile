@@ -3707,6 +3707,7 @@ function updateBackdropBlur(scrollTop: number) {
             <ScrollRow rowKey={`detail:${type}:${id}:related`} gap={DETAIL_VERTICAL_CARD_GAP} shadowGutter={DETAIL_RELATED_ROW_SHADOW_GUTTER} arrowTop={DETAIL_RELATED_ARROW_TOP}>
               {data.related.map(r=>(
                 <div key={r.id}
+                  className="media-card-frame"
                   onClick={()=>navigate(buildDetailPath(r.media_type, `tmdb:${r.id}`))}
                   // En picture la card es foco del mando: tabIndex + escala, sin anillo blanco.
                   tabIndex={bigPicture ? 0 : undefined}
@@ -3984,6 +3985,7 @@ function CollectionCard({ item, onPress }:{item:DetailCollectionItem;onPress:()=
   return (
     <button
       type="button"
+      className="media-card-frame"
       onClick={onPress}
       aria-label={item.title}
       onMouseEnter={event=>{
@@ -4421,6 +4423,7 @@ function TrailerCard({ trailer, media }:{trailer:Trailer;media:DetailData}) {
   return (
     <button
       type="button"
+      className="media-card-frame"
       onClick={playTrailer}
       style={{ flexShrink:0,width:399,height:224,borderRadius:14,overflow:"hidden",display:"block",position:"relative",cursor:"pointer",background:"#1c1c1e",textDecoration:"none",border:"1px solid rgba(225,230,238,0.1)",boxShadow:"0 12px 28px rgba(0,0,0,0.28)",padding:0,textAlign:"left" }}
       onMouseEnter={e=>{
@@ -4516,21 +4519,26 @@ function CastCard({ member, onPress, scrollKey }:{member:CastMember;onPress:()=>
       }}
     >
       {portraitAvailable?(
-        <img
+        <div
           data-cast-portrait
-          src={member.profile_path}
-          alt={member.name}
-          loading="lazy"
-          decoding="async"
-          onError={()=>setImageFailed(true)}
-          onLoad={(e)=>{
-            const img=e.currentTarget;
-            if(img.naturalWidth<10||img.naturalHeight<10) setImageFailed(true);
-          }}
-          style={{ width:159,height:159,borderRadius:"50%",objectFit:"cover",flexShrink:0,background:"#272A2F",boxShadow:"0 11px 26px rgba(0,0,0,0.34), 0 0 0 1px rgba(255,255,255,0.1)" }}
-        />
+          className="media-card-frame"
+          style={{ position:"relative",width:159,height:159,borderRadius:"50%",overflow:"hidden",flexShrink:0,background:"#272A2F",boxShadow:"0 11px 26px rgba(0,0,0,0.34), 0 0 0 1px rgba(255,255,255,0.1)" }}
+        >
+          <img
+            src={member.profile_path}
+            alt={member.name}
+            loading="lazy"
+            decoding="async"
+            onError={()=>setImageFailed(true)}
+            onLoad={(e)=>{
+              const img=e.currentTarget;
+              if(img.naturalWidth<10||img.naturalHeight<10) setImageFailed(true);
+            }}
+            style={{ display:"block",width:"100%",height:"100%",borderRadius:"50%",objectFit:"cover" }}
+          />
+        </div>
       ):(
-        <div data-cast-portrait style={{
+        <div data-cast-portrait className="media-card-frame" style={{
           width:159,height:159,borderRadius:"50%",
           background:"linear-gradient(180deg, rgba(154,154,154,0.96) 0%, rgba(112,112,112,0.96) 100%)",
           boxShadow:"0 11px 26px rgba(0,0,0,0.34), 0 0 0 1px rgba(255,255,255,0.1)",

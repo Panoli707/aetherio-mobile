@@ -854,6 +854,7 @@ const CinematicCard = memo(function CinematicCard({ item, type, posterLayout, wa
 
         <div
           data-ranked-poster
+          className="media-card-frame"
           style={{
             position: "absolute",
             left: rankedPosterLeft,
@@ -941,6 +942,7 @@ const CinematicCard = memo(function CinematicCard({ item, type, posterLayout, wa
         onContextMenu={openArtworkMenu}
         data-row-card
         data-long-press
+        className="media-card-frame"
         aria-label={bigPicture ? item.name : undefined}
         tabIndex={bigPicture ? 0 : onOpenPreview ? -1 : undefined}
         role={bigPicture ? "button" : undefined}

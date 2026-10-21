@@ -205,6 +205,7 @@ function TopResultCard({ item, onOpen }: { item: UnifiedSearchResult; onOpen: ()
   return (
     <button
       type="button"
+      className="media-card-frame"
       onClick={onOpen}
       style={{
         display: "flex",
@@ -382,6 +383,7 @@ function PosterResultCard({ item, onOpen }: { item: UnifiedSearchResult; onOpen:
     <button
       ref={cardRef}
       type="button"
+      className="media-card-frame"
       onClick={onOpen}
       aria-label={`${item.name ?? "Sin título"}${item.year ? `, ${item.year}` : ""}`}
       style={{
@@ -435,7 +437,7 @@ function SearchSkeleton() {
         <SectionHead title="Top resultados" inset={false} />
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 20 }}>
           {Array.from({ length: 3 }, (_, index) => (
-            <div key={index} className="skeleton" style={{ height: 100, borderRadius: 12 }} />
+            <div key={index} className="skeleton media-card-frame" style={{ height: 100, borderRadius: 12 }} />
           ))}
         </div>
       </section>
@@ -446,7 +448,7 @@ function SearchSkeleton() {
             {Array.from({ length: 7 }, (_, index) => (
               <div
                 key={index}
-                className="skeleton"
+                className="skeleton media-card-frame"
                 style={{
                   width: POSTER_CARD.width,
                   height: POSTER_CARD.height,

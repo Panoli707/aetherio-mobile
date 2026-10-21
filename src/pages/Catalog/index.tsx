@@ -575,6 +575,7 @@ function CatalogGridCard({ item, type, bigPicture, index = 0 }: { item: MediaIte
     <div style={{ width: 180 }} data-grid-entrance>
       <button
         type="button"
+        className="media-card-frame"
         aria-label={`Abrir ${item.name}`}
         onClick={openDetail}
         onMouseEnter={event => tweenTo(event.currentTarget, { scale: 1.025, y: -2, zIndex: 5 }, 0.28)}

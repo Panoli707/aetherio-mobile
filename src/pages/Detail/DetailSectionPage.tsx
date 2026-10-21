@@ -212,6 +212,7 @@ function TrailerGridCard({ item, media, type, id }: { item: TrailerItem; media: 
   return (
     <button
       type="button"
+      className="media-card-frame"
       onClick={() => {
         sessionStorage.setItem(SELECTED_STREAM_KEY, JSON.stringify(stream));
         sessionStorage.setItem(SELECTED_ENGINE_KEY, "mpv");
@@ -242,17 +243,19 @@ function PersonGridCard({ person, disabled }: { person: PersonItem; disabled?: b
   return (
     <button type="button" onClick={handleClick} disabled={disabled} style={{ width: 211, border: "none", background: "none", padding: 0, cursor: disabled ? "default" : "pointer", textAlign: "center" }}>
       {hasImage ? (
-        <img
-          src={person.image}
-          alt={person.name}
-          loading="lazy"
-          decoding="async"
-          onError={() => setImgFailed(true)}
-          onLoad={(e) => { const img = e.currentTarget; if (img.naturalWidth < 10 || img.naturalHeight < 10) setImgFailed(true); }}
-          style={{ width: 186, height: 186, borderRadius: "50%", objectFit: "cover", margin: "0 auto 12px" }}
-        />
+        <div className="media-card-frame" style={{ position: "relative", width: 186, height: 186, borderRadius: "50%", overflow: "hidden", margin: "0 auto 12px" }}>
+          <img
+            src={person.image}
+            alt={person.name}
+            loading="lazy"
+            decoding="async"
+            onError={() => setImgFailed(true)}
+            onLoad={(e) => { const img = e.currentTarget; if (img.naturalWidth < 10 || img.naturalHeight < 10) setImgFailed(true); }}
+            style={{ display: "block", width: "100%", height: "100%", borderRadius: "50%", objectFit: "cover" }}
+          />
+        </div>
       ) : (
-        <div style={{ width: 186, height: 186, borderRadius: "50%", background: "linear-gradient(180deg, rgba(154,154,154,0.96) 0%, rgba(112,112,112,0.96) 100%)", boxShadow: "0 8px 16px rgba(0,0,0,0.4)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 58, fontWeight: 900, letterSpacing: 1, fontFamily: "Inter, system-ui, sans-serif" }}>
+        <div className="media-card-frame" style={{ width: 186, height: 186, borderRadius: "50%", background: "linear-gradient(180deg, rgba(154,154,154,0.96) 0%, rgba(112,112,112,0.96) 100%)", boxShadow: "0 8px 16px rgba(0,0,0,0.4)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", fontSize: 58, fontWeight: 900, letterSpacing: 1, fontFamily: "Inter, system-ui, sans-serif" }}>
           {initials(person.name)}
         </div>
       )}
@@ -264,7 +267,7 @@ function PersonGridCard({ person, disabled }: { person: PersonItem; disabled?: b
 
 function RelatedGridCard({ item, onOpen }: { item: RelatedItem; onOpen: () => void }) {
   return (
-    <button type="button" onClick={onOpen} style={{ position: "relative", width: 197, height: 296, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(225,230,238,0.12)", background: "#1c1c1e", padding: 0, cursor: "pointer" }}>
+    <button type="button" className="media-card-frame" onClick={onOpen} style={{ position: "relative", width: 197, height: 296, borderRadius: 10, overflow: "hidden", border: "1px solid rgba(225,230,238,0.12)", background: "#1c1c1e", padding: 0, cursor: "pointer" }}>
       {item.poster ? <img src={item.poster} alt={item.name} loading="lazy" decoding="async" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : null}
     </button>
   );

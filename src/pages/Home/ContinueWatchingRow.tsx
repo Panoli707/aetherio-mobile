@@ -941,6 +941,7 @@ const ContinueCard = memo(function ContinueCard({
     <div style={{ flexShrink: 0, width: CARD_W, marginRight: removing ? -CARD_W - GAP : 0 }}>
     <div
       ref={cardRef}
+      className="media-card-frame"
       onClick={event => {
         // ContextMenu is a React portal, so its click can still bubble through
         // this card even though it is rendered under document.body.

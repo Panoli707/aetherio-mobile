@@ -617,6 +617,7 @@ function LibraryGridCard({ item }: { item: MediaItem }) {
     <div style={{ width: 197 }} data-grid-entrance>
       <button
         type="button"
+        className="media-card-frame"
         onClick={openDetail}
         onMouseEnter={event => tweenTo(event.currentTarget, { scale: 1.05, y: -3, zIndex: 5 }, 0.32)}
         onMouseLeave={event => tweenTo(event.currentTarget, { scale: 1, y: 0, zIndex: 1 }, 0.32)}

@@ -249,6 +249,7 @@ function GridCard({ item }: { item: MediaItem }) {
     <div style={{ width: 180 }}>
       <button
         type="button"
+        className="media-card-frame"
         onClick={openDetail}
         disabled={resolving}
         style={{ position: "relative", width: 207, height: 312, borderRadius: 10, overflow: "hidden", background: "#1c1c1e", border: "none", padding: 0, cursor: resolving ? "wait" : "pointer", textAlign: "left", opacity: resolving ? 0.6 : 1, transition: "opacity 0.2s" }}

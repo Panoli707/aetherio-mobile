@@ -6,7 +6,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import type { MpvLaunchResult, MpvStatusSnapshot } from "../pages/Player/types.ts";
 import { installSpatialNavigation } from "../navigation/spatialNav.ts";
 
-export type RuntimeKind = "desktop" | "web";
+export type RuntimeKind = "desktop" | "android" | "web";
 
 let nativeStartupReady = false;
 let resolveNativeStartupReady: (() => void) | undefined;
@@ -65,8 +65,18 @@ export function isTauriRuntime() {
 }
 
 export function getRuntimeKind(): RuntimeKind {
-  if (isTauriRuntime()) return "desktop";
-  return "web";
+  if (!isTauriRuntime()) return "web";
+
+  // Tauri's build target remains reliable even in a WebView with a desktop user agent.
+  const platform = import.meta.env.TAURI_ENV_PLATFORM;
+  if (platform) return platform === "android" || platform === "androideabi" ? "android" : "desktop";
+  return typeof navigator !== "undefined" && /Android/i.test(navigator.userAgent)
+    ? "android"
+    : "desktop";
+}
+
+export function isDesktopRuntime() {
+  return getRuntimeKind() === "desktop";
 }
 
 export function installRuntimeDocumentClasses() {
@@ -142,12 +152,12 @@ export async function listenOpenUrls(handler: (urls: string[]) => void) {
 }
 
 export async function takePendingOpenFiles() {
-  if (!isTauriRuntime()) return [] as string[];
+  if (!isDesktopRuntime()) return [] as string[];
   return invokeCommand<string[]>("take_pending_open_files");
 }
 
 export async function listenOpenFiles(handler: (paths: string[]) => void) {
-  if (!isTauriRuntime()) return () => undefined;
+  if (!isDesktopRuntime()) return () => undefined;
   return listenPlatformEvent<string[]>("aetherio-open-files", event => handler(event.payload));
 }
 
@@ -157,7 +167,7 @@ export async function listenOpenFiles(handler: (paths: string[]) => void) {
  * emitirá este mismo evento Tauri y el frontend ya sabrá reaccionar.
  */
 export async function listenGamepadWake(handler: () => void) {
-  if (!isTauriRuntime()) return () => undefined;
+  if (!isDesktopRuntime()) return () => undefined;
   try {
     return await listenPlatformEvent("aetherio-gamepad-wake", () => handler());
   } catch {
@@ -166,7 +176,7 @@ export async function listenGamepadWake(handler: () => void) {
 }
 
 export async function listenWindowFileDrops(handler: (paths: string[]) => void) {
-  if (!isTauriRuntime()) return () => undefined;
+  if (!isDesktopRuntime()) return () => undefined;
   return getCurrentWindow().onDragDropEvent(event => {
     if (event.payload.type === "drop") handler(event.payload.paths);
   });
@@ -205,7 +215,7 @@ export function isSafeExternalUrl(raw: string): boolean {
 }
 
 export async function isWindowFullscreen() {
-  if (!isTauriRuntime()) return false;
+  if (!isDesktopRuntime()) return false;
   try {
     return await getCurrentWindow().isFullscreen();
   } catch {
@@ -214,6 +224,7 @@ export async function isWindowFullscreen() {
 }
 
 export async function toggleWindowFullscreen() {
+  if (!isDesktopRuntime()) return;
   try {
     await invokeCommand("toggle_window_fullscreen");
     return;
@@ -230,7 +241,7 @@ export async function toggleWindowFullscreen() {
 }
 
 export async function minimizeWindow() {
-  if (!isTauriRuntime()) return;
+  if (!isDesktopRuntime()) return;
   try {
     await getCurrentWindow().minimize();
   } catch {
@@ -239,7 +250,7 @@ export async function minimizeWindow() {
 }
 
 export async function maximizeWindow() {
-  if (!isTauriRuntime()) return;
+  if (!isDesktopRuntime()) return;
   try {
     await invokeCommand("toggle_window_maximize");
     return;
@@ -256,7 +267,7 @@ export async function maximizeWindow() {
 
 /** Trae la ventana al frente: show + unminimize + focus. Clave para el despertar con mando. */
 export async function showAndFocusWindow() {
-  if (!isTauriRuntime()) return;
+  if (!isDesktopRuntime()) return;
   try {
     const win = getCurrentWindow();
     await win.show().catch(() => undefined);
@@ -271,6 +282,7 @@ export async function showAndFocusWindow() {
 
 /** Entrar en Big Picture estilo Steam: pantalla completa exclusiva. */
 export async function enterBigPictureWindow() {
+  if (getRuntimeKind() === "android") return;
   if (!isTauriRuntime()) {
     // Web: fullscreen del navegador (exige gesto del usuario; si el
     // navegador lo rechaza se ignora y la clase CSS hace el resto).
@@ -302,6 +314,7 @@ export async function enterBigPictureWindow() {
 
 /** Salir de Big Picture: devuelve la ventana a modo ventana (simetría Steam). */
 export async function exitBigPictureWindow() {
+  if (getRuntimeKind() === "android") return;
   if (!isTauriRuntime()) {
     try {
       if (typeof document !== "undefined" && document.fullscreenElement) {
@@ -331,13 +344,13 @@ export function setBigPictureActive(active: boolean) {
   document.documentElement.classList.toggle("aetherio-big-picture", active);
   const title = active ? "Modo inmersivo de Aetherio" : "Aetherio";
   document.title = title;
-  if (isTauriRuntime()) {
+  if (isDesktopRuntime()) {
     getCurrentWindow().setTitle(title).catch(() => undefined);
   }
 }
 
 export async function closeWindow() {
-  if (!isTauriRuntime()) return;
+  if (!isDesktopRuntime()) return;
   try {
     await getCurrentWindow().close();
   } catch {

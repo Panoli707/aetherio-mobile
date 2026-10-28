@@ -2,7 +2,7 @@ import { emitTo } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import aetherioLogo from "../../assets/aetheriologo.png";
-import { isTauriRuntime, markNativeStartupReady } from "../../runtime/platform";
+import { isDesktopRuntime, markNativeStartupReady } from "../../runtime/platform";
 import { gsap, prefersReducedMotion } from "../../utils/motion";
 import { STARTUP_COMPLETE_EVENT, STARTUP_STATUS_EVENT } from "./startupEvents";
 import "./StartupExperience.css";
@@ -15,7 +15,7 @@ interface StartupExperienceProps {
 }
 
 export default function StartupExperience({ children, ready, status, onComplete }: StartupExperienceProps) {
-  if (isTauriRuntime()) {
+  if (isDesktopRuntime()) {
     return (
       <NativeMainStartupCoordinator ready={ready} status={status} onComplete={onComplete}>
         {children}

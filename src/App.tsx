@@ -19,6 +19,7 @@ import {
   type ReactNode,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { onBackButtonPress } from "@tauri-apps/api/app";
 import { reloadAddonsForActiveProfile, useAddonStore } from "./store/addonStore.ts";
 import { rehydrateHomeCacheForActiveProfile } from "./store/cacheStore.ts";
 import { getSpatialPosterSettings, setPosterCacheUrl } from "./config/spatialPosters";
@@ -36,6 +37,8 @@ import { getHomePreferences } from "./config/homePreferences.ts";
 import { completeTraktAuthorization, TRAKT_AUTH_CHANGED_EVENT, type TraktAuthEventDetail } from "./trakt";
 import {
   getCurrentDeepLinks,
+  getRuntimeKind,
+  isDesktopRuntime,
   listenOpenFiles,
   listenOpenUrls,
   listenWindowFileDrops,
@@ -115,6 +118,7 @@ type StartupBrandState = "idle" | "pending" | "visible";
 const BOOT_PATH = typeof window === "undefined" ? "/" : window.location.pathname;
 
 export default function App() {
+  const android = getRuntimeKind() === "android";
   const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
@@ -127,7 +131,7 @@ export default function App() {
   // con una ruta propia y se recargan donde están, como una recarga.
   const [needsProfileGate, setNeedsProfileGate] = useState(() => BOOT_PATH === "/");
   const returnToBigPicture = new URLSearchParams(location.search).get("from") === "big-picture";
-  const profileSelectionPath = getLastAppMode() === "big-picture"
+  const profileSelectionPath = !android && getLastAppMode() === "big-picture"
     ? "/profiles?from=big-picture"
     : "/profiles";
   const [account, setAccount] = useState<AetherioUser | null | undefined>(() => getStoredAccount() ?? undefined);
@@ -137,7 +141,7 @@ export default function App() {
   const [startupReady, setStartupReady] = useState(false);
   const [startupStatus, setStartupStatus] = useState("Restaurando tu sesión");
   const [startupBrandState, setStartupBrandState] = useState<StartupBrandState>(() =>
-    shouldShowBigPictureBrandOnStartup(location.pathname, getLastAppMode(), hasProfile)
+    !android && shouldShowBigPictureBrandOnStartup(location.pathname, getLastAppMode(), hasProfile)
       ? "pending"
       : "idle",
   );
@@ -145,6 +149,21 @@ export default function App() {
   const enabledAddons = useMemo(() => addons.filter(addon => addon.enabled), [addons]);
 
   useFullscreen();
+
+  useEffect(() => {
+    if (!android || ["/", "/home", "/profiles"].includes(location.pathname)) return;
+    let disposed = false;
+    const listener = onBackButtonPress(({ canGoBack }) => {
+      if (disposed) return;
+      if (canGoBack) navigate(-1);
+      else navigate("/home", { replace: true });
+    });
+    void listener.catch(error => console.warn("[android] No se pudo registrar Atras:", error));
+    return () => {
+      disposed = true;
+      void listener.then(subscription => subscription.unregister()).catch(() => undefined);
+    };
+  }, [android, location.pathname, navigate]);
 
   const handleStartupComplete = useCallback(() => {
     setStartupBrandState(current => current === "pending" ? "visible" : current);
@@ -176,6 +195,7 @@ export default function App() {
   // justo la primera pantalla que ve la persona. El cache en disco se pone
   // despues, cuando ya se sabe el puerto.
   useEffect(() => {
+    if (!isDesktopRuntime()) return;
     void ensurePosterServer(getSpatialPosterSettings().instanceUrl).then(async () => {
       const cacheUrl = await getPosterCacheUrl();
       if (cacheUrl) setPosterCacheUrl(cacheUrl);
@@ -194,6 +214,12 @@ export default function App() {
   }, [startupReady, hasProfile, location.pathname, navigate, profileSelectionPath]);
 
   useEffect(() => {
+    if (getRuntimeKind() === "android") {
+      setAccount(null);
+      setLocalMode(true);
+      setAuthRestored(true);
+      return;
+    }
     let disposed = false;
     void restoreAccountSession()
       .then(user => {
@@ -288,6 +314,7 @@ export default function App() {
   }, [account]);
 
   useEffect(() => {
+    if (!isDesktopRuntime()) return;
     const check = () => {
       if (getPlaybackPreferences().enableDiscordRichPresence) {
         void startDiscordRichPresence();
@@ -311,6 +338,7 @@ export default function App() {
   }, [enabledAddons, hasProfile, queryClient]);
 
   useEffect(() => {
+    if (getRuntimeKind() === "android") return;
     let disposed = false;
     let unlisten: (() => void) | undefined;
 
@@ -482,7 +510,7 @@ export default function App() {
             profileOnly
             onComplete={() => {
               setProfileRevision(value => value + 1);
-              const restoreBigPicture = returnToBigPicture || getLastAppMode() === "big-picture";
+              const restoreBigPicture = !android && (returnToBigPicture || getLastAppMode() === "big-picture");
               navigate(restoreBigPicture ? "/profiles?from=big-picture" : "/profiles", { replace: true });
             }}
             onCancel={() => {
@@ -541,9 +569,13 @@ export default function App() {
   // "/" aterriza aquí. Tiene que caer donde el usuario lo dejó, no siempre en
   // Home: `/home` es una ruta estable que consolida "normal", así que aterrizar
   // ahí borraba el Big Picture del perfil antes de que nadie llegara a elegir.
-  const defaultRoute = getLastAppMode() === "big-picture" ? "/big-picture" : "/home";
+  const defaultRoute = !android && getLastAppMode() === "big-picture" ? "/big-picture" : "/home";
 
   const isBigPicture = location.pathname.startsWith("/big-picture");
+
+  if (isBigPicture && getRuntimeKind() === "android") {
+    return withStartup(<Navigate to="/home" replace />);
+  }
 
   if (isBigPicture) {
     return withStartup(
@@ -621,26 +653,38 @@ function CachedPageRoutes({
 }
 
 function PageRoutes({ location, defaultRoute }: { location: Location; defaultRoute: string }) {
+  const android = getRuntimeKind() === "android";
   return (
     <Suspense fallback={<RouteFallback />}>
       <Routes location={location}>
         <Route path="/"                  element={<Navigate to={defaultRoute} replace />} />
         <Route path="/home"              element={<HomePage />} />
         <Route path="/library"           element={<LibraryPage />} />
-        <Route path="/addons"            element={<AddonsPage />} />
+        <Route path="/addons"            element={android ? <Navigate to="/settings" replace /> : <AddonsPage />} />
         <Route path="/settings"          element={<SettingsPage />} />
         <Route path="/catalog"           element={<CatalogPage />} />
         <Route path="/detail/:type/:id"  element={<DetailPage />} />
         <Route path="/detail/:type/:id/:section" element={<DetailSectionPage />} />
-        <Route path="/episode"           element={<EpisodeRouteRedirect />} />
-        <Route path="/streams"           element={<EpisodeRouteRedirect />} />
-        <Route path="/player"            element={<PlayerPage />} />
+        <Route path="/episode"           element={android ? <AndroidPlaybackPending /> : <EpisodeRouteRedirect />} />
+        <Route path="/streams"           element={android ? <AndroidPlaybackPending /> : <EpisodeRouteRedirect />} />
+        <Route path="/player"            element={android ? <AndroidPlaybackPending /> : <PlayerPage />} />
         <Route path="/person/:id"        element={<PersonPage />} />
         <Route path="/entity/:kind/:id"  element={<EntityPage />} />
         <Route path="/search"            element={<SearchPage />} />
         <Route path="/genre"             element={<GenreListingPage />} />
       </Routes>
     </Suspense>
+  );
+}
+
+function AndroidPlaybackPending() {
+  const navigate = useNavigate();
+  return (
+    <div className="px-5 py-24 text-center">
+      <p role="status">Reproduccion Android pendiente</p>
+      <p className="mt-3 text-sm text-white/60">Esta version permite explorar el catalogo y usar perfiles y biblioteca locales.</p>
+      <button className="mt-5 rounded-full bg-white px-5 py-3 text-black" onClick={() => navigate("/home", { replace: true })}>Volver al inicio</button>
+    </div>
   );
 }
 

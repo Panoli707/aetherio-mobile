@@ -1270,6 +1270,60 @@ html.aetherio-android-tv .scroll-row{
   }
 }
 
+html[data-aetherio-runtime="android"],
+html[data-aetherio-runtime="android"] body,
+html[data-aetherio-runtime="android"] #root{
+  --app-safe-top:calc(env(safe-area-inset-top, 0px) + 12px);
+  --app-safe-x:max(12px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  --app-shell-nav-height:calc(env(safe-area-inset-top, 0px) + 76px);
+}
+
+html[data-aetherio-runtime="android"] .aetherio-app-shell{
+  height:100dvh !important;
+  padding-bottom:env(safe-area-inset-bottom, 0px);
+}
+
+@media (max-width: 640px){
+  html[data-aetherio-runtime="android"] .aetherio-shell-nav{
+    left:auto;
+    right:var(--app-safe-x);
+    transform:none;
+    max-width:calc(100vw - 76px) !important;
+  }
+  html[data-aetherio-runtime="android"] .aetherio-top-nav .liquid-glass-pill{
+    transform:none !important;
+  }
+  html[data-aetherio-runtime="android"] .aetherio-top-nav button{
+    min-height:40px;
+  }
+  html[data-aetherio-runtime="android"] .aetherio-top-nav button.whitespace-nowrap{
+    padding-left:10px;
+    padding-right:10px;
+  }
+  html[data-aetherio-runtime="android"] .aetherio-top-nav .min-w-\[320px\]{
+    min-width:0;
+    width:min(300px, calc(100vw - 76px));
+    right:0;
+  }
+  html[data-aetherio-runtime="android"] .detail-page-root{
+    height:100dvh !important;
+  }
+  html[data-aetherio-runtime="android"] .detail-page-hero{
+    min-height:580px !important;
+  }
+  html[data-aetherio-runtime="android"] [data-detail-hero-copy]{
+    max-width:100% !important;
+  }
+  html[data-aetherio-runtime="android"] .detail-hero-credits{
+    display:none;
+  }
+  html[data-aetherio-runtime="android"] [data-hero-primary]{
+    padding:11px 16px !important;
+    font-size:13px !important;
+    cursor:not-allowed !important;
+  }
+}
+
 @media (min-width: 900px) and (max-width: 1120px){
   .episode-page-layout{
     grid-template-columns:minmax(0,1fr) !important;

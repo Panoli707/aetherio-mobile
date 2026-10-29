@@ -1,5 +1,5 @@
 import { tmdbFetch } from "../config/apiKeys.ts";
-import { invokeCommand, isTauriRuntime } from "../runtime/platform.ts";
+import { getRuntimeKind, invokeCommand, isTauriRuntime } from "../runtime/platform.ts";
 import type { MediaItem, TrailerSource } from "../types/ui.ts";
 
 export interface YouTubeClipCandidate {
@@ -318,6 +318,7 @@ export function rankYouTubeCandidates(
 }
 
 async function runYouTubeSearch(query: string, channel: string | undefined, context: SearchContext) {
+  if (getRuntimeKind() === "android") return [];
   context.queries++;
   return withYtdlpSlot(async () => {
     try {
@@ -633,11 +634,13 @@ export const TRAILER_SKIP_END: Record<TrailerSource, number> = {
 };
 
 export function getCachedClipInfo(item: MediaItem) {
+  if (getRuntimeKind() === "android") return null;
   return getCached(getItemCacheKey(item));
 }
 
 /** Caché del modo "solo primer trailer" (Big Picture), clave separada. */
 export function getCachedFirstTrailerClipInfo(item: MediaItem) {
+  if (getRuntimeKind() === "android") return null;
   return getCached(firstTrailerCacheKey(item, true));
 }
 
@@ -740,6 +743,7 @@ export async function fetchYouTubeClip(
   item: MediaItem,
   options: YouTubeFetchOptions = {},
 ): Promise<CacheEntry | null> {
+  if (getRuntimeKind() === "android") return null;
   const cacheKey = firstTrailerCacheKey(item, options.firstTrailerOnly);
   const cached = getCached(cacheKey);
   if (cached) {

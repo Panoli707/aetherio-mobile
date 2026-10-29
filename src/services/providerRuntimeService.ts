@@ -1,5 +1,5 @@
 import { tmdbFetch } from "../config/apiKeys.ts";
-import { invokeCommand, isTauriRuntime } from "../runtime/platform.ts";
+import { getRuntimeKind, invokeCommand, isDesktopRuntime } from "../runtime/platform.ts";
 import type { MediaStream, StreamQuery, StreamSubtitle } from "../types/stream.ts";
 import { normalizeStreamTechnicalMetadata } from "../utils/streamTechnicalMetadata.ts";
 
@@ -494,6 +494,7 @@ async function fetchText(url: string): Promise<string> {
 }
 
 export async function getProviderRuntimeRepositories(): Promise<ProviderRuntimeRepositoryInfo[]> {
+  if (getRuntimeKind() === "android") return [];
   if (repositoriesPromise) return repositoriesPromise;
   repositoriesPromise = Promise.all(providerManifestSources().map(async source => {
     try {
@@ -551,6 +552,7 @@ export function clearProviderRuntimeResultCache() {
 }
 
 export async function addProviderRuntimeRepository(rawUrl: string) {
+  if (getRuntimeKind() === "android") throw new Error("Los proveedores no estan disponibles en Android.");
   const url = new URL(rawUrl.trim());
   if (!/^https?:$/.test(url.protocol)) throw new Error("El repositorio debe usar HTTP o HTTPS.");
   url.hash = "";
@@ -964,7 +966,7 @@ export async function scrapeProviderRuntimes(
   providerOrigins?: Record<string, ProviderStreamOrigin>,
   onBatchStatus?: (status: ProviderBatchStatus) => void,
 ): Promise<MediaStream[]> {
-  if (!isTauriRuntime()) return [];
+  if (!isDesktopRuntime()) return [];
   if (providerKeys && providerKeys.length === 0) return [];
   const tmdbId = await resolveTmdbId(query);
   if (!tmdbId) return [];

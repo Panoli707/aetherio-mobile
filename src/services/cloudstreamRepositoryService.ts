@@ -1,4 +1,4 @@
-import { invokeCommand, isTauriRuntime } from "../runtime/platform.ts";
+import { invokeCommand, isDesktopRuntime } from "../runtime/platform.ts";
 import type { ProviderRuntimeRepositoryInfo } from "./providerRuntimeService.ts";
 
 export const GLOBAL_CLOUDSTREAM_REPOSITORY_URLS = [
@@ -217,7 +217,7 @@ export async function getGlobalCloudstreamRepositories(
   providerRuntimeRepositories: ProviderRuntimeRepositoryInfo[],
   refresh = false,
 ): Promise<GlobalCloudstreamRepositoryInfo[]> {
-  if (!isTauriRuntime()) return [];
+  if (!isDesktopRuntime()) return [];
   if (refresh) inventoryPromise = null;
   if (inventoryPromise) return inventoryPromise;
   inventoryPromise = Promise.all(GLOBAL_CLOUDSTREAM_REPOSITORY_URLS.map(async url => {

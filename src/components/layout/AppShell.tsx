@@ -6,7 +6,7 @@ import { isContextMenuOpen } from "../ui/ContextMenu";
 import WindowControls from "./WindowControls";
 import HomePartyModal, { PartyHomeButton, PartyPendingJoinHandler } from "../../party/HomePartyModal";
 import { toggleWindowFullscreen } from "../../utils/windowControls";
-import { listenPlatformEvent, stopNativePlayback } from "../../runtime/platform";
+import { getRuntimeKind, listenPlatformEvent, stopNativePlayback } from "../../runtime/platform";
 import { getHomeScroll } from "../../store/homeScrollStore";
 import { gsap, installInertialScroll, springTo, prefersReducedMotion, stopInertialScroll, motionTimings } from "../../utils/motion";
 import { consumeAutoResolveBackPress } from "../../utils/autoResolveGuard";
@@ -16,10 +16,11 @@ import { useParty } from "../../party/PartyContext";
 import { findDetailReturnDelta, makeScrollKey } from "../../utils/detailReturn";
 
 export default function AppShell({ children }: { children: ReactNode }) {
+  const android = getRuntimeKind() === "android";
   const loc = useLocation();
   const navigate = useNavigate();
-  const isPlayer = loc.pathname === "/player";
-  const isEpisodePage = loc.pathname === "/episode" || loc.pathname === "/streams";
+  const isPlayer = !android && loc.pathname === "/player";
+  const isEpisodePage = !android && (loc.pathname === "/episode" || loc.pathname === "/streams");
   const isDetailPage = loc.pathname.startsWith("/detail/");
   const isPersonPage = loc.pathname.startsWith("/person/");
   const navigationScrollKey = makeScrollKey(loc.pathname, loc.search);
@@ -40,7 +41,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [controlsZone, setControlsZone] = useState(false);
   const backHideTimerRef = useRef<number | null>(null);
   const controlsHideTimerRef = useRef<number | null>(null);
-  const showBack = isEpisodePage || isPlayer || isDetailPage || isPersonPage;
+  const showBack = isEpisodePage || isPlayer || isDetailPage || isPersonPage || (android && loc.pathname !== "/home");
 
   // La sala vive solo dentro del flujo de reproducción (episode -> player).
   // Al abandonarlo —salir del player, volver al detalle, abrir otro medio—,
@@ -111,7 +112,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }, [isPlayer, loc.pathname, loc.search]);
 
   // Back button visibility: independent zone (top-left corner)
-  const backVisible = isPlayer ? (playerChromeVisible || backZone) : showBack ? backZone : true;
+  const backVisible = android || (isPlayer ? (playerChromeVisible || backZone) : showBack ? backZone : true);
   // Window controls visibility: independent zone (top-right corner) + scroll hide
   // When scrolled, controlsVisible is false unless controlsZone is true (hover)
   const controlsVisible = isPlayer ? (playerChromeVisible || controlsZone) : (controlsZone || !scrolled);
@@ -439,7 +440,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     // medio. Va ANTES del chequeo de la sección porque las pages cacheadas siguen
     // montadas ocultas (Activity) y su `data-aetherio-episode-section` envenena el
     // DOM: sin esto el gesto se consumía aquí y el Player no se movía.
-    if (loc.pathname === "/player") {
+    if (!android && loc.pathname === "/player") {
       const streamsPath = buildPlayerBackPath(loc.search, loc.pathname);
       void stopNativePlayback()
         .finally(() => {
@@ -507,6 +508,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div
+      className="aetherio-app-shell"
       style={{
         position: "relative",
         height: "100vh",
@@ -533,7 +535,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           >
             <BackButton onClick={goBack} />
           </div>
-        ) : !isPlayer ? (
+        ) : !isPlayer && !android ? (
           <div
             ref={partyChromeRef}
             className="absolute"
@@ -548,7 +550,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
 
         {!hideNav && (
           <div
-            className="absolute left-1/2 flex -translate-x-1/2 justify-center overflow-visible"
+            className="aetherio-shell-nav absolute left-1/2 flex -translate-x-1/2 justify-center overflow-visible"
             style={{ top: "var(--app-safe-top)", maxWidth: "calc(100vw - (var(--app-safe-x) * 2) - 96px)" }}
           >
             <TopNav />
@@ -571,7 +573,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             transformOrigin: "top right",
           }}
         >
-          {(!isPlayer || showBack) && (
+          {!android && (!isPlayer || showBack) && (
             <WindowControls />
           )}
         </div>
@@ -591,8 +593,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
       >
         {children}
       </div>
-      <PartyPendingJoinHandler onJoinFailed={() => setPartyModalOpen(true)} />
-      <HomePartyModal open={partyModalOpen} onClose={() => setPartyModalOpen(false)} />
+      {!android && <PartyPendingJoinHandler onJoinFailed={() => setPartyModalOpen(true)} />}
+      {!android && <HomePartyModal open={partyModalOpen} onClose={() => setPartyModalOpen(false)} />}
     </div>
   );
 }

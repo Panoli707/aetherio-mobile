@@ -101,13 +101,13 @@ if ($AcceptLicenses) {
     if ($LASTEXITCODE -ne 0) { throw "No se pudieron aceptar las licencias del SDK." }
 }
 
-& $sdkManager "--sdk_root=$SdkRoot" "platform-tools" "platforms;android-35" "build-tools;35.0.0" "ndk;$ndkVersion"
+& $sdkManager "--sdk_root=$SdkRoot" "platform-tools" "platforms;android-36" "build-tools;35.0.0" "ndk;$ndkVersion"
 if ($LASTEXITCODE -ne 0) {
     throw "No se pudieron instalar los paquetes. Revisa las licencias con sdkmanager --licenses."
 }
 
 $ndkRoot = Join-Path $SdkRoot "ndk\$ndkVersion"
-foreach ($required in @("platform-tools\adb.exe", "platforms\android-35\android.jar", "build-tools\35.0.0\aapt2.exe", "ndk\$ndkVersion\toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe")) {
+foreach ($required in @("platform-tools\adb.exe", "platforms\android-36\android.jar", "build-tools\35.0.0\aapt2.exe", "ndk\$ndkVersion\toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe")) {
     if (-not (Test-Path -LiteralPath (Join-Path $SdkRoot $required) -PathType Leaf)) {
         throw "La instalacion esta incompleta: falta $required"
     }
@@ -122,10 +122,10 @@ foreach ($package in @{ "cmdline-tools\$toolsVersion" = $toolsVersion; "build-to
         throw "Revision inesperada en $($package.Key): $revision"
     }
 }
-$platformProperties = Join-Path $SdkRoot "platforms\android-35\source.properties"
+$platformProperties = Join-Path $SdkRoot "platforms\android-36\source.properties"
 if (-not (Test-Path -LiteralPath $platformProperties -PathType Leaf) -or
-    [System.IO.File]::ReadAllText($platformProperties) -notmatch '(?m)^AndroidVersion\.ApiLevel\s*=\s*35\s*$') {
-    throw "No se pudieron validar los metadatos de Android API 35."
+    [System.IO.File]::ReadAllText($platformProperties) -notmatch '(?m)^AndroidVersion\.ApiLevel\s*=\s*36\s*$') {
+    throw "No se pudieron validar los metadatos de Android API 36."
 }
 
 foreach ($entry in @{ JAVA_HOME = $JavaHome; ANDROID_HOME = $SdkRoot; NDK_HOME = $ndkRoot }.GetEnumerator()) {
@@ -140,7 +140,7 @@ foreach ($directory in @((Join-Path $env:USERPROFILE ".cargo\bin"), (Join-Path $
 }
 [System.Environment]::SetEnvironmentVariable("Path", ($pathEntries -join ";"), "User")
 
-"SDK preparado: API 35, Build Tools 35.0.0, NDK $ndkVersion."
+"SDK preparado: API 36, Build Tools 35.0.0, NDK $ndkVersion."
 "Abre una terminal nueva para cargar JAVA_HOME, ANDROID_HOME, NDK_HOME y PATH."
 "Si otro SDK aparece antes en el PATH de tu equipo, usa las rutas completas bajo ANDROID_HOME."
 "Esto prepara herramientas; no genera ni compila una aplicacion Android."

@@ -6,7 +6,7 @@
  * stremio-enhanced uses cannot run here). These helpers mirror the Rust commands and
  * follow the same shape as the other platform helpers in `runtime/platform.ts`.
  */
-import { invokeCommand } from "../runtime/platform";
+import { invokeCommand, isDesktopRuntime } from "../runtime/platform";
 
 export interface DiscordActivityButton {
   label: string;
@@ -40,6 +40,7 @@ export interface DiscordActivityPayload {
  * user toggle is enabled so the connection is warm before playback.
  */
 export async function startDiscordRichPresence(): Promise<void> {
+  if (!isDesktopRuntime()) return;
   try {
     await invokeCommand("discord_rpc_start");
   } catch (error) {
@@ -49,6 +50,7 @@ export async function startDiscordRichPresence(): Promise<void> {
 
 /** Tears down the Discord IPC client and clears any visible activity. */
 export async function stopDiscordRichPresence(): Promise<void> {
+  if (!isDesktopRuntime()) return;
   try {
     await invokeCommand("discord_rpc_stop");
   } catch (error) {
@@ -62,6 +64,7 @@ export async function stopDiscordRichPresence(): Promise<void> {
  * does not silently swallow the first update.
  */
 export async function setDiscordActivity(payload: DiscordActivityPayload): Promise<void> {
+  if (!isDesktopRuntime()) return;
   try {
     await invokeCommand("discord_rpc_set_activity", {
       payload: {
@@ -83,6 +86,7 @@ export async function setDiscordActivity(payload: DiscordActivityPayload): Promi
 
 /** Clears the activity but keeps the IPC client connected. */
 export async function clearDiscordActivity(): Promise<void> {
+  if (!isDesktopRuntime()) return;
   try {
     await invokeCommand("discord_rpc_clear");
   } catch (error) {

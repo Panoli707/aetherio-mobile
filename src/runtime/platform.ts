@@ -134,7 +134,7 @@ export function listenPlatformEvent<T>(event: string, handler: EventCallback<T>)
 }
 
 export async function getCurrentDeepLinks() {
-  if (!isTauriRuntime()) return [];
+  if (!isDesktopRuntime()) return [];
   try {
     return await getCurrent();
   } catch {
@@ -143,7 +143,7 @@ export async function getCurrentDeepLinks() {
 }
 
 export async function listenOpenUrls(handler: (urls: string[]) => void) {
-  if (!isTauriRuntime()) return () => undefined;
+  if (!isDesktopRuntime()) return () => undefined;
   try {
     return await onOpenUrl(handler);
   } catch {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { invokeCommand, isTauriRuntime } from "../runtime/platform.ts";
+import { invokeCommand, isDesktopRuntime } from "../runtime/platform.ts";
 
 export interface YouTubeStreamInfo {
   videoId: string;
@@ -24,7 +24,7 @@ export function useYouTubePlayer(videoId: string | null) {
     let cancelled = false;
     setStream(null);
     setError(null);
-    if (!videoId || !isTauriRuntime()) {
+    if (!videoId || !isDesktopRuntime()) {
       setLoading(false);
       return () => { cancelled = true; };
     }

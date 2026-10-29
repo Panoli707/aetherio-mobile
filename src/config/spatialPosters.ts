@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getRuntimeKind } from "../runtime/platform";
 import { getKnownSpatialAvailability, resetSpatialAvailability } from "../services/spatialInstance.ts";
 import { getScopedStorageKey } from "../utils/localProfiles.ts";
 
@@ -159,7 +160,7 @@ let posterCacheBaseUrl: string | null = null;
 
 /** Avisa que hay un proxy de cache delante del servidor de posters. */
 export function setPosterCacheUrl(url: string | null): void {
-  const next = url ? normalizeInstanceUrl(url) : null;
+  const next = url && getRuntimeKind() !== "android" ? normalizeInstanceUrl(url) : null;
   if (next === posterCacheBaseUrl) return;
   posterCacheBaseUrl = next;
   // La disponibilidad se midio contra otra URL: hay que volver a preguntarle.
@@ -174,6 +175,7 @@ export function setPosterCacheUrl(url: string | null): void {
  * movio a otro lado, se respeta su eleccion y no se le interpone nada.
  */
 export function getEffectiveInstanceUrl(settings?: SpatialPosterSettings): string {
+  if (getRuntimeKind() === "android") return "";
   const s = settings ?? getSpatialPosterSettings();
   const configured = normalizeInstanceUrl(s.instanceUrl);
   if (!posterCacheBaseUrl) return configured;
@@ -241,7 +243,7 @@ export function normalizeInstanceUrl(value: unknown): string {
  * en el arranque) y Aetherio usa los pósters originales de TMDB.
  */
 export function isSpatialPostersConfigured(settings: SpatialPosterSettings): boolean {
-  return settings.enabled && normalizeInstanceUrl(settings.instanceUrl).length > 0;
+  return getRuntimeKind() !== "android" && settings.enabled && normalizeInstanceUrl(settings.instanceUrl).length > 0;
 }
 
 function normalizeNumber(value: unknown, key: keyof typeof NUMERIC_BOUNDS): number {
@@ -293,6 +295,7 @@ function getSpatialPosterSettingsStorageKey() {
 }
 
 export function getSpatialPosterSettings(): SpatialPosterSettings {
+  if (getRuntimeKind() === "android") return { ...DEFAULT_SPATIAL_POSTER_SETTINGS, enabled: false, instanceUrl: "" };
   try {
     const raw = typeof localStorage !== "undefined"
       ? localStorage.getItem(getSpatialPosterSettingsStorageKey())

@@ -12,6 +12,7 @@ import {
 import { writeDetailMediaMeta } from "../../utils/mediaMetadata";
 import { useMediaSearch } from "../../hooks/useMediaSearch";
 import type { UnifiedSearchResult } from "../../utils/searchProviders";
+import { getRuntimeKind } from "../../runtime/platform";
 
 const NAV_ITEMS = [
   { label: "Inicio", to: "/home", type: null },
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
 ];
 
 export default function TopNav() {
+  const android = getRuntimeKind() === "android";
   const navigate = useNavigate();
   const location = useLocation();
   const addons = useAddonStore(state => state.addons);
@@ -38,7 +40,7 @@ export default function TopNav() {
   const suggestions = suggestionResponse.query === query.trim() ? suggestionResponse.results : [];
   const [scrolled, setScrolled] = useState(false);
   const [hovering, setHovering] = useState(false);
-  const collapsed = scrolled && !hovering && !searching;
+  const collapsed = !android && scrolled && !hovering && !searching;
   useEffect(() => {
     let raf = 0;
     function readY(): number {
@@ -158,7 +160,7 @@ export default function TopNav() {
   return (
     <div
       ref={searchContainerRef}
-      className="relative z-50 flex items-center justify-center"
+      className="aetherio-top-nav relative z-50 flex items-center justify-center"
       data-tauri-drag-region
       onMouseEnter={() => setHovering(true)}
       onMouseLeave={() => setHovering(false)}
@@ -229,7 +231,7 @@ export default function TopNav() {
           <div
             className="flex items-center aetherio-nav-pop overflow-hidden"
             style={{
-              width: collapsed ? 0 : 320,
+              width: collapsed ? 0 : android ? "min(180px, 42vw)" : 320,
               opacity: collapsed ? 0 : 1,
               transition: "width 0.32s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.28s ease",
               pointerEvents: collapsed ? "none" : "auto",

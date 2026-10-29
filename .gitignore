@@ -93,3 +93,9 @@ src-tauri/resources/bin/
 # Salidas de depuracion (capturas de probes y del reporte de Playwright).
 /artifacts/
 /test-output.json
+
+# Android packages and local signing keys
+*.apk
+*.aab
+*.jks
+*.keystore

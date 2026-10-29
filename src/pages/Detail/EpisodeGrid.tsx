@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { Play } from "lucide-react";
+import { getRuntimeKind } from "../../runtime/platform";
 import PageContainer from "../../components/layout/PageContainer";
 import { tmdbFetch } from "../../config/apiKeys";
 import { sanitizeLogoUrl } from "../../utils/artwork";
@@ -197,6 +198,7 @@ export default function DetailSectionPage() {
 }
 
 function TrailerGridCard({ item, media, type, id }: { item: TrailerItem; media: MediaHeader; type: string; id: string }) {
+  const android = getRuntimeKind() === "android";
   const navigate = useNavigate();
   const stream: MediaStream = {
     id: `tmdb-trailer-${item.key}`,
@@ -212,7 +214,9 @@ function TrailerGridCard({ item, media, type, id }: { item: TrailerItem; media: 
   return (
     <button
       type="button"
+      disabled={android}
       onClick={() => {
+        if (android) return;
         sessionStorage.setItem(SELECTED_STREAM_KEY, JSON.stringify(stream));
         sessionStorage.setItem(SELECTED_ENGINE_KEY, "mpv");
         sessionStorage.setItem(SELECTED_MEDIA_META_KEY, JSON.stringify({
@@ -228,7 +232,7 @@ function TrailerGridCard({ item, media, type, id }: { item: TrailerItem; media: 
       <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.28) 48%, transparent 100%)" }} />
       <div style={{ position: "absolute", left: 12, right: 12, bottom: 12 }}>
         <p style={{ fontSize: 14, fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</p>
-        <p style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 7, fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}><Play size={10} fill="white" /> Trailer</p>
+        <p style={{ display: "flex", alignItems: "center", gap: 5, marginTop: 7, fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.85)" }}><Play size={10} fill="white" /> {android ? "Reproduccion Android pendiente" : "Trailer"}</p>
       </div>
     </button>
   );

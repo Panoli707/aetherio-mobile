@@ -1,0 +1,7 @@
+{
+  "identifier": "mobile",
+  "description": "Android catalog and local profiles",
+  "platforms": ["android"],
+  "windows": ["main"],
+  "permissions": ["core:default", "opener:default"]
+}

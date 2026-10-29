@@ -1,6 +1,7 @@
 import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Check, Image as ImageIcon, Info, MinusCircle, Play } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { getRuntimeKind } from "../../runtime/platform";
 import { tmdbFetch } from "../../config/apiKeys";
 import { fetchTmdbArtwork } from "../../services/tmdbArtworkService";
 import ContextMenu from "../../components/ui/ContextMenu";
@@ -273,6 +274,7 @@ export default function ContinueWatchingRow() {
   }, [hovered, showLeft, showRight]);
 
   async function resume(entry: ContinueWatchingEntry) {
+    if (getRuntimeKind() === "android") return;
     window.performance?.mark?.("continue:card_click");
     const cached = readDetailMediaMeta(entry.type, entry.id);
     writeDetailMediaMeta({
@@ -820,6 +822,7 @@ const ContinueCard = memo(function ContinueCard({
   onRemove: () => void;
   onCommitRemove: () => void;
 }) {
+  const android = getRuntimeKind() === "android";
   const baseArtwork = getContinueCardArtwork(entry);
   const [failedArtworkUrls, setFailedArtworkUrls] = useState<Set<string>>(() => new Set());
   const customArtwork = readHomeCardArtwork("background", entry.type, entry.id, "");
@@ -949,7 +952,7 @@ const ContinueCard = memo(function ContinueCard({
           event.stopPropagation();
           return;
         }
-        onClick();
+        if (!android) onClick();
       }}
       onContextMenu={event => {
         event.preventDefault();
@@ -957,6 +960,7 @@ const ContinueCard = memo(function ContinueCard({
         setMenuOpen(true);
       }}
       data-row-card
+      aria-disabled={android || undefined}
       data-long-press
       aria-label={bigPicture ? entry.name : undefined}
       tabIndex={bigPicture ? 0 : undefined}
@@ -1019,7 +1023,7 @@ const ContinueCard = memo(function ContinueCard({
             <div style={{ ...progressBarFillStyle, width: `${progressPercent(entry)}%` }} />
           </div>
           <div style={episodeLabelStyle}>
-            {episodeLabel.includes(" - ") ? episodeLabel.split(" - ")[0] : episodeLabel}{entry.entryKind === "next" || entry.entryKind === "new" || entry.entryKind === "new-season" ? "" : `, ${formatResumeTime(entry.currentTime)}`}
+            {android ? "Reproduccion Android pendiente" : <>{episodeLabel.includes(" - ") ? episodeLabel.split(" - ")[0] : episodeLabel}{entry.entryKind === "next" || entry.entryKind === "new" || entry.entryKind === "new-season" ? "" : `, ${formatResumeTime(entry.currentTime)}`}</>}
           </div>
         </div>
       </div>

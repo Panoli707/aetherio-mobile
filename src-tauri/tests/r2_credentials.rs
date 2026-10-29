@@ -16,6 +16,8 @@
 //!
 //! Sin esas variables el test no hace nada, asi que es seguro dejarlo en el repo.
 
+#![cfg(target_os = "windows")]
+
 const SERVICE: &str = "Aetherio";
 
 fn write(key: &str, value: &str) {

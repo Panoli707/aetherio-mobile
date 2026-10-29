@@ -2,13 +2,14 @@
 
 Esta explicacion esta pensada para quien empieza a leer el proyecto.
 Su objetivo es entender como se conectan las piezas y donde estan los limites,
-no dar instrucciones de instalacion ni prometer que ya existe una app Android.
+no dar instrucciones de instalacion ni confundir compilacion con validacion en Android.
 
-**Estado actual:** el fork parte de una aplicacion de escritorio para Windows.
-La preparacion Android introduce deteccion de plataforma, protecciones para
-operaciones de ventanas y actualizaciones, y configuracion de Vite.
-No hay un proyecto Android generado en `src-tauri/gen/android` ni se acredita
-aqui un APK funcional. El backend de reproduccion sigue dependiendo de Windows.
+**Estado actual:** backend movil separado y primer APK debug de catalogo compilado
+para `aarch64` y `x86_64`, disponible localmente en
+`src-tauri/gen/android/app/build/outputs/apk/universal/debug/app-universal-debug.apk`.
+Se comprobaron arranque, perfiles, catalogos, fichas y biblioteca en un AVD Pixel 7,
+API 37 y x86_64. Falta validacion en telefonos ARM64 y versiones Android estables.
+El reproductor Windows queda fuera de Android; Media3 no esta implementado.
 
 ## 1. Las tres piezas principales
 
@@ -22,7 +23,8 @@ Que Tauri admita aplicaciones moviles no convierte automaticamente este backend
 de Windows en uno compatible con Android.
 
 **Rust** implementa los comandos nativos dentro de `src-tauri/src/`.
-Gestiona, entre otras cosas, mpv, el motor torrent y servicios HTTP locales.
+En escritorio gestiona mpv, el motor torrent y servicios HTTP locales; Android
+registra un conjunto mucho menor, sin motor de video.
 En este contexto, "backend" significa codigo dentro de la aplicacion,
 no necesariamente un servidor remoto de Aetherio.
 
@@ -40,6 +42,22 @@ flowchart LR
   R -->|estado| UI
 ```
 
+En **Android**, el puente sirve para datos auxiliares, no para reproducir:
+
+```mermaid
+flowchart LR
+  UI[React: catalogo y perfiles] -->|invoke| R[Tauri: mobile.rs]
+  UI -->|fetch| C[Servicios de catalogo]
+  UI --> L[localStorage: perfiles y biblioteca]
+  R --> TC[Cache de texto TMDB en datos de la app]
+  R --> O[Plugin opener]
+  R --> CAP[playback_capabilities: none]
+  R --> ERR[Credenciales: error fuera de Windows]
+```
+
+No hay libmpv, torrent, Node ni Media3 detras de ese puente Android.
+"Local" describe perfiles y biblioteca, no un catalogo completo sin Internet.
+
 ## 2. Como una accion llega a Rust
 
 El arranque de React esta en [main.tsx](../../src/main.tsx).
@@ -50,18 +68,31 @@ Cuando la interfaz necesita una funcion nativa, usa un comando con nombre.
 `invoke` es una llamada asincrona: envia argumentos a Rust y recibe un resultado
 o un error, sin convertir el codigo Rust en codigo del navegador.
 
-Por ejemplo, al abrir una fuente de video ocurre esta secuencia:
+Por ejemplo, al abrir una fuente de video **en escritorio** ocurre esta secuencia:
 
 1. La interfaz obtiene una fuente y prepara su destino, subtitulos y cabeceras.
 2. [Player/utils.ts](../../src/pages/Player/utils.ts) llama a `openNativePlayback`.
 3. [platform.ts](../../src/runtime/platform.ts) traduce esa llamada a `invokeCommand("open_mpv", ...)`.
 4. `invokeCommand` delega en `invoke`, la API de Tauri.
-5. [lib.rs](../../src-tauri/src/lib.rs) registra y ejecuta el comando Rust `open_mpv`.
+5. [desktop.rs](../../src-tauri/src/desktop.rs), incluido por `lib.rs`, registra y ejecuta el comando Rust `open_mpv`.
 6. Rust devuelve el resultado; la interfaz consulta estado y envia controles.
 
 Este recorrido es una frontera importante: mostrar un boton en React no garantiza
 que su comando nativo exista o funcione en otra plataforma.
 Ademas, `invokeCommand` no simula un backend cuando se abre la interfaz en un navegador.
+
+[lib.rs](../../src-tauri/src/lib.rs) es ahora la entrada comun. Usa
+`include!("desktop.rs")` bajo `cfg(not(target_os = "android"))` para conservar los
+elementos de escritorio en la raiz del crate, incluidas rutas como `crate::p2p`
+que usa EngineFS. En Android compila `mobile.rs` y reexporta su `run`.
+Los modulos de cache TMDB y credenciales se declaran en esa entrada comun.
+
+[mobile.rs](../../src-tauri/src/mobile.rs) registra solo el plugin opener,
+`tmdb_text_cache_get`, `tmdb_text_cache_set_many`, los tres comandos
+`secure_credential_*` y `playback_capabilities`. Este ultimo devuelve
+`backend: "none"`, `mpvBundled: false`, `libmpv: false`, `exoPlayer: false` y
+`formats: []`. No registra `open_mpv`: las pantallas Android bloquean la accion
+de reproducir antes de llegar a ese comando y muestran que esta pendiente.
 
 ## 3. Catalogo no significa archivo de video
 
@@ -87,8 +118,11 @@ comando Rust `scrape_streams`. No todas las consultas de red pasan por Rust:
 tambien hay peticiones `fetch` desde TypeScript.
 
 Los servicios externos pueden fallar, limitar peticiones o cambiar sus respuestas.
-Reutilizar esta logica en Android exigira revisar red, permisos y dependencias;
-la presencia de los proveedores en el repositorio no prueba soporte movil.
+En Android se conserva la consulta de metadatos, pero se deshabilitan inventarios
+y extraccion de proveedores, Cloudstream, extensiones multimedia y yt-dlp.
+La ruta `/addons` redirige a ajustes; `/episode`, `/streams` y `/player` muestran
+el aviso de reproduccion pendiente. La presencia de codigo heredado no implica
+que se habilite en movil; la prueba de catalogo conectado no cubre fallos de red.
 
 ## 4. Donde se guardan los datos
 
@@ -108,9 +142,11 @@ Algunas claves usan el identificador del perfil para separar preferencias y prog
 no todo es privado de cada perfil, pues tambien hay configuracion global.
 
 Un perfil local no es una cuenta remota ni implica sincronizacion entre equipos.
-El codigo heredado incluye cuentas e integraciones como Trakt y AniList,
-pero eso no demuestra que el inicio de sesion o la sincronizacion funcionen en Android.
-Tampoco hay que asumir que los datos de Windows apareceran en el movil.
+Android fuerza el modo local y el ambito `local` de los perfiles; no restaura
+cuentas ni habilita autenticacion/sincronizacion con Trakt o AniList. Los ajustes
+moviles solo ofrecen perfiles y biblioteca, no las opciones de escritorio.
+Los datos de Windows no se transfieren automaticamente al movil. La persistencia
+tras reiniciar la app aun debe comprobarse en dispositivo.
 
 ### Credenciales y seguridad
 
@@ -119,6 +155,8 @@ nativos cuando detecta el almacen de credenciales de Windows.
 Fuera de esa deteccion tiene una alternativa basada en `localStorage`.
 [secure_credentials.rs](../../src-tauri/src/secure_credentials.rs) implementa el
 almacen seguro para Windows; sus comandos devuelven error en otras plataformas.
+Registrarlos en `mobile.rs` no implementa un almacen Android ni los convierte
+en operaciones correctas sin efecto: devuelven un error explicito.
 
 Por tanto, no hay aqui un almacen seguro Android equivalente implementado.
 `localStorage` y el PIN de seleccion de perfil no cifran todos los datos guardados.
@@ -163,21 +201,37 @@ garantiza que todas las pantallas o servicios sean portables sin ajustes.
 
 | Pieza | Base aprovechable | Limite o trabajo futuro Android |
 | --- | --- | --- |
-| Interfaz y catalogo | Componentes React, modelos y consultas | Adaptar tactil, tamanos y comportamiento movil; validar red. |
-| Puente nativo | Solicitudes y resultados entre UI y Rust | Implementar o adaptar cada comando necesario. |
+| Interfaz y catalogo | Inicio, catalogo, fichas y biblioteca con base responsive | Validar tactil, tamanos, orientacion, Atras y red. |
+| Puente nativo | Entrada movil con cache TMDB, opener y capacidades sin video | Implementar nuevos comandos solo cuando se habilite su funcion. |
 | Perfil y progreso | Modelo local y separacion de claves | Revisar persistencia, migracion y seguridad en el dispositivo. |
 | Video | Intencion de abrir, pausar y consultar estado | Sustituir o adaptar el backend Windows y su superficie nativa. |
 | Torrent | Logica Rust y contrato HTTP local | Evaluar compilacion, almacenamiento, consumo y ciclo de vida movil. |
-| Posters | Datos e imagenes que consume la UI | Replantear el servidor que hoy requiere `node.exe`. |
-| Ventanas y updater | Comportamiento desktop existente | Usar mecanismos moviles propios, no las operaciones de Windows. |
+| Posters | Imagenes del catalogo; SpatialPosters deshabilitado en Android | Replantear el servidor que hoy requiere `node.exe`. |
+| Ventanas y updater | Controles, Big Picture, updater y Discord desactivados en Android | Validar navegacion y ciclo de vida movil. |
 
 Media3/ExoPlayer es una **propuesta** para sustituir el reproductor en Android,
 no una implementacion presente. Elegirlo requeriria un puente nativo y adaptar
 estado, pistas, subtitulos y ciclo de vida; no basta con cambiar un nombre.
 
-## 7. Mapa de la preparacion actual
+## 7. Configuracion y mapa actual
 
-Estos archivos permiten localizar los cambios sin confundir preparacion con soporte:
+[tauri.android.conf.json](../../src-tauri/tauri.android.conf.json) aplica el
+identificador `com.panoli707.aetherio.mobile`, una sola vista `main` visible,
+`resources: []`, sin asociaciones de archivos ni artefactos del updater, y sin
+los plugins deep-link/updater de escritorio. Sus hooks compilan proveedores y
+frontend sin preparar los recursos mpv/Node del empaquetado Windows.
+[capabilities/mobile.json](../../src-tauri/capabilities/mobile.json) limita los
+permisos a `core:default` y `opener:default` para `main` en Android; la capability
+por defecto queda restringida a escritorio.
+
+El [proyecto Android generado](../../src-tauri/gen/android) usa Gradle **8.14.3**,
+Android Gradle Plugin **8.11.0**, `compileSdk` y `targetSdk` **36**, y `minSdk` **24**
+(Android 7.0). Ese minimo es configuracion, no compatibilidad verificada en una
+matriz de dispositivos. La primera build descargo dependencias e instalo API 36
+automaticamente; el preparador del SDK ya solicita esa API de forma explicita.
+No se han anadido dependencias Media3.
+
+Estos archivos permiten localizar los cambios sin confundir implementacion con validacion:
 
 | Archivo | Responsabilidad actual |
 | --- | --- |
@@ -185,14 +239,25 @@ Estos archivos permiten localizar los cambios sin confundir preparacion con sopo
 | [StartupExperience.tsx](../../src/components/startup/StartupExperience.tsx) | Reserva la coordinacion de ventanas de arranque al runtime desktop. |
 | [UpdatePopup.tsx](../../src/components/updater/UpdatePopup.tsx) | Evita iniciar la consulta automatica del updater fuera de desktop. |
 | [vite.config.ts](../../vite.config.ts) | Expone `TAURI_ENV_PLATFORM` y configura host/HMR usando `TAURI_DEV_HOST`. |
-| [Cargo.toml](../../src-tauri/Cargo.toml) | Declara dependencias Rust; varias dependencias nativas estan restringidas a Windows. |
-| [lib.rs](../../src-tauri/src/lib.rs) | Registra comandos y contiene el backend que aun necesita adaptacion. |
+| [Cargo.toml](../../src-tauri/Cargo.toml) | Excluye las dependencias de escritorio de Android; Win32, WebView2 y keyring siguen restringidos a Windows. |
+| [lib.rs](../../src-tauri/src/lib.rs) | Selecciona la entrada; incluye `desktop.rs` sin cambiar las rutas del crate de escritorio. |
+| [desktop.rs](../../src-tauri/src/desktop.rs) | Conserva comandos y servicios de escritorio, incluidos mpv y torrent. |
+| [mobile.rs](../../src-tauri/src/mobile.rs) | Arranque Android reducido, sin reproductor ni servicios de escritorio. |
+| [android.ps1](../../scripts/android.ps1) | Carga el entorno del usuario en el proceso y llama a Tauri para `init`, `build` o `dev`. |
 
 Sin Tauri, la deteccion devuelve `web`, incluso en un navegador Android.
 Con Tauri, prioriza `TAURI_ENV_PLATFORM` y usa el agente del navegador como alternativa.
-Las protecciones no sustituyen el backend: `openNativePlayback` aun invoca `open_mpv`.
+`openNativePlayback` sigue siendo el adaptador de `open_mpv` de escritorio, no un
+reproductor Android. Las rutas y botones moviles impiden usar ese recorrido.
 
-Quedan pendientes el proyecto Android generado, el motor de video, los servicios
-dependientes de Windows, el almacenamiento seguro y la validacion en dispositivo.
-Esta explicacion se basa en lectura del repositorio: no acredita builds, tests,
-firmas, hashes verificados ni una APK ejecutada.
+El APK debug existente es un artefacto local ignorado por Git, firmado mediante
+la clave debug local que Android genera automaticamente (`debug.keystore`).
+No equivale a firma de produccion ni garantiza actualizaciones desde otro PC.
+La carpeta de salida `universal` puede conservar varias ABI de builds anteriores;
+el nombre no demuestra que el APK contenga solo ARM64.
+
+Quedan pendientes ampliar validacion de dispositivos y persistencia, implementar video, evaluar
+torrent y servicios de escritorio y resolver almacenamiento seguro. La
+[guia de desarrollo](DESARROLLO.md) explica como compilar e instalar sin publicar
+APKs, secretos ni claves en el repositorio; no hay release Android automatizada
+ni publicacion en Google Play.

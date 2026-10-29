@@ -9,6 +9,8 @@
 //!
 //! Tarda minutos porque descarga metadata y piezas reales.
 
+#![cfg(not(target_os = "android"))]
+
 use aetherio_lib::p2p::enginefs::{
     EnginefsHandle, EnginefsRegistry, SharedEnginefsRegistry, start_enginefs_server,
     stop_enginefs_server,

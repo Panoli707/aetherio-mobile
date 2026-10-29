@@ -94,7 +94,7 @@ import {
   startSocialLogin,
   type OAuthProvider,
 } from "../../auth/authClient";
-import { openExternalUrl } from "../../runtime/platform";
+import { getRuntimeKind, openExternalUrl } from "../../runtime/platform";
 import { isBigPictureLocation } from "../../utils/bigPictureDetail";
 import packageJson from "../../../package.json";
 import PinPad from "../../components/pin/PinPad.tsx";
@@ -128,6 +128,27 @@ const SIDEBAR_ITEMS: { id: SettingsTab; label: string; icon: ReactNode }[] = [
 ];
 
 export default function SettingsPage() {
+  return getRuntimeKind() === "android" ? <AndroidSettings /> : <DesktopSettingsPage />;
+}
+
+function AndroidSettings() {
+  const navigate = useNavigate();
+  return (
+    <PageContainer className="min-h-screen py-5">
+      <PanelScaffold title="Ajustes">
+        <PillBlock title="ANDROID">
+          <p className="px-5 py-4 text-sm text-white/70">Esta version permite explorar el catalogo, los detalles y la biblioteca con perfiles locales. Las cuentas y la sincronizacion no estan disponibles.</p>
+          <p className="px-5 pb-4 text-sm text-white/70">Reproduccion Android pendiente</p>
+          <NavRow title="Perfiles locales" description="Seleccionar un perfil de este dispositivo." onClick={() => navigate("/profiles")} />
+          <NavRow title="Crear perfil" description="Agregar otro perfil local." onClick={() => navigate("/quick-start/profile")} />
+          <NavRow title="Biblioteca" description="Ver los titulos guardados en este perfil." onClick={() => navigate("/library")} />
+        </PillBlock>
+      </PanelScaffold>
+    </PageContainer>
+  );
+}
+
+function DesktopSettingsPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const addons = useAddonStore(state => state.addons);

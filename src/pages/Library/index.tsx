@@ -12,6 +12,7 @@ import {
   syncAniListLibrary,
 } from "../../integrations/aniList";
 import { connectAniListAccount } from "../../auth/authClient";
+import { getRuntimeKind } from "../../runtime/platform";
 import { useAddonStore } from "../../store/addonStore";
 import type { CatalogRowData, MediaItem } from "../../types/ui";
 import {
@@ -477,6 +478,7 @@ function AniListSyncBanner({
   onConnect: () => Promise<void>;
   onSync: () => Promise<void>;
 }) {
+  if (getRuntimeKind() === "android") return null;
   return (
     <div className="liquid-glass flex flex-wrap items-center justify-between gap-4 rounded-2xl px-5 py-4">
       <div>

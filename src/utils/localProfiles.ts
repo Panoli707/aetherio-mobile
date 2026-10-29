@@ -1,3 +1,5 @@
+import { getRuntimeKind } from "../runtime/platform";
+
 export const LOCAL_PROFILES_CHANGED_EVENT = "aetherio-local-profiles-changed";
 
 const PROFILES_STORAGE_KEY = "aetherio-local-profiles-v1";
@@ -209,6 +211,7 @@ function profileStorageKeys() {
 }
 
 function currentProfileScope() {
+  if (getRuntimeKind() === "android") return "local";
   if (localStorage.getItem(LOCAL_MODE_KEY) === "1") return "local";
   try {
     const raw = localStorage.getItem(ACCOUNT_USER_KEY);

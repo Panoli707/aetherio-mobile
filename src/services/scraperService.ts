@@ -1,4 +1,4 @@
-import { invokeCommand, isTauriRuntime } from "../runtime/platform.ts";
+import { invokeCommand, isDesktopRuntime } from "../runtime/platform.ts";
 
 export interface ScrapedStream {
   id: string;
@@ -38,7 +38,7 @@ export async function scrapeStreams(
   siteIds?: string[]
 ): Promise<ScrapedStream[]> {
   if (!query.trim()) return [];
-  if (!isTauriRuntime()) return [];
+  if (!isDesktopRuntime()) return [];
   return invokeCommand<ScrapedStream[]>("scrape_streams", {
     query,
     mediaType,
@@ -50,6 +50,6 @@ export async function scrapeStreams(
 }
 
 export async function getScraperSites(): Promise<ScraperSiteInfo[]> {
-  if (!isTauriRuntime()) return [];
+  if (!isDesktopRuntime()) return [];
   return invokeCommand<ScraperSiteInfo[]>("get_scraper_sites");
 }

@@ -7,6 +7,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
+import { isDesktopRuntime } from "../runtime/platform";
 
 import { getEffectiveInstanceUrl, setPosterCacheUrl } from "../config/spatialPosters";
 import type { SpatialPosterSettings } from "../config/spatialPosters";
@@ -18,10 +19,6 @@ export interface PosterServerStatus {
   port: number;
   detail: string | null;
 }
-
-const isTauri = () =>
-  typeof window !== "undefined" &&
-  ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
 
 let started: Promise<PosterServerStatus | null> | null = null;
 
@@ -38,7 +35,7 @@ let started: Promise<PosterServerStatus | null> | null = null;
  * cache se aparta.
  */
 export function ensurePosterServer(configuredUrl: string): Promise<PosterServerStatus | null> {
-  if (!isTauri()) return Promise.resolve(null);
+  if (!isDesktopRuntime()) return Promise.resolve(null);
   if (!started) {
     started = invoke<PosterServerStatus>("start_posters_server", { configuredUrl })
       .catch(error => {
@@ -56,7 +53,7 @@ export function ensurePosterServer(configuredUrl: string): Promise<PosterServerS
  * consulta en vivo. Devolver null deja la app usando la instancia directa.
  */
 export async function getPosterCacheUrl(): Promise<string | null> {
-  if (!isTauri()) return null;
+  if (!isDesktopRuntime()) return null;
   try {
     return await invoke<string | null>("poster_cache_url");
   } catch {
@@ -79,7 +76,7 @@ export async function getPosterCacheUrl(): Promise<string | null> {
 export async function resolvePosterEndpoint(
   settings: SpatialPosterSettings,
 ): Promise<string> {
-  if (isTauri()) {
+  if (isDesktopRuntime()) {
     // El proxy de AppData arranca antes que el generador: puede servir hits de
     // disco aunque SpatialPosters todavía esté calentando Node.
     await ensurePosterServer(settings.instanceUrl);
@@ -89,7 +86,7 @@ export async function resolvePosterEndpoint(
 }
 
 export async function stopPosterServer(): Promise<void> {
-  if (!isTauri()) return;
+  if (!isDesktopRuntime()) return;
   try {
     await invoke("stop_posters_server");
   } catch {
@@ -98,7 +95,7 @@ export async function stopPosterServer(): Promise<void> {
 }
 
 export async function posterServerStatus(): Promise<PosterServerStatus | null> {
-  if (!isTauri()) return null;
+  if (!isDesktopRuntime()) return null;
   try {
     return await invoke<PosterServerStatus>("posters_server_status");
   } catch {

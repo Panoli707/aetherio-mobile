@@ -37,6 +37,33 @@
   width: 100%;
 }
 
+@media (max-width: 768px) {
+  html[data-aetherio-runtime="android"] .qs-profile {
+    min-height: 100dvh;
+    padding: 24px 20px;
+  }
+
+  html[data-aetherio-runtime="android"] .qs-profile__stage {
+    padding-block: 24px;
+  }
+
+  html[data-aetherio-runtime="android"] .qs-name,
+  html[data-aetherio-runtime="android"] .qs-summary {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 28px;
+  }
+
+  html[data-aetherio-runtime="android"] .qs-name__form,
+  html[data-aetherio-runtime="android"] .qs-name__field {
+    width: 100%;
+    min-width: 0;
+  }
+
+  html[data-aetherio-runtime="android"] .qs-name__form {
+    grid-row: 1;
+  }
+}
+
 .qs-name__form {
   display: flex;
   flex-direction: column;

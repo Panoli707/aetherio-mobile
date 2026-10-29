@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, Children, Compon
 import type { CSSProperties, ReactNode } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useBackAction } from "../../input/inputActions.ts";
+import { getRuntimeKind } from "../../runtime/platform.ts";
 import { BookmarkMinus, Image as ImageIcon, MoreHorizontal, Play, X, Check, EyeOff, UsersRound } from "lucide-react";
 import addImageIcon from "../../assets/add-image-svgrepo-com.svg";
 import { tmdbFetch } from "../../config/apiKeys";
@@ -1064,7 +1065,8 @@ export default function DetailPage({
   // el state del historial: abrir empuja una entrada, Atrás la cierra.
   const inShellPreview = Boolean(onShellPreviewReady ?? onShellPreviewBackground);
   const episodeRequestFromState = useMemo(() => readEpisodeRequestFromState(location.state), [location.state]);
-  const episodeRequest = episodeRequestFromState ?? initialEpisodeRequest ?? null;
+  const android = getRuntimeKind() === "android";
+  const episodeRequest = android ? null : episodeRequestFromState ?? initialEpisodeRequest ?? null;
   const episodeOpen = Boolean(episodeRequest && data);
   const episodeSectionRef = useRef<HTMLDivElement>(null);
   const episodeWasOpenRef = useRef(false);
@@ -1123,7 +1125,7 @@ export default function DetailPage({
   useEffect(() => {
     // La sección Episodie vive en otro chunk: precargarlo en reposo para que
     // la primera apertura no muestre la sección vacía mientras se resuelve.
-    if (inShellPreview) return;
+    if (android || inShellPreview) return;
     const idle = (window as Window & { requestIdleCallback?: (cb: () => void) => number }).requestIdleCallback;
     if (typeof idle === "function") {
       const id = idle(() => { void loadEpisodieSection(); });
@@ -1133,6 +1135,7 @@ export default function DetailPage({
     return () => window.clearTimeout(timer);
   }, [inShellPreview]);
   const openEpisodeSection = (request: DetailEpisodeRequest) => {
+    if (android) return;
     // Preload before changing sections so the shared backdrop can remain
     // unobstructed while the section chunk is resolved.
     void loadEpisodieSection();
@@ -2674,7 +2677,7 @@ backdropBlurAmountRef.current = 0;
   const specialSeason = data.seasons?.find(s=>s.number===0);
 
   const displayLogo = sanitizeLogoUrl(data.logo) || cachedLogo;
-  const playLabel = resumeEntry ? `Continuar ${formatResumeTime(resumeEntry.currentTime)}` : "Reproducir";
+  const playLabel = android ? "Reproduccion Android pendiente" : resumeEntry ? `Continuar ${formatResumeTime(resumeEntry.currentTime)}` : "Reproducir";
   const playableEpisodes = regularSeasons.flatMap(item => item.episodes).filter(item => !isEpisodeLocked(item));
   const showMarkedWatched = isMovie
     ? playbackEntries.some(entry => detailEntryMatches(detailData, entry) && entry.completed)
@@ -2887,6 +2890,7 @@ backdropBlurAmountRef.current = 0;
   }
 
   function goToStreams(season?: number, ep?: number, episodeName?: string) {
+    if (android) return;
     if (inShellPreview) {
       const q = new URLSearchParams({ type: data!.type, id: data!.id });
       const returnParams = new URLSearchParams(location.search);
@@ -2905,6 +2909,7 @@ backdropBlurAmountRef.current = 0;
   }
 
   function goToStreamsContinue(season?: number, ep?: number, episodeName?: string) {
+    if (android) return;
     if (inShellPreview) {
       const q = new URLSearchParams({ type: data!.type, id: data!.id, continue: "1" });
       const returnParams = new URLSearchParams(location.search);
@@ -3385,7 +3390,7 @@ function updateBackdropBlur(scrollTop: number) {
           </div>
           <div data-hero-reveal style={{ display:"flex",alignItems:"center",gap:12, "--reveal-delay":"240ms" } as CSSProperties}>
             {/* Reproducir -> /episode */}
-            <button ref={playButtonRef} data-hero-primary data-hero-action onClick={playFromDetail}
+            <button ref={playButtonRef} data-hero-primary data-hero-action onClick={playFromDetail} disabled={android}
               style={{ display:"flex",alignItems:"center",gap:8,padding:"11px 30px",background:"#fff",color:"#000",fontWeight:700,borderRadius:999,fontSize:15,border:"none",cursor:"pointer",boxShadow:"0 3px 12px rgba(0,0,0,0.38)",textShadow:"none" }}>
               <Play size={16} fill="black" /> {playLabel}
             </button>
@@ -4243,9 +4248,10 @@ function EpCard({
   onMarkUnwatched,
 }:{ep:Episode; scrollKey:string; locked?:boolean; progressEntry?: ContinueWatchingEntry; fallbackImage?:string; onPlay:()=>void; onMarkWatched:()=>void; seasonMarked:boolean; previousMarked:boolean; onMarkSeasonWatched:()=>void; onMarkSeasonUnwatched:()=>void; onMarkPreviousSeasonWatched:()=>void; onMarkPreviousSeasonUnwatched:()=>void; onShowComments:()=>void; hasTmdbComments?:boolean; onMarkUnwatched:(entry: ContinueWatchingEntry)=>void}) {
   const watched = Boolean(progressEntry?.completed);
+  const android = getRuntimeKind() === "android";
   const progress = progressEntry ? progressPercent(progressEntry) : 0;
   const showProgress = !watched && progress > 0.5;
-  const timeLabel = locked
+  const timeLabel = android ? "Reproduccion Android pendiente" : locked
     ? ep.airDate ? `Estrena ${formatAirDate(ep.airDate)}` : "Proximamente"
     : showProgress && progressEntry
       ? formatResumeTime(progressEntry.currentTime)
@@ -4260,7 +4266,7 @@ function EpCard({
   // En picture sin botón "...": A/Enter corto reproduce, mantenido
   // abre las opciones tras pulsación larga (350ms).
   const longPress = useLongPressAction(bigPicture, {
-    onActivate: () => { if (!locked) onPlay(); },
+    onActivate: () => { if (!locked && !android) onPlay(); },
     onLongPress: () => { if (!locked) setMenuOpen(true); },
   }, 350);
 
@@ -4269,20 +4275,20 @@ function EpCard({
       ref={cardRef}
       className="detail-episode-card"
       data-scroll-key={scrollKey}
-      aria-disabled={locked}
+      aria-disabled={locked || android}
       role="button"
       // En Big Picture las bloqueadas (sin estrenar) sí pueden tener foco
       // para ver info/fecha; el onClick/onKeyDown ya bloquea reproducir.
       tabIndex={locked && !bigPicture ? -1 : 0}
       data-long-press={bigPicture ? "true" : undefined}
       onClick={() => {
-        if (!locked) onPlay();
+        if (!locked && !android) onPlay();
       }}
       onKeyDown={bigPicture ? (event) => {
         if (event.target !== event.currentTarget) return;
         longPress.onKeyDown(event);
       } : (event) => {
-        if (event.target !== event.currentTarget || locked) return;
+        if (event.target !== event.currentTarget || locked || android) return;
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
           onPlay();
@@ -4384,6 +4390,7 @@ function EpCard({
 }
 
 function TrailerCard({ trailer, media }:{trailer:Trailer;media:DetailData}) {
+  const android = getRuntimeKind() === "android";
   const navigate = useNavigate();
   const bigPicture = useBigPictureActive();
   const fallbackThumb = media.backdrop ?? media.poster ?? "";
@@ -4392,6 +4399,7 @@ function TrailerCard({ trailer, media }:{trailer:Trailer;media:DetailData}) {
   const [thumbFailed, setThumbFailed] = useState(false);
 
   function playTrailer() {
+    if (android) return;
     const stream: MediaStream = trailer.stream ?? {
       id: `tmdb-trailer-${trailer.key}`,
       addonId: "tmdb",
@@ -4425,6 +4433,8 @@ function TrailerCard({ trailer, media }:{trailer:Trailer;media:DetailData}) {
       type="button"
       className="media-card-frame"
       onClick={playTrailer}
+      disabled={android}
+      aria-label={android ? "Reproduccion Android pendiente" : trailer.name}
       style={{ flexShrink:0,width:399,height:224,borderRadius:14,overflow:"hidden",display:"block",position:"relative",cursor:"pointer",background:"#1c1c1e",textDecoration:"none",border:"1px solid rgba(225,230,238,0.1)",boxShadow:"0 12px 28px rgba(0,0,0,0.28)",padding:0,textAlign:"left" }}
       onMouseEnter={e=>{
          tweenTo(e.currentTarget, { scale: 1.04, y: -4, zIndex: 5 }, 0.32);
@@ -4457,6 +4467,7 @@ function TrailerCard({ trailer, media }:{trailer:Trailer;media:DetailData}) {
           style={{ width:"100%",height:"100%",objectFit:"cover",transform:"scale(1)" }} />
       ) : null}
       <div style={{ position:"absolute",inset:0,pointerEvents:"none",background:"rgba(0,0,0,0.14)" }} />
+      {android && <span className="absolute inset-x-0 bottom-3 text-center text-sm text-white">Reproduccion Android pendiente</span>}
       <div style={{ position:"absolute",left:"50%",top:"50%",width:46,height:46,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(255,255,255,0.92)",color:"#000",boxShadow:"0 14px 34px rgba(0,0,0,0.45)",transform:"translate(-50%,-50%)" }}>
         <Play size={16} fill="black" />
       </div>

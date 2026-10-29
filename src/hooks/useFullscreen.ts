@@ -1,4 +1,5 @@
 import { useCallback, useEffect } from "react";
+import { getRuntimeKind } from "../runtime/platform";
 
 /**
  * Fullscreen de ventana.
@@ -29,6 +30,7 @@ async function getTauriWindow() {
 
 export function useFullscreen() {
   const toggle = useCallback(() => {
+    if (getRuntimeKind() === "android") return;
     void (async () => {
       const appWindow = await getTauriWindow();
       if (appWindow) {
@@ -49,6 +51,7 @@ export function useFullscreen() {
   }, []);
 
   useEffect(() => {
+    if (getRuntimeKind() === "android") return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "F11") {
         e.preventDefault();

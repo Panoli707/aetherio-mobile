@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useGamepad } from "../../hooks/useGamepad.ts";
 import {
+  getRuntimeKind,
   listenGamepadWake,
   showAndFocusWindow,
 } from "../../runtime/platform.ts";
@@ -26,6 +27,7 @@ export default function GamepadWakeListener() {
   const lastGuideAtRef = useRef(0);
 
   const toggleMode = useCallback(async () => {
+    if (getRuntimeKind() === "android") return;
     // Transición cinematográfica GSAP (dip-to-black simétrico): cubre con el
     // velo, navega debajo, espera al destino y revela. Durante cover/hold se
     // ignora el re-spam para no duplicar entradas en el historial; en reveal

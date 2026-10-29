@@ -14,7 +14,7 @@ import {
   PIN_MIGRATION_EVENT,
   type LocalProfile,
 } from "../utils/localProfiles.ts";
-import { setBigPictureActive } from "../runtime/platform.ts";
+import { getRuntimeKind, setBigPictureActive } from "../runtime/platform.ts";
 import { getLastAppMode, setLastAppMode } from "../utils/appMode.ts";
 import { getHomePreferences } from "../config/homePreferences.ts";
 import { prefersReducedMotion } from "../utils/motion.ts";
@@ -195,17 +195,18 @@ interface ProfileSelectionProps {
 const CURSOR_REASON = "profile-selection";
 
 export default function ProfileSelection({ onProfileSelected }: ProfileSelectionProps) {
+  const android = getRuntimeKind() === "android";
   const location = useLocation();
   const navigate = useNavigate();
   // En esta page el modo lo decide el dispositivo de entrada, no la ruta: mover
   // el mando = Big Picture (y el cursor se esconde), mover el ratón o pulsar el
   // teclado = modo normal. Antes de la primera señal manda el modo restaurado.
   const [modeOverride, setModeOverride] = useState<boolean | null>(null);
-  const bigPicture = modeOverride !== null
+  const bigPicture = !android && (modeOverride !== null
     ? modeOverride
     : location.pathname.startsWith("/big-picture")
       || new URLSearchParams(location.search).get("from") === "big-picture"
-      || getLastAppMode() === "big-picture";
+      || getLastAppMode() === "big-picture");
   // Los perfiles se releen cuando la migración de PINs los toca (los liberar
   // cambia `pin` y `updatedAt` de la lista guardada).
   const [profilesVersion, setProfilesVersion] = useState(0);
@@ -306,6 +307,7 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
   // decide cómo se ve esta pantalla.
   useEffect(() => {
     // Evita un write a state por cada mousemove: solo al cambiar de modo.
+    if (android) return;
     const modeRef = { current: null as boolean | null };
 
     const applyMode = (next: boolean) => {
@@ -498,7 +500,7 @@ export default function ProfileSelection({ onProfileSelected }: ProfileSelection
     // `?from=big-picture` manda sobre un perfil recien creado desde Big Picture.
     const remembered = getLastAppMode(profile.id);
     const fromBigPicture = new URLSearchParams(location.search).get("from") === "big-picture";
-    const nextMode = remembered ?? (fromBigPicture || modeOverride === true ? "big-picture" : "normal");
+    const nextMode = android ? "normal" : remembered ?? (fromBigPicture || modeOverride === true ? "big-picture" : "normal");
     setLastAppMode(nextMode, profile.id);
     setWelcomeProfile(profile);
     setProfileProgress(0);

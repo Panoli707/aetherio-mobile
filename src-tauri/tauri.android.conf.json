@@ -1,0 +1,34 @@
+{
+  "productName": "Aetherio Mobile",
+  "identifier": "com.panoli707.aetherio.mobile",
+  "build": {
+    "beforeDevCommand": "npm run providers:build && npm exec -- vite",
+    "beforeBuildCommand": "npm run providers:build && npm exec -- tsc && npm exec -- vite build --logLevel warn"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Aetherio Mobile",
+        "visible": true,
+        "backgroundColor": "#000000ff"
+      }
+    ],
+    "security": {
+      "capabilities": ["mobile"]
+    }
+  },
+  "bundle": {
+    "resources": [],
+    "createUpdaterArtifacts": false,
+    "fileAssociations": [],
+    "licenseFile": null,
+    "android": {
+      "minSdkVersion": 24
+    }
+  },
+  "plugins": {
+    "deep-link": null,
+    "updater": null
+  }
+}

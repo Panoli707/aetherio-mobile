@@ -1,6 +1,7 @@
 ﻿import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Play, Volume2, VolumeX } from "lucide-react";
+import { getRuntimeKind } from "../../runtime/platform.ts";
 import { useMdbListSettings, type MdbListRatings } from "../../config/mdblist.ts";
 import type { MediaItem } from "../../types/ui.ts";
 import { fetchMdbListRatingsForMedia } from "../../services/MDBListService.ts";
@@ -696,7 +697,7 @@ export default function HeroSection({ item, items, activeIndex, onSelect, onVide
                 }}
               >
                 <Play size={15} fill="black" />
-                Reproducir
+                {getRuntimeKind() === "android" ? "Ver detalles" : "Reproducir"}
               </button>
             </div>
           </div>

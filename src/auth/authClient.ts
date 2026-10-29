@@ -1,4 +1,4 @@
-import { openExternalUrl } from "../runtime/platform";
+import { getRuntimeKind, openExternalUrl } from "../runtime/platform";
 import {
   deleteSecureCredential,
   readSecureCredential,
@@ -40,6 +40,7 @@ export async function registerAccount(input: {
   email: string;
   password: string;
 }) {
+  if (getRuntimeKind() === "android") throw new Error("Las cuentas no estan disponibles en Android.");
   const passwordSalt = randomBase64(16);
   const passwordProof = await derivePasswordProof(input.password, passwordSalt, PASSWORD_ITERATIONS);
   const response = await authRequest<AuthResponse>("/api/auth/register", {
@@ -78,6 +79,7 @@ export async function loginAccount(email: string, password: string) {
 }
 
 export async function restoreAccountSession(): Promise<AetherioUser | null> {
+  if (getRuntimeKind() === "android") return null;
   let token: string | null = null;
   try {
     token = await getAccountToken();
@@ -126,6 +128,7 @@ export async function getOAuthProviders() {
 }
 
 export async function startSocialLogin(provider: OAuthProvider, linkIntentToken?: string) {
+  if (getRuntimeKind() === "android") throw new Error("Las cuentas no estan disponibles en Android.");
   const startUrl = new URL(`${API_BASE}/api/auth/oauth/${provider}/start`);
   startUrl.searchParams.set("return_to", "aetherio://auth/callback");
   if (linkIntentToken) startUrl.searchParams.set("link_token", linkIntentToken);
@@ -159,6 +162,7 @@ export function isOAuthCallbackUrl(rawUrl: string) {
 }
 
 export async function completeOAuthAuthorization(rawUrl: string) {
+  if (getRuntimeKind() === "android") throw new Error("Las cuentas no estan disponibles en Android.");
   const url = new URL(rawUrl);
   const fragment = new URLSearchParams(url.hash.replace(/^#/, ""));
   const aniListToken = fragment.get("access_token")?.trim();
@@ -227,10 +231,11 @@ export function leaveLocalMode() {
 }
 
 export function isLocalModeEnabled() {
-  return localStorage.getItem(LOCAL_MODE_KEY) === "1";
+  return getRuntimeKind() === "android" || localStorage.getItem(LOCAL_MODE_KEY) === "1";
 }
 
 export function getStoredAccount(): AetherioUser | null {
+  if (getRuntimeKind() === "android") return null;
   try {
     const raw = localStorage.getItem(USER_KEY);
     if (!raw) return null;
@@ -243,10 +248,12 @@ export function getStoredAccount(): AetherioUser | null {
 }
 
 export async function getAccountToken() {
+  if (getRuntimeKind() === "android") return null;
   return readSecureCredential("account-session", TOKEN_KEY);
 }
 
 export async function getAniListAccessToken() {
+  if (getRuntimeKind() === "android") return null;
   const token = await readSecureCredential("anilist-access-token", ANILIST_TOKEN_KEY);
   const expiresAt = Number(localStorage.getItem(ANILIST_TOKEN_EXPIRES_KEY));
   if (!token || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) {
@@ -346,6 +353,7 @@ function base64ToBytes(value: string) {
 }
 
 async function authRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  if (getRuntimeKind() === "android") throw new Error("Las cuentas no estan disponibles en Android.");
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), AUTH_REQUEST_TIMEOUT_MS);
   let response: Response;

@@ -1,6 +1,6 @@
 import { tmdbFetch } from "../config/apiKeys.ts";
 import { fetchTmdbArtwork } from "../services/tmdbArtworkService.ts";
-import { invokeCommand, openExternalUrl } from "../runtime/platform.ts";
+import { getRuntimeKind, invokeCommand, openExternalUrl } from "../runtime/platform.ts";
 import {
   buildContinueWatchingKey,
   buildMediaKey,
@@ -97,6 +97,7 @@ interface ScrobbleStamp {
 let lastScrobbleStamp: ScrobbleStamp | null = null;
 
 export function getTraktAuthSnapshot(): TraktAuthSnapshot {
+  if (getRuntimeKind() === "android") return { connected: false, credentialsConfigured: false, authorizationPending: false };
   const state = readAuthState();
   return {
     connected: isAuthenticatedState(state),
@@ -108,6 +109,7 @@ export function getTraktAuthSnapshot(): TraktAuthSnapshot {
 }
 
 export async function startTraktAuthorization() {
+  if (getRuntimeKind() === "android") throw new Error("Trakt no esta disponible en Android.");
   await ensureTraktOauthConfigured();
   const state = createAuthorizationState();
   const startedAt = Date.now();
@@ -126,6 +128,7 @@ export async function startTraktAuthorization() {
 }
 
 export async function completeTraktAuthorization(callbackUrl: string): Promise<TraktAuthorizationResult> {
+  if (getRuntimeKind() === "android") throw new Error("Trakt no esta disponible en Android.");
   const callback = parseTraktCallbackUrl(callbackUrl);
   if (!callback) return { status: "ignored" };
   const state = readAuthState();
@@ -168,6 +171,7 @@ export async function completeTraktAuthorization(callbackUrl: string): Promise<T
 }
 
 export async function disconnectTrakt() {
+  if (getRuntimeKind() === "android") return;
   const state = readAuthState();
   if (state.accessToken && TRAKT_CLIENT_ID) {
     await invokeCommand("trakt_oauth_revoke", {
@@ -273,6 +277,7 @@ export async function syncTraktNow() {
 }
 
 async function authorizedTraktHeaders(): Promise<Record<string, string> | null> {
+  if (getRuntimeKind() === "android") return null;
   let state = readAuthState();
   if (!TRAKT_CLIENT_ID || !isAuthenticatedState(state)) return null;
 

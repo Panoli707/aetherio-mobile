@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("../runtime/platform.ts", () => ({
   invokeCommand: vi.fn(),
   isTauriRuntime: vi.fn(() => true),
+  getRuntimeKind: vi.fn(() => "desktop"),
 }));
 
 vi.mock("../config/apiKeys.ts", () => ({

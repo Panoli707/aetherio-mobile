@@ -1,5 +1,5 @@
 import { tmdbFetch } from "../config/apiKeys.ts";
-import { invokeCommand, isTauriRuntime } from "../runtime/platform.ts";
+import { invokeCommand, isDesktopRuntime } from "../runtime/platform.ts";
 import type { MediaStream, StreamQuery, StreamSubtitle } from "../types/stream.ts";
 import { getScopedStorageKey } from "../utils/localProfiles.ts";
 import { getMagnetBtih, isValidMagnetUri, normalizeBtih } from "../utils/playableMedia.ts";
@@ -649,7 +649,7 @@ function loadManifest(url: string, refresh = false): Promise<MediaExtensionManif
 }
 
 export async function getMediaExtensionInventory(refresh = false): Promise<MediaExtensionInventory> {
-  if (!isTauriRuntime()) return { installed: [], errors: [] };
+  if (!isDesktopRuntime()) return { installed: [], errors: [] };
   if (refresh) clearMediaExtensionCaches();
   const errors: string[] = [];
   const manifestUrls = getInstalledMediaExtensionManifestUrls();
@@ -1017,7 +1017,7 @@ export async function scrapeMediaExtensions(
   title: string,
   extensionIds?: string[],
 ): Promise<MediaStream[]> {
-  if (!isTauriRuntime() || !title.trim()) return [];
+  if (!isDesktopRuntime() || !title.trim()) return [];
   const isAnime = query.type === "anime" || /^(mal|kitsu|anilist|tmdb|imdb):/i.test(query.id);
   if (!isAnime || (extensionIds && extensionIds.length === 0)) return [];
   const cacheKey = [query.id, query.season ?? "", query.episode ?? "", title, extensionIds?.slice().sort().join(",") ?? "all"].join("|");

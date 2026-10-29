@@ -19,6 +19,15 @@
   margin-left: clamp(0px, 12vw, 230px);
 }
 
+@media (max-width: 768px) {
+  html[data-aetherio-runtime="android"] .qs-kb {
+    width: 100%;
+    min-width: 0;
+    max-width: 432px;
+    margin-inline: auto;
+  }
+}
+
 .qs-kb__tabs {
   display: flex;
   align-items: center;

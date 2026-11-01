@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.Aetherio.Starting" parent="Theme.Aetherio">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <item name="android:windowSplashScreenBackground">@color/startup_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/aetherio_logo</item>
+        <item name="android:windowSplashScreenBrandingImage">@drawable/splash_wordmark</item>
+    </style>
+</resources>

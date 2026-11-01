@@ -46,6 +46,14 @@ fun AetherioApp(
     onUpdateAction: (UpdateAction) -> Unit,
     onAutomaticUpdatesChange: (Boolean) -> Unit
 ) {
+    var startupComplete by rememberSaveable { mutableStateOf(false) }
+    val startupReady = !state.homeLoading || state.sections.isNotEmpty() || state.homeError != null
+    LaunchedEffect(startupReady) { if (startupReady) startupComplete = true }
+    if (!startupComplete) {
+        AetherioTheme { StartupScreen() }
+        return
+    }
+
     var tab by rememberSaveable { mutableStateOf("home") }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var searchNeedsFocus by rememberSaveable { mutableStateOf(false) }

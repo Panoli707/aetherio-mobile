@@ -2,7 +2,7 @@
 
 **Versión preliminar 0.4.0 (código de versión 7) | Android 7.0 o posterior | Requiere Internet**
 
-[**Descargar Aetherio-debug.apk**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.4.0-preview.1/Aetherio-debug.apk)
+[**Descargar Aetherio-debug.apk**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.4.1-preview.1/Aetherio-debug.apk)
 
 Para la primera instalación, abre el APK desde el navegador o gestor de archivos y confirma la instalación. Si Android lo solicita, permite instalar aplicaciones desconocidas solo para la aplicación que abre el archivo. No desactives Play Protect.
 

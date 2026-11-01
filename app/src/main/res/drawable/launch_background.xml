@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/startup_background" />
+    <item android:width="128dp" android:height="128dp" android:gravity="center" android:bottom="120dp">
+        <bitmap android:src="@drawable/aetherio_logo" android:gravity="fill" android:filter="true" />
+    </item>
+    <item android:width="200dp" android:height="60dp" android:gravity="center" android:top="100dp">
+        <bitmap android:src="@drawable/splash_wordmark" android:gravity="fill" android:filter="true" />
+    </item>
+</layer-list>

@@ -6,4 +6,7 @@
         <item name="android:windowBackground">#20201E</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+    <style name="Theme.Aetherio.Starting" parent="Theme.Aetherio">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
 </resources>

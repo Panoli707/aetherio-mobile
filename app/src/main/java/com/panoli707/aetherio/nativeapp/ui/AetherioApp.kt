@@ -18,7 +18,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.panoli707.aetherio.nativeapp.data.AppState
-import com.panoli707.aetherio.nativeapp.data.AppUpdate
+import com.panoli707.aetherio.nativeapp.data.UpdateAction
+import com.panoli707.aetherio.nativeapp.data.UpdateState
 import com.panoli707.aetherio.nativeapp.data.MediaItem
 import com.panoli707.aetherio.nativeapp.data.SectionStyle
 import com.panoli707.aetherio.nativeapp.data.StreamSource
@@ -28,6 +29,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun AetherioApp(
     state: AppState,
+    updates: UpdateState,
     onSelectMedia: (MediaItem) -> Unit,
     onToggleSaved: (MediaItem) -> Unit,
     onSearch: (String) -> Unit,
@@ -41,8 +43,8 @@ fun AetherioApp(
     onRequestSources: (MediaItem, Int?, Int?) -> Unit,
     onDismissSources: () -> Unit,
     onPlaySource: (StreamSource, VideoFormat) -> Unit,
-    onDismissUpdate: () -> Unit,
-    onOpenUpdate: (AppUpdate) -> Unit
+    onUpdateAction: (UpdateAction) -> Unit,
+    onAutomaticUpdatesChange: (Boolean) -> Unit
 ) {
     var tab by rememberSaveable { mutableStateOf("home") }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
@@ -120,8 +122,9 @@ fun AetherioApp(
                         screenState.SaveableStateProvider(tab) {
                             when (tab) {
                                 "library" -> LibraryScreen(state, libraryScroll, libraryFilter, { libraryFilter = it }, select, openSearch)
-                                "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon)
-                                else -> HomeScreen(state, homeScroll, pager, !linkOpen && state.sourceQuery == null && state.availableUpdate == null,
+                                "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon,
+                                    updates, onUpdateAction, onAutomaticUpdatesChange)
+                                else -> HomeScreen(state, homeScroll, pager, !linkOpen && state.sourceQuery == null && !updates.noticeVisible,
                                     select, { categoryId = it }, onRetryHome)
                             }
                         }
@@ -148,8 +151,8 @@ fun AetherioApp(
                     })
                 }
             }
-            if (!linkOpen && state.sourceQuery == null && !imeVisible) state.availableUpdate?.let { update ->
-                UpdateDialog(update, onDismissUpdate, { onOpenUpdate(update) })
+            if (!linkOpen && state.sourceQuery == null && !imeVisible && updates.noticeVisible) {
+                UpdateDialog(updates, onUpdateAction)
             }
         }
     }

@@ -64,13 +64,24 @@ Usa la **URL HTTPS final**, no una página web ni un enlace que redirija. No se 
 
 La reproducción depende del dispositivo, del formato, de la conexión y de la disponibilidad del vídeo. Elegir HLS o DASH no convierte el contenido ni garantiza su compatibilidad. **Volver** cierra el reproductor y detiene el vídeo; no hay reproducción en segundo plano.
 
-## Avisos de actualización
+## Actualizaciones
 
-Al abrir o volver a Aetherio, se comprueban las actualizaciones publicadas en GitHub sin interrumpir el catálogo. Si no hay conexión, puedes seguir usando las funciones disponibles.
+### Buscar e instalar una actualización
+
+1. Abre **Ajustes > Actualizaciones > Buscar actualizaciones** para comprobar las versiones publicadas en GitHub.
+2. Si hay una versión disponible, pulsa **Actualizar ahora** para descargar su APK dentro de Aetherio, sin abrir el navegador. La aplicación muestra el progreso y permite cancelar la descarga.
+3. Al terminar la descarga, Aetherio verifica el APK y abre automáticamente el instalador de Android. **Confirma la instalación** para completar la actualización.
 
 El aviso **Actualización disponible** muestra la versión y, cuando corresponda, **Versión preliminar**.
 
-- **Ver actualización** abre la página de esa versión en GitHub para que decidas si descargas el APK y lo instalas manualmente.
-- **Ahora no** aplaza el aviso de esa versión hasta un reinicio completo de la aplicación o hasta que se detecte una más nueva.
+En **Android 8 o posterior**, puede ser necesario permitir que **Aetherio** instale aplicaciones desconocidas. Aetherio abre los ajustes del sistema para conceder ese permiso; después, vuelve a la aplicación y reintenta la instalación. No necesitas desinstalar ni borrar los datos.
 
-No hay descarga ni instalación automática. Para conservar los datos, actualiza sobre la aplicación existente, sin desinstalarla. Consulta la [guía de instalación](INSTALACION.md#actualizar-sin-perder-los-datos).
+### Descargas automáticas y segundo plano
+
+El interruptor de actualizaciones automáticas está en **Ajustes > Actualizaciones**, viene **desactivado por defecto** y conserva tu elección entre sesiones.
+
+Si lo activas, Aetherio busca y descarga actualizaciones **al abrir la aplicación y solo en redes no medidas**. No hay comprobaciones periódicas mientras está cerrada. La descarga automática no es una instalación silenciosa: **Android sigue pidiendo tu confirmación en el instalador**.
+
+Las descargas se gestionan mediante el gestor de descargas de Android (**DownloadManager**). Una descarga iniciada puede continuar en segundo plano aunque cierres Aetherio; al abrirla de nuevo, la aplicación recupera el estado de la descarga. Puedes consultar su progreso o cancelarla desde Aetherio.
+
+Para conservar los datos, actualiza sobre la aplicación existente, sin desinstalarla. Consulta la [guía de instalación](INSTALACION.md#actualizar-sin-perder-los-datos).

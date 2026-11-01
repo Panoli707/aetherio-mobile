@@ -119,7 +119,7 @@ $notes = @(
     ''
     'Descarga Aetherio-debug.apk e instalalo manualmente sobre la aplicacion existente para conservar tus datos.'
     'La actualizacion requiere el mismo paquete y firma. No desinstales ni borres los datos; si Android indica un conflicto de firma, solicita un APK compatible.'
-    'No hay descarga ni instalacion automatica. Android te pedira confirmacion.'
+    'Las siguientes actualizaciones se descargan desde Aetherio. Puedes activar la descarga automatica en Ajustes; Android siempre pide confirmar la instalacion.'
     ''
     $comment
 ) -join "`n"

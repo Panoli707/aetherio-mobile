@@ -100,7 +100,8 @@ internal fun LibraryScreen(state: AppState, scroll: LazyGridState, filter: Strin
 
 @Composable
 internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink: () -> Unit,
-    onAddAddon: (String) -> Unit, onRemoveAddon: (String) -> Unit) {
+    onAddAddon: (String) -> Unit, onRemoveAddon: (String) -> Unit,
+    updates: UpdateState, onUpdateAction: (UpdateAction) -> Unit, onAutomaticUpdatesChange: (Boolean) -> Unit) {
     val profileName = state.profileName
     var name by rememberSaveable(profileName) { mutableStateOf(profileName) }
     var saved by rememberSaveable { mutableStateOf(false) }
@@ -122,6 +123,8 @@ internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink:
             Button(onClick = { focus.clearFocus(); onRename(name.trim()); saved = true }, enabled = name.isNotBlank()) { Text("Guardar nombre") }
             if (saved) Text("Nombre guardado en este dispositivo.", color = Rating,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            UpdateSettings(updates, onUpdateAction, onAutomaticUpdatesChange)
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
             AddonsSettings(state, onAddAddon, onRemoveAddon)
             HorizontalDivider(Modifier.padding(vertical = 12.dp))

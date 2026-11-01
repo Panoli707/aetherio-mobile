@@ -7,7 +7,7 @@
 
 ## Descargar e instalar
 
-1. Descarga [**Aetherio-debug.apk desde GitHub**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.3.3-preview.1/Aetherio-debug.apk). Comprueba que corresponde al repositorio `Panoli707/aetherio-mobile`.
+1. Descarga [**Aetherio-debug.apk desde GitHub**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.4.0-preview.1/Aetherio-debug.apk), versión preliminar **0.4.0** (código de versión **7**). Comprueba que corresponde al repositorio `Panoli707/aetherio-mobile`.
 2. Abre **Descargas** en el navegador o gestor de archivos del dispositivo y toca `Aetherio-debug.apk`.
 3. Si Android lo solicita, permite **Instalar aplicaciones desconocidas** únicamente para el navegador o gestor de archivos que está abriendo el APK. El nombre de la opción puede variar según el dispositivo.
 4. Regresa al archivo y pulsa **Instalar**. Cuando termine, pulsa **Abrir**.
@@ -23,12 +23,15 @@ Si ya tienes **Aetherio** o **Aetherio Native**, abre el APK y confirma la actua
 
 Si Android informa de un conflicto de firma, detén la instalación y busca un APK de procedencia fiable con firma compatible. **No desinstales ni borres los datos para forzar la actualización**.
 
-Al abrir o volver a Aetherio, la aplicación comprueba las actualizaciones publicadas en GitHub sin bloquear el catálogo. Si hay una actualización disponible, el aviso muestra la versión y la etiqueta **Versión preliminar** cuando corresponda.
+Si tienes la versión **0.3.3**, su aviso de actualización seguirá abriendo el navegador. Para usar las descargas dentro de Aetherio, instala una vez la **0.4.0** mediante ese aviso o el enlace de descarga anterior, siempre sobre la aplicación existente. A partir de ahí, las siguientes actualizaciones pueden descargarse desde la propia aplicación.
 
-- **Ver actualización** abre su página de GitHub en el navegador. Descarga allí el APK e instálalo manualmente sobre la aplicación existente.
-- **Ahora no** aplaza el aviso de esa versión hasta que cierres por completo y vuelvas a iniciar la aplicación, o hasta que se detecte una más nueva.
+1. Abre **Ajustes > Actualizaciones > Buscar actualizaciones** para comprobar si hay una versión disponible.
+2. Pulsa **Actualizar ahora**. Aetherio descarga el APK desde GitHub sin abrir el navegador; puedes consultar el progreso y cancelar la descarga.
+3. Al terminar, Aetherio verifica el APK y abre automáticamente el instalador de Android. Confirma la instalación para actualizar sin desinstalar.
 
-No hay descarga ni instalación automática. Android te pedirá confirmar la instalación manual; el permiso para abrir el APK corresponde al navegador o gestor de archivos, no a Aetherio.
+En **Android 8 o posterior**, el sistema puede pedir que permitas a **Aetherio** instalar aplicaciones desconocidas. La aplicación abre los ajustes del sistema para conceder ese permiso; vuelve después a Aetherio y reintenta la instalación. Este permiso corresponde a Aetherio, no al navegador usado en la primera instalación. **Android siempre requiere que confirmes la instalación**.
+
+El interruptor de actualizaciones automáticas en **Ajustes > Actualizaciones** está **desactivado por defecto** y guarda tu elección. Si lo activas, busca y descarga al abrir Aetherio, solo en redes no medidas. No realiza instalaciones silenciosas ni comprobaciones periódicas con la aplicación cerrada. Una descarga ya iniciada puede continuar mediante el gestor de descargas de Android aunque cierres Aetherio; al volver a abrirla, se recupera su estado.
 
 ## Primer uso y datos guardados
 

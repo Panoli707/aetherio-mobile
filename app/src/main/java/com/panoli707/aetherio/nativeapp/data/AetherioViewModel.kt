@@ -1,10 +1,8 @@
 package com.panoli707.aetherio.nativeapp.data
 
 import android.app.Application
-import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.panoli707.aetherio.nativeapp.BuildConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
@@ -23,7 +21,6 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val library = LocalLibraryStore(application)
     private val sourceRepository = SourceRepository()
     private val addonStore = AddonStore(application)
-    private val updateRepository = UpdateRepository()
     private val mutableState = MutableStateFlow(AppState(savedItems = library.savedItems, profileName = library.profileName))
     val state: StateFlow<AppState> = mutableState.asStateFlow()
     private var homeJob: Job? = null
@@ -32,8 +29,6 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private var searchJob: Job? = null
     private var sourceJob: Job? = null
     private var addonRestoreJob: Job? = null
-    private var lastUpdateCheck: Long? = null
-    private var dismissedUpdateCode = 0
 
     init {
         loadHome()
@@ -46,28 +41,6 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 mutableState.update { it.copy(addonsLoading = false, addonError = "No se pudieron abrir los proveedores guardados. Vuelve a configurarlos.") }
             }
         }
-    }
-
-    fun checkForUpdates() {
-        val now = SystemClock.elapsedRealtime()
-        if (lastUpdateCheck?.let { now - it < 10 * 60 * 1000L } == true) return
-        lastUpdateCheck = now
-        viewModelScope.launch {
-            try {
-                val update = updateRepository.available(BuildConfig.VERSION_CODE)
-                if (update != null && update.versionCode > dismissedUpdateCode) {
-                    mutableState.update { it.copy(availableUpdate = update) }
-                }
-            } catch (e: CancellationException) { throw e }
-            catch (_: Exception) {
-                // Updates are optional; offline/rate-limit failures must not disrupt the catalog.
-            }
-        }
-    }
-
-    fun dismissUpdate() {
-        state.value.availableUpdate?.let { dismissedUpdateCode = maxOf(dismissedUpdateCode, it.versionCode) }
-        mutableState.update { it.copy(availableUpdate = null) }
     }
 
     fun loadHome() {

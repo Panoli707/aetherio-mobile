@@ -27,6 +27,8 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 
 class UpdateRepositoryTest {
+    private val sha256 = "a1".repeat(32)
+
     private fun metadata(code: Int = 4, name: String = "0.4.0"): String =
         """{"schemaVersion":1,"applicationId":"com.panoli707.aetherio.nativeapp","versionCode":$code,"versionName":"$name","apkName":"Aetherio-debug.apk"}"""
 
@@ -40,7 +42,7 @@ class UpdateRepositoryTest {
     ): JSONObject = JSONObject().put("draft", false).put("prerelease", preview).put("tag_name", tag)
         .put("body", body).put("html_url", "https://private-secret.example/not-a-release")
         .put("assets", JSONArray().put(JSONObject().put("name", "Aetherio-debug.apk")
-            .put("state", "uploaded").put("size", 12345)
+            .put("state", "uploaded").put("size", 12345).put("digest", "sha256:$sha256")
             .put("browser_download_url", "http://private-secret.example/untrusted.apk")))
 
     private fun feed(vararg releases: JSONObject): String = JSONArray(releases.toList()).toString()
@@ -76,7 +78,8 @@ class UpdateRepositoryTest {
 
     @Test fun exactGeneratedMarkerProvidesPublicUpdateFields() {
         val body = """<!-- aetherio-update: {"schemaVersion":1,"applicationId":"com.panoli707.aetherio.nativeapp","versionCode":3,"versionName":"0.3.0","apkName":"Aetherio-debug.apk"} -->"""
-        assertEquals(AppUpdate(3, "0.3.0", "https://github.com/Panoli707/aetherio-mobile/releases/tag/v0.3.0", false),
+        assertEquals(AppUpdate(3, "0.3.0", "https://github.com/Panoli707/aetherio-mobile/releases/tag/v0.3.0", false,
+            "https://github.com/Panoli707/aetherio-mobile/releases/download/v0.3.0/Aetherio-debug.apk", sha256, 12345L),
             UpdateRepository.parse(feed(release(3, "v0.3.0", body = body)), 2))
     }
 
@@ -146,22 +149,50 @@ class UpdateRepositoryTest {
         }
     }
 
-    @Test fun correspondingUploadedAssetWithPositiveIntegralSizeIsRequired() {
+    @Test fun correspondingUploadedAssetWithBoundedPositiveIntegralSizeIsRequired() {
         listOf(
             JSONArray(), JSONObject(), JSONObject.NULL,
             JSONArray().put("private-secret"),
-            JSONArray().put(JSONObject().put("name", "Other.apk").put("state", "uploaded").put("size", 1)),
-            JSONArray().put(JSONObject().put("name", "Aetherio-debug.apk").put("state", "new").put("size", 1))
+            JSONArray().put(JSONObject().put("name", "Other.apk").put("state", "uploaded")
+                .put("size", 1).put("digest", "sha256:$sha256")),
+            JSONArray().put(JSONObject().put("name", "Aetherio-debug.apk").put("state", "new")
+                .put("size", 1).put("digest", "sha256:$sha256"))
         ).forEach { assertNull(parse(release().put("assets", it))) }
         assertNull(parse(release().also { it.remove("assets") }))
-        listOf(0, -1, "1", 1.5, true, JSONObject.NULL).forEach { size ->
+        listOf(0, -1, "1", 1.5, true, JSONObject.NULL, 128L * 1024 * 1024 + 1, 3_000_000_000L).forEach { size ->
             val value = release()
             value.getJSONArray("assets").getJSONObject(0).put("size", size)
             assertNull(parse(value))
         }
-        val large = release()
-        large.getJSONArray("assets").getJSONObject(0).put("size", 3_000_000_000L)
-        assertNotNull(parse(large))
+        listOf("1.0", "1e0").forEach { size ->
+            assertNull(UpdateRepository.parse(feed(release()).replace("\"size\":12345", "\"size\":$size"), 3))
+        }
+        assertNull(parse(release().also { it.getJSONArray("assets").getJSONObject(0).remove("size") }))
+        listOf(1L, 128L * 1024 * 1024).forEach { size ->
+            val value = release()
+            value.getJSONArray("assets").getJSONObject(0).put("size", size)
+            assertEquals(size, parse(value)!!.size)
+        }
+    }
+
+    @Test fun matchingAssetRequiresSha256DigestAndNormalizesHexToLowercase() {
+        listOf(JSONObject.NULL, 123, true, "", sha256, "SHA256:$sha256", "sha512:$sha256",
+            "sha256:${"a".repeat(63)}", "sha256:${"a".repeat(65)}", "sha256:${"g".repeat(64)}",
+            " sha256:$sha256", "sha256:$sha256\n").forEach { digest ->
+            val value = release()
+            value.getJSONArray("assets").getJSONObject(0).put("digest", digest)
+            assertNull(parse(value))
+        }
+        val missing = release()
+        missing.getJSONArray("assets").getJSONObject(0).remove("digest")
+        missing.getJSONArray("assets").put(JSONObject().put("name", "Other.apk").put("state", "uploaded")
+            .put("size", 12345).put("digest", "sha256:$sha256"))
+        assertNull(parse(missing))
+        listOf(sha256, sha256.uppercase(), "aA".repeat(32)).forEach { hash ->
+            val value = release()
+            value.getJSONArray("assets").getJSONObject(0).put("digest", "sha256:$hash")
+            assertEquals(hash.lowercase(), parse(value)!!.sha256)
+        }
     }
 
     @Test fun draftAndMissingOrNonBooleanFlagsAreSkipped() {
@@ -206,7 +237,76 @@ class UpdateRepositoryTest {
             "https://github.com/Other/repo/releases/tag/evil", "https://user:private-secret@github.com/").forEach { url ->
             val value = release().put("html_url", url).put("url", url).put("name", "private-secret\u202e")
             value.getJSONArray("assets").getJSONObject(0).put("browser_download_url", url).put("url", url)
-            assertEquals(AppUpdate(4, "0.4.0", "https://github.com/Panoli707/aetherio-mobile/releases/tag/v0.4.0", false), parse(value))
+            assertEquals(AppUpdate(4, "0.4.0", "https://github.com/Panoli707/aetherio-mobile/releases/tag/v0.4.0", false,
+                "https://github.com/Panoli707/aetherio-mobile/releases/download/v0.4.0/Aetherio-debug.apk",
+                sha256, 12345L), parse(value))
+        }
+    }
+
+    @Test fun validDownloadsAcceptCanonicalUrlsAndMetadataBoundaries() {
+        listOf("v0.4.0", "native-v0.1.0-preview.1", "x".repeat(120)).forEach { tag ->
+            val update = parse(release(tag = tag, preview = true))!!
+            assertTrue(UpdateRepository.isValidDownload(update))
+            assertTrue(UpdateRepository.isValidDownload(update.copy(size = 1L)))
+            assertTrue(UpdateRepository.isValidDownload(update.copy(size = 128L * 1024 * 1024,
+                versionCode = Int.MAX_VALUE, versionName = "x".repeat(80),
+                apkUrl = "https://github.com/Panoli707/aetherio-mobile/releases/download/$tag/${"a".repeat(116)}.apk")))
+        }
+    }
+
+    @Test fun validDownloadRejectsOtherOriginsRepositoriesCredentialsAndNonHttps() {
+        val update = parse(release())!!
+        listOf("http://github.com/Panoli707/aetherio-mobile", "https://example.invalid/Panoli707/aetherio-mobile",
+            "https://github.com.evil.example/Panoli707/aetherio-mobile", "https://github.com/Other/repo",
+            "https://github.com/Panoli707/other", "https://user:synthetic@github.com/Panoli707/aetherio-mobile",
+            "https://@github.com/Panoli707/aetherio-mobile", "https://github.com:443/Panoli707/aetherio-mobile",
+            "https://GITHUB.com/Panoli707/aetherio-mobile").forEach { base ->
+            assertFalse(UpdateRepository.isValidDownload(update.copy(
+                releaseUrl = update.releaseUrl.replace("https://github.com/Panoli707/aetherio-mobile", base))))
+            assertFalse(UpdateRepository.isValidDownload(update.copy(
+                apkUrl = update.apkUrl.replace("https://github.com/Panoli707/aetherio-mobile", base))))
+        }
+    }
+
+    @Test fun validDownloadRejectsMismatchedPathsTraversalQueriesAndFragments() {
+        val update = parse(release())!!
+        listOf("/", "/extra", "?", "?token=synthetic", "#", "#fragment").forEach { suffix ->
+            assertFalse(UpdateRepository.isValidDownload(update.copy(releaseUrl = update.releaseUrl + suffix)))
+            assertFalse(UpdateRepository.isValidDownload(update.copy(apkUrl = update.apkUrl + suffix)))
+        }
+        listOf("", "../v0.4.0", "v0.4.0/../v0.4.0", "%760.4.0", "v0.4.0%2Fextra", "v0.4.0\\extra",
+            "x".repeat(121)).forEach { tag ->
+            assertFalse(UpdateRepository.isValidDownload(update.copy(
+                releaseUrl = "https://github.com/Panoli707/aetherio-mobile/releases/tag/$tag",
+                apkUrl = "https://github.com/Panoli707/aetherio-mobile/releases/download/$tag/Aetherio-debug.apk")))
+        }
+        listOf("", "../Aetherio-debug.apk", "dir/../Aetherio-debug.apk", "dir\\app.apk", "%41etherio-debug.apk",
+            "app.apk%2Fextra", "app.APK", "app name.apk", "a".repeat(117) + ".apk").forEach { apk ->
+            assertFalse(UpdateRepository.isValidDownload(update.copy(
+                apkUrl = "https://github.com/Panoli707/aetherio-mobile/releases/download/v0.4.0/$apk")))
+        }
+        assertFalse(UpdateRepository.isValidDownload(update.copy(apkUrl = update.apkUrl.replace("v0.4.0", "v0.5.0"))))
+        assertFalse(UpdateRepository.isValidDownload(update.copy(releaseUrl = update.apkUrl)))
+        assertFalse(UpdateRepository.isValidDownload(update.copy(apkUrl = update.releaseUrl)))
+        assertFalse(UpdateRepository.isValidDownload(update.copy(releaseUrl = "v0.4.0")))
+        assertFalse(UpdateRepository.isValidDownload(update.copy(apkUrl = "Aetherio-debug.apk")))
+    }
+
+    @Test fun validDownloadRejectsMalformedHashesSizesAndVersions() {
+        val update = parse(release())!!
+        listOf("", "sha256:$sha256", sha256.uppercase(), "a".repeat(63), "a".repeat(65), "g".repeat(64),
+            "$sha256\n", " $sha256").forEach { hash ->
+            assertFalse(UpdateRepository.isValidDownload(update.copy(sha256 = hash)))
+        }
+        listOf(Long.MIN_VALUE, -1L, 0L, 128L * 1024 * 1024 + 1, 3_000_000_000L, Long.MAX_VALUE).forEach { size ->
+            assertFalse(UpdateRepository.isValidDownload(update.copy(size = size)))
+        }
+        listOf(Int.MIN_VALUE, -1, 0).forEach { code ->
+            assertFalse(UpdateRepository.isValidDownload(update.copy(versionCode = code)))
+        }
+        listOf("", " ", " leading", "trailing ", "x".repeat(81), "v\n4", "v\u00004", "v\u007f4",
+            "v\u00854", "v\u202e4", "v\u20664", "v\u200b4").forEach { name ->
+            assertFalse(UpdateRepository.isValidDownload(update.copy(versionName = name)))
         }
     }
 

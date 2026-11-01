@@ -78,6 +78,5 @@ data class AppState(
     val sourceQuery: SourceQuery? = null,
     val sourcesLoading: Boolean = false,
     val sources: List<StreamSource> = emptyList(),
-    val sourceError: String? = null,
-    val availableUpdate: AppUpdate? = null
+    val sourceError: String? = null
 )

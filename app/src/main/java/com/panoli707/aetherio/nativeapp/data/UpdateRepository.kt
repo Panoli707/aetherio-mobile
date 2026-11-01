@@ -21,7 +21,10 @@ data class AppUpdate(
     val versionCode: Int,
     val versionName: String,
     val releaseUrl: String,
-    val prerelease: Boolean
+    val prerelease: Boolean,
+    val apkUrl: String,
+    val sha256: String,
+    val size: Long
 )
 
 internal class UpdateRepository(
@@ -95,6 +98,19 @@ internal class UpdateRepository(
         val DEFAULT_RELEASES_URL: HttpUrl =
             "https://api.github.com/repos/Panoli707/aetherio-mobile/releases?per_page=10".toHttpUrl()
 
+        fun isValidDownload(update: AppUpdate): Boolean {
+            if (update.versionCode <= 0 || update.versionName.length !in 1..80 ||
+                update.versionName != update.versionName.trim() ||
+                update.versionName.any { it !in ' '..'~' } ||
+                update.size !in 1L..UPDATE_APK_LIMIT || !updateHash.matches(update.sha256)) return false
+            // Match the original strings, not URLs normalized by an HTTP parser.
+            val tag = update.releaseUrl.removePrefix("$UPDATE_RELEASES_BASE/tag/")
+            if (!updateTag.matches(tag) || update.releaseUrl != "$UPDATE_RELEASES_BASE/tag/$tag") return false
+            val apk = update.apkUrl.removePrefix("$UPDATE_RELEASES_BASE/download/$tag/")
+            return apk.length <= 120 && updateApk.matches(apk) &&
+                update.apkUrl == "$UPDATE_RELEASES_BASE/download/$tag/$apk"
+        }
+
         fun parse(raw: String, currentVersionCode: Int): AppUpdate? {
             try {
                 val releases = updateJson(raw, UPDATE_BODY_LIMIT) as? JSONArray ?: invalidUpdate()
@@ -116,9 +132,13 @@ internal class UpdateRepository(
 }
 
 private const val UPDATE_BODY_LIMIT = 1024 * 1024
+private const val UPDATE_APK_LIMIT = 128L * 1024 * 1024
+private const val UPDATE_RELEASES_BASE = "https://github.com/Panoli707/aetherio-mobile/releases"
 private const val UPDATE_MARKER = "<!-- aetherio-update:"
 private val updateTag = Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,119}")
 private val updateApk = Regex("[A-Za-z0-9][A-Za-z0-9._-]*\\.apk")
+private val updateHash = Regex("[0-9a-f]{64}")
+private val updateDigest = Regex("sha256:([0-9A-Fa-f]{64})")
 
 private fun invalidUpdate(): Nothing = throw IllegalArgumentException("Invalid update data")
 private fun updateFailure() = IOException("Unable to check for updates")
@@ -158,15 +178,21 @@ private fun updateCandidate(release: JSONObject, installed: Int): AppUpdate? {
     val apk = metadata.opt("apkName") as? String ?: return null
     if (apk.length > 120 || !updateApk.matches(apk)) return null
     val assets = release.opt("assets") as? JSONArray ?: return null
-    var uploaded = false
+    var size = 0L
+    var sha256 = ""
     for (index in 0 until assets.length()) {
         val asset = assets.optJSONObject(index) ?: return null
-        if (asset.opt("name") == apk && asset.opt("state") == "uploaded" &&
-            (updateInteger(asset.opt("size")) ?: 0L) > 0L) uploaded = true
+        if (asset.opt("name") != apk || asset.opt("state") != "uploaded") continue
+        val assetSize = updateInteger(asset.opt("size")) ?: continue
+        if (assetSize !in 1L..UPDATE_APK_LIMIT) continue
+        val digest = asset.opt("digest") as? String ?: continue
+        val hash = updateDigest.matchEntire(digest)?.groupValues?.get(1) ?: continue
+        size = assetSize
+        sha256 = hash.lowercase()
     }
-    if (!uploaded) return null
-    return AppUpdate(code.toInt(), name,
-        "https://github.com/Panoli707/aetherio-mobile/releases/tag/$tag", prerelease)
+    if (size == 0L) return null
+    return AppUpdate(code.toInt(), name, "$UPDATE_RELEASES_BASE/tag/$tag", prerelease,
+        "$UPDATE_RELEASES_BASE/download/$tag/$apk", sha256, size)
 }
 
 private fun updateInteger(value: Any?): Long? = when (value) {

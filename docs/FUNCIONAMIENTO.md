@@ -1,6 +1,6 @@
 # Cómo funciona
 
-AetherioNative permite consultar un catálogo en línea y guardar títulos localmente. Necesita Internet para consultar las API del catálogo, buscar, cargar fichas e imágenes y reproducir vídeos en línea; no ofrece un catálogo completo sin conexión.
+Aetherio Mobile es el port nativo para consultar un catálogo en línea y guardar títulos localmente. La versión actual aparece en el teléfono como **Aetherio Native**. Necesita Internet para consultar las API del catálogo, buscar, cargar fichas e imágenes y reproducir vídeos en línea; no ofrece un catálogo completo sin conexión.
 
 ## Inicio y búsqueda
 
@@ -28,7 +28,7 @@ Abre **Biblioteca** y utiliza los filtros **Todos**, **Películas** y **Series**
 
 En **Ajustes**, edita **Nombre del perfil** y pulsa **Guardar nombre**. Es un único nombre local: no hay cuentas, perfiles múltiples ni PIN.
 
-El nombre y los favoritos permanecen en este dispositivo, sin sincronización ni importación desde AetherioMobile. Se eliminan al borrar los datos de AetherioNative o desinstalarla.
+El nombre y los favoritos permanecen en este dispositivo, sin sincronización ni importación desde el port anterior. Se eliminan al borrar los datos de la aplicación nativa o desinstalarla.
 
 ## Reproducir por enlace
 

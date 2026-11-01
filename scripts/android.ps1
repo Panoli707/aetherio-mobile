@@ -15,7 +15,7 @@ foreach ($name in @("JAVA_HOME", "ANDROID_HOME")) {
 }
 $env:Path = "$(Join-Path $env:JAVA_HOME 'bin');$env:Path"
 if (-not (Test-Path -LiteralPath ".\settings.gradle.kts" -PathType Leaf)) {
-    throw "Ejecuta este script desde la raiz de aetherio-native."
+    throw "Ejecuta este script desde la raiz de aetherio-mobile."
 }
 if ($Action -eq "wrapper") {
     if (-not $GradleExecutable -or -not (Test-Path -LiteralPath $GradleExecutable -PathType Leaf)) {

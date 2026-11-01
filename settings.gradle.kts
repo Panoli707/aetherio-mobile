@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AetherioNative"
+rootProject.name = "AetherioMobile"
 include(":app")

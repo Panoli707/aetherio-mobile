@@ -4,7 +4,7 @@
 
 Necesitas **Android 7.0 o posterior** y conexión a Internet para consultar el catálogo y reproducir vídeos.
 
-1. Descarga [**Aetherio-debug.apk**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.3.2-preview.1/Aetherio-debug.apk).
+1. Descarga [**Aetherio-debug.apk**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.3.3-preview.1/Aetherio-debug.apk).
 2. Abre el archivo desde **Descargas**, con tu navegador o gestor de archivos.
 3. Si Android lo pide, permite **Instalar aplicaciones desconocidas** solo para la aplicación que abre el APK. No desactives Play Protect.
 4. Pulsa **Instalar** y después **Abrir**. Puedes revocar ese permiso al terminar.

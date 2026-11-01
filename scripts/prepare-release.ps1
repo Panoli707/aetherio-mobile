@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('\A[A-Za-z0-9][A-Za-z0-9._-]{0,119}\z')]
-    [string]$ReleaseTag
+    [string]$ReleaseTag,
+    [switch]$AllowEmbeddedTmdbReadToken
 )
 
 Set-StrictMode -Version Latest
@@ -97,9 +98,11 @@ if ($markers.Count -ne 1) { throw 'El APK no permite confirmar la ausencia de cr
 $values = @($markers[0].Value -split "`n" | Where-Object { $_ -cmatch '^\s*A: android:value\(' })
 if ($values.Count -ne 1) { throw 'La politica de credenciales del APK no es valida.' }
 if ($values[0] -cmatch '=\(type 0x12\)0xffffffff\s*$') {
-    throw 'Este APK contiene una credencial privada de TMDB. No se prepara para publicacion publica.'
-}
-if ($values[0] -cnotmatch '=\(type 0x12\)0x0\s*$') {
+    if (-not $AllowEmbeddedTmdbReadToken) {
+        throw 'El APK incluye una credencial TMDB extraible. Requiere autorizacion explicita con -AllowEmbeddedTmdbReadToken.'
+    }
+    Write-Warning 'Publicacion autorizada con token de lectura TMDB incorporado. El token puede extraerse del APK.'
+} elseif ($values[0] -cnotmatch '=\(type 0x12\)0x0\s*$') {
     throw 'El APK no permite confirmar la ausencia de credenciales privadas.'
 }
 

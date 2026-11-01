@@ -1,7 +1,8 @@
 param(
     [ValidateSet("wrapper", "assembleDebug", "testDebugUnitTest", "lintDebug", "verify")]
     [string]$Action = "assembleDebug",
-    [string]$GradleExecutable
+    [string]$GradleExecutable,
+    [switch]$PublicDistribution
 )
 
 $ErrorActionPreference = "Stop"
@@ -14,6 +15,8 @@ foreach ($name in @("JAVA_HOME", "ANDROID_HOME")) {
     [System.Environment]::SetEnvironmentVariable($name, $value, "Process")
 }
 $env:Path = "$(Join-Path $env:JAVA_HOME 'bin');$env:Path"
+$distributionArguments = @()
+if ($PublicDistribution) { $distributionArguments = @('-PpublicDistribution=true') }
 if (-not (Test-Path -LiteralPath ".\settings.gradle.kts" -PathType Leaf)) {
     throw "Ejecuta este script desde la raiz de aetherio-mobile."
 }
@@ -23,8 +26,8 @@ if ($Action -eq "wrapper") {
     }
     & $GradleExecutable --no-daemon wrapper --gradle-version 8.14.3 --distribution-type bin
 } elseif ($Action -eq "verify") {
-    & .\gradlew.bat --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug
+    & .\gradlew.bat --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug @distributionArguments
 } else {
-    & .\gradlew.bat --no-daemon ":app:$Action"
+    & .\gradlew.bat --no-daemon ":app:$Action" @distributionArguments
 }
 exit $LASTEXITCODE

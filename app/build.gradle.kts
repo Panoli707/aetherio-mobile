@@ -9,7 +9,8 @@ plugins {
 val localConfiguration = Properties().apply {
     rootProject.file("local.properties").takeIf { it.isFile }?.inputStream()?.use { load(it) }
 }
-val tmdbReadAccessToken = providers.environmentVariable("TMDB_READ_ACCESS_TOKEN")
+val publicDistribution = providers.gradleProperty("publicDistribution").map { it.toBooleanStrict() }.getOrElse(false)
+val tmdbReadAccessToken = if (publicDistribution) "" else providers.environmentVariable("TMDB_READ_ACCESS_TOKEN")
     .orElse(localConfiguration.getProperty("tmdb.readAccessToken", "")).get().trim()
 require(tmdbReadAccessToken.matches(Regex("[A-Za-z0-9._-]*"))) {
     "La credencial local de TMDB tiene un formato no valido."
@@ -23,8 +24,8 @@ android {
         applicationId = "com.panoli707.aetherio.nativeapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.3.1"
+        versionCode = 5
+        versionName = "0.3.2"
         buildConfigField("String", "TMDB_READ_ACCESS_TOKEN", "\"$tmdbReadAccessToken\"")
         manifestPlaceholders["tmdbCredentialsEmbedded"] = tmdbReadAccessToken.isNotEmpty()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -1,0 +1,128 @@
+package com.panoli707.aetherio.nativeapp.ui
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.grid.LazyGridState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.unit.dp
+import com.panoli707.aetherio.nativeapp.data.AppState
+import com.panoli707.aetherio.nativeapp.data.MediaItem
+import com.panoli707.aetherio.nativeapp.data.SectionStyle
+import com.panoli707.aetherio.nativeapp.player.VideoFormat
+import kotlinx.coroutines.launch
+
+@Composable
+fun AetherioApp(
+    state: AppState,
+    onSelectMedia: (MediaItem) -> Unit,
+    onToggleSaved: (MediaItem) -> Unit,
+    onSearch: (String) -> Unit,
+    onRetryHome: () -> Unit,
+    onRetryDetail: () -> Unit,
+    onSelectSeason: (Int) -> Unit,
+    onRenameProfile: (String) -> Unit,
+    onOpenVideo: (String, VideoFormat) -> Unit
+) {
+    var tab by rememberSaveable { mutableStateOf("home") }
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
+    var searchNeedsFocus by rememberSaveable { mutableStateOf(false) }
+    var categoryId by rememberSaveable { mutableStateOf<String?>(null) }
+    var detailKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var linkOpen by rememberSaveable { mutableStateOf(false) }
+    var libraryFilter by rememberSaveable { mutableStateOf("all") }
+    val homeScroll = rememberLazyListState()
+    val libraryScroll = rememberLazyGridState()
+    val searchScroll = rememberLazyGridState()
+    val categoryScroll = rememberSaveable(categoryId, saver = LazyGridState.Saver) { LazyGridState() }
+    val detailScroll = rememberSaveable(detailKey, saver = LazyListState.Saver) { LazyListState() }
+    val pager = rememberPagerState { state.heroes.size }
+    val screenState = rememberSaveableStateHolder()
+    val focus = LocalFocusManager.current
+    val scope = rememberCoroutineScope()
+    val collapseOffset = with(LocalDensity.current) { 160.dp.roundToPx() }
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val collapsed by remember(collapseOffset) {
+        derivedStateOf { homeScroll.firstVisibleItemIndex > 0 || homeScroll.firstVisibleItemScrollOffset > collapseOffset }
+    }
+    val openSearch: () -> Unit = { focus.clearFocus(); searchNeedsFocus = true; searchOpen = true }
+    val select: (MediaItem) -> Unit = { item ->
+        focus.clearFocus()
+        onSelectMedia(item)
+        detailKey = item.key
+    }
+    val closeTop: () -> Unit = {
+        focus.clearFocus()
+        when {
+            linkOpen -> linkOpen = false
+            detailKey != null -> detailKey = null
+            searchOpen -> { searchOpen = false; searchNeedsFocus = false }
+            categoryId != null -> categoryId = null
+            tab != "home" -> tab = "home"
+        }
+    }
+    BackHandler(enabled = linkOpen || detailKey != null || searchOpen || categoryId != null || tab != "home", onBack = closeTop)
+
+    AetherioTheme {
+        Surface(color = Ink, modifier = Modifier.fillMaxSize()) {
+            // Only the visible screen is composed: hidden text fields cannot retain IME focus.
+            Box(Modifier.fillMaxSize().background(Ink).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
+                when {
+                    detailKey != null -> {
+                         val selected = state.selectedItem?.takeIf { it.key == detailKey }
+                            ?: state.detail?.item?.takeIf { it.key == detailKey }
+                            ?: (state.heroes.asSequence() + state.savedItems.asSequence() + state.searchResults.asSequence() +
+                                 state.sections.asSequence().flatMap { it.items.asSequence() }).firstOrNull { it.key == detailKey }
+                         if (selected != null) key(detailKey) {
+                             LaunchedEffect(selected.key, state.selectedItem?.key) {
+                                 if (state.selectedItem?.key != selected.key) onSelectMedia(selected)
+                             }
+                             DetailScreen(state, selected, detailScroll, closeTop, onToggleSaved, onRetryDetail, onSelectSeason,
+                                { focus.clearFocus(); linkOpen = true })
+                        } else Column {
+                            ScreenHeader("Ficha no disponible", closeTop)
+                             if (state.homeLoading) LoadingRow("Recuperando ficha…")
+                             else StatusMessage("No se encontró el título", "Vuelve al catálogo para abrir su ficha.", "Volver", closeTop)
+                        }
+                    }
+                    searchOpen -> SearchScreen(state, searchScroll, searchNeedsFocus, { searchNeedsFocus = false }, onSearch, select, closeTop)
+                    categoryId != null -> {
+                        val section = state.sections.firstOrNull { it.id == categoryId }
+                        Column(Modifier.fillMaxSize()) {
+                            ScreenHeader(section?.title ?: "Categoría", closeTop)
+                             if (section == null && state.homeLoading) LoadingRow("Cargando categoría…")
+                             else if (section == null || section.items.isEmpty()) StatusMessage("No hay títulos disponibles", "Vuelve al catálogo para ver otras categorías.")
+                            else CatalogGrid(section.items, categoryScroll, select, Modifier.weight(1f), ranked = section.style == SectionStyle.RANKED)
+                        }
+                    }
+                    else -> {
+                        screenState.SaveableStateProvider(tab) {
+                            when (tab) {
+                                "library" -> LibraryScreen(state, libraryScroll, libraryFilter, { libraryFilter = it }, select, openSearch)
+                                "settings" -> SettingsScreen(state.profileName, onRenameProfile, { focus.clearFocus(); linkOpen = true })
+                                else -> HomeScreen(state, homeScroll, pager, !linkOpen, select, { categoryId = it }, onRetryHome)
+                            }
+                        }
+                        if (!imeVisible) FloatingNavigation(tab, tab == "home" && collapsed, { target ->
+                            focus.clearFocus()
+                            if (target == "home" && tab == "home") scope.launch { homeScroll.animateScrollToItem(0) }
+                            tab = target
+                        }, openSearch, Modifier.align(Alignment.BottomCenter))
+                    }
+                }
+            }
+            if (linkOpen) VideoLinkDialog(onDismiss = { focus.clearFocus(); linkOpen = false }, onOpenVideo = onOpenVideo)
+        }
+    }
+}

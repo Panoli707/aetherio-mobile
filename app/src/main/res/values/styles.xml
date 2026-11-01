@@ -1,0 +1,9 @@
+<resources>
+    <style name="Theme.Aetherio" parent="Theme.AppCompat.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:colorAccent">#E8E4D9</item>
+        <item name="android:windowBackground">#20201E</item>
+        <item name="android:windowActionModeOverlay">true</item>
+    </style>
+</resources>

@@ -1,5 +1,6 @@
 package com.panoli707.aetherio.nativeapp.data
 
+import com.panoli707.aetherio.nativeapp.BuildConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -10,6 +11,7 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -23,43 +25,77 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-internal class AetherioRepository {
-    private val tmdb = "https://trkll.aetherio.workers.dev/api/tmdb"
+internal class AetherioRepository(
+    private val readAccessToken: String = BuildConfig.TMDB_READ_ACCESS_TOKEN,
+    client: OkHttpClient = OkHttpClient(),
+    private val tmdbBase: HttpUrl = (if (readAccessToken.isNotBlank()) "https://api.themoviedb.org/3"
+        else "https://trkll.aetherio.workers.dev/api/tmdb").toHttpUrl()
+) {
+    init {
+        val direct = readAccessToken.isNotBlank()
+        val productionHost = if (direct) "api.themoviedb.org" else "trkll.aetherio.workers.dev"
+        // Endpoint injection is internal and limited to verified HTTPS loopback servers for tests.
+        val loopback = tmdbBase.host in setOf("localhost", "127.0.0.1", "::1")
+        if (!tmdbBase.isHttps || tmdbBase.username.isNotEmpty() || tmdbBase.password.isNotEmpty() ||
+            tmdbBase.query != null || tmdbBase.fragment != null ||
+            tmdbBase.encodedPath != (if (direct) "/3" else "/api/tmdb") ||
+            !(loopback || (tmdbBase.host == productionHost && tmdbBase.port == 443))) {
+            throw IOException("Destino de catalogo no permitido")
+        }
+    }
+
+    private val tmdb = tmdbBase.toString()
     private val cinemeta = "https://v3-cinemeta.strem.io"
-    private val client = OkHttpClient.Builder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS)
+    private val client = client.newBuilder().connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS)
         .callTimeout(20, TimeUnit.SECONDS).followRedirects(true).followSslRedirects(false)
         .addNetworkInterceptor { chain ->
-            val url = chain.request().url
+            val request = chain.request()
+            val url = request.url
             if (!url.isHttps || url.host.isEmpty() || url.username.isNotEmpty() || url.password.isNotEmpty()) throw IOException("Destino no permitido")
-            chain.proceed(chain.request())
+            if (request.header("Authorization") != null && !authenticatedTmdb(url)) throw IOException("Destino no permitido")
+            chain.proceed(request)
         }.build()
+    // Do not let even same-origin redirects forward credentials outside the API path.
+    private val authenticatedClient = this.client.newBuilder().followRedirects(false).followSslRedirects(false).build()
+
+    private fun authenticatedTmdb(url: HttpUrl): Boolean = readAccessToken.isNotBlank() &&
+        url.isHttps && url.host == tmdbBase.host && url.port == tmdbBase.port &&
+        url.username.isEmpty() && url.password.isEmpty() && url.encodedPath.startsWith("${tmdbBase.encodedPath}/")
 
     private suspend fun json(url: String, parameters: Map<String, String> = emptyMap()): JSONObject = withContext(Dispatchers.IO) {
-        val builder = url.toHttpUrl().newBuilder()
-        parameters.forEach { (key, value) -> builder.addQueryParameter(key, value) }
-        val call = client.newCall(Request.Builder().url(builder.build()).build())
-        // Keep cancellation connected until body parsing finishes, not just until headers arrive.
-        suspendCancellableCoroutine { continuation ->
-            continuation.invokeOnCancellation { call.cancel() }
-            call.enqueue(object : Callback {
-                override fun onFailure(call: Call, e: IOException) { if (continuation.isActive) continuation.resumeWithException(e) }
-                override fun onResponse(call: Call, response: Response) {
-                    val result = runCatching {
-                        response.use {
-                            check(it.isSuccessful)
-                            val body = requireNotNull(it.body)
-                            val limit = 4L * 1024 * 1024
-                            check(body.contentLength() <= limit)
-                            val source = body.source()
-                            source.request(limit + 1)
-                            check(source.buffer.size <= limit)
-                            JSONObject(source.readUtf8())
+        try {
+            val builder = url.toHttpUrl().newBuilder()
+            parameters.forEach { (key, value) -> builder.addQueryParameter(key, value) }
+            val target = builder.build()
+            val authenticated = authenticatedTmdb(target)
+            val request = Request.Builder().url(target).apply {
+                if (authenticated) header("Authorization", "Bearer $readAccessToken")
+            }.build()
+            val call = (if (authenticated) authenticatedClient else client).newCall(request)
+            // Keep cancellation connected until body parsing finishes, not just until headers arrive.
+            suspendCancellableCoroutine { continuation ->
+                continuation.invokeOnCancellation { call.cancel() }
+                call.enqueue(object : Callback {
+                    override fun onFailure(call: Call, e: IOException) { if (continuation.isActive) continuation.resumeWithException(IOException("No se pudo consultar el catalogo")) }
+                    override fun onResponse(call: Call, response: Response) {
+                        val result = runCatching {
+                            response.use {
+                                check(it.isSuccessful)
+                                val body = requireNotNull(it.body)
+                                val limit = 4L * 1024 * 1024
+                                check(body.contentLength() <= limit)
+                                val source = body.source()
+                                source.request(limit + 1)
+                                check(source.buffer.size <= limit)
+                                JSONObject(source.readUtf8())
+                            }
                         }
+                        if (continuation.isActive) result.fold({ continuation.resume(it) }, { continuation.resumeWithException(IOException("No se pudo consultar el catalogo")) })
                     }
-                    if (continuation.isActive) result.fold({ continuation.resume(it) }, { continuation.resumeWithException(it) })
-                }
-            })
-        }
+                })
+            }
+        } catch (e: CancellationException) { throw e }
+        catch (_: Exception) { throw IOException("No se pudo consultar el catalogo") }
     }
     private suspend fun <T> optional(block: suspend () -> T): T? = try { block() }
         catch (e: CancellationException) { throw e } catch (_: Exception) { null }
@@ -103,7 +139,7 @@ internal class AetherioRepository {
         } }.awaitAll()
     }
     suspend fun detail(item: MediaItem): MediaDetail {
-        val data = if (item.source == CatalogSource.TMDB) tmdb("${item.type.path}/${item.id}", mapOf("append_to_response" to "images,credits", "include_image_language" to "es,en,null"))
+        val data = if (item.source == CatalogSource.TMDB) tmdb("${item.type.path}/${item.id}", mapOf("append_to_response" to "images,credits,external_ids", "include_image_language" to "es,en,null"))
             else requireNotNull(json("$cinemeta/meta/${cineType(item.type)}/${item.id}.json").optJSONObject("meta"))
         check(CatalogJson.text(data, "id") == item.id)
         return CatalogJson.detail(item, data)

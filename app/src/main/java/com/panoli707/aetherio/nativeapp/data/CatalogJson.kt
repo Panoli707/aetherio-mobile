@@ -5,6 +5,7 @@ import org.json.JSONObject
 import java.net.URI
 
 internal object CatalogJson {
+    private fun imdb(value: String): String? = value.takeIf { it.matches(Regex("tt[0-9]{5,12}")) }
     fun text(json: JSONObject, key: String): String = when (val value = json.opt(key)) {
         is String -> value.trim().takeUnless { it == "null" }.orEmpty()
         is Number -> value.toString()
@@ -40,7 +41,8 @@ internal object CatalogJson {
             if (tmdb) logo(json.optJSONObject("images") ?: JSONObject()) else image(text(json, "logo")),
             text(json, if (tmdb) "overview" else "description"), Regex("[0-9]{4}").find(date)?.value.orEmpty(), score,
             if (tmdb) objects(json.optJSONArray("genres")).mapNotNull { text(it, "name").takeIf(String::isNotEmpty) }
-            else strings(json.optJSONArray("genres")), anime)
+            else strings(json.optJSONArray("genres")), anime,
+            if (tmdb) imdb(text(json.optJSONObject("external_ids") ?: JSONObject(), "imdb_id")) else imdb(id))
     }
     fun catalog(json: JSONObject, type: MediaType, source: CatalogSource, anime: Boolean = false): List<MediaItem> =
         objects(json.optJSONArray(if (source == CatalogSource.TMDB) "results" else "metas"))
@@ -56,7 +58,7 @@ internal object CatalogJson {
         return parsed.copy(posterUrl = parsed.posterUrl ?: base.posterUrl, backdropUrl = parsed.backdropUrl ?: base.backdropUrl,
             logoUrl = parsed.logoUrl ?: base.logoUrl, overview = parsed.overview.ifEmpty { base.overview },
             year = parsed.year.ifEmpty { base.year }, score = parsed.score.takeIf { it > 0 } ?: base.score,
-            genres = parsed.genres.ifEmpty { base.genres })
+            genres = parsed.genres.ifEmpty { base.genres }, imdbId = parsed.imdbId ?: base.imdbId)
     }
     fun episodes(json: JSONObject, season: Int, cinemeta: Boolean = false): List<EpisodeItem> =
         objects(json.optJSONArray(if (cinemeta) "videos" else "episodes")).mapNotNull {
@@ -90,6 +92,7 @@ internal object CatalogJson {
             put("poster", image(item.posterUrl)); put("background", image(item.backdropUrl)); put("logo", image(item.logoUrl))
             put("description", item.overview); put("year", item.year); put("imdbRating", item.score)
             put("genres", JSONArray(item.genres)); put("anime", item.isAnime)
+            put("imdb", item.imdbId)
         }) }
     }.toString()
     fun decode(raw: String): List<MediaItem> = runCatching {
@@ -101,7 +104,7 @@ internal object CatalogJson {
             if (!valid || text(json, "name").isEmpty()) return@mapNotNull null
             MediaItem(id, type, text(json, "name"), source, image(text(json, "poster")), image(text(json, "background")),
                 image(text(json, "logo")), text(json, "description"), text(json, "year"),
-                json.optDouble("imdbRating", 0.0).takeIf { it.isFinite() } ?: 0.0, strings(json.optJSONArray("genres")), json.optBoolean("anime"))
+                json.optDouble("imdbRating", 0.0).takeIf { it.isFinite() } ?: 0.0, strings(json.optJSONArray("genres")), json.optBoolean("anime"), imdb(text(json, "imdb")))
         }.distinctBy { it.key }
     }.getOrDefault(emptyList())
 }

@@ -89,11 +89,10 @@ class VideoActivity : ComponentActivity() {
         }
         resumePlayWhenReady = savedInstanceState?.getBoolean(STATE_PLAY_WHEN_READY, true) ?: true
 
-        // Direct links have no trusted metadata. Never use a URI as a display/task title.
-        title = when (intent.getStringExtra(EXTRA_TITLE)) {
-            "Reproductor" -> "Reproductor"
-            else -> DEFAULT_TITLE
-        }
+        // Titles come from catalog metadata; never expose a stream URI in the UI/task label.
+        title = intent.getStringExtra(EXTRA_TITLE)?.trim()?.takeIf {
+            it.isNotEmpty() && it.length <= 200 && !it.contains("://") && it.none(Char::isISOControl)
+        } ?: DEFAULT_TITLE
         createContent()
         mediaUrl = try {
             MediaUrlPolicy.validate(intent.getStringExtra(EXTRA_URL).orEmpty())

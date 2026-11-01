@@ -4,11 +4,15 @@
     <application
         android:name=".AetherioApplication"
         android:allowBackup="false"
-        android:icon="@drawable/ic_aetherio"
-        android:label="Aetherio Native"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="Aetherio"
         android:supportsRtl="true"
         android:theme="@style/Theme.Aetherio"
         android:usesCleartextTraffic="false">
+        <meta-data
+            android:name="com.panoli707.aetherio.nativeapp.PRIVATE_TMDB_CREDENTIALS"
+            android:value="${tmdbCredentialsEmbedded}" />
         <activity
             android:name=".player.VideoActivity"
             android:exported="false" />

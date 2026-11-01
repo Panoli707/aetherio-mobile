@@ -2,6 +2,7 @@ package com.panoli707.aetherio.nativeapp
 
 import android.content.Intent
 import android.graphics.Color
+import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -36,6 +37,36 @@ class MainActivity : ComponentActivity() {
                 onRetryDetail = model::retryDetail,
                 onSelectSeason = model::selectSeason,
                 onRenameProfile = model::renameProfile,
+                onAddAddon = model::addAddon,
+                onRemoveAddon = model::removeAddon,
+                onRequestSources = model::requestSources,
+                onDismissSources = model::dismissSources,
+                onDismissUpdate = model::dismissUpdate,
+                onOpenUpdate = { update ->
+                    try {
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.releaseUrl))
+                            .addCategory(Intent.CATEGORY_BROWSABLE))
+                        model.dismissUpdate()
+                    } catch (_: Exception) {
+                        Toast.makeText(this, "No se pudo abrir GitHub. Vuelve a intentarlo.", Toast.LENGTH_LONG).show()
+                    }
+                },
+                onPlaySource = { source, format ->
+                    try {
+                        val validated = MediaUrlPolicy.validate(source.url)
+                        val query = model.state.value.sourceQuery
+                        val title = query?.let {
+                            if (it.season != null && it.episode != null) "${it.item.title} · T${it.season} E${it.episode}" else it.item.title
+                        } ?: "Reproductor"
+                        startActivity(Intent(this, VideoActivity::class.java)
+                            .putExtra(VideoActivity.EXTRA_URL, validated)
+                            .putExtra(VideoActivity.EXTRA_MIME, format.mimeType)
+                            .putExtra(VideoActivity.EXTRA_TITLE, title))
+                        model.dismissSources()
+                    } catch (_: Exception) {
+                        Toast.makeText(this, "No se pudo abrir esta fuente. Prueba otra opción.", Toast.LENGTH_LONG).show()
+                    }
+                },
                 onOpenVideo = { url, format ->
                     try {
                         val validated = MediaUrlPolicy.validate(url)
@@ -49,5 +80,10 @@ class MainActivity : ComponentActivity() {
                 }
             )
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        model.checkForUpdates()
     }
 }

@@ -216,8 +216,8 @@ internal fun VideoLinkDialog(onDismiss: () -> Unit, onOpenVideo: (String, VideoF
         title = { Text("Reproducir por enlace") },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("Introduce una URL HTTPS directa a un vídeo propio o que tengas permiso para reproducir. " +
-                    "El catálogo todavía no ofrece fuentes de reproducción.")
+                 Text("Introduce una URL HTTPS directa a un vídeo propio o que tengas permiso para reproducir. " +
+                    "También puedes buscar fuentes desde una ficha con tus proveedores configurados.")
                 OutlinedTextField(value = url, onValueChange = { url = it; invalid = false },
                     label = { Text("URL HTTPS del vídeo") }, singleLine = true, isError = invalid,
                     supportingText = { if (invalid) Text("Usa un enlace HTTPS directo y válido a un vídeo permitido.") },

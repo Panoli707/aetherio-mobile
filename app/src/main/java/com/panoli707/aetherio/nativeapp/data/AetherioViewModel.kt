@@ -1,10 +1,13 @@
 package com.panoli707.aetherio.nativeapp.data
 
 import android.app.Application
+import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.panoli707.aetherio.nativeapp.BuildConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,18 +15,60 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withContext
 
 class AetherioViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AetherioRepository()
     private val library = LocalLibraryStore(application)
+    private val sourceRepository = SourceRepository()
+    private val addonStore = AddonStore(application)
+    private val updateRepository = UpdateRepository()
     private val mutableState = MutableStateFlow(AppState(savedItems = library.savedItems, profileName = library.profileName))
     val state: StateFlow<AppState> = mutableState.asStateFlow()
     private var homeJob: Job? = null
     private var detailJob: Job? = null
     private var seasonJob: Job? = null
     private var searchJob: Job? = null
+    private var sourceJob: Job? = null
+    private var addonRestoreJob: Job? = null
+    private var lastUpdateCheck: Long? = null
+    private var dismissedUpdateCode = 0
 
-    init { loadHome() }
+    init {
+        loadHome()
+        addonRestoreJob = viewModelScope.launch {
+            try {
+                val addons = withContext(Dispatchers.IO) { addonStore.load() }
+                mutableState.update { it.copy(addons = addons, addonsLoading = false) }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) {
+                mutableState.update { it.copy(addonsLoading = false, addonError = "No se pudieron abrir los proveedores guardados. Vuelve a configurarlos.") }
+            }
+        }
+    }
+
+    fun checkForUpdates() {
+        val now = SystemClock.elapsedRealtime()
+        if (lastUpdateCheck?.let { now - it < 10 * 60 * 1000L } == true) return
+        lastUpdateCheck = now
+        viewModelScope.launch {
+            try {
+                val update = updateRepository.available(BuildConfig.VERSION_CODE)
+                if (update != null && update.versionCode > dismissedUpdateCode) {
+                    mutableState.update { it.copy(availableUpdate = update) }
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) {
+                // Updates are optional; offline/rate-limit failures must not disrupt the catalog.
+            }
+        }
+    }
+
+    fun dismissUpdate() {
+        state.value.availableUpdate?.let { dismissedUpdateCode = maxOf(dismissedUpdateCode, it.versionCode) }
+        mutableState.update { it.copy(availableUpdate = null) }
+    }
 
     fun loadHome() {
         homeJob?.cancel()
@@ -42,6 +87,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         }
     }
     fun selectMedia(item: MediaItem) {
+        dismissSources()
         detailJob?.cancel()
         seasonJob?.cancel()
         detailJob = viewModelScope.launch {
@@ -112,6 +158,102 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             mutableState.update { it.copy(profileName = normalized) }
             library.profileName = normalized
+        }
+    }
+
+    fun addAddon(url: String) = changeAddons { existing ->
+        val configured = sourceRepository.configure(url)
+        existing.filterNot { it.id == configured.id } + configured
+    }
+
+    fun removeAddon(id: String) = changeAddons { existing -> existing.filterNot { it.id == id } }
+
+    private fun changeAddons(change: suspend (List<AddonConfig>) -> List<AddonConfig>) {
+        if (state.value.addonSaving || state.value.addonsLoading) return
+        mutableState.update { it.copy(addonSaving = true, addonError = null) }
+        viewModelScope.launch {
+            try {
+                val updated = change(state.value.addons)
+                withContext(Dispatchers.IO) { addonStore.save(updated) }
+                ensureActive()
+                mutableState.update { it.copy(addons = updated) }
+                state.value.sourceQuery?.let { requestSources(it.item, it.season, it.episode) }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) {
+                mutableState.update { it.copy(addonError = "No se pudo guardar la configuración. Revisa la URL HTTPS y la compatibilidad del proveedor.") }
+            } finally {
+                mutableState.update { it.copy(addonSaving = false, addonOperation = it.addonOperation + 1) }
+            }
+        }
+    }
+
+    fun dismissSources() {
+        sourceJob?.cancel()
+        mutableState.update { it.copy(sourceQuery = null, sources = emptyList(), sourcesLoading = false, sourceError = null) }
+    }
+
+    fun requestSources(item: MediaItem, season: Int?, episode: Int?) {
+        sourceJob?.cancel()
+        val query = SourceQuery(item, season, episode)
+        mutableState.update { it.copy(sourceQuery = query, sources = emptyList(), sourcesLoading = true, sourceError = null) }
+        sourceJob = viewModelScope.launch {
+            try {
+                addonRestoreJob?.join()
+                ensureActive()
+                val addons = state.value.addons.filter { item.type in it.types }
+                if (addons.isEmpty()) {
+                    mutableState.update { it.copy(sourcesLoading = false, sourceError = "No hay proveedores compatibles configurados para este título.") }
+                    return@launch
+                }
+                if (item.type == MediaType.SERIES && (season == null || episode == null || season < 0 || episode < 1)) {
+                    mutableState.update { it.copy(sourcesLoading = false, sourceError = "Selecciona una temporada y un episodio.") }
+                    return@launch
+                }
+                val media = if (item.imdbId == null && item.source == CatalogSource.TMDB) repository.detail(item).item else item
+                ensureActive()
+                val imdb = media.imdbId ?: media.id.takeIf { media.source == CatalogSource.CINEMETA }
+                if (imdb == null || !imdb.matches(Regex("tt[0-9]{5,12}"))) {
+                    mutableState.update { it.copy(sourcesLoading = false, sourceError = "No se encontró un identificador IMDb compatible para este título.") }
+                    return@launch
+                }
+                val resolved = query.copy(item = media)
+                mutableState.update { it.copy(sourceQuery = resolved) }
+                var failures = 0
+                var unsupported = 0
+                supervisorScope {
+                    addons.forEach { addon -> launch {
+                        try {
+                            val result = sourceRepository.sources(addon, resolved)
+                            ensureActive()
+                            unsupported += result.unsupportedCount
+                            mutableState.update { current ->
+                                if (current.sourceQuery?.key != resolved.key) current else current.copy(
+                                    sources = (current.sources + result.sources).distinctBy { "${it.addonId}:${it.id}" }
+                                )
+                            }
+                        } catch (e: CancellationException) { throw e }
+                        catch (_: Exception) { failures++ }
+                    } }
+                }
+                ensureActive()
+                mutableState.update { current ->
+                    if (current.sourceQuery?.key != resolved.key) current else current.copy(
+                        sourcesLoading = false,
+                        sourceError = when {
+                            current.sources.isNotEmpty() && failures == 0 -> null
+                            current.sources.isNotEmpty() -> "Algunos proveedores no respondieron. Las fuentes disponibles se pueden reproducir."
+                            failures > 0 -> "No se pudieron consultar los proveedores. Revisa la conexión y su configuración."
+                            unsupported > 0 -> "El proveedor devolvió fuentes que aún no son compatibles, como torrents o enlaces con cabeceras especiales."
+                            else -> "Los proveedores no devolvieron fuentes para este título o episodio."
+                        }
+                    )
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) {
+                if (state.value.sourceQuery?.key == query.key) mutableState.update {
+                    it.copy(sourcesLoading = false, sourceError = "No se pudo identificar el título o consultar sus fuentes. Inténtalo de nuevo.")
+                }
+            }
         }
     }
 }

@@ -20,7 +20,8 @@ data class MediaItem(
     val year: String = "",
     val score: Double = 0.0,
     val genres: List<String> = emptyList(),
-    val isAnime: Boolean = false
+    val isAnime: Boolean = false,
+    val imdbId: String? = null
 ) {
     val key: String get() = "${source.name}:${type.path}:$id"
 }
@@ -68,5 +69,15 @@ data class AppState(
     val searchLoading: Boolean = false,
     val searchError: String? = null,
     val savedItems: List<MediaItem> = emptyList(),
-    val profileName: String = "Usuario"
+    val profileName: String = "Usuario",
+    val addons: List<AddonConfig> = emptyList(),
+    val addonsLoading: Boolean = true,
+    val addonSaving: Boolean = false,
+    val addonOperation: Long = 0,
+    val addonError: String? = null,
+    val sourceQuery: SourceQuery? = null,
+    val sourcesLoading: Boolean = false,
+    val sources: List<StreamSource> = emptyList(),
+    val sourceError: String? = null,
+    val availableUpdate: AppUpdate? = null
 )

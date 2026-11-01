@@ -18,8 +18,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import com.panoli707.aetherio.nativeapp.data.AppState
+import com.panoli707.aetherio.nativeapp.data.AppUpdate
 import com.panoli707.aetherio.nativeapp.data.MediaItem
 import com.panoli707.aetherio.nativeapp.data.SectionStyle
+import com.panoli707.aetherio.nativeapp.data.StreamSource
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import kotlinx.coroutines.launch
 
@@ -33,7 +35,14 @@ fun AetherioApp(
     onRetryDetail: () -> Unit,
     onSelectSeason: (Int) -> Unit,
     onRenameProfile: (String) -> Unit,
-    onOpenVideo: (String, VideoFormat) -> Unit
+    onOpenVideo: (String, VideoFormat) -> Unit,
+    onAddAddon: (String) -> Unit,
+    onRemoveAddon: (String) -> Unit,
+    onRequestSources: (MediaItem, Int?, Int?) -> Unit,
+    onDismissSources: () -> Unit,
+    onPlaySource: (StreamSource, VideoFormat) -> Unit,
+    onDismissUpdate: () -> Unit,
+    onOpenUpdate: (AppUpdate) -> Unit
 ) {
     var tab by rememberSaveable { mutableStateOf("home") }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
@@ -65,6 +74,7 @@ fun AetherioApp(
     val closeTop: () -> Unit = {
         focus.clearFocus()
         when {
+            state.sourceQuery != null -> onDismissSources()
             linkOpen -> linkOpen = false
             detailKey != null -> detailKey = null
             searchOpen -> { searchOpen = false; searchNeedsFocus = false }
@@ -72,7 +82,7 @@ fun AetherioApp(
             tab != "home" -> tab = "home"
         }
     }
-    BackHandler(enabled = linkOpen || detailKey != null || searchOpen || categoryId != null || tab != "home", onBack = closeTop)
+    BackHandler(enabled = state.sourceQuery != null || linkOpen || detailKey != null || searchOpen || categoryId != null || tab != "home", onBack = closeTop)
 
     AetherioTheme {
         Surface(color = Ink, modifier = Modifier.fillMaxSize()) {
@@ -89,7 +99,7 @@ fun AetherioApp(
                                  if (state.selectedItem?.key != selected.key) onSelectMedia(selected)
                              }
                              DetailScreen(state, selected, detailScroll, closeTop, onToggleSaved, onRetryDetail, onSelectSeason,
-                                { focus.clearFocus(); linkOpen = true })
+                                 { focus.clearFocus(); linkOpen = true }, onRequestSources)
                         } else Column {
                             ScreenHeader("Ficha no disponible", closeTop)
                              if (state.homeLoading) LoadingRow("Recuperando ficha…")
@@ -110,8 +120,9 @@ fun AetherioApp(
                         screenState.SaveableStateProvider(tab) {
                             when (tab) {
                                 "library" -> LibraryScreen(state, libraryScroll, libraryFilter, { libraryFilter = it }, select, openSearch)
-                                "settings" -> SettingsScreen(state.profileName, onRenameProfile, { focus.clearFocus(); linkOpen = true })
-                                else -> HomeScreen(state, homeScroll, pager, !linkOpen, select, { categoryId = it }, onRetryHome)
+                                "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon)
+                                else -> HomeScreen(state, homeScroll, pager, !linkOpen && state.sourceQuery == null && state.availableUpdate == null,
+                                    select, { categoryId = it }, onRetryHome)
                             }
                         }
                         if (!imeVisible) FloatingNavigation(tab, tab == "home" && collapsed, { target ->
@@ -122,7 +133,24 @@ fun AetherioApp(
                     }
                 }
             }
-            if (linkOpen) VideoLinkDialog(onDismiss = { focus.clearFocus(); linkOpen = false }, onOpenVideo = onOpenVideo)
+            if (linkOpen && state.sourceQuery == null) VideoLinkDialog(onDismiss = { focus.clearFocus(); linkOpen = false }, onOpenVideo = onOpenVideo)
+            state.sourceQuery?.let { query ->
+                key(query.key) {
+                    SourceSheet(state, query, onDismissSources, onPlaySource, onSettings = {
+                        focus.clearFocus()
+                        onDismissSources()
+                        linkOpen = false
+                        detailKey = null
+                        searchOpen = false
+                        searchNeedsFocus = false
+                        categoryId = null
+                        tab = "settings"
+                    })
+                }
+            }
+            if (!linkOpen && state.sourceQuery == null && !imeVisible) state.availableUpdate?.let { update ->
+                UpdateDialog(update, onDismissUpdate, { onOpenUpdate(update) })
+            }
         }
     }
 }

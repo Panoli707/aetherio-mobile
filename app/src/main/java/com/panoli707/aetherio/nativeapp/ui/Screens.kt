@@ -1,6 +1,8 @@
 package com.panoli707.aetherio.nativeapp.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -26,11 +28,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.panoli707.aetherio.nativeapp.data.*
+import com.panoli707.aetherio.nativeapp.R
 
 @Composable
 internal fun CatalogGrid(items: List<MediaItem>, scroll: LazyGridState, onSelect: (MediaItem) -> Unit,
@@ -95,7 +99,9 @@ internal fun LibraryScreen(state: AppState, scroll: LazyGridState, filter: Strin
 }
 
 @Composable
-internal fun SettingsScreen(profileName: String, onRename: (String) -> Unit, onLink: () -> Unit) {
+internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink: () -> Unit,
+    onAddAddon: (String) -> Unit, onRemoveAddon: (String) -> Unit) {
+    val profileName = state.profileName
     var name by rememberSaveable(profileName) { mutableStateOf(profileName) }
     var saved by rememberSaveable { mutableStateOf(false) }
     val focus = LocalFocusManager.current
@@ -103,6 +109,10 @@ internal fun SettingsScreen(profileName: String, onRename: (String) -> Unit, onL
         .padding(bottom = 110.dp).navigationBarsPadding()) {
         ScreenHeader("Ajustes")
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Image(painterResource(R.drawable.aetherio_logo), contentDescription = null, modifier = Modifier.size(40.dp))
+                Text("Aetherio", style = MaterialTheme.typography.titleLarge)
+            }
             Text("Tu espacio", style = MaterialTheme.typography.titleLarge)
             Text("Este perfil se guarda en el dispositivo. No necesitas una cuenta.", color = Muted)
             OutlinedTextField(value = name, onValueChange = { name = it.take(32); saved = false },
@@ -113,9 +123,11 @@ internal fun SettingsScreen(profileName: String, onRename: (String) -> Unit, onL
             if (saved) Text("Nombre guardado en este dispositivo.", color = Rating,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            AddonsSettings(state, onAddAddon, onRemoveAddon)
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
             Text("Vídeo por enlace", style = MaterialTheme.typography.titleLarge)
             Text("Reproduce un vídeo mediante su URL HTTPS directa. Solo enlaces propios o autorizados; " +
-                "no se buscan fuentes del catálogo.", color = Muted)
+                "esta opción es independiente de los proveedores configurados.", color = Muted)
             OutlinedButton(onClick = onLink) { Icon(Icons.Default.PlayArrow, null); Spacer(Modifier.width(8.dp)); Text("Reproducir por enlace") }
         }
     }
@@ -123,10 +135,13 @@ internal fun SettingsScreen(profileName: String, onRename: (String) -> Unit, onL
 
 @Composable
 internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListState, onBack: () -> Unit,
-    onToggleSaved: (MediaItem) -> Unit, onRetry: () -> Unit, onSeason: (Int) -> Unit, onLink: () -> Unit) {
+    onToggleSaved: (MediaItem) -> Unit, onRetry: () -> Unit, onSeason: (Int) -> Unit, onLink: () -> Unit,
+    onRequestSources: (MediaItem, Int?, Int?) -> Unit) {
     val detail = state.detail?.takeIf { it.item.key == item.key }
     val media = detail?.item ?: item
     val saved = state.savedItems.any { it.key == item.key }
+    val firstEpisode = if (detail != null && !state.episodesLoading)
+        detail.episodes.firstOrNull { it.season == detail.selectedSeason } else null
     var seasonsOpen by remember { mutableStateOf(false) }
     LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
@@ -145,9 +160,15 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
         }
         item(key = "actions") {
             Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = onLink, modifier = Modifier.fillMaxWidth()) {
-                    Icon(Icons.Default.PlayArrow, null); Spacer(Modifier.width(8.dp)); Text("Reproducir por enlace")
+                Button(onClick = {
+                    if (media.type == MediaType.MOVIE) onRequestSources(media, null, null)
+                    else firstEpisode?.let { onRequestSources(media, detail?.selectedSeason, it.number) }
+                }, enabled = media.type == MediaType.MOVIE || firstEpisode != null, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Default.PlayArrow, null); Spacer(Modifier.width(8.dp))
+                    Text(if (media.type == MediaType.MOVIE) "Buscar fuentes"
+                        else firstEpisode?.let { "Ver fuentes · T${it.season} E${it.number}" } ?: "Selecciona un episodio")
                 }
+                TextButton(onClick = onLink, modifier = Modifier.fillMaxWidth()) { Text("Reproducir por enlace propio") }
                 OutlinedButton(onClick = { onToggleSaved(media) }, modifier = Modifier.fillMaxWidth()
                     .semantics { contentDescription = if (saved) "Quitar de la biblioteca" else "Guardar en biblioteca" }) {
                     Icon(if (saved) Icons.Default.Check else Icons.Default.Add, null)
@@ -193,11 +214,15 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
             item(key = "noEpisodes") { StatusMessage("Sin episodios disponibles", "No hay episodios publicados para esta temporada.") }
         }
         if (!state.episodesLoading && detail != null) items(detail.episodes, key = { "episode:${it.season}:${it.number}" }) { episode ->
-            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp).clip(RoundedCornerShape(12.dp))
+                .clickable(role = Role.Button, onClickLabel = "Ver fuentes") { onRequestSources(media, episode.season, episode.number) }
+                .semantics(mergeDescendants = true) { contentDescription = "Ver fuentes: ${media.title}, temporada ${episode.season}, episodio ${episode.number}, ${episode.title}" },
+                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Artwork(episode.imageUrl, Modifier.width(118.dp).height(76.dp).clip(RoundedCornerShape(12.dp)))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text("T${episode.season} · E${episode.number}", color = Muted, style = MaterialTheme.typography.bodySmall)
                     Text(episode.title, style = MaterialTheme.typography.titleSmall)
+                    Text("Ver fuentes", color = Cream, style = MaterialTheme.typography.labelMedium)
                     if (episode.overview.isNotBlank()) Text(episode.overview, maxLines = 3, overflow = TextOverflow.Ellipsis,
                         color = Muted, style = MaterialTheme.typography.bodySmall)
                 }

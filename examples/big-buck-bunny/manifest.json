@@ -1,0 +1,10 @@
+{
+  "id": "org.aetherio.example.bigbuckbunny",
+  "version": "1.0.0",
+  "name": "Ejemplo autorizado: Big Buck Bunny",
+  "description": "Ejemplo optativo con Big Buck Bunny, Blender Foundation (2008), CC BY 3.0. Pelicula original: https://peach.blender.org/ . Archivo publico alojado en el bucket de pruebas de ExoPlayer.",
+  "resources": ["stream"],
+  "types": ["movie"],
+  "idPrefixes": ["tt1254207"],
+  "catalogs": []
+}

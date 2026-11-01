@@ -5,6 +5,21 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CatalogJsonTest {
+    @Test fun resolvesAndPersistsImdbWithoutChangingCatalogIdentity() {
+        val base = MediaItem("10378", MediaType.MOVIE, "Big Buck Bunny")
+        val detail = CatalogJson.detail(base, JSONObject("""{"id":10378,"title":"Big Buck Bunny","external_ids":{"imdb_id":"tt1254207"}}"""))
+        assertEquals("tt1254207", detail.item.imdbId)
+        assertEquals(base.key, detail.item.key)
+        assertEquals(detail.item, CatalogJson.decode(CatalogJson.encode(listOf(detail.item))).single())
+    }
+
+    @Test fun readsFavoritesSavedBeforeProviderSupport() {
+        val item = CatalogJson.decode("""[{"id":"10378","type":"MOVIE","source":"TMDB","name":"Big Buck Bunny","year":"2008"}]""").single()
+        assertEquals("Big Buck Bunny", item.title)
+        assertNull(item.imdbId)
+        assertEquals("TMDB:movie:10378", item.key)
+    }
+
     @Test fun tmdbSearchKeepsNamespacesAndIgnoresPeopleAndMalformedEntries() {
         val items = CatalogJson.search(JSONObject("""{"results":[
             {"id":550,"media_type":"movie","title":"Fight Club","release_date":"1999-10-15","poster_path":"/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg","vote_average":8.4},

@@ -4,7 +4,7 @@
 
 Necesitas **Android 7.0 o posterior** y conexión a Internet para consultar el catálogo y reproducir vídeos.
 
-1. Descarga [**Aetherio-debug.apk**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.4.1-preview.1/Aetherio-debug.apk), versión preliminar **0.4.1**.
+1. Descarga [**Aetherio-debug.apk**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.4.0-preview.1/Aetherio-debug.apk), versión preliminar **0.4.0**.
 2. Abre el archivo desde **Descargas**, con tu navegador o gestor de archivos.
 3. Si Android lo pide, permite **Instalar aplicaciones desconocidas** solo para la aplicación que abre el APK. No desactives Play Protect.
 4. Pulsa **Instalar** y después **Abrir**. Puedes revocar ese permiso al terminar.
@@ -14,8 +14,6 @@ La aplicación aparece como **Aetherio**, con el logo original. Si tienes **Aeth
 Consulta la [guía de instalación](docs/INSTALACION.md) para más detalles.
 
 ## Funcionamiento
-
-Al abrir la aplicación, se muestra el logo y el nombre de Aetherio mientras se carga el catálogo.
 
 Explora el catálogo de películas y series, busca títulos y abre sus fichas para consultar información, temporadas y episodios. Guarda favoritos en **Biblioteca** y cambia el nombre del perfil en **Ajustes**. El nombre y los favoritos son locales: no hay cuentas, historial de reproducción ni sincronización.
 

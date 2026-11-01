@@ -8,10 +8,11 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if (-not $env:JAVA_HOME) { $env:JAVA_HOME = [Environment]::GetEnvironmentVariable('JAVA_HOME', 'User') }
 $root = Split-Path -Path $PSScriptRoot -Parent
 $outputs = Join-Path $root 'app\build\outputs'
-$metadataPath = Join-Path $outputs 'apk\debug\output-metadata.json'
-$sourceApk = Join-Path $outputs 'apk\debug\app-debug.apk'
+$metadataPath = Join-Path $outputs 'apk\release\output-metadata.json'
+$sourceApk = Join-Path $outputs 'apk\release\app-release.apk'
 foreach ($path in @($metadataPath, $sourceApk)) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
         throw "No existe el artefacto local requerido: $path. Este script no compila."
@@ -22,14 +23,14 @@ $metadataHash = (Get-FileHash -LiteralPath $metadataPath -Algorithm SHA256).Hash
 $metadata = Get-Content -LiteralPath $metadataPath -Raw -Encoding UTF8 | ConvertFrom-Json
 $applicationId = 'com.panoli707.aetherio.nativeapp'
 if ($metadata.applicationId -cne $applicationId -or $metadata.artifactType.type -cne 'APK' -or
-    $metadata.variantName -cne 'debug' -or $metadata.elements -isnot [array] -or
+    $metadata.variantName -cne 'release' -or $metadata.elements -isnot [array] -or
     $metadata.elements.Count -ne 1) {
-    throw 'Se requiere un unico APK debug de com.panoli707.aetherio.nativeapp.'
+    throw 'Se requiere un unico APK release de com.panoli707.aetherio.nativeapp.'
 }
 $element = $metadata.elements[0]
 if ($element.type -cne 'SINGLE' -or $element.filters -isnot [array] -or
-    $element.filters.Count -ne 0 -or $element.outputFile -cne 'app-debug.apk') {
-    throw 'Se requiere un unico APK sin filtros, llamado app-debug.apk.'
+    $element.filters.Count -ne 0 -or $element.outputFile -cne 'app-release.apk') {
+    throw 'Se requiere un unico APK sin filtros, llamado app-release.apk.'
 }
 if (($element.versionCode -isnot [int] -and $element.versionCode -isnot [long]) -or
     $element.versionCode -lt 1 -or $element.versionCode -gt [int]::MaxValue) {
@@ -91,6 +92,20 @@ if ($aapt) {
 
 $manifestTree = & $aapt dump xmltree $sourceApk AndroidManifest.xml
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo comprobar la politica de credenciales del APK.' }
+$manifestText = $manifestTree -join "`n"
+if ($manifestText -cmatch 'android:(debuggable|testOnly)\([^\r\n]*=\(type 0x12\)0xffffffff' -or
+    $manifestText.Contains('"androidx.activity.ComponentActivity"')) {
+    throw 'El APK contiene configuracion de depuracion o componentes de pruebas.'
+}
+$signer = Join-Path (Split-Path -Path $aapt -Parent) 'apksigner.bat'
+if (-not (Test-Path -LiteralPath $signer -PathType Leaf)) { throw 'Se necesita apksigner para verificar la firma.' }
+$certificateInfo = & $signer verify --print-certs $sourceApk
+if ($LASTEXITCODE -ne 0) { throw 'La firma del APK no es valida.' }
+$certificateDigests = @($certificateInfo | Where-Object { $_ -match '^Signer #[0-9]+ certificate SHA-256 digest: ' })
+$expectedCertificate = 'bc80ac45ca65a7a606331dcfdabf9e609c3db779109b71b87e1aa74e87c99f2d'
+if ($certificateDigests.Count -ne 1 -or $certificateDigests[0].Split(' ')[-1] -ne $expectedCertificate) {
+    throw 'La firma del APK no coincide con la de las instalaciones existentes.'
+}
 $blocks = [regex]::Matches(($manifestTree -join "`n"), '(?m)^ *E: meta-data\b[^\n]*(?:\n(?! *E:)[^\n]*)*')
 $markerName = [regex]::Escape('com.panoli707.aetherio.nativeapp.PRIVATE_TMDB_CREDENTIALS')
 $markers = @($blocks | Where-Object { $_.Value -cmatch ('(?m)^\s*A: android:name[^=]*="' + $markerName + '"(?:\s|$)') })
@@ -111,13 +126,13 @@ $updateMetadata = [ordered]@{
     applicationId = $metadata.applicationId
     versionCode = $versionCode
     versionName = $versionName
-    apkName = 'Aetherio-debug.apk'
+    apkName = 'Aetherio.apk'
 }
 $comment = '<!-- aetherio-update: ' + ($updateMetadata | ConvertTo-Json -Compress) + ' -->'
 $notes = @(
     "# Aetherio $versionName"
     ''
-    'Descarga Aetherio-debug.apk e instalalo manualmente sobre la aplicacion existente para conservar tus datos.'
+    'Descarga Aetherio.apk e instalalo sobre la aplicacion existente para conservar tus datos.'
     'La actualizacion requiere el mismo paquete y firma. No desinstales ni borres los datos; si Android indica un conflicto de firma, solicita un APK compatible.'
     'Las siguientes actualizaciones se descargan desde Aetherio. Puedes activar la descarga automatica en Ajustes; Android siempre pide confirmar la instalacion.'
     ''
@@ -127,7 +142,7 @@ $notes = @(
 # Create only descendants of the existing, ignored build outputs directory.
 $publishRoot = Join-Path $outputs 'publish'
 $destination = Join-Path $publishRoot $ReleaseTag
-$destinationApk = Join-Path $destination 'Aetherio-debug.apk'
+$destinationApk = Join-Path $destination 'Aetherio.apk'
 $notesPath = Join-Path $destination 'release-notes.md'
 foreach ($path in @($destinationApk, $notesPath)) {
     if (Test-Path -LiteralPath $path) { throw "Ya existe $path. No se sobrescriben artefactos preparados." }
@@ -157,4 +172,4 @@ if (-not (Test-Path -LiteralPath (Split-Path -Path $notesPath -Parent) -PathType
 "Preparado localmente: $destinationApk"
 "Notas: $notesPath"
 "Version: $versionName (codigo $versionCode). SHA256: $sourceHash"
-'No se ha publicado nada. La firma del APK no se verifica con este script.'
+'No se ha publicado nada. La firma y la configuracion de distribucion se han verificado.'

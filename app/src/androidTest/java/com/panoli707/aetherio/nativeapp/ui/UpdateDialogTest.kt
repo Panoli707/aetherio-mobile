@@ -121,7 +121,7 @@ class UpdateDialogTest {
         compose.onNodeWithText("Actualizaciones").assertIsDisplayed()
         compose.onNodeWithText("Versi\u00f3n instalada: ${BuildConfig.VERSION_NAME}").assertIsDisplayed()
         compose.onNodeWithText(
-            "Descarga al abrir la app en redes no medidas. Android pedir\u00e1 confirmar la instalaci\u00f3n."
+            "Incluye versiones preliminares. Descarga al abrir la app en redes no medidas; t\u00fa decides cu\u00e1ndo instalar."
         ).assertIsDisplayed()
         val automaticSwitch = compose.onNodeWithContentDescription("Actualizaciones autom\u00e1ticas")
         automaticSwitch.assertIsOff().performClick()

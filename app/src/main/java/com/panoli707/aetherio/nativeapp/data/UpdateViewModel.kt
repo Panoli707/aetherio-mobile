@@ -127,13 +127,9 @@ class UpdateViewModel internal constructor(
                     UpdateTransferStatus.COMPLETE -> {
                         mutableState.update { it.copy(downloading = false, verifying = true, waiting = false, progress = 100) }
                         downloads.verify(update, id)
-                        val offerInstallation = withContext(Dispatchers.IO) {
-                            val offer = !downloads.installationOffered
-                            if (offer) downloads.installationOffered = true
-                            offer
-                        }
                         mutableState.update { it.copy(verifying = false, ready = true,
-                            installRequested = offerInstallation || installAfterVerification, error = null) }
+                            installRequested = installAfterVerification, error = null,
+                            message = "Actualizacion verificada. Pulsa Instalar actualizacion para continuar.") }
                         installAfterVerification = false
                         return
                     }

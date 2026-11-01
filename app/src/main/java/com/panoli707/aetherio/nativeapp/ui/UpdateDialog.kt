@@ -82,7 +82,7 @@ internal fun UpdateSettings(
             )
         }
         Text(
-            "Descarga al abrir la app en redes no medidas. Android pedir\u00e1 confirmar la instalaci\u00f3n.",
+            "Incluye versiones preliminares. Descarga al abrir la app en redes no medidas; t\u00fa decides cu\u00e1ndo instalar.",
             style = MaterialTheme.typography.bodyMedium,
             color = Muted
         )

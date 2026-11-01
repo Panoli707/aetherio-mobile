@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("wrapper", "assembleDebug", "testDebugUnitTest", "lintDebug", "verify")]
+    [ValidateSet("wrapper", "assembleDebug", "testDebugUnitTest", "lintDebug", "verify", "assembleRelease", "testReleaseUnitTest", "lintRelease", "verifyRelease")]
     [string]$Action = "assembleDebug",
     [string]$GradleExecutable,
     [switch]$PublicDistribution
@@ -27,6 +27,8 @@ if ($Action -eq "wrapper") {
     & $GradleExecutable --no-daemon wrapper --gradle-version 8.14.3 --distribution-type bin
 } elseif ($Action -eq "verify") {
     & .\gradlew.bat --no-daemon :app:assembleDebug :app:testDebugUnitTest :app:lintDebug @distributionArguments
+} elseif ($Action -eq "verifyRelease") {
+    & .\gradlew.bat --no-daemon :app:assembleRelease :app:testReleaseUnitTest :app:lintRelease @distributionArguments
 } else {
     & .\gradlew.bat --no-daemon ":app:$Action" @distributionArguments
 }

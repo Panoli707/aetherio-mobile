@@ -105,7 +105,25 @@ class UpdateViewModelTest {
         }
     }
 
-    private fun startModel() {
+    @Test fun freshPendingRestoreDoesNotRequestInstallUntilExplicitRequest() {
+        startModel(installationOffered = false)
+        assertTrue(queryEntered.await(30, TimeUnit.SECONDS))
+        releaseQuery.countDown()
+        assertTrue(uriEntered.await(30, TimeUnit.SECONDS))
+        assertTrue(model.state.value.verifying)
+        assertFalse(model.state.value.ready)
+        assertFalse(model.state.value.installRequested)
+        releaseUri.countDown()
+        assertFalse(awaitReady(installationOffered = false).installRequested)
+        instrumentation.runOnMainSync {
+            assertFalse(model.state.value.installRequested)
+            model.requestInstall()
+            assertTrue(model.state.value.ready)
+            assertTrue(model.state.value.installRequested)
+        }
+    }
+
+    private fun startModel(installationOffered: Boolean = true) {
         val source = File(target.applicationInfo.sourceDir).copyTo(File(root, "source.apk"))
         val digest = MessageDigest.getInstance("SHA-256")
         source.inputStream().use { input ->
@@ -126,7 +144,7 @@ class UpdateViewModelTest {
             .put("sha256", candidate.sha256).put("size", candidate.size)
         assertEquals(8, record.length())
         assertTrue(context.getSharedPreferences("aetherio_updates", Context.MODE_PRIVATE).edit()
-            .putString("pending", record.toString()).putBoolean("installationOffered", true).commit())
+            .putString("pending", record.toString()).putBoolean("installationOffered", installationOffered).commit())
         val sourceUri = FileProvider.getUriForFile(target, "${target.packageName}.updates", source)
         val manager = object : UpdateDownloadManager {
             override fun request(uri: Uri): DownloadManager.Request = error("No network requests expected")
@@ -156,7 +174,7 @@ class UpdateViewModelTest {
         }
     }
 
-    private fun awaitReady(): UpdateState {
+    private fun awaitReady(installationOffered: Boolean = true): UpdateState {
         val state = runBlocking { withTimeout(30_000) {
             model.state.first { it.ready || it.error != null }
         } }
@@ -166,7 +184,7 @@ class UpdateViewModelTest {
         assertFalse(state.verifying)
         assertEquals(candidate, state.available)
         assertTrue(File(context.cacheDir, "updates/${candidate.versionCode}.apk").isFile)
-        assertTrue(context.getSharedPreferences("aetherio_updates", Context.MODE_PRIVATE)
+        assertEquals(installationOffered, context.getSharedPreferences("aetherio_updates", Context.MODE_PRIVATE)
             .getBoolean("installationOffered", false))
         return state
     }

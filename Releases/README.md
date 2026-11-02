@@ -1,8 +1,8 @@
 # Descargar Aetherio
 
-**Versión preliminar 0.4.2 (código de versión 9) | Android 7.0 o posterior | Requiere Internet**
+**Versión preliminar 0.5.0 | Android 7.0 o posterior | Requiere Internet**
 
-[**Descargar Aetherio.apk**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.4.2-preview.1/Aetherio.apk)
+[**Descargar Aetherio.apk**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.5.0-preview.2/Aetherio.apk)
 
 El APK es una versión de lanzamiento optimizada, no de depuración.
 

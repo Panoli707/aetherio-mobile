@@ -1,5 +1,9 @@
 package com.panoli707.aetherio.nativeapp.ui
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
@@ -7,8 +11,12 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.filters.SdkSuppress
+import androidx.test.platform.app.InstrumentationRegistry
+import com.panoli707.aetherio.nativeapp.R
 import com.panoli707.aetherio.nativeapp.data.AppState
 import com.panoli707.aetherio.nativeapp.data.UpdateState
+import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -16,6 +24,38 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class StartupScreenTest {
     @get:Rule val compose = createComposeRule()
+
+    @Test
+    @SdkSuppress(minSdkVersion = 31)
+    fun nativeStartingThemeHasTransparentIconNoBrandingAndMatchingBackground() {
+        val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
+        val theme = resources.newTheme().apply { applyStyle(R.style.Theme_Aetherio_Starting, true) }
+        val attributes = theme.obtainStyledAttributes(intArrayOf(
+            android.R.attr.windowSplashScreenAnimatedIcon,
+            android.R.attr.windowSplashScreenBrandingImage,
+            android.R.attr.windowSplashScreenBackground
+        ))
+        try {
+            val icon = attributes.getDrawable(0)
+            assertNotNull(icon)
+            assertTrue(icon is GradientDrawable)
+            assertNull(attributes.getDrawable(1))
+            assertEquals(Color.rgb(0x20, 0x20, 0x1E), attributes.getColor(2, Color.TRANSPARENT))
+
+            val bitmap = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
+            try {
+                icon!!.setBounds(0, 0, 32, 32)
+                icon.draw(Canvas(bitmap))
+                val pixels = IntArray(32 * 32)
+                bitmap.getPixels(pixels, 0, 32, 0, 0, 32, 32)
+                assertTrue("The native splash icon must be fully transparent", pixels.all { Color.alpha(it) == 0 })
+            } finally {
+                bitmap.recycle()
+            }
+        } finally {
+            attributes.recycle()
+        }
+    }
 
     @Test fun initialLoadingShowsSplashAndLaterLoadingDoesNotRestoreIt() {
         val state = mutableStateOf(AppState(
@@ -96,6 +136,7 @@ class StartupScreenTest {
                     onOpenVideo = { _, _ -> },
                     onAddAddon = {},
                     onRemoveAddon = {},
+                    onDesktopSourceToggle = { _, _ -> },
                     onRequestSources = { _, _, _ -> },
                     onDismissSources = {},
                     onPlaySource = { _, _ -> }

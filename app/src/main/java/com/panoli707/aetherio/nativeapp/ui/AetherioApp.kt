@@ -40,6 +40,7 @@ fun AetherioApp(
     onOpenVideo: (String, VideoFormat) -> Unit,
     onAddAddon: (String) -> Unit,
     onRemoveAddon: (String) -> Unit,
+    onDesktopSourceToggle: (String, Boolean) -> Unit,
     onRequestSources: (MediaItem, Int?, Int?) -> Unit,
     onDismissSources: () -> Unit,
     onPlaySource: (StreamSource, VideoFormat) -> Unit,
@@ -130,7 +131,7 @@ fun AetherioApp(
                         screenState.SaveableStateProvider(tab) {
                             when (tab) {
                                 "library" -> LibraryScreen(state, libraryScroll, libraryFilter, { libraryFilter = it }, select, openSearch)
-                                "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon,
+                                "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon, onDesktopSourceToggle,
                                     updates, onUpdateAction, onAutomaticUpdatesChange)
                                 else -> HomeScreen(state, homeScroll, pager, !linkOpen && state.sourceQuery == null && !updates.noticeVisible,
                                     select, { categoryId = it }, onRetryHome)

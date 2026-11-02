@@ -31,15 +31,23 @@ La lista de proveedores muestra su nombre y dominio, no sus URL completas privad
 
 ## Proveedores y fuentes de reproducción
 
-No hay proveedores ni fuentes preinstaladas. No necesitas añadirlos para explorar el catálogo o guardar favoritos.
+**PenguPlay, HdHub, AnimES y DeepFlix** vienen integrados desde Aetherio de PC. En **Ajustes > Fuentes de Aetherio PC**, activa o desactiva cada servicio; la selección se conserva. Solo se consultan cuando buscas fuentes, no durante el arranque. La respuesta y los títulos disponibles dependen de cada proveedor.
+
+Abre una película y pulsa **Buscar fuentes**. Para una serie, elige la temporada y el episodio. Las fuentes aparecen conforme responde cada servicio. Si alguno falla, puedes usar los resultados de los demás. No necesitas copiar sus URLs ni añadir manifiestos para estas cuatro fuentes.
+
+Los motores de torrents, los scrapers y los ejecutores de proveedores JavaScript de PC no están incluidos. Que un proveedor aparezca en el escritorio no implica que ese motor pueda ejecutarse en Android.
+
+Para añadir un proveedor propio:
 
 1. Obtén de un proveedor de confianza la URL HTTPS de un `manifest.json` compatible. Usa solo contenido que tengas permiso para reproducir.
-2. Abre **Ajustes**, busca **Proveedores de reproducción** y pega el enlace en **URL HTTPS del manifest.json**. Usa la dirección final, sin redirecciones, con una ruta que termine en `/manifest.json`.
+2. Abre **Ajustes > Proveedores propios** y pega el enlace en **URL HTTPS del manifest.json**. Usa la dirección final, sin redirecciones, con una ruta que termine en `/manifest.json`.
 3. Pulsa **Añadir proveedor** y espera la confirmación. Para quitarlo después, pulsa **Eliminar proveedor**.
 4. Abre la ficha de una película y pulsa **Buscar fuentes**. En una serie, elige la temporada y toca el episodio que quieras ver. El botón superior **Ver fuentes** corresponde al primer episodio de esa temporada mostrado en la ficha.
 5. En **Formato de reproducción**, deja **Auto** o elige **HLS** o **DASH** si conoces el formato. Pulsa **Reproducir** en la fuente elegida.
 
-No todos los proveedores son compatibles: deben ofrecer vídeos directos HTTPS para el título o episodio seleccionado. No se admiten torrents, DRM, extractores de páginas web ni fuentes que necesiten cabeceras privadas o cookies de sesión. La calidad indicada procede del proveedor y no garantiza la calidad del vídeo.
+No todos los proveedores son compatibles: deben ofrecer vídeos HTTPS para el título o episodio seleccionado. Se admiten las cabeceras de reproducción Referer, Origin y User-Agent del proveedor y las redirecciones que se mantienen en HTTPS. No se admiten torrents, DRM, extractores de páginas web ni sesiones con Cookie o Authorization. La calidad indicada procede del proveedor y no garantiza la calidad del vídeo.
+
+Las fuentes integradas del PC tienen una excepción limitada para vídeo HTTP en shegu.net y sus subdominios. La tarjeta avisa de ese transporte sin cifrar antes de reproducir. No permite HTTP en otros dominios ni cambia el uso de HTTPS en las APIs, proveedores propios o enlaces manuales.
 
 Si aparece **Configura tus proveedores**, pulsa **Ir a Ajustes**. Si no hay fuentes, revisa la conexión y el proveedor: puede no cubrir ese título o episodio, o no ofrecer enlaces compatibles. Puedes usar las fuentes disponibles de otros proveedores aunque uno falle.
 
@@ -47,7 +55,7 @@ Si aparece **Configura tus proveedores**, pulsa **Ir a Ajustes**. Si no hay fuen
 
 Puedes reproducir **Big Buck Bunny**, de Blender Foundation, bajo licencia **CC BY 3.0**. Consulta la [película original](https://peach.blender.org/).
 
-1. Añade en **Ajustes** este manifiesto público: `https://raw.githubusercontent.com/Panoli707/aetherio-mobile/main/examples/big-buck-bunny/manifest.json`.
+1. Añade en **Ajustes > Proveedores propios** este manifiesto público: `https://raw.githubusercontent.com/Panoli707/aetherio-mobile/main/examples/big-buck-bunny/manifest.json`.
 2. Busca **Big Buck Bunny** y abre la ficha correspondiente al IMDb `tt1254207`.
 3. Pulsa **Buscar fuentes** y después **Reproducir** en la fuente del ejemplo.
 
@@ -62,7 +70,7 @@ Esta alternativa no necesita proveedores. Abrirla desde una ficha no obtiene aut
 3. En **Formato del enlace**, deja **Automático** o selecciona **HLS** o **DASH** si conoces el formato.
 4. Pulsa **Reproducir**. Toca el vídeo para mostrar los controles de pausa y desplazamiento cuando estén disponibles.
 
-Usa la **URL HTTPS final**, no una página web ni un enlace que redirija. No se admiten HTTP, archivos locales, torrents, DRM ni enlaces que requieran sesión, cookies o cabeceras privadas. Aetherio no extrae vídeos de páginas web.
+Usa una **URL HTTPS de vídeo**, no una página web. Las redirecciones deben permanecer en HTTPS. No se admiten HTTP, archivos locales, torrents, DRM ni enlaces que requieran sesiones privadas. Aetherio no extrae vídeos de páginas web.
 
 La reproducción depende del dispositivo, del formato, de la conexión y de la disponibilidad del vídeo. Elegir HLS o DASH no convierte el contenido ni garantiza su compatibilidad. **Volver** cierra el reproductor y detiene el vídeo; no hay reproducción en segundo plano.
 

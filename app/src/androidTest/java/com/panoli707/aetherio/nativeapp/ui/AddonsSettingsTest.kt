@@ -1,13 +1,17 @@
 package com.panoli707.aetherio.nativeapp.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.text.AnnotatedString
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.panoli707.aetherio.nativeapp.data.AppState
+import com.panoli707.aetherio.nativeapp.data.DesktopSources
 import com.panoli707.aetherio.nativeapp.data.SourceProtocol
 import org.junit.Assert.*
 import org.junit.Rule
@@ -21,6 +25,62 @@ class AddonsSettingsTest {
     private val privateUrl = "https://example.org/private/manifest.json?token=synthetic-private-secret"
     private val providerName = "Synthetic private provider"
 
+    @Test fun desktopSourcesAreCheckedByDefaultAndSettingsDoNotExposeUrls() {
+        compose.setContent {
+            AetherioTheme {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    AddonsSettings(AppState(addonsLoading = false), {}, {}, { _, _ -> })
+                }
+            }
+        }
+
+        assertEquals(4, DesktopSources.providers.size)
+        compose.onNodeWithText("Fuentes de Aetherio PC").assertIsDisplayed()
+        compose.onNodeWithText("Estas fuentes se consultan solo al pulsar Buscar fuentes", substring = true).assertExists()
+        compose.onAllNodes(isToggleable()).assertCountEquals(4)
+        DesktopSources.providers.forEach { provider ->
+            compose.onNodeWithText(provider.name).performScrollTo().assertIsDisplayed()
+            compose.onNodeWithContentDescription(provider.name).assertIsOn()
+            compose.onNodeWithText(provider.manifestUrl, substring = true, useUnmergedTree = true).assertDoesNotExist()
+        }
+        compose.onNodeWithText("No respondi\u00f3 en la \u00faltima consulta").assertDoesNotExist()
+        compose.onNodeWithText("Proveedores propios").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("No has a\u00f1adido proveedores propios.").performScrollTo().assertIsDisplayed()
+        compose.onAllNodesWithText("https://", substring = true, useUnmergedTree = true).assertCountEquals(0)
+    }
+
+    @Test fun desktopSourceToggleReportsIdAndUsesControlledStateAndLastQueryError() {
+        val provider = DesktopSources.providers.first()
+        val state = mutableStateOf(AppState(addonsLoading = false, desktopSourceErrors = setOf(provider.id)))
+        val changes = mutableListOf<Pair<String, Boolean>>()
+        compose.setContent {
+            AetherioTheme {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    AddonsSettings(state.value, {}, {}, { id, enabled ->
+                        changes.add(id to enabled)
+                        state.value = state.value.copy(enabledDesktopSources =
+                            if (enabled) state.value.enabledDesktopSources + id else state.value.enabledDesktopSources - id)
+                    })
+                }
+            }
+        }
+
+        compose.onAllNodesWithText("No respondi\u00f3 en la \u00faltima consulta").assertCountEquals(1)
+        val toggle = compose.onNodeWithContentDescription(provider.name)
+        toggle.performScrollTo().assertIsOn().performClick()
+        toggle.assertIsOff()
+        compose.runOnIdle {
+            assertEquals(listOf(provider.id to false), changes)
+            assertEquals(DesktopSources.defaultIds - provider.id, state.value.enabledDesktopSources)
+        }
+        toggle.performClick()
+        toggle.assertIsOn()
+        compose.runOnIdle {
+            assertEquals(listOf(provider.id to false, provider.id to true), changes)
+            assertEquals(DesktopSources.defaultIds, state.value.enabledDesktopSources)
+        }
+    }
+
     @Test fun instantReaddWithSameIdsClearsUrlAndRestoresControls() {
         submitInstantly()
 
@@ -29,7 +89,7 @@ class AddonsSettingsTest {
             SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString(""))
         )
         assertReady()
-        compose.onNode(hasSetTextAction()).performTextInput(privateUrl)
+        compose.onNode(hasSetTextAction()).performScrollTo().performTextInput(privateUrl)
         compose.onNodeWithText("A\u00f1adir proveedor").assertIsEnabled()
     }
 
@@ -54,7 +114,7 @@ class AddonsSettingsTest {
         val state = mutableStateOf(AppState(addons = addons, addonsLoading = false, addonOperation = 41L))
         compose.setContent {
             AetherioTheme {
-                Column {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
                     AddonsSettings(state.value, onAdd = { url ->
                         assertEquals(privateUrl, url)
                         // Complete synchronously: no saving frame and exactly the same providers/IDs.
@@ -62,12 +122,12 @@ class AddonsSettingsTest {
                             addonOperation = state.value.addonOperation + 1L,
                             addonError = error
                         )
-                    }, onRemove = {})
+                    }, onRemove = {}, onDesktopSourceToggle = { _, _ -> })
                 }
             }
         }
-        compose.onNode(hasSetTextAction()).performTextInput(privateUrl)
-        compose.onNodeWithText("A\u00f1adir proveedor").performClick()
+        compose.onNode(hasSetTextAction()).performScrollTo().performTextInput(privateUrl)
+        compose.onNodeWithText("A\u00f1adir proveedor").performScrollTo().performClick()
         compose.runOnIdle {
             assertEquals(42L, state.value.addonOperation)
             assertSame(addons, state.value.addons)

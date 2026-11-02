@@ -26,7 +26,8 @@ import java.net.URI
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: (String) -> Unit) {
+internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: (String) -> Unit,
+    onDesktopSourceToggle: (String, Boolean) -> Unit) {
     var url by remember { mutableStateOf("") }
     var invalid by remember { mutableStateOf(false) }
     var pending by remember { mutableStateOf(false) }
@@ -56,7 +57,24 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
             }
         }
     }
-    Text("Proveedores de reproducción", style = MaterialTheme.typography.titleLarge)
+    Text("Fuentes de Aetherio PC", style = MaterialTheme.typography.titleLarge)
+    Text("Estas fuentes se consultan solo al pulsar Buscar fuentes en una ficha. Activa las que quieras incluir en la búsqueda.",
+        color = Muted)
+    DesktopSources.providers.forEach { provider ->
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(provider.name, style = MaterialTheme.typography.titleMedium)
+                if (provider.id in state.desktopSourceErrors) {
+                    Text("No respondió en la última consulta", color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            Switch(checked = provider.id in state.enabledDesktopSources,
+                onCheckedChange = { onDesktopSourceToggle(provider.id, it) },
+                modifier = Modifier.semantics { contentDescription = provider.name })
+        }
+    }
+    Text("Proveedores propios", style = MaterialTheme.typography.titleLarge)
     Text("Añade la URL HTTPS de un manifest.json compatible para buscar fuentes desde las fichas. " +
         "Usa solo proveedores y contenidos que tengas permiso para reproducir.", color = Muted)
     OutlinedTextField(value = url, onValueChange = { url = it.take(8192); invalid = false; success = false },
@@ -76,7 +94,7 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
     if (success && state.addonError == null) Text("Proveedor guardado. Ya puedes buscar fuentes desde las fichas.", color = Rating,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     if (state.addonsLoading) LoadingRow("Cargando proveedores…")
-    else if (state.addons.isEmpty()) Text("Aún no has añadido proveedores.", color = Muted)
+    else if (state.addons.isEmpty()) Text("No has añadido proveedores propios.", color = Muted)
     state.addons.forEach { addon ->
         val host = remember(addon.manifestUrl) { runCatching { URI(addon.manifestUrl).host }.getOrNull() ?: "Host no disponible" }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -95,6 +113,7 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
 @Composable
 internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> Unit,
     onPlay: (StreamSource, VideoFormat) -> Unit, onSettings: () -> Unit) {
+    val hasProviders = state.addons.isNotEmpty() || state.enabledDesktopSources.isNotEmpty()
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var format by rememberSaveable(query.key) { mutableStateOf(VideoFormat.AUTO) }
@@ -125,7 +144,7 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                     color = Muted, style = MaterialTheme.typography.bodySmall)
             }
             if (state.addonsLoading) item(key = "addonsLoading") { LoadingRow("Cargando proveedores…") }
-            else if (state.addons.isEmpty()) item(key = "configure") {
+            else if (!hasProviders) item(key = "configure") {
                 StatusMessage("Configura tus proveedores", "Añade un manifiesto compatible en Ajustes para buscar fuentes de este título.",
                     "Ir a Ajustes", { closeThen(onSettings) })
             }
@@ -135,9 +154,9 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                 Text(message, color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.semantics { error(message); liveRegion = LiveRegionMode.Polite })
             }
-            if (!state.sourcesLoading && !state.addonsLoading && state.addons.isNotEmpty() && state.sources.isEmpty()) item(key = "empty") {
+            if (!state.sourcesLoading && !state.addonsLoading && hasProviders && state.sources.isEmpty()) item(key = "empty") {
                 StatusMessage("Sin fuentes reproducibles", "Los proveedores no han devuelto enlaces compatibles para este título o episodio. " +
-                    "Las fuentes que requieren torrents o cabeceras especiales no están habilitadas.")
+                    "Las fuentes que requieren torrents, DRM o sesiones privadas no están habilitadas.")
             }
             items(state.sources, key = { "${it.addonId}:${it.id}" }) { source ->
                 Surface(color = Ink, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
@@ -145,6 +164,8 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                         Text(source.addonName, color = Muted, style = MaterialTheme.typography.labelLarge)
                         Text(source.name.ifBlank { "Fuente de vídeo" }, style = MaterialTheme.typography.titleMedium)
                         if (source.description.isNotBlank()) Text(source.description, color = Muted, style = MaterialTheme.typography.bodyMedium)
+                        if (source.allowDesktopHttp) Text("Esta fuente puede usar v\u00eddeo HTTP sin cifrar en servidores del PC.",
+                            color = Muted, style = MaterialTheme.typography.bodySmall)
                         Button(onClick = { onPlay(source, if (format == VideoFormat.AUTO) source.format else format) },
                             modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Reproducir ${source.name}, proveedor ${source.addonName}" }) {
                             Text("Reproducir")

@@ -7,7 +7,7 @@
 
 ## Descargar e instalar
 
-1. Descarga [**Aetherio.apk desde GitHub**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.4.2-preview.1/Aetherio.apk), versión preliminar **0.4.2**. Comprueba que corresponde al repositorio `Panoli707/aetherio-mobile`.
+1. Descarga [**Aetherio.apk desde GitHub**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.5.0-preview.2/Aetherio.apk), versión preliminar **0.5.0**. Comprueba que corresponde al repositorio `Panoli707/aetherio-mobile`.
 2. Abre **Descargas** en el navegador o gestor de archivos del dispositivo y toca `Aetherio.apk`.
 3. Si Android lo solicita, permite **Instalar aplicaciones desconocidas** únicamente para el navegador o gestor de archivos que está abriendo el APK. El nombre de la opción puede variar según el dispositivo.
 4. Regresa al archivo y pulsa **Instalar**. Cuando termine, pulsa **Abrir**.
@@ -23,7 +23,7 @@ Si ya tienes **Aetherio** o **Aetherio Native**, abre el APK y confirma la actua
 
 Si Android informa de un conflicto de firma, detén la instalación y busca un APK de procedencia fiable con firma compatible. **No desinstales ni borres los datos para forzar la actualización**.
 
-Si tienes la versión **0.3.3**, su aviso de actualización seguirá abriendo el navegador. Para usar las descargas dentro de Aetherio, instala una vez la **0.4.2** mediante ese aviso o el enlace de descarga anterior, siempre sobre la aplicación existente. A partir de ahí, las siguientes actualizaciones pueden descargarse desde la propia aplicación.
+Si tienes la versión **0.3.3**, su aviso de actualización seguirá abriendo el navegador. Instala una vez la versión del enlace anterior, siempre sobre la aplicación existente. A partir de ahí, las siguientes actualizaciones pueden descargarse desde la propia aplicación.
 
 1. Abre **Ajustes > Actualizaciones > Buscar actualizaciones** para comprobar si hay una versión disponible, incluidas las versiones preliminares.
 2. Pulsa **Actualizar ahora**. Aetherio descarga el APK desde GitHub sin abrir el navegador; puedes consultar el progreso y cancelar la descarga.
@@ -36,7 +36,7 @@ El interruptor de actualizaciones automáticas en **Ajustes > Actualizaciones** 
 
 ## Primer uso y datos guardados
 
-Puedes explorar el catálogo, buscar títulos y guardar favoritos sin configurar proveedores. Para reproducir desde las fichas, añade un proveedor compatible en **Ajustes**; no hay fuentes preinstaladas. También puedes usar un enlace HTTPS directo propio o autorizado.
+Puedes explorar el catálogo, buscar títulos y guardar favoritos sin configurar nada. Las fuentes PenguPlay, HdHub, AnimES y DeepFlix vienen integradas y se pueden seleccionar en **Ajustes > Fuentes de Aetherio PC**. Para buscar vídeos, abre una ficha y pulsa **Buscar fuentes**. También puedes añadir un manifiesto compatible en **Proveedores propios** o usar un enlace HTTPS directo propio o autorizado.
 
 El nombre del perfil, los favoritos y los proveedores se guardan en el dispositivo. No hay cuentas ni sincronización: **desinstalar la aplicación o borrar sus datos elimina esa información**.
 

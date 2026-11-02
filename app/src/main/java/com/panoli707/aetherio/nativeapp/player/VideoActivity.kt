@@ -28,7 +28,6 @@ import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.util.Log as Media3Log
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -45,14 +44,27 @@ class VideoActivity : ComponentActivity() {
     private lateinit var retryButton: Button
     private var player: ExoPlayer? = null
     private var mediaUrl: String? = null
+    private var allowDesktopHttp = false
+    private var playbackHeaders: Map<String, String> = emptyMap()
     private var resumePosition = C.TIME_UNSET
     private var resumePlayWhenReady = true
     private var mediaIsLive = false
 
     private val httpClient by lazy {
         OkHttpClient.Builder()
-            .followRedirects(false)
-            .followSslRedirects(false)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .addNetworkInterceptor { chain ->
+                // Network interceptors run again for every redirect, unlike the resolver.
+                try {
+                    MediaUrlPolicy.validate(chain.request().url.toString(), allowDesktopHttp)
+                } catch (_: IllegalArgumentException) {
+                    throw IOException(INVALID_URL_ERROR)
+                }
+                val request = if (chain.request().url.isHttps) chain.request() else chain.request().newBuilder()
+                    .removeHeader("Authorization").removeHeader("Cookie").removeHeader("Referer").removeHeader("Origin").build()
+                chain.proceed(request)
+            }
             .build()
     }
 
@@ -68,10 +80,7 @@ class VideoActivity : ComponentActivity() {
 
         override fun onPlayerError(error: PlaybackException) {
             AndroidLog.i(TAG, "errorInt=${error.errorCode}")
-            val redirected = generateSequence(error as Throwable) { it.cause }.any {
-                it is HttpDataSource.InvalidResponseCodeException && it.responseCode in 300..399
-            }
-            showError(if (redirected) REDIRECT_ERROR else PLAYBACK_ERROR)
+            showError(PLAYBACK_ERROR)
         }
     }
 
@@ -95,8 +104,21 @@ class VideoActivity : ComponentActivity() {
         } ?: DEFAULT_TITLE
         createContent()
         mediaUrl = try {
-            MediaUrlPolicy.validate(intent.getStringExtra(EXTRA_URL).orEmpty())
-        } catch (_: IllegalArgumentException) {
+            allowDesktopHttp = intent.getBooleanExtra(EXTRA_DESKTOP_HTTP, false)
+            val headers = if (intent.hasExtra(EXTRA_HEADERS)) {
+                @Suppress("DEPRECATION")
+                val bundle = intent.extras?.get(EXTRA_HEADERS) as? Bundle
+                    ?: throw IllegalArgumentException()
+                if (bundle.size() > 3) throw IllegalArgumentException()
+                bundle.keySet().associateWith { key ->
+                    @Suppress("DEPRECATION")
+                    val value = bundle.get(key)
+                    value as? String ?: throw IllegalArgumentException()
+                }
+            } else emptyMap()
+            playbackHeaders = PlaybackHeaders.validate(headers)
+            MediaUrlPolicy.validate(intent.getStringExtra(EXTRA_URL).orEmpty(), allowDesktopHttp)
+        } catch (_: RuntimeException) {
             showError(INVALID_URL_ERROR)
             null
         }
@@ -218,9 +240,10 @@ class VideoActivity : ComponentActivity() {
             // This factory also gates child manifests, segments and HLS encryption keys.
             val dataSourceFactory = ResolvingDataSource.Factory(
                 OkHttpDataSource.Factory(httpClient)
+                    .setDefaultRequestProperties(playbackHeaders)
             ) { dataSpec ->
                 val validated = try {
-                    MediaUrlPolicy.validate(dataSpec.uri.toString())
+                    MediaUrlPolicy.validate(dataSpec.uri.toString(), allowDesktopHttp)
                 } catch (_: IllegalArgumentException) {
                     throw IOException(INVALID_URL_ERROR)
                 }
@@ -291,11 +314,12 @@ class VideoActivity : ComponentActivity() {
         const val EXTRA_URL = "com.panoli707.aetherio.nativeapp.player.URL"
         const val EXTRA_TITLE = "com.panoli707.aetherio.nativeapp.player.TITLE"
         const val EXTRA_MIME = "com.panoli707.aetherio.nativeapp.player.MIME"
+        const val EXTRA_HEADERS = "com.panoli707.aetherio.nativeapp.player.HEADERS"
+        const val EXTRA_DESKTOP_HTTP = "com.panoli707.aetherio.nativeapp.player.DESKTOP_HTTP"
         private const val TAG = "AetherioNativePlayer"
         private const val DEFAULT_TITLE = "Reproducción por enlace"
         private const val INVALID_URL_ERROR = "No se pudo abrir el vídeo. Usa una URL HTTPS directa válida."
-        private const val PLAYBACK_ERROR = "No se pudo reproducir el vídeo. Comprueba la conexión y que el enlace HTTPS sea compatible."
-        private const val REDIRECT_ERROR = "El enlace redirige a otra dirección. Usa la URL HTTPS final directa del vídeo."
+        private const val PLAYBACK_ERROR = "No se pudo reproducir el vídeo. Comprueba la conexión o vuelve a buscar fuentes."
         private const val STATE_POSITION = "player.position"
         private const val STATE_PLAY_WHEN_READY = "player.playWhenReady"
         private const val STATE_LIVE = "player.live"

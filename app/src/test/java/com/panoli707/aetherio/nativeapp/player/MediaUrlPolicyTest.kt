@@ -7,6 +7,17 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class MediaUrlPolicyTest {
+    @Test fun desktopHttpRequiresExplicitPermissionAndOnlyTheIdentifiedCdn() {
+        val allowed = "http://usa7-as09.shegu.net:8080/video.mp4?signature=sample"
+        assertEquals(allowed, MediaUrlPolicy.validate(allowed, allowDesktopHttp = true))
+        assertRejected(allowed)
+        listOf("http://example.org/video.mp4", "http://shegu.net.evil.example/video.mp4",
+            "http://evil-shegu.net/video.mp4", "http://127.0.0.1/video.mp4",
+            "http://user:password@usa7-as09.shegu.net/video.mp4").forEach { value ->
+            assertThrows(IllegalArgumentException::class.java) { MediaUrlPolicy.validate(value, true) }
+        }
+    }
+
     @Test
     fun acceptsDirectFormatsHttpsVariantsPortsAndPunycode() {
         val urls = listOf(

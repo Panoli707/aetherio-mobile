@@ -8,6 +8,26 @@ import org.junit.Test
 import java.security.MessageDigest
 
 class SourceProtocolTest {
+    @Test fun desktopFlatProxyAndPlaybackHintFallbacksArePreserved() {
+        val raw = """{"streams":[{"url":"https://video.example/bunny.mp4","behaviorHints":{
+            "proxyHeaders":{"Origin":"https://example.org","response":{"Access-Control-Allow-Origin":"*"}},
+            "referrer":"https://example.org/watch","userAgent":"Example Player/1.0"}}]}"""
+        val source = SourceProtocol.streams(raw, config()).sources.single()
+        assertEquals(mapOf("Origin" to "https://example.org", "Referer" to "https://example.org/watch",
+            "User-Agent" to "Example Player/1.0"), source.headers)
+    }
+
+    @Test fun desktopHttpIsScopedToBundledConfigurationsAndKnownMediaDomain() {
+        val url = "http://usa7-as09.shegu.net:8080/bunny.mp4"
+        val raw = """{"streams":[{"url":"$url"}]}"""
+        assertEquals(1, SourceProtocol.streams(raw, config()).unsupportedCount)
+        val desktop = config(url = DesktopSources.providers.first().manifestUrl)
+        val result = SourceProtocol.streams(raw, desktop)
+        assertEquals(url, result.sources.single().url)
+        assertTrue(result.sources.single().allowDesktopHttp)
+        assertEquals(1, SourceProtocol.streams(raw.replace("usa7-as09.shegu.net", "untrusted.example"), desktop).unsupportedCount)
+    }
+
     private val manifest = """{"id":"org.example.addon","name":"My addon","types":["movie","series"],"resources":["stream"]}"""
     private val privateUrl = "https://example.org/private/config/manifest.json?token=private-secret&scope=1"
     private val movie = MediaItem("550", MediaType.MOVIE, "Movie", imdbId = "tt0137523")
@@ -172,7 +192,7 @@ class SourceProtocolTest {
             {"url":"https://video.example/a","ytId":"youtube"},
             {"url":"https://video.example/a","drm":{"license":"private-secret"}},
             {"url":"https://video.example/a","behaviorHints":{"drm":true}},
-            {"url":"https://video.example/a","behaviorHints":{"proxyHeaders":{"request":{"Referer":"private-secret"}}}},
+            {"url":"https://video.example/a","behaviorHints":{"proxyHeaders":{"request":{"Cookie":"private-secret"}}}},
             {"url":"https://video.example/a","proxyHeaders":{"request":{"Authorization":"private-secret"}}},
             {"url":"https://video.example/a","headers":{"Cookie":"private-secret"}},
             {"url":"https://video.example/a","behaviorHints":[]},
@@ -194,6 +214,85 @@ class SourceProtocolTest {
         stream.remove("description")
         stream.put("title", "Episode title\n")
         assertEquals("Episode title", SourceProtocol.streams(JSONObject().put("streams", JSONArray().put(stream)).toString(), config()).sources.single().description)
+    }
+
+    @Test fun supportedHeadersAreReadFromEveryRequestLocationAndResponseCorsIsIgnored() {
+        val expected = mapOf("Referer" to "https://example.org/watch?id=1", "Origin" to "https://example.org/",
+            "User-Agent" to "Example Player/1.0")
+        for (inHints in listOf(false, true)) {
+            for (location in listOf("headers", "requestHeaders", "proxyHeaders")) {
+                val stream = JSONObject().put("url", "https://video.example/movie.m3u8")
+                val parent = if (inHints) JSONObject().also { stream.put("behaviorHints", it) } else stream
+                val headers = JSONObject(expected)
+                parent.put(location, if (location == "proxyHeaders") JSONObject().put("request", headers)
+                    .put("response", JSONObject().put("Access-Control-Allow-Origin", "*").put("Set-Cookie", "test-value"))
+                    else headers)
+                val result = SourceProtocol.streams(JSONObject().put("streams", JSONArray().put(stream)).toString(), config())
+                assertEquals(0, result.unsupportedCount)
+                assertEquals(expected, result.sources.single().headers)
+            }
+        }
+    }
+
+    @Test fun matchingHeadersAcrossLocationsMergeWithoutChangingValues() {
+        val raw = """{"streams":[{"url":"https://video.example/movie.m3u8",
+            "headers":{"referer":"https://example.org/watch?id=1"},
+            "requestHeaders":{"User-Agent":"Example Player/1.0"},
+            "behaviorHints":{"headers":{"REFERER":"https://example.org/watch?id=1"},
+            "requestHeaders":{"origin":"https://example.org"},
+            "proxyHeaders":{"request":{"user-agent":"Example Player/1.0"},"response":["ignored"]}}}]}"""
+        val result = SourceProtocol.streams(raw, config())
+        assertEquals(0, result.unsupportedCount)
+        assertEquals(mapOf("Referer" to "https://example.org/watch?id=1", "Origin" to "https://example.org",
+            "User-Agent" to "Example Player/1.0"), result.sources.single().headers)
+    }
+
+    @Test fun conflictingDuplicateMalformedAndSecretRequestHeadersAreUnsupported() {
+        val invalid = JSONArray("""[
+            {"headers":{"Referer":"https://example.org/a"},"requestHeaders":{"referer":"https://example.org/b"}},
+            {"headers":{"Origin":"https://example.org"},"behaviorHints":{"proxyHeaders":{"request":{"ORIGIN":"https://other.example.org"}}}},
+            {"headers":{"User-Agent":"Player","user-agent":"Player"}},
+            {"headers":{"User-Agent":12}}, {"requestHeaders":[]},
+            {"behaviorHints":{"proxyHeaders":{"request":"invalid"}}},
+            {"headers":{"Cookie":"test-value"}}, {"requestHeaders":{"Authorization":"test-value"}},
+            {"behaviorHints":{"headers":{"Host":"example.org"}}},
+            {"behaviorHints":{"requestHeaders":{"X-Session-Id":"test-value"}}}
+        ]""")
+        for (index in 0 until invalid.length()) invalid.getJSONObject(index).put("url", "https://video.example/movie.m3u8")
+        val result = SourceProtocol.streams(JSONObject().put("streams", invalid).toString(), config())
+        assertTrue(result.sources.isEmpty())
+        assertEquals(invalid.length(), result.unsupportedCount)
+    }
+
+    @Test fun headerIdentityIsStableAcrossCaseOrderAndLocationsButDistinctAcrossValues() {
+        val raw = """{"streams":[
+            {"url":"https://video.example/movie.m3u8","headers":{"Origin":"https://example.org","User-Agent":"Player A"}},
+            {"url":"https://video.example/movie.m3u8","behaviorHints":{"requestHeaders":{"user-agent":"Player A","origin":"https://example.org"}}},
+            {"url":"https://video.example/movie.m3u8","headers":{"Origin":"https://example.org","User-Agent":"Player B"}},
+            {"url":"https://video.example/movie.m3u8"}]}"""
+        val result = SourceProtocol.streams(raw, config())
+        assertEquals(0, result.unsupportedCount)
+        assertEquals(3, result.sources.size)
+        assertEquals(3, result.sources.map { it.id }.toSet().size)
+        assertEquals(result, SourceProtocol.streams(raw, config()))
+    }
+
+    @Test fun emptyHeadersPreserveTheExistingLengthPrefixedStreamIdentity() {
+        val addon = config()
+        val url = "https://video.example/movie.m3u8"
+        val digest = MessageDigest.getInstance("SHA-256")
+        listOf(addon.id, url, addon.name, "").forEach { part ->
+            val bytes = part.toByteArray(Charsets.UTF_8)
+            digest.update("${bytes.size}:".toByteArray(Charsets.US_ASCII))
+            digest.update(bytes)
+        }
+        val expected = digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) }
+        val raw = """{"streams":[{"url":"$url"},{"url":"$url","headers":{},"requestHeaders":{},
+            "behaviorHints":{"proxyHeaders":{"request":{},"response":{"Access-Control-Allow-Origin":"*"}}}}]}"""
+        val result = SourceProtocol.streams(raw, addon)
+        assertEquals(0, result.unsupportedCount)
+        assertEquals(expected, result.sources.single().id)
+        assertTrue(result.sources.single().headers.isEmpty())
     }
 
     @Test fun optionalEmptyArraysAreSupportedButWrongShapesAndOversizedCollectionsAreNot() {

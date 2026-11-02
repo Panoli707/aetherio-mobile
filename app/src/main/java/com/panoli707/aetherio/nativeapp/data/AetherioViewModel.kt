@@ -20,8 +20,11 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val repository = AetherioRepository()
     private val library = LocalLibraryStore(application)
     private val sourceRepository = SourceRepository()
+    private val desktopSourceRepository = DesktopSourceRepository(sourceRepository)
+    private val sourceSettings = SourceSettingsStore(application)
     private val addonStore = AddonStore(application)
-    private val mutableState = MutableStateFlow(AppState(savedItems = library.savedItems, profileName = library.profileName))
+    private val mutableState = MutableStateFlow(AppState(savedItems = library.savedItems, profileName = library.profileName,
+        enabledDesktopSources = sourceSettings.enabledDesktopSources))
     val state: StateFlow<AppState> = mutableState.asStateFlow()
     private var homeJob: Job? = null
     private var detailJob: Job? = null
@@ -141,6 +144,14 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
 
     fun removeAddon(id: String) = changeAddons { existing -> existing.filterNot { it.id == id } }
 
+    fun setDesktopSourceEnabled(id: String, enabled: Boolean) {
+        if (id !in DesktopSources.defaultIds) return
+        val selected = if (enabled) state.value.enabledDesktopSources + id else state.value.enabledDesktopSources - id
+        sourceSettings.enabledDesktopSources = selected
+        mutableState.update { it.copy(enabledDesktopSources = selected, desktopSourceErrors = it.desktopSourceErrors - id) }
+        state.value.sourceQuery?.let { requestSources(it.item, it.season, it.episode) }
+    }
+
     private fun changeAddons(change: suspend (List<AddonConfig>) -> List<AddonConfig>) {
         if (state.value.addonSaving || state.value.addonsLoading) return
         mutableState.update { it.copy(addonSaving = true, addonError = null) }
@@ -168,13 +179,15 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     fun requestSources(item: MediaItem, season: Int?, episode: Int?) {
         sourceJob?.cancel()
         val query = SourceQuery(item, season, episode)
-        mutableState.update { it.copy(sourceQuery = query, sources = emptyList(), sourcesLoading = true, sourceError = null) }
+        mutableState.update { it.copy(sourceQuery = query, sources = emptyList(), sourcesLoading = true,
+            sourceError = null, desktopSourceErrors = emptySet()) }
         sourceJob = viewModelScope.launch {
             try {
                 addonRestoreJob?.join()
                 ensureActive()
-                val addons = state.value.addons.filter { item.type in it.types }
-                if (addons.isEmpty()) {
+                val desktop = DesktopSources.providers.filter { it.id in state.value.enabledDesktopSources }
+                val addons = state.value.addons.filter { item.type in it.types && desktop.none { provider -> provider.manifestUrl == it.manifestUrl } }
+                if (addons.isEmpty() && desktop.isEmpty()) {
                     mutableState.update { it.copy(sourcesLoading = false, sourceError = "No hay proveedores compatibles configurados para este título.") }
                     return@launch
                 }
@@ -193,10 +206,12 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 mutableState.update { it.copy(sourceQuery = resolved) }
                 var failures = 0
                 var unsupported = 0
+                val lookups = addons.map { addon -> null to suspend { sourceRepository.sources(addon, resolved) } } +
+                    desktop.map { provider -> provider.id to suspend { desktopSourceRepository.sources(provider.id, resolved) } }
                 supervisorScope {
-                    addons.forEach { addon -> launch {
+                    lookups.forEach { (desktopId, lookup) -> launch {
                         try {
-                            val result = sourceRepository.sources(addon, resolved)
+                            val result = lookup()
                             ensureActive()
                             unsupported += result.unsupportedCount
                             mutableState.update { current ->
@@ -205,7 +220,13 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                                 )
                             }
                         } catch (e: CancellationException) { throw e }
-                        catch (_: Exception) { failures++ }
+                        catch (_: Exception) {
+                            failures++
+                            if (desktopId != null) mutableState.update { current ->
+                                if (current.sourceQuery?.key != resolved.key) current else current.copy(
+                                    desktopSourceErrors = current.desktopSourceErrors + desktopId)
+                            }
+                        }
                     } }
                 }
                 ensureActive()
@@ -216,7 +237,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                             current.sources.isNotEmpty() && failures == 0 -> null
                             current.sources.isNotEmpty() -> "Algunos proveedores no respondieron. Las fuentes disponibles se pueden reproducir."
                             failures > 0 -> "No se pudieron consultar los proveedores. Revisa la conexión y su configuración."
-                            unsupported > 0 -> "El proveedor devolvió fuentes que aún no son compatibles, como torrents o enlaces con cabeceras especiales."
+                            unsupported > 0 -> "El proveedor devolvió fuentes no compatibles, como torrents, DRM o sesiones privadas."
                             else -> "Los proveedores no devolvieron fuentes para este título o episodio."
                         }
                     )

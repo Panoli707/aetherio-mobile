@@ -10,6 +10,7 @@
         android:label="Aetherio"
         android:supportsRtl="true"
         android:theme="@style/Theme.Aetherio"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="false">
         <meta-data
             android:name="com.panoli707.aetherio.nativeapp.PRIVATE_TMDB_CREDENTIALS"

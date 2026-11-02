@@ -22,7 +22,9 @@ data class StreamSource(
     val name: String,
     val description: String,
     val url: String,
-    val format: VideoFormat = VideoFormat.AUTO
+    val format: VideoFormat = VideoFormat.AUTO,
+    val headers: Map<String, String> = emptyMap(),
+    val allowDesktopHttp: Boolean = false
 )
 
 data class SourceResult(val sources: List<StreamSource>, val unsupportedCount: Int = 0)

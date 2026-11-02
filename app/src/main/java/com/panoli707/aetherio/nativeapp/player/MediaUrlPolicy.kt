@@ -8,7 +8,7 @@ object MediaUrlPolicy {
     private const val ERROR_MESSAGE = "URL no válida. Usa una URL HTTPS directa válida."
 
     @JvmStatic
-    fun validate(value: String): String {
+    fun validate(value: String, allowDesktopHttp: Boolean = false): String {
         // Check before trimming so leading/trailing controls cannot disappear.
         if (value.length > MAX_URL_LENGTH ||
             value.any { it <= '\u001f' || it in '\u007f'..'\u009f' }
@@ -22,7 +22,9 @@ object MediaUrlPolicy {
         } catch (_: URISyntaxException) {
             throw IllegalArgumentException(ERROR_MESSAGE)
         }
-        if (!uri.scheme.equals("https", ignoreCase = true) ||
+        val desktopHttp = allowDesktopHttp && uri.scheme.equals("http", ignoreCase = true) &&
+            (uri.host.equals("shegu.net", ignoreCase = true) || uri.host?.lowercase()?.endsWith(".shegu.net") == true)
+        if ((!uri.scheme.equals("https", ignoreCase = true) && !desktopHttp) ||
             uri.host.isNullOrEmpty() || uri.rawUserInfo != null ||
             uri.rawAuthority.orEmpty().endsWith(":") ||
             (uri.port != -1 && uri.port !in 1..65535)

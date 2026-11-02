@@ -71,6 +71,8 @@ data class AppState(
     val savedItems: List<MediaItem> = emptyList(),
     val profileName: String = "Usuario",
     val addons: List<AddonConfig> = emptyList(),
+    val enabledDesktopSources: Set<String> = DesktopSources.defaultIds,
+    val desktopSourceErrors: Set<String> = emptySet(),
     val addonsLoading: Boolean = true,
     val addonSaving: Boolean = false,
     val addonOperation: Long = 0,

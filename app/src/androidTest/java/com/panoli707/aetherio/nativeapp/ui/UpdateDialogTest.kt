@@ -256,6 +256,7 @@ class UpdateDialogTest {
                     onOpenVideo = { _, _ -> },
                     onAddAddon = {},
                     onRemoveAddon = {},
+                    onDesktopSourceToggle = { _, _ -> },
                     onRequestSources = { _, _, _ -> },
                     onDismissSources = {},
                     onPlaySource = { _, _ -> }

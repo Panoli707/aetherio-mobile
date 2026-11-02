@@ -170,7 +170,7 @@ class SourceRepositoryTest {
                 {"url":"HTTPS://VIDEO.EXAMPLE:443/a/../ok.m3u8","behaviorHints":{"notWebReady":true}},
                 {"url":"https://video.example/ok.m3u8"},
                 {"url":"https://video.example/torrent","infoHash":"hash"},
-                {"url":"https://video.example/header","behaviorHints":{"proxyHeaders":{"request":{"Referer":"private-secret"}}}},
+                {"url":"https://video.example/header","behaviorHints":{"proxyHeaders":{"request":{"Cookie":"private-secret"}}}},
                 {"url":"http://video.example/insecure"},{"externalUrl":"https://video.example/external"},
                 {"url":"https://video.example/drm","drm":true}]}"""))
             val result = fixture.repository.sources(config(fixture), SourceQuery(movie))

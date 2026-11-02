@@ -100,13 +100,13 @@ internal fun LibraryScreen(state: AppState, scroll: LazyGridState, filter: Strin
 
 @Composable
 internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink: () -> Unit,
-    onAddAddon: (String) -> Unit, onRemoveAddon: (String) -> Unit,
+    onAddAddon: (String) -> Unit, onRemoveAddon: (String) -> Unit, onDesktopSourceToggle: (String, Boolean) -> Unit,
     updates: UpdateState, onUpdateAction: (UpdateAction) -> Unit, onAutomaticUpdatesChange: (Boolean) -> Unit) {
     val profileName = state.profileName
     var name by rememberSaveable(profileName) { mutableStateOf(profileName) }
     var saved by rememberSaveable { mutableStateOf(false) }
     val focus = LocalFocusManager.current
-    Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState())
+    Column(Modifier.fillMaxSize().statusBarsPadding().imePadding().verticalScroll(rememberScrollState())
         .padding(bottom = 110.dp).navigationBarsPadding()) {
         ScreenHeader("Ajustes")
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -126,7 +126,7 @@ internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink:
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
             UpdateSettings(updates, onUpdateAction, onAutomaticUpdatesChange)
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
-            AddonsSettings(state, onAddAddon, onRemoveAddon)
+            AddonsSettings(state, onAddAddon, onRemoveAddon, onDesktopSourceToggle)
             HorizontalDivider(Modifier.padding(vertical = 12.dp))
             Text("Vídeo por enlace", style = MaterialTheme.typography.titleLarge)
             Text("Reproduce un vídeo mediante su URL HTTPS directa. Solo enlaces propios o autorizados; " +

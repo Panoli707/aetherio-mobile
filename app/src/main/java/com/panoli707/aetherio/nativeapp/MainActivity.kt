@@ -31,6 +31,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_Aetherio)
         super.onCreate(savedInstanceState)
+        if (Build.VERSION.SDK_INT >= 31) splashScreen.setOnExitAnimationListener { it.remove() }
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
@@ -69,13 +70,14 @@ class MainActivity : ComponentActivity() {
                 onRenameProfile = model::renameProfile,
                 onAddAddon = model::addAddon,
                 onRemoveAddon = model::removeAddon,
+                onDesktopSourceToggle = model::setDesktopSourceEnabled,
                 onRequestSources = model::requestSources,
                 onDismissSources = model::dismissSources,
                 onUpdateAction = updateModel::onAction,
                 onAutomaticUpdatesChange = updateModel::setAutomatic,
                 onPlaySource = { source, format ->
                     try {
-                        val validated = MediaUrlPolicy.validate(source.url)
+                        val validated = MediaUrlPolicy.validate(source.url, source.allowDesktopHttp)
                         val query = model.state.value.sourceQuery
                         val title = query?.let {
                             if (it.season != null && it.episode != null) "${it.item.title} · T${it.season} E${it.episode}" else it.item.title
@@ -83,7 +85,11 @@ class MainActivity : ComponentActivity() {
                         startActivity(Intent(this, VideoActivity::class.java)
                             .putExtra(VideoActivity.EXTRA_URL, validated)
                             .putExtra(VideoActivity.EXTRA_MIME, format.mimeType)
-                            .putExtra(VideoActivity.EXTRA_TITLE, title))
+                            .putExtra(VideoActivity.EXTRA_DESKTOP_HTTP, source.allowDesktopHttp)
+                            .putExtra(VideoActivity.EXTRA_TITLE, title)
+                            .putExtra(VideoActivity.EXTRA_HEADERS, Bundle().apply {
+                                source.headers.forEach { (name, value) -> putString(name, value) }
+                            }))
                         model.dismissSources()
                     } catch (_: Exception) {
                         Toast.makeText(this, "No se pudo abrir esta fuente. Prueba otra opción.", Toast.LENGTH_LONG).show()

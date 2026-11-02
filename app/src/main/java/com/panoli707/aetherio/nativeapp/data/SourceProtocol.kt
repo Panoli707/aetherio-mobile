@@ -1,5 +1,7 @@
 package com.panoli707.aetherio.nativeapp.data
 
+import com.panoli707.aetherio.nativeapp.player.PlaybackHeaders
+import com.panoli707.aetherio.nativeapp.player.MediaUrlPolicy
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -221,14 +223,32 @@ internal object SourceProtocol {
         return parent.opt(key) as? JSONObject ?: invalid()
     }
 
-    private fun specialHeaders(parent: JSONObject): Boolean {
-        for (key in listOf("headers", "requestHeaders")) {
-            if (parent.has(key) && !parent.isNull(key)) {
-                if ((parent.opt(key) as? JSONObject ?: invalid()).length() > 0) return true
+    private fun playbackHeaders(stream: JSONObject, hints: JSONObject): Map<String, String> {
+        val merged = linkedMapOf<String, String>()
+        for (parent in listOf(stream, hints)) {
+            val proxy = optionalObject(parent, "proxyHeaders")
+            val flatProxy = JSONObject()
+            proxy?.keys()?.forEach { key ->
+                if (key !in listOf("request", "response") && proxy.opt(key) is String) flatProxy.put(key, proxy.opt(key))
+            }
+            for (headers in listOfNotNull(optionalObject(parent, "headers"),
+                optionalObject(parent, "requestHeaders"), flatProxy, proxy?.let { optionalObject(it, "request") })) {
+                if (headers.length() > 3) invalid()
+                val values = linkedMapOf<String, String>()
+                headers.keys().forEach { key -> values[key] = headers.opt(key) as? String ?: invalid() }
+                PlaybackHeaders.validate(values).forEach { (key, value) ->
+                    if (key in merged && merged[key] != value) invalid()
+                    merged[key] = value
+                }
             }
         }
-        val proxy = optionalObject(parent, "proxyHeaders") ?: return false
-        return optionalObject(proxy, "request")?.length()?.let { it > 0 } ?: false
+        for ((field, header) in listOf("referrer" to "Referer", "userAgent" to "User-Agent")) {
+            if (header !in merged && hints.has(field) && !hints.isNull(field)) {
+                val value = hints.opt(field) as? String ?: invalid()
+                if (value.isNotEmpty()) merged.putAll(PlaybackHeaders.validate(mapOf(header to value)))
+            }
+        }
+        return PlaybackHeaders.validate(merged)
     }
 
     private fun requiresDrm(parent: JSONObject): Boolean = listOf(
@@ -253,6 +273,7 @@ internal object SourceProtocol {
 
     fun streams(raw: String, config: AddonConfig): SourceResult = checked {
         val addon = validated(config)
+        val desktopTransport = DesktopSources.providers.any { it.manifestUrl == addon.manifestUrl }
         val values = array(root(raw, STREAM_LIMIT), "streams")
         val sources = linkedMapOf<String, StreamSource>()
         var unsupported = 0
@@ -261,12 +282,19 @@ internal object SourceProtocol {
                 val stream = values.opt(index) as? JSONObject ?: invalid()
                 if (listOf("externalUrl", "ytId", "infoHash").any { stream.has(it) && !stream.isNull(it) }) invalid()
                 val hints = optionalObject(stream, "behaviorHints") ?: JSONObject()
-                if (specialHeaders(stream) || specialHeaders(hints) || requiresDrm(stream) || requiresDrm(hints)) invalid()
-                val url = httpsUrl(stream.opt("url") as? String ?: invalid())
+                if (requiresDrm(stream) || requiresDrm(hints)) invalid()
+                val headers = playbackHeaders(stream, hints)
+                val rawUrl = stream.opt("url") as? String ?: invalid()
+                val url = if (URI(rawUrl.trim()).scheme.equals("http", true)) {
+                    if (encodedControl.containsMatchIn(rawUrl) || URI(rawUrl.trim()).rawFragment != null) invalid()
+                    MediaUrlPolicy.validate(rawUrl, desktopTransport).toHttpUrlOrNull() ?: invalid()
+                } else httpsUrl(rawUrl)
                 val name = text(stream.opt("name"), 120).ifEmpty { addon.name }
                 val description = text(stream.opt("description"), 600).ifEmpty { text(stream.opt("title"), 600) }
-                StreamSource(hash(addon.id, url.toString(), name, description), addon.id, addon.name,
-                    name, description, url.toString(), format(stream, hints, url))
+                val identity = listOf(addon.id, url.toString(), name, description) +
+                    headers.toSortedMap().flatMap { (key, value) -> listOf(key, value) }
+                StreamSource(hash(*identity.toTypedArray()), addon.id, addon.name,
+                    name, description, url.toString(), format(stream, hints, url), headers, desktopTransport)
             } catch (_: Exception) {
                 unsupported++
                 continue

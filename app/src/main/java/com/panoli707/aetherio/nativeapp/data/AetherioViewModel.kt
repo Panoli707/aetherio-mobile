@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 class AetherioViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AetherioRepository()
     private val library = LocalLibraryStore(application)
+    private val history = WatchHistoryRepository.get(application)
     private val sourceRepository = SourceRepository()
     private val desktopSourceRepository = DesktopSourceRepository(sourceRepository)
     private val sourceSettings = SourceSettingsStore(application)
@@ -42,7 +43,26 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         playbackQuery?.let { requestSources(it.item, it.season, it.episode) }
     }
 
+    fun resume(progress: WatchProgress) {
+        val target = progress.target
+        requestSources(target.item, target.season, target.episode)
+    }
+
+    fun toggleWatched(item: MediaItem, episode: EpisodeItem) {
+        val target = WatchTarget(item, episode.season, episode.number, episode.title, episode.imageUrl)
+        history.setWatched(target, state.value.watchProgress.none { it.target.key == target.key && it.watched })
+    }
+
+    fun playbackTarget(animeSource: Boolean): WatchTarget? {
+        val query = state.value.sourceQuery ?: return null
+        val episode = state.value.detail?.takeIf { it.item.key == query.item.key }?.episodes
+            ?.firstOrNull { it.season == query.season && it.number == query.episode }
+        return WatchTarget(query.item.copy(isAnime = query.item.isAnime || animeSource), query.season, query.episode,
+            episode?.title.orEmpty(), episode?.imageUrl).takeIf(WatchProgressRules::valid)
+    }
+
     init {
+        viewModelScope.launch { history.entries.collect { entries -> mutableState.update { it.copy(watchProgress = entries) } } }
         loadHome()
         addonRestoreJob = viewModelScope.launch {
             try {
@@ -78,7 +98,10 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         detailJob = viewModelScope.launch {
             mutableState.update { it.copy(selectedItem = item, detail = null, detailLoading = true, detailError = null, episodesLoading = false) }
             try {
-                val detail = repository.detail(item)
+                val fetched = repository.detail(item)
+                val recentSeason = WatchProgressRules.latest(history.load(), item)?.target?.season
+                val detail = if (recentSeason != null && fetched.seasons.any { it.number == recentSeason })
+                    fetched.copy(selectedSeason = recentSeason) else fetched
                 ensureActive()
                 if (state.value.selectedItem?.key != item.key) return@launch
                 mutableState.update { it.copy(selectedItem = detail.item, detail = detail, detailLoading = false) }

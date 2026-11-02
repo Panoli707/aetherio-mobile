@@ -69,6 +69,7 @@ data class AppState(
     val searchLoading: Boolean = false,
     val searchError: String? = null,
     val savedItems: List<MediaItem> = emptyList(),
+    val watchProgress: List<WatchProgress> = emptyList(),
     val profileName: String = "Usuario",
     val addons: List<AddonConfig> = emptyList(),
     val enabledDesktopSources: Set<String> = DesktopSources.defaultIds,

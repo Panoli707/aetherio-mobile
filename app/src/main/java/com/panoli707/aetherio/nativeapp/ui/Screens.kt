@@ -139,13 +139,15 @@ internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink:
 @Composable
 internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListState, onBack: () -> Unit,
     onToggleSaved: (MediaItem) -> Unit, onRetry: () -> Unit, onSeason: (Int) -> Unit, onLink: () -> Unit,
-    onRequestSources: (MediaItem, Int?, Int?) -> Unit) {
+    onRequestSources: (MediaItem, Int?, Int?) -> Unit,
+    onToggleWatched: (MediaItem, EpisodeItem) -> Unit = { _, _ -> }) {
     val detail = state.detail?.takeIf { it.item.key == item.key }
     val media = detail?.item ?: item
     val saved = state.savedItems.any { it.key == item.key }
     val firstEpisode = if (detail != null && !state.episodesLoading)
         detail.episodes.firstOrNull { it.season == detail.selectedSeason } else null
     var seasonsOpen by remember { mutableStateOf(false) }
+    val recent = WatchProgressRules.latest(state.watchProgress, media)?.takeIf { !it.watched && it.positionMs > 0 }
     LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
         item(key = "artwork") {
@@ -163,6 +165,11 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
         }
         item(key = "actions") {
             Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                if (recent != null) {
+                    Button(onClick = { onRequestSources(media, recent.target.season, recent.target.episode) }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Continuar${recent.target.episode?.let { " · T${recent.target.season} E$it" }.orEmpty()} · ${watchTime(recent.positionMs)}")
+                    }
+                }
                 Button(onClick = {
                     if (media.type == MediaType.MOVIE) onRequestSources(media, null, null)
                     else firstEpisode?.let { onRequestSources(media, detail?.selectedSeason, it.number) }
@@ -217,17 +224,31 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
             item(key = "noEpisodes") { StatusMessage("Sin episodios disponibles", "No hay episodios publicados para esta temporada.") }
         }
         if (!state.episodesLoading && detail != null) items(detail.episodes, key = { "episode:${it.season}:${it.number}" }) { episode ->
-            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp).clip(RoundedCornerShape(12.dp))
-                .clickable(role = Role.Button, onClickLabel = "Ver fuentes") { onRequestSources(media, episode.season, episode.number) }
-                .semantics(mergeDescendants = true) { contentDescription = "Ver fuentes: ${media.title}, temporada ${episode.season}, episodio ${episode.number}, ${episode.title}" },
-                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Artwork(episode.imageUrl, Modifier.width(118.dp).height(76.dp).clip(RoundedCornerShape(12.dp)))
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("T${episode.season} · E${episode.number}", color = Muted, style = MaterialTheme.typography.bodySmall)
-                    Text(episode.title, style = MaterialTheme.typography.titleSmall)
-                    Text("Ver fuentes", color = Cream, style = MaterialTheme.typography.labelMedium)
-                    if (episode.overview.isNotBlank()) Text(episode.overview, maxLines = 3, overflow = TextOverflow.Ellipsis,
-                        color = Muted, style = MaterialTheme.typography.bodySmall)
+            val progress = state.watchProgress.firstOrNull { it.target.item.key == media.key && it.target.season == episode.season && it.target.episode == episode.number }
+            Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp)) {
+                Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                    .clickable(role = Role.Button, onClickLabel = "Ver fuentes") { onRequestSources(media, episode.season, episode.number) }
+                    .semantics(mergeDescendants = true) { contentDescription = "Ver fuentes: ${media.title}, temporada ${episode.season}, episodio ${episode.number}, ${episode.title}" },
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Artwork(episode.imageUrl, Modifier.width(118.dp).height(76.dp).clip(RoundedCornerShape(12.dp)))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("T${episode.season} · E${episode.number}", color = Muted, style = MaterialTheme.typography.bodySmall)
+                        Text(episode.title, style = MaterialTheme.typography.titleSmall)
+                        Text(if (progress?.watched == true) "Visto" else if ((progress?.positionMs ?: 0) > 0) "Continuar" else "Ver fuentes",
+                            color = Cream, style = MaterialTheme.typography.labelMedium)
+                        if (progress != null && progress.durationMs > 0) {
+                            Text("${watchTime(progress.positionMs)} / ${watchTime(progress.durationMs)}", style = MaterialTheme.typography.bodySmall)
+                            LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Cream)
+                        }
+                        if (episode.overview.isNotBlank()) Text(episode.overview, maxLines = 3, overflow = TextOverflow.Ellipsis,
+                            color = Muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                TextButton(onClick = { onToggleWatched(media, episode) }, modifier = Modifier.align(Alignment.End)
+                    .semantics { contentDescription = "${if (progress?.watched == true) "Marcar como no visto" else "Marcar como visto"}: T${episode.season} E${episode.number}" }) {
+                    Icon(if (progress?.watched == true) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (progress?.watched == true) "Marcar como no visto" else "Marcar como visto")
                 }
             }
         }

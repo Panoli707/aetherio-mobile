@@ -10,13 +10,17 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
@@ -33,7 +37,8 @@ import kotlinx.coroutines.launch
 
 @Composable
 internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerState, active: Boolean,
-    onSelect: (MediaItem) -> Unit, onCategory: (String) -> Unit, onRetry: () -> Unit) {
+    onSelect: (MediaItem) -> Unit, onCategory: (String) -> Unit, onRetry: () -> Unit,
+    onContinue: (WatchProgress) -> Unit = {}) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle, active, pager.pageCount) {
         if (active && pager.pageCount > 1) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -49,6 +54,31 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
         contentPadding = PaddingValues(bottom = 110.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
         if (state.heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(state.heroes, pager, onSelect) }
         else item(key = "heading") { ScreenHeader("Aetherio") }
+        val continuing = WatchProgressRules.continuing(state.watchProgress)
+        if (continuing.isNotEmpty()) item(key = "continueWatching") {
+            Column(Modifier.padding(top = 20.dp)) {
+                Text("Continuar viendo", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp))
+                LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    itemsIndexed(continuing, key = { _, progress -> progress.target.key }) { _, progress ->
+                        val target = progress.target
+                        Column(Modifier.width(260.dp).clip(RoundedCornerShape(14.dp)).background(Panel)) {
+                            Column(Modifier.clickable(onClickLabel = "Continuar ${target.item.title}") { onContinue(progress) }) {
+                                Artwork(target.imageUrl ?: target.item.backdropUrl ?: target.item.posterUrl,
+                                    Modifier.fillMaxWidth().height(140.dp))
+                                LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Cream)
+                                Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(target.item.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
+                                    if (target.episode != null) Text("T${target.season} · E${target.episode} ${target.episodeTitle}",
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis, color = Muted, style = MaterialTheme.typography.bodySmall)
+                                    Text("${watchTime(progress.positionMs)} / ${watchTime(progress.durationMs)}", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                            TextButton(onClick = { onSelect(target.item) }, modifier = Modifier.padding(horizontal = 4.dp)) { Text("Ver ficha") }
+                        }
+                    }
+                }
+            }
+        }
         if (state.homeError != null) item(key = "error") {
             StatusMessage(if (state.sections.isEmpty()) "No se pudo cargar el catálogo" else "Faltan algunas secciones",
                 state.homeError, "Reintentar", onRetry)

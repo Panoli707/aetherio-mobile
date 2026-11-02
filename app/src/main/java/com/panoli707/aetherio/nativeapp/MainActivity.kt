@@ -20,6 +20,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.panoli707.aetherio.nativeapp.data.AetherioViewModel
 import com.panoli707.aetherio.nativeapp.data.UpdateViewModel
+import com.panoli707.aetherio.nativeapp.data.WatchProgressCodec
 import com.panoli707.aetherio.nativeapp.player.MediaUrlPolicy
 import com.panoli707.aetherio.nativeapp.player.VideoActivity
 import com.panoli707.aetherio.nativeapp.ui.AetherioApp
@@ -68,6 +69,8 @@ class MainActivity : ComponentActivity() {
                 updates = updates,
                 onSelectMedia = model::selectMedia,
                 onToggleSaved = model::toggleSaved,
+                onToggleWatched = model::toggleWatched,
+                onContinue = model::resume,
                 onSearch = model::search,
                 onRetryHome = model::loadHome,
                 onRetryDetail = model::retryDetail,
@@ -88,6 +91,7 @@ class MainActivity : ComponentActivity() {
                             if (it.season != null && it.episode != null) "${it.item.title} · T${it.season} E${it.episode}" else it.item.title
                         } ?: "Reproductor"
                         model.rememberPlaybackQuery(fromSources = true)
+                        val watchTarget = model.playbackTarget(source.addonId in setOf("pc:animeav1", "pc:animes"))
                         videoLauncher.launch(Intent(this, VideoActivity::class.java)
                             .putExtra(VideoActivity.EXTRA_URL, validated)
                             .putExtra(VideoActivity.EXTRA_MIME, format.mimeType)
@@ -95,6 +99,7 @@ class MainActivity : ComponentActivity() {
                             .putExtra(VideoActivity.EXTRA_TITLE, title)
                             .putExtra(VideoActivity.EXTRA_PROVIDER, source.addonName)
                             .putExtra(VideoActivity.EXTRA_HAS_SOURCES, query != null)
+                            .putExtra(VideoActivity.EXTRA_WATCH_TARGET, watchTarget?.let(WatchProgressCodec::encodeTarget))
                             .putExtra(VideoActivity.EXTRA_HEADERS, Bundle().apply {
                                 source.headers.forEach { (name, value) -> putString(name, value) }
                             }))

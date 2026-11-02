@@ -40,6 +40,17 @@ class PlayerScreenTest {
     private val tracks = mutableListOf<String>()
     private lateinit var back: OnBackPressedDispatcher
 
+    @Test fun openingUsesExactTimingsOrClearlyLabelledManualAdvanceAndRespectsLock() {
+        val state = mutableStateOf(playback.copy(animeEpisode = true, durationMs = 1440000))
+        render(state)
+        compose.onNodeWithText("Opening · +90 s").assertIsDisplayed().performClick()
+        compose.runOnIdle { state.value = state.value.copy(opening = OpeningInterval(20000, 110000)) }
+        compose.onNodeWithText("Saltar opening").assertIsDisplayed().performClick()
+        compose.onNodeWithContentDescription("Bloquear controles").performClick()
+        compose.onNodeWithText("Saltar opening").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(listOf(VideoAction.SKIP_OPENING, VideoAction.SKIP_OPENING), actions) }
+    }
+
     @Test fun transportRotationSourceAndCloseOnlyDispatchActions() {
         val state = mutableStateOf(playback)
         render(state)

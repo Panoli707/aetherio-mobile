@@ -6,6 +6,7 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log as AndroidLog
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -39,6 +40,9 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
 import com.panoli707.aetherio.nativeapp.ui.AetherioTheme
+import com.panoli707.aetherio.nativeapp.data.WatchHistoryRepository
+import com.panoli707.aetherio.nativeapp.data.WatchProgressCodec
+import com.panoli707.aetherio.nativeapp.data.WatchTarget
 import java.io.IOException
 import java.util.Locale
 import kotlinx.coroutines.Job
@@ -58,6 +62,15 @@ class VideoActivity : ComponentActivity() {
     private var resumePlayWhenReady = true
     private var mediaIsLive = false
     private var ticker: Job? = null
+    private var startJob: Job? = null
+    private var watchTarget: WatchTarget? = null
+    private val history by lazy { WatchHistoryRepository.get(application) }
+    private var progressInitialized = false
+    private var restoredSession = false
+    private var lastSaveTime = 0L
+    private var lastSavedPosition = -1L
+    private var lastSavedDuration = -1L
+    private var sessionReady = false
     private val trackOptions = mutableMapOf<String, Pair<TrackGroup, Int>>()
 
     private val httpClient by lazy {
@@ -82,8 +95,13 @@ class VideoActivity : ComponentActivity() {
             else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
             AndroidLog.i(TAG, "playingBool=$playing")
         }
-        override fun onPlaybackStateChanged(state: Int) { AndroidLog.i(TAG, "stateInt=$state") }
+        override fun onPlaybackStateChanged(state: Int) {
+            AndroidLog.i(TAG, "stateInt=$state")
+            if (state == Player.STATE_READY) sessionReady = true
+            if (state == Player.STATE_ENDED) saveProgress(force = true, ended = true)
+        }
         override fun onPlayerError(error: PlaybackException) {
+            saveProgress(force = true)
             AndroidLog.i(TAG, "errorInt=${error.errorCode}")
             val http = generateSequence(error as Throwable) { it.cause }
                 .filterIsInstance<HttpDataSource.InvalidResponseCodeException>().firstOrNull()?.responseCode
@@ -108,8 +126,14 @@ class VideoActivity : ComponentActivity() {
         mediaIsLive = savedInstanceState?.getBoolean(STATE_LIVE, false) ?: false
         resumePosition = if (mediaIsLive) C.TIME_UNSET else savedInstanceState?.getLong(STATE_POSITION, C.TIME_UNSET) ?: C.TIME_UNSET
         resumePlayWhenReady = savedInstanceState?.getBoolean(STATE_PLAY_WHEN_READY, true) ?: true
+        restoredSession = savedInstanceState != null
+        watchTarget = WatchProgressCodec.decodeTarget(intent.getStringExtra(EXTRA_WATCH_TARGET))
         title = cleanLabel(intent.getStringExtra(EXTRA_TITLE)) ?: "Reproductor"
-        screen = VideoUiState(title = title.toString(), subtitle = cleanLabel(intent.getStringExtra(EXTRA_PROVIDER)).orEmpty())
+        screen = VideoUiState(title = title.toString(), subtitle = cleanLabel(intent.getStringExtra(EXTRA_PROVIDER)).orEmpty(),
+            animeEpisode = watchTarget?.let { it.item.isAnime && it.episode != null && (it.season ?: 0) >= 1 } == true)
+        watchTarget?.takeIf { screen.animeEpisode }?.let { target -> lifecycleScope.launch {
+            screen = screen.copy(opening = OpeningRepository().opening(target))
+        } }
         mediaUrl = try {
             allowDesktopHttp = intent.getBooleanExtra(EXTRA_DESKTOP_HTTP, false)
             val headers = intent.getBundleExtra(EXTRA_HEADERS)
@@ -144,10 +168,25 @@ class VideoActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        startPlayer()
-        ticker = lifecycleScope.launch { while (isActive) { refreshState(); delay(500) } }
+        startJob = lifecycleScope.launch {
+            if (!progressInitialized) {
+                val saved = watchTarget?.let { target -> history.load().firstOrNull { it.target.key == target.key } }
+                if (!restoredSession && !mediaIsLive) resumePosition = saved?.resumePositionMs ?: C.TIME_UNSET
+                progressInitialized = true
+            }
+            // onStart runs before Lifecycle dispatches ON_START; cancellation in onStop is the guard.
+            if (!isActive || isFinishing) return@launch
+            startPlayer()
+            ticker = lifecycleScope.launch { while (isActive) { refreshState(); saveProgress(); delay(500) } }
+        }
+    }
+    override fun onPause() {
+        saveProgress(force = true)
+        super.onPause()
     }
     override fun onStop() {
+        startJob?.cancel()
+        startJob = null
         ticker?.cancel()
         ticker = null
         releasePlayer()
@@ -162,6 +201,7 @@ class VideoActivity : ComponentActivity() {
         if (hasFocus) hideSystemBars()
     }
     override fun onSaveInstanceState(outState: Bundle) {
+        saveProgress(force = true)
         capturePlaybackState()
         outState.putBoolean(STATE_LIVE, mediaIsLive)
         outState.putLong(STATE_POSITION, resumePosition)
@@ -181,6 +221,7 @@ class VideoActivity : ComponentActivity() {
         val url = mediaUrl ?: return
         if (player != null) return
         screen = screen.copy(error = null, buffering = true, videoHeight = 0)
+        sessionReady = false
         try {
             val source = ResolvingDataSource.Factory(
                 OkHttpDataSource.Factory(httpClient).setDefaultRequestProperties(playbackHeaders)
@@ -209,9 +250,10 @@ class VideoActivity : ComponentActivity() {
     private fun onAction(action: VideoAction) {
         val active = player
         when (action) {
-            VideoAction.CLOSE -> finish()
+            VideoAction.CLOSE -> { saveProgress(force = true); finish() }
             VideoAction.FIND_SOURCES -> {
                 if (intent.getBooleanExtra(EXTRA_HAS_SOURCES, false)) {
+                    saveProgress(force = true)
                     setResult(RESULT_OK, Intent().putExtra(EXTRA_FIND_SOURCES, true))
                     finish()
                 }
@@ -224,6 +266,13 @@ class VideoActivity : ComponentActivity() {
             }
             VideoAction.ROTATE -> requestedOrientation = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
                 ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+            VideoAction.SKIP_OPENING -> if (active != null && screen.animeEpisode && active.isCurrentMediaItemSeekable && !active.isCurrentMediaItemLive) {
+                val duration = active.duration
+                val position = active.currentPosition
+                val skip = openingSkip(screen.copy(positionMs = position, durationMs = duration,
+                    seekable = active.isCurrentMediaItemSeekable, live = active.isCurrentMediaItemLive))
+                skip?.let { active.seekTo(it.targetMs); saveProgress(force = true) }
+            }
         }
     }
 
@@ -278,7 +327,22 @@ class VideoActivity : ComponentActivity() {
             resumePosition = if (mediaIsLive) C.TIME_UNSET else active.currentPosition.coerceAtLeast(0)
         }
     }
+    private fun saveProgress(force: Boolean = false, ended: Boolean = false) {
+        val target = watchTarget ?: return
+        val active = player ?: return
+        if (!sessionReady || active.isCurrentMediaItemLive || !active.isCurrentMediaItemSeekable) return
+        val now = SystemClock.elapsedRealtime()
+        if (!force && now - lastSaveTime < 5000) return
+        val position = active.currentPosition
+        val duration = active.duration
+        if (!ended && position == lastSavedPosition && duration == lastSavedDuration) return
+        lastSaveTime = now
+        lastSavedPosition = position
+        lastSavedDuration = duration
+        history.record(target, position, duration, ended)
+    }
     private fun releasePlayer() {
+        saveProgress(force = true)
         capturePlaybackState()
         val active = player
         player = null
@@ -302,6 +366,7 @@ class VideoActivity : ComponentActivity() {
         const val EXTRA_PROVIDER = "com.panoli707.aetherio.nativeapp.player.PROVIDER"
         const val EXTRA_HAS_SOURCES = "com.panoli707.aetherio.nativeapp.player.HAS_SOURCES"
         const val EXTRA_FIND_SOURCES = "com.panoli707.aetherio.nativeapp.player.FIND_SOURCES"
+        const val EXTRA_WATCH_TARGET = "com.panoli707.aetherio.nativeapp.player.WATCH_TARGET"
         private const val TAG = "AetherioNativePlayer"
         private const val STATE_POSITION = "player.position"
         private const val STATE_PLAY_WHEN_READY = "player.playWhenReady"

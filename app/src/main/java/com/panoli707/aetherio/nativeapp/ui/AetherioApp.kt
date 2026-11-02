@@ -23,6 +23,8 @@ import com.panoli707.aetherio.nativeapp.data.UpdateState
 import com.panoli707.aetherio.nativeapp.data.MediaItem
 import com.panoli707.aetherio.nativeapp.data.SectionStyle
 import com.panoli707.aetherio.nativeapp.data.StreamSource
+import com.panoli707.aetherio.nativeapp.data.EpisodeItem
+import com.panoli707.aetherio.nativeapp.data.WatchProgress
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import kotlinx.coroutines.launch
 
@@ -45,7 +47,9 @@ fun AetherioApp(
     onDismissSources: () -> Unit,
     onPlaySource: (StreamSource, VideoFormat) -> Unit,
     onUpdateAction: (UpdateAction) -> Unit,
-    onAutomaticUpdatesChange: (Boolean) -> Unit
+    onAutomaticUpdatesChange: (Boolean) -> Unit,
+    onToggleWatched: (MediaItem, EpisodeItem) -> Unit = { _, _ -> },
+    onContinue: (WatchProgress) -> Unit = {}
 ) {
     var startupComplete by rememberSaveable { mutableStateOf(false) }
     val startupReady = !state.homeLoading || state.sections.isNotEmpty() || state.homeError != null
@@ -103,14 +107,14 @@ fun AetherioApp(
                     detailKey != null -> {
                          val selected = state.selectedItem?.takeIf { it.key == detailKey }
                             ?: state.detail?.item?.takeIf { it.key == detailKey }
-                            ?: (state.heroes.asSequence() + state.savedItems.asSequence() + state.searchResults.asSequence() +
+                             ?: (state.heroes.asSequence() + state.savedItems.asSequence() + state.searchResults.asSequence() + state.watchProgress.asSequence().map { it.target.item } +
                                  state.sections.asSequence().flatMap { it.items.asSequence() }).firstOrNull { it.key == detailKey }
                          if (selected != null) key(detailKey) {
                              LaunchedEffect(selected.key, state.selectedItem?.key) {
                                  if (state.selectedItem?.key != selected.key) onSelectMedia(selected)
                              }
                              DetailScreen(state, selected, detailScroll, closeTop, onToggleSaved, onRetryDetail, onSelectSeason,
-                                 { focus.clearFocus(); linkOpen = true }, onRequestSources)
+                                  { focus.clearFocus(); linkOpen = true }, onRequestSources, onToggleWatched)
                         } else Column {
                             ScreenHeader("Ficha no disponible", closeTop)
                              if (state.homeLoading) LoadingRow("Recuperando ficha…")
@@ -134,7 +138,7 @@ fun AetherioApp(
                                 "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon, onDesktopSourceToggle,
                                     updates, onUpdateAction, onAutomaticUpdatesChange)
                                 else -> HomeScreen(state, homeScroll, pager, !linkOpen && state.sourceQuery == null && !updates.noticeVisible,
-                                    select, { categoryId = it }, onRetryHome)
+                                    select, { categoryId = it }, onRetryHome, onContinue)
                             }
                         }
                         if (!imeVisible) FloatingNavigation(tab, tab == "home" && collapsed, { target ->

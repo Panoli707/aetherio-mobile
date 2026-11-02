@@ -165,6 +165,13 @@ fun PlayerScreen(
                             }
                         }
                     }
+                    val skip = openingSkip(state)
+                    if (!locked && skip != null && (skip.precise || showControls)) {
+                        FilledTonalButton(onClick = { act(VideoAction.SKIP_OPENING) },
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 8.dp)) {
+                            Text(if (skip.precise) "Saltar opening" else "Opening · +90 s")
+                        }
+                    }
                 }
                 if (showControls && state.error == null) {
                     Column(Modifier.padding(bottom = if (compact) 0.dp else 12.dp)) {

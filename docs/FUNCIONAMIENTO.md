@@ -23,9 +23,17 @@ Que un título o episodio aparezca en el catálogo no garantiza que tenga un ví
 
 En una ficha, pulsa **Guardar en biblioteca** para añadir el título a tus favoritos o **Quitar de la biblioteca** para eliminarlo. En **Biblioteca** puedes usar los filtros **Todos**, **Películas** y **Series**. Guardar un título no descarga su vídeo.
 
-En **Ajustes**, edita **Nombre del perfil** y pulsa **Guardar nombre**. Es un nombre local, no una cuenta. No hay perfiles múltiples, historial de reproducción, lista de «seguir viendo» ni sincronización entre dispositivos.
+En **Ajustes**, edita **Nombre del perfil** y pulsa **Guardar nombre**. Es un nombre local, no una cuenta. No hay perfiles múltiples ni sincronización entre dispositivos.
 
 El nombre, los favoritos y los proveedores se guardan en el dispositivo. Se conservan al actualizar sobre la instalación existente, pero **se eliminan al desinstalar o borrar los datos de la aplicación**. No hay restauración mediante una cuenta.
+
+## Continuar viendo y capítulos vistos
+
+Al reproducir una película o un episodio desde sus fuentes, Aetherio guarda localmente la posición y la duración del vídeo cada cinco segundos y al pausar o salir. En **Inicio > Continuar viendo** aparece el último episodio pendiente de cada serie o anime, o la película sin terminar. Pulsa la tarjeta, elige una fuente disponible y el vídeo se reanudará desde la posición guardada. Los enlaces pueden caducar, por eso se vuelven a consultar las fuentes en lugar de guardar sus direcciones.
+
+La ficha recuerda la última temporada que reproduciste. Cada capítulo muestra el minuto y segundo guardados, la duración y una barra de progreso. **Marcar como visto** permite registrar un capítulo manualmente; no inventa un tiempo de reproducción. **Marcar como no visto** quita la marca y reinicia su posición guardada. Al llegar al 95 % del vídeo o a su final se marca como visto automáticamente y deja de aparecer en Continuar viendo. Si vuelves a reproducir un capítulo visto, comienza desde el principio.
+
+El progreso y los capítulos vistos se conservan al cerrar o actualizar la app, pero no se sincronizan y se pierden al borrar los datos o desinstalar. No se registran enlaces manuales ni vídeos en directo. Un cierre forzado del proceso puede perder los últimos segundos posteriores al último guardado.
 
 La lista de proveedores muestra su nombre y dominio, no sus URL completas privadas. El reproductor y los mensajes de error tampoco muestran las URL completas de reproducción. Evita compartir enlaces de configuración que contengan datos privados.
 
@@ -83,6 +91,10 @@ En teléfonos, el vídeo se abre en horizontal. Toca la pantalla para mostrar u 
 Los botones inferiores permiten elegir las pistas de audio y subtítulos disponibles, desactivar subtítulos, cambiar la velocidad, ajustar la imagen entre Fit, Fill y Zoom, consultar información y girar la pantalla. La resolución mostrada procede del vídeo que se está reproduciendo. El bloqueo de controles deja disponible el botón para desbloquearlos.
 
 Si abriste el vídeo desde una fuente de una ficha, **Cambiar fuente** vuelve a consultar el mismo título o episodio. También aparece junto a **Reintentar** cuando falla la reproducción. Los enlaces manuales no ofrecen ese cambio de fuente.
+
+En episodios de anime, **Saltar opening** aparece durante el intervalo de introducción cuando IntroDB dispone de tiempos para ese IMDb, temporada y capítulo. Esta consulta pública solo envía esos identificadores, no el enlace del vídeo ni las credenciales. Su disponibilidad y precisión dependen de los datos del servicio. No se adivinan equivalencias entre temporadas de TV y entregas de MyAnimeList.
+
+Si no hay tiempos disponibles, los controles ofrecen **Opening · +90 s** durante los primeros diez minutos, siempre que queden más de 90 segundos. Es un salto manual desde la posición actual, no una detección del opening. Los saltos nunca son automáticos y el bloqueo de controles impide activarlos.
 
 ## Actualizaciones
 

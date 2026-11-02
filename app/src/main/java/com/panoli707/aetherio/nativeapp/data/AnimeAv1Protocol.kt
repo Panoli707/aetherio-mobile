@@ -190,6 +190,14 @@ internal object AnimeAv1Protocol {
 
     fun selectTitle(titles: List<Title>, query: SourceQuery): Title? = checked {
         if (episodeFor(query) == null || titles.size > 32) return@checked null
+        if (query.item.source == CatalogSource.ANILIST) {
+            // AniList IDs identify an individual anime entry/cour. Its episodes are entry-local,
+            // not IMDb TV-season numbers. Keep season words intact and demand an exact title.
+            if (query.season != 1) return@checked null
+            val target = words(query.item.title, false).tokens
+            return@checked titles.filter { words(it.title, false).tokens == target || words(it.slug, false).tokens == target }
+                .distinctBy { it.slug }.singleOrNull()
+        }
         val series = query.item.type == MediaType.SERIES
         val requested = if (series) query.season!! else 1
         val target = words(query.item.title, series)

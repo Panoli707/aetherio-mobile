@@ -9,6 +9,12 @@ internal class LocalLibraryStore(context: Context) {
         get() = normalizeName(preferences.getString("profile", "Usuario").orEmpty()) ?: "Usuario"
         set(value) { normalizeName(value)?.let { preferences.edit().putString("profile", it).apply() } }
     fun save(items: List<MediaItem>) { preferences.edit().putString("saved", CatalogJson.encode(items)).apply() }
+    var watchingAnime: List<MediaItem>
+        get() = CatalogJson.decode(preferences.getString("watchingAnime", "[]").orEmpty())
+        set(value) { preferences.edit().putString("watchingAnime", CatalogJson.encode(value.distinctBy { it.key }.take(200))).apply() }
+    var hiddenWatchingAnime: Set<String>
+        get() = preferences.getStringSet("hiddenWatchingAnime", emptySet()).orEmpty().toSet()
+        set(value) { preferences.edit().putStringSet("hiddenWatchingAnime", value.toSet()).apply() }
     companion object {
         fun normalizeName(value: String): String? = value.trim().takeIf { it.isNotEmpty() && it.length <= 32 && it.none(Char::isISOControl) }
     }

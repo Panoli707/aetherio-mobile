@@ -9,6 +9,7 @@ Al abrir Aetherio, se muestran el logo y el nombre mientras carga el catálogo.
 - En **Inicio**, desliza los destacados de la cabecera o usa la flecha para avanzar.
 - Desliza horizontalmente las secciones de películas, series y anime. Pulsa la flecha de una sección para ver sus títulos en una cuadrícula.
 - Toca la lupa **Buscar**, escribe un título y abre uno de los resultados.
+- Abre la pestaña **Anime** para ver tus episodios pendientes y los animes que sigues.
 - Si la navegación se reduce al desplazarte, toca **Inicio** para volver arriba y recuperar las otras pestañas.
 
 Si aparece un error de carga, comprueba la conexión y pulsa **Reintentar** cuando esté disponible.
@@ -31,9 +32,30 @@ El nombre, los favoritos y los proveedores se guardan en el dispositivo. Se cons
 
 Al reproducir una película o un episodio desde sus fuentes, Aetherio guarda localmente la posición y la duración del vídeo cada cinco segundos y al pausar o salir. En **Inicio > Continuar viendo** aparece el último episodio pendiente de cada serie o anime, o la película sin terminar. Pulsa la tarjeta, elige una fuente disponible y el vídeo se reanudará desde la posición guardada. Los enlaces pueden caducar, por eso se vuelven a consultar las fuentes en lugar de guardar sus direcciones.
 
-La ficha recuerda la última temporada que reproduciste. Cada capítulo muestra el minuto y segundo guardados, la duración y una barra de progreso. **Marcar como visto** permite registrar un capítulo manualmente; no inventa un tiempo de reproducción. **Marcar como no visto** quita la marca y reinicia su posición guardada. Al llegar al 95 % del vídeo o a su final se marca como visto automáticamente y deja de aparecer en Continuar viendo. Si vuelves a reproducir un capítulo visto, comienza desde el principio.
+La ficha recuerda la última temporada que reproduciste. Cada capítulo muestra el minuto y segundo guardados, la duración y una barra de progreso. Toca el icono circular de su miniatura o mantén pulsado el capítulo para abrir el menú inferior de acciones, inspirado en Nuvio:
+
+- **Marcar como visto / no visto** para el capítulo seleccionado.
+- **Marcar anteriores como vistos / no vistos**, dentro de la misma temporada.
+- **Marcar temporada como vista / no vista**, solo para capítulos con fecha de emisión confirmada. No se incluyen capítulos futuros ni sin fecha conocida.
+- **Elegir fuente** o **Reproducir manualmente** mediante un enlace propio.
+
+Marcar un capítulo manualmente no inventa tiempo de reproducción. Marcarlo como no visto quita su marca y reinicia la posición; si la acción afecta a varios capítulos, se pide confirmación. Los cambios de temporada se guardan juntos y no afectan a otras temporadas. Al llegar al 95 % del vídeo o a su final se marca como visto automáticamente y deja de aparecer en Continuar viendo. Si vuelves a reproducir un capítulo visto, comienza desde el principio.
 
 El progreso y los capítulos vistos se conservan al cerrar o actualizar la app, pero no se sincronizan y se pierden al borrar los datos o desinstalar. No se registran enlaces manuales ni vídeos en directo. Un cierre forzado del proceso puede perder los últimos segundos posteriores al último guardado.
+
+## Anime: pendientes y seguimiento
+
+La pestaña **Anime** muestra **Continuar viendo** arriba, con tarjetas de episodios, su posición y una barra de progreso. Debajo, **Estás viendo** presenta las portadas de los animes en seguimiento y el número de capítulos vistos; el total solo aparece cuando está disponible.
+
+Los animes con progreso o capítulos marcados se incorporan al seguimiento. También puedes usar **Añadir a Estás viendo** desde su ficha sin empezar a reproducir. **Quitar de Estás viendo** lo retira de esta lista, pero no borra el progreso ni las marcas. Un anime puede permanecer en seguimiento entre episodios o mientras esperas la siguiente emisión.
+
+### Temporada actual y días de emisión
+
+Abre **Anime emitiéndose ahora** desde Inicio o desde la pestaña Anime. El listado consulta AniList y exige la temporada y el año actuales, calculados según el calendario de Japón, junto con el estado **en emisión**. Ya no usa una ventana aproximada de fechas de TMDB. Una serie de años anteriores no aparece solo por seguir activa.
+
+Los filtros superiores permiten elegir **Todos**, un día de la semana o **Sin horario**. El día procede de la próxima emisión publicada y se muestra según **Japón (JST)**, no según la hora local ni la disponibilidad de doblaje o subtítulos. Los datos dependen del servicio; la temporada se conserva hasta una hora en memoria y puede volver a consultarse al abrir el calendario. Si falla, se avisa en lugar de sustituirla por series antiguas.
+
+Estas fichas conservan su identidad real de AniList. Cada entrega o parte del anime tiene episodios propios; no se inventa su equivalencia con temporadas de TMDB o IMDb. Por eso la numeración local puede ser T1 aunque el título diga «3rd Season». Se muestran los capítulos con emisión confirmada. Activa **AnimeAV1** en Ajustes para buscar fuentes por título; la coincidencia debe ser exacta y la disponibilidad de vídeo no está garantizada. Los favoritos y el progreso anteriores siguen usando sus identidades originales, sin fusiones por títulos parecidos.
 
 La lista de proveedores muestra su nombre y dominio, no sus URL completas privadas. El reproductor y los mensajes de error tampoco muestran las URL completas de reproducción. Evita compartir enlaces de configuración que contengan datos privados.
 

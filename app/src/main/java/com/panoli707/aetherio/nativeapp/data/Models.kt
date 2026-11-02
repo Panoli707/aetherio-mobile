@@ -5,7 +5,7 @@ enum class MediaType(val path: String, val label: String) {
     SERIES("tv", "Serie")
 }
 
-enum class CatalogSource { TMDB, CINEMETA }
+enum class CatalogSource { TMDB, CINEMETA, ANILIST }
 enum class SectionStyle { POSTERS, RANKED, FEATURED }
 
 data class MediaItem(
@@ -21,7 +21,9 @@ data class MediaItem(
     val score: Double = 0.0,
     val genres: List<String> = emptyList(),
     val isAnime: Boolean = false,
-    val imdbId: String? = null
+    val imdbId: String? = null,
+    val episodeCount: Int? = null,
+    val animeSeasonLabel: String = ""
 ) {
     val key: String get() = "${source.name}:${type.path}:$id"
 }
@@ -40,7 +42,8 @@ data class EpisodeItem(
     val season: Int,
     val title: String,
     val overview: String = "",
-    val imageUrl: String? = null
+    val imageUrl: String? = null,
+    val released: Boolean = true
 )
 
 data class MediaDetail(
@@ -70,6 +73,8 @@ data class AppState(
     val searchError: String? = null,
     val savedItems: List<MediaItem> = emptyList(),
     val watchProgress: List<WatchProgress> = emptyList(),
+    val watchingAnime: List<MediaItem> = emptyList(),
+    val animeSeason: AnimeSeasonState = AnimeSeasonState(),
     val profileName: String = "Usuario",
     val addons: List<AddonConfig> = emptyList(),
     val enabledDesktopSources: Set<String> = DesktopSources.defaultIds,

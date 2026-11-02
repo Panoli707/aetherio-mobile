@@ -86,6 +86,13 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
         if (!state.homeLoading && state.homeError == null && state.sections.all { it.items.isEmpty() } && state.heroes.isEmpty()) {
             item(key = "empty") { StatusMessage("El catálogo está vacío", "No hay títulos disponibles en este momento.", "Reintentar", onRetry) }
         }
+        item(key = "animeSeasonLink") {
+            Column(Modifier.padding(horizontal = 18.dp, vertical = 18.dp)) {
+                Text("Anime emitiéndose ahora", style = MaterialTheme.typography.titleLarge)
+                Text(state.animeSeason.season.label, color = Muted)
+                TextButton(onClick = { onCategory("airing") }) { Text("Ver temporada y días de emisión") }
+            }
+        }
         for (section in state.sections.filter { it.items.isNotEmpty() }) item(key = "section:${section.id}") {
             Column(Modifier.padding(top = 20.dp)) {
                 Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, bottom = 10.dp),

@@ -3,6 +3,7 @@ package com.panoli707.aetherio.nativeapp.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -140,13 +141,15 @@ internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink:
 internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListState, onBack: () -> Unit,
     onToggleSaved: (MediaItem) -> Unit, onRetry: () -> Unit, onSeason: (Int) -> Unit, onLink: () -> Unit,
     onRequestSources: (MediaItem, Int?, Int?) -> Unit,
-    onToggleWatched: (MediaItem, EpisodeItem) -> Unit = { _, _ -> }) {
+    onEpisodeWatchAction: (MediaItem, EpisodeItem, EpisodeWatchScope, Boolean) -> Unit = { _, _, _, _ -> },
+    onToggleWatching: (MediaItem) -> Unit = {}) {
     val detail = state.detail?.takeIf { it.item.key == item.key }
     val media = detail?.item ?: item
     val saved = state.savedItems.any { it.key == item.key }
     val firstEpisode = if (detail != null && !state.episodesLoading)
         detail.episodes.firstOrNull { it.season == detail.selectedSeason } else null
     var seasonsOpen by remember { mutableStateOf(false) }
+    var episodeActions by remember { mutableStateOf<EpisodeItem?>(null) }
     val recent = WatchProgressRules.latest(state.watchProgress, media)?.takeIf { !it.watched && it.positionMs > 0 }
     LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 24.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
@@ -179,6 +182,11 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                         else firstEpisode?.let { "Ver fuentes · T${it.season} E${it.number}" } ?: "Selecciona un episodio")
                 }
                 TextButton(onClick = onLink, modifier = Modifier.fillMaxWidth()) { Text("Reproducir por enlace propio") }
+                if (media.isAnime && media.type == MediaType.SERIES) OutlinedButton(onClick = { onToggleWatching(media) }, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (state.watchingAnime.any { it.key == media.key }) "Quitar de Estás viendo" else "Añadir a Estás viendo")
+                }
+                if (media.source == CatalogSource.ANILIST) Text("Ficha de AniList: cada entrega de anime tiene sus propios episodios. Las fuentes se buscan por título con AnimeAV1; no se inventa una equivalencia IMDb.",
+                    style = MaterialTheme.typography.bodySmall, color = Muted)
                 OutlinedButton(onClick = { onToggleSaved(media) }, modifier = Modifier.fillMaxWidth()
                     .semantics { contentDescription = if (saved) "Quitar de la biblioteca" else "Guardar en biblioteca" }) {
                     Icon(if (saved) Icons.Default.Check else Icons.Default.Add, null)
@@ -227,10 +235,20 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
             val progress = state.watchProgress.firstOrNull { it.target.item.key == media.key && it.target.season == episode.season && it.target.episode == episode.number }
             Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp)) {
                 Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
-                    .clickable(role = Role.Button, onClickLabel = "Ver fuentes") { onRequestSources(media, episode.season, episode.number) }
+                    .combinedClickable(role = Role.Button, onClickLabel = "Ver fuentes", onLongClickLabel = "Opciones del episodio",
+                        onLongClick = { episodeActions = episode }, onClick = { onRequestSources(media, episode.season, episode.number) })
                     .semantics(mergeDescendants = true) { contentDescription = "Ver fuentes: ${media.title}, temporada ${episode.season}, episodio ${episode.number}, ${episode.title}" },
                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Artwork(episode.imageUrl, Modifier.width(118.dp).height(76.dp).clip(RoundedCornerShape(12.dp)))
+                    Box(Modifier.width(118.dp).height(82.dp).clip(RoundedCornerShape(12.dp))) {
+                        Artwork(episode.imageUrl ?: media.backdropUrl, Modifier.fillMaxSize())
+                        Text("T${episode.season} E${episode.number}", color = Cream, style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.align(Alignment.TopStart).background(Ink.copy(alpha = .75f)).padding(4.dp))
+                        IconButton(onClick = { episodeActions = episode }, modifier = Modifier.align(Alignment.TopEnd).size(40.dp)) {
+                            Icon(if (progress?.watched == true) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
+                                "Opciones del episodio T${episode.season} E${episode.number}", tint = Cream,
+                                modifier = Modifier.background(Ink.copy(alpha = .55f), RoundedCornerShape(20.dp)))
+                        }
+                    }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("T${episode.season} · E${episode.number}", color = Muted, style = MaterialTheme.typography.bodySmall)
                         Text(episode.title, style = MaterialTheme.typography.titleSmall)
@@ -244,13 +262,13 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                             color = Muted, style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                TextButton(onClick = { onToggleWatched(media, episode) }, modifier = Modifier.align(Alignment.End)
-                    .semantics { contentDescription = "${if (progress?.watched == true) "Marcar como no visto" else "Marcar como visto"}: T${episode.season} E${episode.number}" }) {
-                    Icon(if (progress?.watched == true) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked, null)
-                    Spacer(Modifier.width(6.dp))
-                    Text(if (progress?.watched == true) "Marcar como no visto" else "Marcar como visto")
-                }
             }
         }
+    }
+    episodeActions?.let { episode ->
+        EpisodeActionsSheet(media, episode, detail?.episodes.orEmpty(), state.watchProgress,
+            onDismiss = { episodeActions = null },
+            onMark = { scope, watched -> onEpisodeWatchAction(media, episode, scope, watched) },
+            onSources = { onRequestSources(media, episode.season, episode.number) }, onManual = onLink)
     }
 }

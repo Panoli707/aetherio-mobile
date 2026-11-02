@@ -18,9 +18,6 @@ import okhttp3.Request
 import okhttp3.Response
 import org.json.JSONObject
 import java.io.IOException
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -29,7 +26,8 @@ internal class AetherioRepository(
     private val readAccessToken: String = BuildConfig.TMDB_READ_ACCESS_TOKEN,
     client: OkHttpClient = OkHttpClient(),
     private val tmdbBase: HttpUrl = (if (readAccessToken.isNotBlank()) "https://api.themoviedb.org/3"
-        else "https://trkll.aetherio.workers.dev/api/tmdb").toHttpUrl()
+        else "https://trkll.aetherio.workers.dev/api/tmdb").toHttpUrl(),
+    private val animeRepository: AnimeSeasonRepository = AnimeSeasonRepository()
 ) {
     init {
         val direct = readAccessToken.isNotBlank()
@@ -110,15 +108,11 @@ internal class AetherioRepository(
         type, CatalogSource.TMDB, true)
     suspend fun home(): HomeCatalog {
         val results = supervisorScope {
-            val date = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-            fun day(offset: Int) = date.format(Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, offset) }.time)
             fun section(id: String, title: String, style: SectionStyle = SectionStyle.POSTERS, fetch: suspend () -> List<MediaItem>) =
                 CatalogSection(id, title, emptyList(), style) to fetch
             val specs = listOf(
                 section("movies", "Películas en tendencias") { trending(MediaType.MOVIE) },
                 section("series", "Series en tendencias") { trending(MediaType.SERIES) },
-                section("airing", "Anime emitiéndose ahora") {
-                    anime(MediaType.SERIES, mapOf("sort_by" to "popularity.desc", "vote_count.gte" to "0", "air_date.gte" to day(-90), "air_date.lte" to day(90))) },
                 section("anime90", "Lo mejor de los 90: anime", SectionStyle.FEATURED) {
                     anime(MediaType.SERIES, mapOf("first_air_date.gte" to "1990-01-01", "first_air_date.lte" to "1999-12-31")) },
                 section("animeMovies", "Top 15 películas anime", SectionStyle.RANKED) { anime(MediaType.MOVIE, emptyMap()).take(15) },
@@ -139,12 +133,15 @@ internal class AetherioRepository(
         } }.awaitAll()
     }
     suspend fun detail(item: MediaItem): MediaDetail {
+        if (item.source == CatalogSource.ANILIST) return animeRepository.detail(item)
         val data = if (item.source == CatalogSource.TMDB) tmdb("${item.type.path}/${item.id}", mapOf("append_to_response" to "images,credits,external_ids", "include_image_language" to "es,en,null"))
             else requireNotNull(json("$cinemeta/meta/${cineType(item.type)}/${item.id}.json").optJSONObject("meta"))
         check(CatalogJson.text(data, "id") == item.id)
         return CatalogJson.detail(item, data)
     }
-    suspend fun episodes(item: MediaItem, season: Int): List<EpisodeItem> = if (item.source == CatalogSource.TMDB)
+    suspend fun episodes(item: MediaItem, season: Int): List<EpisodeItem> = if (item.source == CatalogSource.ANILIST)
+        if (season == 1) animeRepository.detail(item).episodes else emptyList()
+        else if (item.source == CatalogSource.TMDB)
         CatalogJson.episodes(tmdb("tv/${item.id}/season/$season"), season)
         else CatalogJson.episodes(requireNotNull(json("$cinemeta/meta/${cineType(item.type)}/${item.id}.json").optJSONObject("meta")), season, true)
     suspend fun search(query: String): List<MediaItem> = optional {

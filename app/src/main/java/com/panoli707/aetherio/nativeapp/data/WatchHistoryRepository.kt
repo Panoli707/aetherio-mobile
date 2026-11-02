@@ -51,10 +51,29 @@ internal class WatchHistoryRepository internal constructor(context: Context) {
         }
     }
 
+    fun setWatched(targets: List<WatchTarget>, watched: Boolean) = scope.launch {
+        if (targets.isEmpty() || targets.any { !WatchProgressRules.valid(it) }) return@launch
+        mutex.withLock {
+            loadLocked()
+            val previous = mutableEntries.value.associateBy { it.target.key }
+            val changed = targets.distinctBy { it.key }.map { target ->
+                val saved = previous[target.key]
+                WatchProgress(target, if (watched) saved?.positionMs ?: 0 else 0,
+                    saved?.durationMs ?: 0, watched, saved?.updatedAt ?: 0)
+            }
+            val keys = changed.map { it.target.key }.toSet()
+            saveEntries((changed + mutableEntries.value.filterNot { it.target.key in keys }).take(WatchProgressCodec.MAX_ENTRIES))
+        }
+    }
+
     private fun save(entry: WatchProgress) {
         val updated = (listOf(entry) + mutableEntries.value.filterNot { it.target.key == entry.target.key })
             .take(WatchProgressCodec.MAX_ENTRIES)
         // Run on IO, including the disk write. A completed record is durable before publishing to UI.
+        saveEntries(updated)
+    }
+
+    private fun saveEntries(updated: List<WatchProgress>) {
         if (preferences.edit().putString("history", WatchProgressCodec.encode(updated)).commit()) mutableEntries.value = updated
     }
 

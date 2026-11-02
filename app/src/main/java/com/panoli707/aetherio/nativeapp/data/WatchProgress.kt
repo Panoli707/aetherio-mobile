@@ -26,7 +26,7 @@ data class WatchProgress(
 
 object WatchProgressRules {
     fun valid(target: WatchTarget): Boolean = target.item.id.matches(
-        if (target.item.source == CatalogSource.TMDB) Regex("[0-9]{1,12}") else Regex("tt[0-9]{5,12}")
+        if (target.item.source != CatalogSource.CINEMETA) Regex("[0-9]{1,12}") else Regex("tt[0-9]{5,12}")
     ) && target.item.title.length in 1..500 && when (target.item.type) {
         MediaType.MOVIE -> target.season == null && target.episode == null
         MediaType.SERIES -> target.season != null && target.season in 0..10000 && target.episode != null && target.episode in 1..100000

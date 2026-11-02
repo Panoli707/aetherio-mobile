@@ -163,7 +163,7 @@ internal fun FloatingNavigation(tab: String, collapsed: Boolean, onTab: (String)
     modifier: Modifier = Modifier) {
     val glass = Brush.verticalGradient(listOf(Color(0xFF656354).copy(alpha = .94f), Panel.copy(alpha = .97f)))
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val itemWidth = ((maxWidth - 118.dp) / 3).coerceIn(48.dp, 76.dp)
+        val itemWidth = ((maxWidth - 118.dp) / 4).coerceIn(48.dp, 70.dp)
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Row(Modifier.shadow(18.dp, CircleShape).clip(CircleShape).background(glass)
@@ -171,6 +171,7 @@ internal fun FloatingNavigation(tab: String, collapsed: Boolean, onTab: (String)
                 verticalAlignment = Alignment.CenterVertically) {
                 NavigationItem("Inicio", Icons.Default.Home, tab == "home", collapsed, itemWidth) { onTab("home") }
                 if (!collapsed) {
+                    NavigationItem("Anime", Icons.Default.LiveTv, tab == "anime", false, itemWidth) { onTab("anime") }
                     NavigationItem("Biblioteca", Icons.Default.Favorite, tab == "library", false, itemWidth) { onTab("library") }
                     NavigationItem("Ajustes", Icons.Default.Settings, tab == "settings", false, itemWidth) { onTab("settings") }
                 }

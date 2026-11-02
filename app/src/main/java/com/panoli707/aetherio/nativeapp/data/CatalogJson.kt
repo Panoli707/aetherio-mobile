@@ -3,6 +3,9 @@ package com.panoli707.aetherio.nativeapp.data
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URI
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 internal object CatalogJson {
     private fun imdb(value: String): String? = value.takeIf { it.matches(Regex("tt[0-9]{5,12}")) }
@@ -58,7 +61,8 @@ internal object CatalogJson {
         return parsed.copy(posterUrl = parsed.posterUrl ?: base.posterUrl, backdropUrl = parsed.backdropUrl ?: base.backdropUrl,
             logoUrl = parsed.logoUrl ?: base.logoUrl, overview = parsed.overview.ifEmpty { base.overview },
             year = parsed.year.ifEmpty { base.year }, score = parsed.score.takeIf { it > 0 } ?: base.score,
-            genres = parsed.genres.ifEmpty { base.genres }, imdbId = parsed.imdbId ?: base.imdbId)
+             genres = parsed.genres.ifEmpty { base.genres }, imdbId = parsed.imdbId ?: base.imdbId,
+             episodeCount = json.optInt("number_of_episodes", 0).takeIf { it > 0 } ?: base.episodeCount)
     }
     fun episodes(json: JSONObject, season: Int, cinemeta: Boolean = false): List<EpisodeItem> =
         objects(json.optJSONArray(if (cinemeta) "videos" else "episodes")).mapNotNull {
@@ -66,7 +70,9 @@ internal object CatalogJson {
             if (number <= 0 || (cinemeta && it.optInt("season", 0) != season)) return@mapNotNull null
             EpisodeItem(number, season, text(it, if (cinemeta) "title" else "name").ifEmpty { text(it, "name") }.ifEmpty { "Episodio $number" },
                 text(it, "overview").ifEmpty { if (cinemeta) text(it, "description") else "" },
-                if (cinemeta) image(text(it, "thumbnail")) else tmdbImage(text(it, "still_path"), "w500"))
+                 if (cinemeta) image(text(it, "thumbnail")) else tmdbImage(text(it, "still_path"), "w500"),
+                 text(it, if (cinemeta) "released" else "air_date").take(10).let { date ->
+                     date.matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}")) && date <= SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) })
         }.distinctBy { it.number }.sortedBy { it.number }
     fun detail(base: MediaItem, json: JSONObject): MediaDetail {
         val tmdb = base.source == CatalogSource.TMDB
@@ -93,6 +99,7 @@ internal object CatalogJson {
             put("description", item.overview); put("year", item.year); put("imdbRating", item.score)
             put("genres", JSONArray(item.genres)); put("anime", item.isAnime)
             put("imdb", item.imdbId)
+            put("episodeCount", item.episodeCount); put("animeSeasonLabel", item.animeSeasonLabel)
         }) }
     }.toString()
     fun decode(raw: String): List<MediaItem> = runCatching {
@@ -100,11 +107,12 @@ internal object CatalogJson {
             val type = MediaType.entries.find { it.name == text(json, "type") } ?: return@mapNotNull null
             val source = CatalogSource.entries.find { it.name == text(json, "source") } ?: return@mapNotNull null
             val id = text(json, "id")
-            val valid = id.matches(if (source == CatalogSource.TMDB) Regex("[0-9]+") else Regex("tt[0-9]+"))
+            val valid = id.matches(if (source != CatalogSource.CINEMETA) Regex("[0-9]+") else Regex("tt[0-9]+"))
             if (!valid || text(json, "name").isEmpty()) return@mapNotNull null
             MediaItem(id, type, text(json, "name"), source, image(text(json, "poster")), image(text(json, "background")),
                 image(text(json, "logo")), text(json, "description"), text(json, "year"),
-                json.optDouble("imdbRating", 0.0).takeIf { it.isFinite() } ?: 0.0, strings(json.optJSONArray("genres")), json.optBoolean("anime"), imdb(text(json, "imdb")))
+                json.optDouble("imdbRating", 0.0).takeIf { it.isFinite() } ?: 0.0, strings(json.optJSONArray("genres")), json.optBoolean("anime"), imdb(text(json, "imdb")),
+                json.optInt("episodeCount", 0).takeIf { it in 1..100000 }, text(json, "animeSeasonLabel").take(40))
         }.distinctBy { it.key }
     }.getOrDefault(emptyList())
 }

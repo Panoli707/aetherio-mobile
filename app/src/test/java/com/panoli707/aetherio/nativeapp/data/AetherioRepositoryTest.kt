@@ -138,14 +138,14 @@ class AetherioRepositoryTest {
                 override fun dispatch(request: RecordedRequest) = MockResponse().setBody(CATALOG)
             }
             val home = fixture.repository().home()
-            assertEquals(7, home.sections.size)
+            assertEquals(6, home.sections.size)
             assertFalse(home.partial)
             assertEquals("550", home.heroes.single().id)
-            val requests = List(7) { fixture.request() }
+            val requests = List(6) { fixture.request() }
             assertEquals(setOf("/3/trending/movie/day", "/3/trending/tv/day"),
                 requests.map { it.requestUrl!!.encodedPath }.filter { it.contains("/trending/") }.toSet())
             requests.forEach { request -> authenticated(request, request.requestUrl!!.encodedPath) }
-            assertEquals(5, requests.count { it.requestUrl!!.encodedPath.startsWith("/3/discover/") })
+            assertEquals(4, requests.count { it.requestUrl!!.encodedPath.startsWith("/3/discover/") })
             assertEquals(0, fixture.externalRequests.size)
         }
     }
@@ -310,9 +310,9 @@ class AetherioRepositoryTest {
         const val TOKEN = "synthetic-read-token"
         const val CATALOG = """{"results":[{"id":550,"media_type":"movie","title":"Fight Club","name":"Fight Club"}]}"""
         const val DETAIL = """{"id":550,"title":"Fight Club","external_ids":{"imdb_id":"tt0137523"}}"""
-        const val EPISODES = """{"episodes":[{"episode_number":1,"name":"Pilot"}]}"""
+        const val EPISODES = """{"episodes":[{"episode_number":1,"name":"Pilot","air_date":"2008-01-20"}]}"""
         const val LOGOS = """{"logos":[{"iso_639_1":"es","file_path":"/logo.png"}]}"""
         const val CINEMETA_CATALOG = """{"metas":[{"id":"tt0137523","name":"Fight Club"}]}"""
-        const val CINEMETA_DETAIL = """{"meta":{"id":"tt0137523","name":"Fight Club","videos":[{"season":1,"episode":1,"title":"Pilot"}]}}"""
+        const val CINEMETA_DETAIL = """{"meta":{"id":"tt0137523","name":"Fight Club","videos":[{"season":1,"episode":1,"title":"Pilot","released":"2008-01-20T00:00:00Z"}]}}"""
     }
 }

@@ -17,7 +17,8 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 
 class AetherioViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = AetherioRepository()
+    private val animeRepository = AnimeSeasonRepository()
+    private val repository = AetherioRepository(animeRepository = animeRepository)
     private val library = LocalLibraryStore(application)
     private val history = WatchHistoryRepository.get(application)
     private val sourceRepository = SourceRepository()
@@ -34,6 +35,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private var sourceJob: Job? = null
     private var addonRestoreJob: Job? = null
     private var playbackQuery: SourceQuery? = null
+    private var animeSeasonJob: Job? = null
 
     fun rememberPlaybackQuery(fromSources: Boolean) {
         playbackQuery = state.value.sourceQuery.takeIf { fromSources }
@@ -48,9 +50,40 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         requestSources(target.item, target.season, target.episode)
     }
 
-    fun toggleWatched(item: MediaItem, episode: EpisodeItem) {
-        val target = WatchTarget(item, episode.season, episode.number, episode.title, episode.imageUrl)
-        history.setWatched(target, state.value.watchProgress.none { it.target.key == target.key && it.watched })
+    fun markWatched(item: MediaItem, episode: EpisodeItem, scope: EpisodeWatchScope, watched: Boolean) {
+        val detail = state.value.detail?.takeIf { it.item.key == item.key } ?: return
+        if (state.value.episodesLoading) return
+        val episodes = EpisodeWatchRules.targets(detail.episodes, episode, scope)
+        history.setWatched(episodes.map { WatchTarget(item, it.season, it.number, it.title, it.imageUrl) }, watched)
+    }
+
+    private fun watching(entries: List<WatchProgress>): List<MediaItem> {
+        val hidden = library.hiddenWatchingAnime
+        return (entries.sortedByDescending { it.updatedAt }.map { it.target.item } + library.watchingAnime)
+            .filter { it.isAnime && it.type == MediaType.SERIES && it.key !in hidden }.distinctBy { it.key }
+    }
+
+    fun toggleWatching(item: MediaItem) {
+        if (!item.isAnime || item.type != MediaType.SERIES) return
+        val remove = state.value.watchingAnime.any { it.key == item.key }
+        library.hiddenWatchingAnime = if (remove) library.hiddenWatchingAnime + item.key else library.hiddenWatchingAnime - item.key
+        library.watchingAnime = if (remove) library.watchingAnime.filterNot { it.key == item.key } else listOf(item) + library.watchingAnime.filterNot { it.key == item.key }
+        mutableState.update { it.copy(watchingAnime = watching(it.watchProgress)) }
+    }
+
+    fun loadAnimeSeason() {
+        if (animeSeasonJob?.isActive == true) return
+        animeSeasonJob = viewModelScope.launch {
+            val season = AnimeSeason.current()
+            mutableState.update { it.copy(animeSeason = if (it.animeSeason.season == season)
+                it.animeSeason.copy(loading = true, error = null) else AnimeSeasonState(season, loading = true)) }
+            try {
+                val entries = animeRepository.season(season)
+                mutableState.update { it.copy(animeSeason = AnimeSeasonState(season, entries, loaded = true)) }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { mutableState.update { it.copy(animeSeason = it.animeSeason.copy(loading = false,
+                error = "No se pudo actualizar la temporada de anime. Inténtalo de nuevo.")) } }
+        }
     }
 
     fun playbackTarget(animeSource: Boolean): WatchTarget? {
@@ -62,7 +95,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     }
 
     init {
-        viewModelScope.launch { history.entries.collect { entries -> mutableState.update { it.copy(watchProgress = entries) } } }
+        viewModelScope.launch { history.entries.collect { entries -> mutableState.update { it.copy(watchProgress = entries, watchingAnime = watching(entries)) } } }
         loadHome()
         addonRestoreJob = viewModelScope.launch {
             try {
@@ -239,7 +272,9 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 val hasImdb = imdb != null && imdb.matches(Regex("tt[0-9]{5,12}"))
                 val compatibleDesktop = desktop.filter { it.manifestUrl == null || hasImdb }
                 if (!hasImdb && compatibleDesktop.isEmpty()) {
-                    mutableState.update { it.copy(sourcesLoading = false, sourceError = "No se encontró un identificador IMDb compatible para este título.") }
+                    mutableState.update { it.copy(sourcesLoading = false, sourceError = if (item.source == CatalogSource.ANILIST)
+                        "Activa AnimeAV1 en Ajustes para buscar fuentes de esta ficha de anime."
+                        else "No se encontró un identificador IMDb compatible para este título.") }
                     return@launch
                 }
                 val resolved = query.copy(item = media)

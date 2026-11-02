@@ -25,6 +25,7 @@ import com.panoli707.aetherio.nativeapp.data.SectionStyle
 import com.panoli707.aetherio.nativeapp.data.StreamSource
 import com.panoli707.aetherio.nativeapp.data.EpisodeItem
 import com.panoli707.aetherio.nativeapp.data.WatchProgress
+import com.panoli707.aetherio.nativeapp.data.EpisodeWatchScope
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import kotlinx.coroutines.launch
 
@@ -48,8 +49,10 @@ fun AetherioApp(
     onPlaySource: (StreamSource, VideoFormat) -> Unit,
     onUpdateAction: (UpdateAction) -> Unit,
     onAutomaticUpdatesChange: (Boolean) -> Unit,
-    onToggleWatched: (MediaItem, EpisodeItem) -> Unit = { _, _ -> },
-    onContinue: (WatchProgress) -> Unit = {}
+    onEpisodeWatchAction: (MediaItem, EpisodeItem, EpisodeWatchScope, Boolean) -> Unit = { _, _, _, _ -> },
+    onContinue: (WatchProgress) -> Unit = {},
+    onToggleWatching: (MediaItem) -> Unit = {},
+    onLoadAnimeSeason: () -> Unit = {}
 ) {
     var startupComplete by rememberSaveable { mutableStateOf(false) }
     val startupReady = !state.homeLoading || state.sections.isNotEmpty() || state.homeError != null
@@ -67,6 +70,8 @@ fun AetherioApp(
     var linkOpen by rememberSaveable { mutableStateOf(false) }
     var libraryFilter by rememberSaveable { mutableStateOf("all") }
     val homeScroll = rememberLazyListState()
+    val animeScroll = rememberLazyListState()
+    val seasonScroll = rememberLazyListState()
     val libraryScroll = rememberLazyGridState()
     val searchScroll = rememberLazyGridState()
     val categoryScroll = rememberSaveable(categoryId, saver = LazyGridState.Saver) { LazyGridState() }
@@ -81,6 +86,7 @@ fun AetherioApp(
         derivedStateOf { homeScroll.firstVisibleItemIndex > 0 || homeScroll.firstVisibleItemScrollOffset > collapseOffset }
     }
     val openSearch: () -> Unit = { focus.clearFocus(); searchNeedsFocus = true; searchOpen = true }
+    LaunchedEffect(tab, categoryId) { if (tab == "anime" || categoryId == "airing") onLoadAnimeSeason() }
     val select: (MediaItem) -> Unit = { item ->
         focus.clearFocus()
         onSelectMedia(item)
@@ -107,14 +113,15 @@ fun AetherioApp(
                     detailKey != null -> {
                          val selected = state.selectedItem?.takeIf { it.key == detailKey }
                             ?: state.detail?.item?.takeIf { it.key == detailKey }
-                             ?: (state.heroes.asSequence() + state.savedItems.asSequence() + state.searchResults.asSequence() + state.watchProgress.asSequence().map { it.target.item } +
+                              ?: (state.heroes.asSequence() + state.savedItems.asSequence() + state.searchResults.asSequence() + state.watchProgress.asSequence().map { it.target.item } +
+                                  state.watchingAnime.asSequence() + state.animeSeason.entries.asSequence().map { it.item } +
                                  state.sections.asSequence().flatMap { it.items.asSequence() }).firstOrNull { it.key == detailKey }
                          if (selected != null) key(detailKey) {
                              LaunchedEffect(selected.key, state.selectedItem?.key) {
                                  if (state.selectedItem?.key != selected.key) onSelectMedia(selected)
                              }
                              DetailScreen(state, selected, detailScroll, closeTop, onToggleSaved, onRetryDetail, onSelectSeason,
-                                  { focus.clearFocus(); linkOpen = true }, onRequestSources, onToggleWatched)
+                                   { focus.clearFocus(); linkOpen = true }, onRequestSources, onEpisodeWatchAction, onToggleWatching)
                         } else Column {
                             ScreenHeader("Ficha no disponible", closeTop)
                              if (state.homeLoading) LoadingRow("Recuperando ficha…")
@@ -122,6 +129,7 @@ fun AetherioApp(
                         }
                     }
                     searchOpen -> SearchScreen(state, searchScroll, searchNeedsFocus, { searchNeedsFocus = false }, onSearch, select, closeTop)
+                    categoryId == "airing" -> SeasonalAnimeScreen(state.animeSeason, seasonScroll, closeTop, select, onLoadAnimeSeason)
                     categoryId != null -> {
                         val section = state.sections.firstOrNull { it.id == categoryId }
                         Column(Modifier.fillMaxSize()) {
@@ -134,6 +142,7 @@ fun AetherioApp(
                     else -> {
                         screenState.SaveableStateProvider(tab) {
                             when (tab) {
+                                "anime" -> AnimeScreen(state, animeScroll, select, onContinue, { categoryId = "airing" })
                                 "library" -> LibraryScreen(state, libraryScroll, libraryFilter, { libraryFilter = it }, select, openSearch)
                                 "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon, onDesktopSourceToggle,
                                     updates, onUpdateAction, onAutomaticUpdatesChange)

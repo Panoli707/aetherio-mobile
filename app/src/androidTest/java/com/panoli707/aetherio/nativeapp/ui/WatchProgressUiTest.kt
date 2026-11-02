@@ -35,10 +35,13 @@ class WatchProgressUiTest {
         val detail = MediaDetail(anime, seasons = listOf(SeasonInfo(2, "Temporada 2", 1)), episodes = listOf(episode), selectedSeason = 2)
         compose.setContent { AetherioTheme {
             DetailScreen(AppState(detail = detail, watchProgress = listOf(progress)), anime, rememberLazyListState(), {}, {}, {}, {}, {},
-                { _, _, _ -> played = true }, { _, ep -> marked = ep })
+                { _, _, _ -> played = true }, { _, ep, scope, watched ->
+                    assertEquals(EpisodeWatchScope.EPISODE, scope); assertTrue(watched); marked = ep })
         } }
-        compose.onNodeWithText("12:34 / 24:00", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
-        compose.onNodeWithContentDescription("Marcar como visto: T2 E3").performScrollTo().performClick()
+        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasContentDescription("Opciones del episodio T2 E3"))
+        compose.onNodeWithText("12:34 / 24:00", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Opciones del episodio T2 E3").performClick()
+        compose.onNodeWithText("Marcar como visto").performClick()
         compose.runOnIdle { assertEquals(episode, marked); assertFalse(played) }
     }
 
@@ -48,8 +51,9 @@ class WatchProgressUiTest {
             DetailScreen(AppState(detail = detail, watchProgress = listOf(progress.copy(watched = true))), anime,
                 rememberLazyListState(), {}, {}, {}, {}, {}, { _, _, _ -> })
         } }
-        compose.onNodeWithContentDescription("Marcar como no visto: T2 E3").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Visto", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("Opciones del episodio T2 E3").performScrollTo().performClick()
+        compose.onNodeWithText("Marcar como no visto").assertIsDisplayed()
         compose.onNodeWithText("Continuar · T2 E3 · 12:34").assertDoesNotExist()
     }
 }

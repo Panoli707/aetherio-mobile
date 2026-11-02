@@ -49,4 +49,19 @@ class WatchHistoryRepositoryTest {
         assertEquals(0L, repository.load().single().resumePositionMs)
         assertTrue(WatchProgressRules.continuing(repository.load()).isEmpty())
     }
+
+    @Test fun markingASeasonIsAtomicAndDoesNotResetTheOtherSeasonOrInventPlaybackTime() = runBlocking {
+        val repository = WatchHistoryRepository(context)
+        val other = target.copy(season = 3, episode = 1)
+        repository.record(other, 45000, 120000).join()
+        val targets = (1..3).map { target.copy(episode = it) }
+        repository.setWatched(targets, true).join()
+        val stored = WatchHistoryRepository(context).load()
+        assertEquals(3, stored.count { it.watched })
+        assertTrue(stored.filter { it.watched }.all { it.positionMs == 0L && it.updatedAt == 0L })
+        assertEquals(45000L, stored.first { it.target.key == other.key }.positionMs)
+        repository.setWatched(targets, false).join()
+        assertTrue(repository.load().none { it.watched })
+        assertEquals(45000L, repository.load().first { it.target.key == other.key }.positionMs)
+    }
 }

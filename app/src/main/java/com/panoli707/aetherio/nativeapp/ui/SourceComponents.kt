@@ -114,6 +114,7 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
 internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> Unit,
     onPlay: (StreamSource, VideoFormat) -> Unit, onSettings: () -> Unit) {
     val hasProviders = state.addons.isNotEmpty() || state.enabledDesktopSources.isNotEmpty()
+    val nativeAnimeDisabled = query.item.source == CatalogSource.ANILIST && "animeav1" !in state.enabledDesktopSources
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var format by rememberSaveable(query.key) { mutableStateOf(VideoFormat.AUTO) }
@@ -144,6 +145,10 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                     color = Muted, style = MaterialTheme.typography.bodySmall)
             }
             if (state.addonsLoading) item(key = "addonsLoading") { LoadingRow("Cargando proveedores…") }
+            else if (nativeAnimeDisabled) item(key = "enableNativeAnime") {
+                StatusMessage("Activa AnimeAV1", "Estas fichas usan la identidad de AniList. Activa su adaptador nativo para buscar por título, sin inventar un IMDb.",
+                    "Ir a Ajustes", { closeThen(onSettings) })
+            }
             else if (!hasProviders) item(key = "configure") {
                 StatusMessage("Configura tus proveedores", "Añade un manifiesto compatible en Ajustes para buscar fuentes de este título.",
                     "Ir a Ajustes", { closeThen(onSettings) })
@@ -154,7 +159,7 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                 Text(message, color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.semantics { error(message); liveRegion = LiveRegionMode.Polite })
             }
-            if (!state.sourcesLoading && !state.addonsLoading && hasProviders && state.sources.isEmpty()) item(key = "empty") {
+            if (!state.sourcesLoading && !state.addonsLoading && hasProviders && !nativeAnimeDisabled && state.sources.isEmpty()) item(key = "empty") {
                 StatusMessage("Sin fuentes reproducibles", "Los proveedores no han devuelto enlaces compatibles para este título o episodio. " +
                     "Las fuentes que requieren torrents, DRM o sesiones privadas no están habilitadas.")
             }

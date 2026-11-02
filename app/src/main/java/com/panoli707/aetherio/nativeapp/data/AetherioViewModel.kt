@@ -32,6 +32,15 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private var searchJob: Job? = null
     private var sourceJob: Job? = null
     private var addonRestoreJob: Job? = null
+    private var playbackQuery: SourceQuery? = null
+
+    fun rememberPlaybackQuery(fromSources: Boolean) {
+        playbackQuery = state.value.sourceQuery.takeIf { fromSources }
+    }
+
+    fun reopenPlaybackSources() {
+        playbackQuery?.let { requestSources(it.item, it.season, it.episode) }
+    }
 
     init {
         loadHome()
@@ -195,10 +204,16 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                     mutableState.update { it.copy(sourcesLoading = false, sourceError = "Selecciona una temporada y un episodio.") }
                     return@launch
                 }
-                val media = if (item.imdbId == null && item.source == CatalogSource.TMDB) repository.detail(item).item else item
+                val media = if (item.imdbId == null && item.source == CatalogSource.TMDB) {
+                    try { repository.detail(item).item }
+                    catch (e: CancellationException) { throw e }
+                    catch (_: Exception) { item }
+                } else item
                 ensureActive()
                 val imdb = media.imdbId ?: media.id.takeIf { media.source == CatalogSource.CINEMETA }
-                if (imdb == null || !imdb.matches(Regex("tt[0-9]{5,12}"))) {
+                val hasImdb = imdb != null && imdb.matches(Regex("tt[0-9]{5,12}"))
+                val compatibleDesktop = desktop.filter { it.manifestUrl == null || hasImdb }
+                if (!hasImdb && compatibleDesktop.isEmpty()) {
                     mutableState.update { it.copy(sourcesLoading = false, sourceError = "No se encontró un identificador IMDb compatible para este título.") }
                     return@launch
                 }
@@ -206,8 +221,8 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 mutableState.update { it.copy(sourceQuery = resolved) }
                 var failures = 0
                 var unsupported = 0
-                val lookups = addons.map { addon -> null to suspend { sourceRepository.sources(addon, resolved) } } +
-                    desktop.map { provider -> provider.id to suspend { desktopSourceRepository.sources(provider.id, resolved) } }
+                val lookups = addons.filter { hasImdb }.map { addon -> null to suspend { sourceRepository.sources(addon, resolved) } } +
+                    compatibleDesktop.map { provider -> provider.id to suspend { desktopSourceRepository.sources(provider.id, resolved) } }
                 supervisorScope {
                     lookups.forEach { (desktopId, lookup) -> launch {
                         try {

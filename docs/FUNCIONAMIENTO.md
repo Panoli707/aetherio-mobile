@@ -17,7 +17,7 @@ Si aparece un error de carga, comprueba la conexión y pulsa **Reintentar** cuan
 
 Toca una portada para consultar la sinopsis, valoración, año, géneros y reparto, según la información disponible. En las series puedes elegir una temporada y consultar sus episodios, con título, imagen y descripción cuando estén disponibles.
 
-Que un título o episodio aparezca en el catálogo no garantiza que tenga un vídeo disponible. Para buscar fuentes desde su ficha necesitas añadir un proveedor compatible en **Ajustes**.
+Que un título o episodio aparezca en el catálogo no garantiza que tenga un vídeo disponible. Puedes buscar fuentes desde su ficha con los servicios integrados o configurar proveedores propios en **Ajustes**.
 
 ## Biblioteca y perfil
 
@@ -31,9 +31,11 @@ La lista de proveedores muestra su nombre y dominio, no sus URL completas privad
 
 ## Proveedores y fuentes de reproducción
 
-**PenguPlay, HdHub, AnimES y DeepFlix** vienen integrados desde Aetherio de PC. En **Ajustes > Fuentes de Aetherio PC**, activa o desactiva cada servicio; la selección se conserva. Solo se consultan cuando buscas fuentes, no durante el arranque. La respuesta y los títulos disponibles dependen de cada proveedor.
+**PenguPlay, HdHub, AnimES y DeepFlix** vienen integrados desde Aetherio de PC. **AnimeAV1** tiene un adaptador nativo para Android. En **Ajustes > Fuentes de Aetherio PC**, activa o desactiva cada servicio; la selección se conserva. Solo se consultan cuando buscas fuentes, no durante el arranque. La respuesta y los títulos disponibles dependen de cada proveedor.
 
-Abre una película y pulsa **Buscar fuentes**. Para una serie, elige la temporada y el episodio. Las fuentes aparecen conforme responde cada servicio. Si alguno falla, puedes usar los resultados de los demás. No necesitas copiar sus URLs ni añadir manifiestos para estas cuatro fuentes.
+Abre una película y pulsa **Buscar fuentes**. Para una serie, elige la temporada y el episodio. Las fuentes aparecen conforme responde cada servicio. Si alguno falla, puedes usar los resultados de los demás. No necesitas copiar sus URLs ni añadir manifiestos para estas fuentes.
+
+AnimeAV1 busca por título sin exigir IMDb. Solo ofrece coincidencias claras y episodios explícitos; no calcula desplazamientos entre temporadas o partes. Admite enlaces directos y los servidores públicos Zilla, MP4Upload y YourUpload cuando puede resolverlos sin ejecutar JavaScript ni iniciar una sesión. Si ya habías guardado tu selección de fuentes antes de añadir AnimeAV1, activa su interruptor en Ajustes.
 
 Los motores de torrents, los scrapers y los ejecutores de proveedores JavaScript de PC no están incluidos. Que un proveedor aparezca en el escritorio no implica que ese motor pueda ejecutarse en Android.
 
@@ -45,7 +47,7 @@ Para añadir un proveedor propio:
 4. Abre la ficha de una película y pulsa **Buscar fuentes**. En una serie, elige la temporada y toca el episodio que quieras ver. El botón superior **Ver fuentes** corresponde al primer episodio de esa temporada mostrado en la ficha.
 5. En **Formato de reproducción**, deja **Auto** o elige **HLS** o **DASH** si conoces el formato. Pulsa **Reproducir** en la fuente elegida.
 
-No todos los proveedores son compatibles: deben ofrecer vídeos HTTPS para el título o episodio seleccionado. Se admiten las cabeceras de reproducción Referer, Origin y User-Agent del proveedor y las redirecciones que se mantienen en HTTPS. No se admiten torrents, DRM, extractores de páginas web ni sesiones con Cookie o Authorization. La calidad indicada procede del proveedor y no garantiza la calidad del vídeo.
+No todos los proveedores son compatibles: deben ofrecer vídeos HTTPS para el título o episodio seleccionado. Se admiten las cabeceras de reproducción Referer, Origin y User-Agent y los metadatos Sec-Fetch limitados que necesita Zilla. Las redirecciones se mantienen en HTTPS. No se admiten torrents, DRM, extractores arbitrarios de páginas web ni sesiones con Cookie o Authorization. La calidad indicada en una fuente procede del proveedor y no garantiza la calidad del vídeo.
 
 Las fuentes integradas del PC tienen una excepción limitada para vídeo HTTP en shegu.net y sus subdominios. La tarjeta avisa de ese transporte sin cifrar antes de reproducir. No permite HTTP en otros dominios ni cambia el uso de HTTPS en las APIs, proveedores propios o enlaces manuales.
 
@@ -73,6 +75,14 @@ Esta alternativa no necesita proveedores. Abrirla desde una ficha no obtiene aut
 Usa una **URL HTTPS de vídeo**, no una página web. Las redirecciones deben permanecer en HTTPS. No se admiten HTTP, archivos locales, torrents, DRM ni enlaces que requieran sesiones privadas. Aetherio no extrae vídeos de páginas web.
 
 La reproducción depende del dispositivo, del formato, de la conexión y de la disponibilidad del vídeo. Elegir HLS o DASH no convierte el contenido ni garantiza su compatibilidad. **Volver** cierra el reproductor y detiene el vídeo; no hay reproducción en segundo plano.
+
+## Controles del reproductor
+
+En teléfonos, el vídeo se abre en horizontal. Toca la pantalla para mostrar u ocultar los controles: pausa, saltos de diez segundos y barra de posición cuando el vídeo permite desplazarse. Un doble toque a la izquierda retrocede y a la derecha avanza.
+
+Los botones inferiores permiten elegir las pistas de audio y subtítulos disponibles, desactivar subtítulos, cambiar la velocidad, ajustar la imagen entre Fit, Fill y Zoom, consultar información y girar la pantalla. La resolución mostrada procede del vídeo que se está reproduciendo. El bloqueo de controles deja disponible el botón para desbloquearlos.
+
+Si abriste el vídeo desde una fuente de una ficha, **Cambiar fuente** vuelve a consultar el mismo título o episodio. También aparece junto a **Reintentar** cuando falla la reproducción. Los enlaces manuales no ofrecen ese cambio de fuente.
 
 ## Actualizaciones
 

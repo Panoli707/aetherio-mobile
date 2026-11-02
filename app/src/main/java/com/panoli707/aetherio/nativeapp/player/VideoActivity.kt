@@ -1,314 +1,297 @@
 package com.panoli707.aetherio.nativeapp.player
 
-import android.content.res.ColorStateList
+import android.content.Intent
+import android.content.pm.ActivityInfo
+import android.content.res.Configuration
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.text.TextUtils
 import android.util.Log as AndroidLog
-import android.view.Gravity
-import android.view.View
-import android.view.ViewGroup.LayoutParams.MATCH_PARENT
-import android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-import android.widget.Button
-import android.widget.FrameLayout
-import android.widget.LinearLayout
-import android.widget.ScrollView
-import android.widget.TextView
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.core.view.ViewCompat
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
+import androidx.media3.common.TrackGroup
+import androidx.media3.common.TrackSelectionOverride
 import androidx.media3.common.util.Log as Media3Log
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.ResolvingDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.ui.PlayerView
+import com.panoli707.aetherio.nativeapp.ui.AetherioTheme
 import java.io.IOException
+import java.util.Locale
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class VideoActivity : ComponentActivity() {
-    private lateinit var playerView: PlayerView
-    private lateinit var errorPanel: ScrollView
-    private lateinit var errorText: TextView
-    private lateinit var retryButton: Button
-    private var player: ExoPlayer? = null
+    private var player by mutableStateOf<ExoPlayer?>(null)
+    private var screen by mutableStateOf(VideoUiState())
     private var mediaUrl: String? = null
     private var allowDesktopHttp = false
     private var playbackHeaders: Map<String, String> = emptyMap()
     private var resumePosition = C.TIME_UNSET
     private var resumePlayWhenReady = true
     private var mediaIsLive = false
+    private var ticker: Job? = null
+    private val trackOptions = mutableMapOf<String, Pair<TrackGroup, Int>>()
 
     private val httpClient by lazy {
-        OkHttpClient.Builder()
-            .followRedirects(true)
-            .followSslRedirects(true)
+        OkHttpClient.Builder().followRedirects(true).followSslRedirects(true)
             .addNetworkInterceptor { chain ->
-                // Network interceptors run again for every redirect, unlike the resolver.
-                try {
-                    MediaUrlPolicy.validate(chain.request().url.toString(), allowDesktopHttp)
-                } catch (_: IllegalArgumentException) {
-                    throw IOException(INVALID_URL_ERROR)
-                }
+                try { MediaUrlPolicy.validate(chain.request().url.toString(), allowDesktopHttp) }
+                catch (_: IllegalArgumentException) { throw IOException("Destino de video no permitido") }
                 val request = if (chain.request().url.isHttps) chain.request() else chain.request().newBuilder()
                     .removeHeader("Authorization").removeHeader("Cookie").removeHeader("Referer").removeHeader("Origin").build()
                 chain.proceed(request)
-            }
-            .build()
+            }.build()
     }
 
-    private val playerListener = object : Player.Listener {
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            AndroidLog.i(TAG, "stateInt=$playbackState")
+    private val listener = object : Player.Listener {
+        override fun onEvents(active: Player, events: Player.Events) {
+            if (active !== player) return
+            refreshState()
+            refreshTracks(active)
         }
-
-        override fun onIsPlayingChanged(isPlaying: Boolean) {
-            playerView.keepScreenOn = isPlaying
-            AndroidLog.i(TAG, "playingBool=$isPlaying")
+        override fun onIsPlayingChanged(playing: Boolean) {
+            if (playing) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            AndroidLog.i(TAG, "playingBool=$playing")
         }
-
+        override fun onPlaybackStateChanged(state: Int) { AndroidLog.i(TAG, "stateInt=$state") }
         override fun onPlayerError(error: PlaybackException) {
             AndroidLog.i(TAG, "errorInt=${error.errorCode}")
-            showError(PLAYBACK_ERROR)
+            val http = generateSequence(error as Throwable) { it.cause }
+                .filterIsInstance<HttpDataSource.InvalidResponseCodeException>().firstOrNull()?.responseCode
+            if (http != null) AndroidLog.i(TAG, "httpStatusInt=$http")
+            screen = screen.copy(buffering = false, playing = false, error = when {
+                http in listOf(401, 403, 404, 410) -> "El servidor no permite usar este enlace o ya ha caducado. Prueba otra fuente."
+                http != null -> "El servidor de video no responde correctamente (HTTP $http). Prueba otra fuente."
+                error.errorCode in 4000..4999 -> "Este formato de video o audio no es compatible con el dispositivo."
+                else -> "No se pudo reproducir esta fuente. Revisa la conexion o elige otra."
+            })
+            window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Media3 errors may contain signed URLs; only our numeric state logs are enabled.
         Media3Log.setLogLevel(Media3Log.LOG_LEVEL_OFF)
-        enableEdgeToEdge(
-            statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
-            navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT)
-        )
+        enableEdgeToEdge(SystemBarStyle.dark(Color.TRANSPARENT), SystemBarStyle.dark(Color.TRANSPARENT))
+        val defaultOrientation = if (resources.configuration.smallestScreenWidthDp >= 600 || isInMultiWindowMode)
+            ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        requestedOrientation = savedInstanceState?.getInt(STATE_ORIENTATION, defaultOrientation) ?: defaultOrientation
         mediaIsLive = savedInstanceState?.getBoolean(STATE_LIVE, false) ?: false
-        resumePosition = if (mediaIsLive) C.TIME_UNSET else {
-            savedInstanceState?.getLong(STATE_POSITION, C.TIME_UNSET) ?: C.TIME_UNSET
-        }
+        resumePosition = if (mediaIsLive) C.TIME_UNSET else savedInstanceState?.getLong(STATE_POSITION, C.TIME_UNSET) ?: C.TIME_UNSET
         resumePlayWhenReady = savedInstanceState?.getBoolean(STATE_PLAY_WHEN_READY, true) ?: true
-
-        // Titles come from catalog metadata; never expose a stream URI in the UI/task label.
-        title = intent.getStringExtra(EXTRA_TITLE)?.trim()?.takeIf {
-            it.isNotEmpty() && it.length <= 200 && !it.contains("://") && it.none(Char::isISOControl)
-        } ?: DEFAULT_TITLE
-        createContent()
+        title = cleanLabel(intent.getStringExtra(EXTRA_TITLE)) ?: "Reproductor"
+        screen = VideoUiState(title = title.toString(), subtitle = cleanLabel(intent.getStringExtra(EXTRA_PROVIDER)).orEmpty())
         mediaUrl = try {
             allowDesktopHttp = intent.getBooleanExtra(EXTRA_DESKTOP_HTTP, false)
-            val headers = if (intent.hasExtra(EXTRA_HEADERS)) {
-                @Suppress("DEPRECATION")
-                val bundle = intent.extras?.get(EXTRA_HEADERS) as? Bundle
-                    ?: throw IllegalArgumentException()
-                if (bundle.size() > 3) throw IllegalArgumentException()
-                bundle.keySet().associateWith { key ->
-                    @Suppress("DEPRECATION")
-                    val value = bundle.get(key)
-                    value as? String ?: throw IllegalArgumentException()
-                }
-            } else emptyMap()
-            playbackHeaders = PlaybackHeaders.validate(headers)
+            val headers = intent.getBundleExtra(EXTRA_HEADERS)
+            playbackHeaders = PlaybackHeaders.validate(headers?.keySet()?.associateWith {
+                headers.getString(it) ?: throw IllegalArgumentException()
+            }.orEmpty())
             MediaUrlPolicy.validate(intent.getStringExtra(EXTRA_URL).orEmpty(), allowDesktopHttp)
         } catch (_: RuntimeException) {
-            showError(INVALID_URL_ERROR)
+            screen = screen.copy(error = "El enlace de video no es valido o no esta permitido.")
             null
         }
+        setContent {
+            AetherioTheme {
+                PlayerScreen(screen, intent.getBooleanExtra(EXTRA_HAS_SOURCES, false), ::onAction,
+                    onSeek = { player?.takeIf { it.isCurrentMediaItemSeekable }?.seekTo(it) },
+                    onSpeed = { player?.setPlaybackSpeed(it) }, onTrack = ::selectTrack,
+                    video = { mode -> AndroidView(
+                        factory = { context -> PlayerView(context).apply {
+                            useController = false
+                            setShutterBackgroundColor(Color.BLACK)
+                            setBackgroundColor(Color.BLACK)
+                            setArtworkDisplayMode(PlayerView.ARTWORK_DISPLAY_MODE_OFF)
+                        } },
+                        modifier = Modifier.fillMaxSize(), onReset = null,
+                        onRelease = { it.player = null },
+                        update = { it.player = player; it.resizeMode = mode }
+                    ) })
+            }
+        }
+        hideSystemBars()
     }
 
     override fun onStart() {
         super.onStart()
         startPlayer()
+        ticker = lifecycleScope.launch { while (isActive) { refreshState(); delay(500) } }
     }
-
     override fun onStop() {
+        ticker?.cancel()
+        ticker = null
         releasePlayer()
         super.onStop()
     }
-
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        hideSystemBars()
+    }
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) hideSystemBars()
+    }
     override fun onSaveInstanceState(outState: Bundle) {
         capturePlaybackState()
         outState.putBoolean(STATE_LIVE, mediaIsLive)
-        outState.putLong(STATE_POSITION, if (mediaIsLive) C.TIME_UNSET else resumePosition)
+        outState.putLong(STATE_POSITION, resumePosition)
         outState.putBoolean(STATE_PLAY_WHEN_READY, resumePlayWhenReady)
+        outState.putInt(STATE_ORIENTATION, requestedOrientation)
         super.onSaveInstanceState(outState)
     }
 
-    private fun createContent() {
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundColor(BACKGROUND)
+    private fun hideSystemBars() {
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
         }
-        val header = LinearLayout(this).apply {
-            gravity = Gravity.CENTER_VERTICAL
-            minimumHeight = dp(56)
-            setPadding(dp(8), dp(4), dp(16), dp(4))
-            setBackgroundColor(SURFACE)
-        }
-        header.addView(Button(this).apply {
-            text = "Volver"
-            contentDescription = "Volver a Aetherio"
-            setTextColor(Color.WHITE)
-            backgroundTintList = ColorStateList.valueOf(SURFACE)
-            minHeight = dp(48)
-            setOnClickListener { finish() }
-        }, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
-        header.addView(TextView(this).apply {
-            text = title
-            textSize = 18f
-            setTextColor(Color.WHITE)
-            maxLines = 2
-            ellipsize = TextUtils.TruncateAt.END
-            setPadding(dp(12), 0, 0, 0)
-        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
-        root.addView(header, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-
-        val videoContainer = FrameLayout(this)
-        playerView = PlayerView(this).apply {
-            useController = true
-            setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
-            setShowPreviousButton(false)
-            setShowNextButton(false)
-            setShowRewindButton(true)
-            setShowFastForwardButton(true)
-            setShutterBackgroundColor(BACKGROUND)
-            setBackgroundColor(BACKGROUND)
-            setArtworkDisplayMode(PlayerView.ARTWORK_DISPLAY_MODE_OFF)
-        }
-        videoContainer.addView(playerView, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-
-        val errorContent = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER
-            setPadding(dp(24), dp(24), dp(24), dp(24))
-        }
-        errorText = TextView(this).apply {
-            textSize = 17f
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
-        }
-        errorContent.addView(errorText, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-        retryButton = Button(this).apply {
-            text = "Reintentar"
-            setTextColor(Color.WHITE)
-            backgroundTintList = ColorStateList.valueOf(SURFACE)
-            minHeight = dp(48)
-            setOnClickListener {
-                isEnabled = false
-                releasePlayer()
-                startPlayer()
-            }
-        }
-        errorContent.addView(retryButton, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
-            topMargin = dp(16)
-        })
-        errorPanel = ScrollView(this).apply {
-            isFillViewport = true
-            setBackgroundColor(BACKGROUND)
-            visibility = View.GONE
-            addView(errorContent, FrameLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-        }
-        videoContainer.addView(errorPanel, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT))
-        root.addView(videoContainer, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
-        setContentView(root)
-        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
-            val safe = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
-            )
-            view.setPadding(safe.left, safe.top, safe.right, safe.bottom)
-            insets
-        }
-        ViewCompat.requestApplyInsets(root)
     }
 
     private fun startPlayer() {
         val url = mediaUrl ?: return
         if (player != null) return
-        errorPanel.visibility = View.GONE
-        playerView.visibility = View.VISIBLE
-        retryButton.isEnabled = false
+        screen = screen.copy(error = null, buffering = true, videoHeight = 0)
         try {
-            // This factory also gates child manifests, segments and HLS encryption keys.
-            val dataSourceFactory = ResolvingDataSource.Factory(
-                OkHttpDataSource.Factory(httpClient)
-                    .setDefaultRequestProperties(playbackHeaders)
-            ) { dataSpec ->
-                val validated = try {
-                    MediaUrlPolicy.validate(dataSpec.uri.toString(), allowDesktopHttp)
-                } catch (_: IllegalArgumentException) {
-                    throw IOException(INVALID_URL_ERROR)
-                }
-                dataSpec.withUri(Uri.parse(validated))
+            val source = ResolvingDataSource.Factory(
+                OkHttpDataSource.Factory(httpClient).setDefaultRequestProperties(playbackHeaders)
+            ) { spec ->
+                val validated = try { MediaUrlPolicy.validate(spec.uri.toString(), allowDesktopHttp) }
+                catch (_: IllegalArgumentException) { throw IOException("Destino de video no permitido") }
+                spec.withUri(Uri.parse(validated))
             }
-            val activePlayer = ExoPlayer.Builder(this)
-                .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
-                .build()
-            player = activePlayer
-            activePlayer.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(C.USAGE_MEDIA)
-                    .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
-                    .build(),
-                true
-            )
-            activePlayer.setHandleAudioBecomingNoisy(true)
-            activePlayer.addListener(playerListener)
-            playerView.player = activePlayer
-            activePlayer.playWhenReady = resumePlayWhenReady
-            val mimeType = VideoFormat.entries.mapNotNull { it.mimeType }
-                .firstOrNull { it == intent.getStringExtra(EXTRA_MIME) }
-            activePlayer.setMediaItem(
-                MediaItem.Builder().setUri(url).setMimeType(mimeType).build(),
-                if (mediaIsLive) C.TIME_UNSET else resumePosition
-            )
-            activePlayer.prepare()
+            val active = ExoPlayer.Builder(this).setMediaSourceFactory(DefaultMediaSourceFactory(source)).build()
+            player = active
+            active.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
+                .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
+            active.setHandleAudioBecomingNoisy(true)
+            active.addListener(listener)
+            active.playWhenReady = resumePlayWhenReady
+            val mime = VideoFormat.entries.mapNotNull { it.mimeType }.firstOrNull { it == intent.getStringExtra(EXTRA_MIME) }
+            active.setMediaItem(MediaItem.Builder().setUri(url).setMimeType(mime).build(),
+                if (mediaIsLive) C.TIME_UNSET else resumePosition)
+            active.prepare()
         } catch (_: RuntimeException) {
             releasePlayer()
-            showError(PLAYBACK_ERROR)
+            screen = screen.copy(buffering = false, error = "No se pudo preparar el reproductor.")
         }
+    }
+
+    private fun onAction(action: VideoAction) {
+        val active = player
+        when (action) {
+            VideoAction.CLOSE -> finish()
+            VideoAction.FIND_SOURCES -> {
+                if (intent.getBooleanExtra(EXTRA_HAS_SOURCES, false)) {
+                    setResult(RESULT_OK, Intent().putExtra(EXTRA_FIND_SOURCES, true))
+                    finish()
+                }
+            }
+            VideoAction.RETRY -> { releasePlayer(); startPlayer() }
+            VideoAction.TOGGLE_PLAY -> if (active?.isPlaying == true) active.pause() else active?.play()
+            VideoAction.REWIND, VideoAction.FORWARD -> if (active?.isCurrentMediaItemSeekable == true) {
+                val target = active.currentPosition + if (action == VideoAction.REWIND) -10_000 else 10_000
+                active.seekTo(target.coerceIn(0L, active.duration.takeIf { it > 0 } ?: Long.MAX_VALUE))
+            }
+            VideoAction.ROTATE -> requestedOrientation = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
+                ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        }
+    }
+
+    private fun refreshState() {
+        val active = player ?: return
+        screen = screen.copy(playing = active.isPlaying,
+            buffering = active.playbackState == Player.STATE_BUFFERING && screen.error == null,
+            positionMs = active.currentPosition.coerceAtLeast(0), durationMs = active.duration.takeIf { it > 0 } ?: 0,
+            seekable = active.isCurrentMediaItemSeekable, live = active.isCurrentMediaItemLive,
+            videoHeight = active.videoSize.height, speed = active.playbackParameters.speed)
+    }
+
+    private fun refreshTracks(active: Player) {
+        trackOptions.clear()
+        val audio = mutableListOf<PlayerTrackOption>()
+        val subtitles = mutableListOf<PlayerTrackOption>()
+        active.currentTracks.groups.forEachIndexed { groupIndex, group ->
+            if (group.type !in listOf(C.TRACK_TYPE_AUDIO, C.TRACK_TYPE_TEXT)) return@forEachIndexed
+            for (index in 0 until group.length) {
+                if (!group.isTrackSupported(index)) continue
+                val format = group.getTrackFormat(index)
+                val id = "${group.type}:$groupIndex:$index"
+                trackOptions[id] = group.mediaTrackGroup to index
+                val language = format.language?.takeUnless { it == "und" }?.let {
+                    Locale.forLanguageTag(it).getDisplayLanguage(Locale("es")).takeIf(String::isNotBlank)
+                }
+                val label = cleanLabel(format.label) ?: language ?: "Pista ${index + 1}"
+                val option = PlayerTrackOption(id, label, group.isTrackSelected(index))
+                if (group.type == C.TRACK_TYPE_AUDIO) audio.add(option) else subtitles.add(option)
+            }
+        }
+        screen = screen.copy(audioTracks = audio, subtitleTracks = subtitles)
+    }
+
+    private fun selectTrack(id: String) {
+        val active = player ?: return
+        val builder = active.trackSelectionParameters.buildUpon()
+        if (id == "text:none") builder.clearOverridesOfType(C.TRACK_TYPE_TEXT).setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+        else {
+            val (group, index) = trackOptions[id] ?: return
+            builder.setTrackTypeDisabled(group.type, false).setOverrideForType(TrackSelectionOverride(group, listOf(index)))
+        }
+        active.trackSelectionParameters = builder.build()
     }
 
     private fun capturePlaybackState() {
-        val activePlayer = player ?: return
-        resumePlayWhenReady = activePlayer.playWhenReady
-        val timeline = activePlayer.currentTimeline
-        // A placeholder cannot identify live media and must not overwrite a pending VOD seek.
-        if (!timeline.isEmpty &&
-            !timeline.getWindow(activePlayer.currentMediaItemIndex, Timeline.Window()).isPlaceholder
-        ) {
-            mediaIsLive = activePlayer.isCurrentMediaItemLive
-            resumePosition = if (mediaIsLive) C.TIME_UNSET else activePlayer.currentPosition.coerceAtLeast(0L)
+        val active = player ?: return
+        resumePlayWhenReady = active.playWhenReady
+        val timeline = active.currentTimeline
+        if (!timeline.isEmpty && !timeline.getWindow(active.currentMediaItemIndex, Timeline.Window()).isPlaceholder) {
+            mediaIsLive = active.isCurrentMediaItemLive
+            resumePosition = if (mediaIsLive) C.TIME_UNSET else active.currentPosition.coerceAtLeast(0)
         }
     }
-
     private fun releasePlayer() {
         capturePlaybackState()
-        val activePlayer = player
+        val active = player
         player = null
-        activePlayer?.removeListener(playerListener)
-        playerView.player = null
-        activePlayer?.release()
-        playerView.keepScreenOn = false
+        active?.removeListener(listener)
+        active?.release()
+        trackOptions.clear()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        screen = screen.copy(playing = false, buffering = false)
     }
 
-    private fun showError(message: String) {
-        playerView.keepScreenOn = false
-        playerView.visibility = View.INVISIBLE
-        errorText.text = message
-        errorPanel.visibility = View.VISIBLE
-        retryButton.isEnabled = mediaUrl != null
+    private fun cleanLabel(value: String?): String? = value?.trim()?.takeIf {
+        it.isNotEmpty() && it.length <= 200 && !it.contains("://") && it.none(Char::isISOControl)
     }
-
-    private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     companion object {
         const val EXTRA_URL = "com.panoli707.aetherio.nativeapp.player.URL"
@@ -316,14 +299,13 @@ class VideoActivity : ComponentActivity() {
         const val EXTRA_MIME = "com.panoli707.aetherio.nativeapp.player.MIME"
         const val EXTRA_HEADERS = "com.panoli707.aetherio.nativeapp.player.HEADERS"
         const val EXTRA_DESKTOP_HTTP = "com.panoli707.aetherio.nativeapp.player.DESKTOP_HTTP"
+        const val EXTRA_PROVIDER = "com.panoli707.aetherio.nativeapp.player.PROVIDER"
+        const val EXTRA_HAS_SOURCES = "com.panoli707.aetherio.nativeapp.player.HAS_SOURCES"
+        const val EXTRA_FIND_SOURCES = "com.panoli707.aetherio.nativeapp.player.FIND_SOURCES"
         private const val TAG = "AetherioNativePlayer"
-        private const val DEFAULT_TITLE = "Reproducción por enlace"
-        private const val INVALID_URL_ERROR = "No se pudo abrir el vídeo. Usa una URL HTTPS directa válida."
-        private const val PLAYBACK_ERROR = "No se pudo reproducir el vídeo. Comprueba la conexión o vuelve a buscar fuentes."
         private const val STATE_POSITION = "player.position"
         private const val STATE_PLAY_WHEN_READY = "player.playWhenReady"
         private const val STATE_LIVE = "player.live"
-        private val BACKGROUND = Color.rgb(0x20, 0x20, 0x1e)
-        private val SURFACE = Color.rgb(0x39, 0x39, 0x35)
+        private const val STATE_ORIENTATION = "player.orientation"
     }
 }

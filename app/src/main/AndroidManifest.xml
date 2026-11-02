@@ -17,6 +17,7 @@
             android:value="${tmdbCredentialsEmbedded}" />
         <activity
             android:name=".player.VideoActivity"
+            android:configChanges="orientation|screenSize|smallestScreenSize"
             android:exported="false" />
         <provider
             android:name="androidx.core.content.FileProvider"

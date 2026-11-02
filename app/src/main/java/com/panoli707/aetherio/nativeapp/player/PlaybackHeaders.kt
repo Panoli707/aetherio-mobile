@@ -12,18 +12,27 @@ object PlaybackHeaders {
     @JvmStatic
     fun validate(headers: Map<String, String>): Map<String, String> {
         try {
-            require(headers.size <= 3)
+            require(headers.size <= 6)
             val result = linkedMapOf<String, String>()
             for ((key, value) in headers) {
                 val canonical = when (key.lowercase(Locale.ROOT)) {
                     "referer" -> "Referer"
                     "origin" -> "Origin"
                     "user-agent" -> "User-Agent"
+                    "sec-fetch-dest" -> "Sec-Fetch-Dest"
+                    "sec-fetch-mode" -> "Sec-Fetch-Mode"
+                    "sec-fetch-site" -> "Sec-Fetch-Site"
                     else -> throw IllegalArgumentException()
                 }
                 require(canonical !in result)
                 require(value.length in 1..4096 && value.all { it in ' '..'~' })
-                if (canonical != "User-Agent") {
+                if (canonical.startsWith("Sec-Fetch-")) {
+                    require(value == when (canonical) {
+                        "Sec-Fetch-Dest" -> "empty"
+                        "Sec-Fetch-Mode" -> "cors"
+                        else -> "same-origin"
+                    })
+                } else if (canonical != "User-Agent") {
                     require(!encodedControl.containsMatchIn(value))
                     val uri = URI(value)
                     val url = value.toHttpUrlOrNull() ?: throw IllegalArgumentException()

@@ -38,8 +38,8 @@ class SourceSettingsStoreTest {
         targetContext.deleteSharedPreferences(preferencesName)
     }
 
-    @Test fun freshPreferencesDefaultToAllFourDesktopSourcesWithoutWritingThem() {
-        assertEquals(setOf("penguplay", "hdhub", "animes", "deepflix"), SourceSettingsStore(context).enabledDesktopSources)
+    @Test fun freshPreferencesDefaultToAllFiveDesktopSourcesWithoutWritingThem() {
+        assertEquals(setOf("penguplay", "hdhub", "animes", "deepflix", "animeav1"), SourceSettingsStore(context).enabledDesktopSources)
         assertFalse(preferences.contains("desktop"))
     }
 

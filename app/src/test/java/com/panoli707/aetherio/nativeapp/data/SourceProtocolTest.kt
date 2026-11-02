@@ -21,7 +21,7 @@ class SourceProtocolTest {
         val url = "http://usa7-as09.shegu.net:8080/bunny.mp4"
         val raw = """{"streams":[{"url":"$url"}]}"""
         assertEquals(1, SourceProtocol.streams(raw, config()).unsupportedCount)
-        val desktop = config(url = DesktopSources.providers.first().manifestUrl)
+        val desktop = config(url = requireNotNull(DesktopSources.providers.first().manifestUrl))
         val result = SourceProtocol.streams(raw, desktop)
         assertEquals(url, result.sources.single().url)
         assertTrue(result.sources.single().allowDesktopHttp)

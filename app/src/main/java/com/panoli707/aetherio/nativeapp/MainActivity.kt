@@ -40,6 +40,11 @@ class MainActivity : ComponentActivity() {
             val state by model.state.collectAsStateWithLifecycle()
             val updates by updateModel.state.collectAsStateWithLifecycle()
             val activityState by lifecycle.currentStateFlow.collectAsStateWithLifecycle()
+            val videoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+                if (result.resultCode == RESULT_OK && result.data?.getBooleanExtra(VideoActivity.EXTRA_FIND_SOURCES, false) == true) {
+                    model.reopenPlaybackSources()
+                }
+            }
             val installLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
             val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
                 if (Build.VERSION.SDK_INT < 26 || packageManager.canRequestPackageInstalls()) updateModel.requestInstall()
@@ -82,11 +87,14 @@ class MainActivity : ComponentActivity() {
                         val title = query?.let {
                             if (it.season != null && it.episode != null) "${it.item.title} · T${it.season} E${it.episode}" else it.item.title
                         } ?: "Reproductor"
-                        startActivity(Intent(this, VideoActivity::class.java)
+                        model.rememberPlaybackQuery(fromSources = true)
+                        videoLauncher.launch(Intent(this, VideoActivity::class.java)
                             .putExtra(VideoActivity.EXTRA_URL, validated)
                             .putExtra(VideoActivity.EXTRA_MIME, format.mimeType)
                             .putExtra(VideoActivity.EXTRA_DESKTOP_HTTP, source.allowDesktopHttp)
                             .putExtra(VideoActivity.EXTRA_TITLE, title)
+                            .putExtra(VideoActivity.EXTRA_PROVIDER, source.addonName)
+                            .putExtra(VideoActivity.EXTRA_HAS_SOURCES, query != null)
                             .putExtra(VideoActivity.EXTRA_HEADERS, Bundle().apply {
                                 source.headers.forEach { (name, value) -> putString(name, value) }
                             }))
@@ -98,7 +106,8 @@ class MainActivity : ComponentActivity() {
                 onOpenVideo = { url, format ->
                     try {
                         val validated = MediaUrlPolicy.validate(url)
-                        startActivity(Intent(this, VideoActivity::class.java)
+                        model.rememberPlaybackQuery(fromSources = false)
+                        videoLauncher.launch(Intent(this, VideoActivity::class.java)
                             .putExtra(VideoActivity.EXTRA_URL, validated)
                             .putExtra(VideoActivity.EXTRA_MIME, format.mimeType)
                             .putExtra(VideoActivity.EXTRA_TITLE, "Reproducción por enlace"))

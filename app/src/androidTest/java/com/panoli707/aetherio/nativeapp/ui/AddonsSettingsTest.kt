@@ -34,14 +34,14 @@ class AddonsSettingsTest {
             }
         }
 
-        assertEquals(4, DesktopSources.providers.size)
+        assertEquals(5, DesktopSources.providers.size)
         compose.onNodeWithText("Fuentes de Aetherio PC").assertIsDisplayed()
         compose.onNodeWithText("Estas fuentes se consultan solo al pulsar Buscar fuentes", substring = true).assertExists()
-        compose.onAllNodes(isToggleable()).assertCountEquals(4)
+        compose.onAllNodes(isToggleable()).assertCountEquals(5)
         DesktopSources.providers.forEach { provider ->
             compose.onNodeWithText(provider.name).performScrollTo().assertIsDisplayed()
             compose.onNodeWithContentDescription(provider.name).assertIsOn()
-            compose.onNodeWithText(provider.manifestUrl, substring = true, useUnmergedTree = true).assertDoesNotExist()
+            provider.manifestUrl?.let { compose.onNodeWithText(it, substring = true, useUnmergedTree = true).assertDoesNotExist() }
         }
         compose.onNodeWithText("No respondi\u00f3 en la \u00faltima consulta").assertDoesNotExist()
         compose.onNodeWithText("Proveedores propios").performScrollTo().assertIsDisplayed()

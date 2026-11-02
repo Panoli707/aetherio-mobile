@@ -55,10 +55,10 @@ class DesktopSourcesTest {
     }
 
     @Test fun providersMatchTheFourPublicDesktopConfigurationsAndValidateAsManifestUrls() {
-        assertEquals(expectedProviders, DesktopSources.providers)
-        assertEquals(setOf("penguplay", "hdhub", "animes", "deepflix"), DesktopSources.defaultIds)
-        DesktopSources.providers.forEach { provider ->
-            assertEquals(provider.manifestUrl, SourceProtocol.manifestUrl(provider.manifestUrl).toString())
+        assertEquals(expectedProviders + DesktopSourceProvider("animeav1", "AnimeAV1"), DesktopSources.providers)
+        assertEquals(setOf("penguplay", "hdhub", "animes", "deepflix", "animeav1"), DesktopSources.defaultIds)
+        DesktopSources.providers.mapNotNull { it.manifestUrl }.forEach { url ->
+            assertEquals(url, SourceProtocol.manifestUrl(url).toString())
         }
     }
 
@@ -84,7 +84,7 @@ class DesktopSourcesTest {
                 val start = fixture.requests.size
                 fixture.repository.sources(provider.id, movie)
                 fixture.repository.sources(provider.id, series)
-                val base = provider.manifestUrl.removeSuffix("manifest.json")
+                val base = requireNotNull(provider.manifestUrl).removeSuffix("manifest.json")
                 assertEquals(listOf(
                     provider.manifestUrl,
                     "${base}stream/movie/tt0137523.json",

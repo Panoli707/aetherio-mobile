@@ -4,6 +4,18 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PlaybackHeadersTest {
+    @Test fun acceptsZillaFetchMetadataButRejectsUnrecognizedValues() {
+        val headers = mapOf("Referer" to "https://player.zilla-networks.com/",
+            "Origin" to "https://player.zilla-networks.com", "User-Agent" to "Player/1.0",
+            "Sec-Fetch-Dest" to "empty", "Sec-Fetch-Mode" to "cors", "Sec-Fetch-Site" to "same-origin")
+        assertEquals(headers, PlaybackHeaders.validate(headers))
+        listOf("Sec-Fetch-Dest", "Sec-Fetch-Mode", "Sec-Fetch-Site").forEach { key ->
+            assertRejected(headers + (key to "untrusted"))
+            assertRejected(headers + (key to "cors\r\nCookie: test-value"))
+        }
+        assertRejected(headers + ("Authorization" to "test-value"))
+    }
+
     @Test fun acceptsOnlyCanonicalAllowedKeysAndPreservesValidValues() {
         val headers = linkedMapOf(
             "rEfErEr" to "https://www.example.org/watch/episode%20one?quality=hd&signature=a%2Fb",

@@ -233,7 +233,7 @@ internal object SourceProtocol {
             }
             for (headers in listOfNotNull(optionalObject(parent, "headers"),
                 optionalObject(parent, "requestHeaders"), flatProxy, proxy?.let { optionalObject(it, "request") })) {
-                if (headers.length() > 3) invalid()
+                if (headers.length() > 6) invalid()
                 val values = linkedMapOf<String, String>()
                 headers.keys().forEach { key -> values[key] = headers.opt(key) as? String ?: invalid() }
                 PlaybackHeaders.validate(values).forEach { (key, value) ->

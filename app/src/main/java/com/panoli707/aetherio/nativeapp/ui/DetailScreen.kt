@@ -38,13 +38,10 @@ import com.panoli707.aetherio.nativeapp.data.*
 import java.text.NumberFormat
 import java.util.Locale
 
-private val DetailNight = Color(0xFF080F24)
-private val DetailPanel = Color(0xFF14233F)
-private val DetailText = Color(0xFFF4F7FF)
-private val DetailMuted = Color(0xFFB5C4DF)
-private val Aqua = Color(0xFF55E6D1)
-private val Violet = Color(0xFFB39AFF)
-private val Coral = Color(0xFFFF927D)
+private val DetailNight = Ink
+private val DetailPanel = Panel
+private val DetailText = Cream
+private val DetailMuted = Muted
 
 @Composable
 internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListState, onBack: () -> Unit,
@@ -74,23 +71,17 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
         var actions by remember(media.key) { mutableStateOf<EpisodeItem?>(null) }
         var infoOpen by rememberSaveable(media.key) { mutableStateOf(false) }
         BoxWithConstraints(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF171B3E), DetailNight)))) {
-            val heroHeight = if (maxWidth < 600.dp) (maxWidth * 1.42f).coerceIn(440.dp, 680.dp) else 430.dp
+            val portrait = maxWidth < 600.dp
+            val heroHeight = if (portrait) (maxWidth * 1.42f).coerceIn(440.dp, 680.dp) else 430.dp
             val episodeWidth = (maxWidth * .79f).coerceIn(260.dp, 420.dp)
             LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("detailScroll"),
                 contentPadding = PaddingValues(bottom = 28.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
                 item(key = "hero") {
                     Box(Modifier.fillMaxWidth().height(heroHeight).testTag("detailHero")) {
-                        val heroImage = if (!media.logoUrl.isNullOrBlank()) media.backdropUrl ?: media.posterUrl
-                            else if (heroHeight > 500.dp) media.posterUrl ?: media.backdropUrl else media.backdropUrl ?: media.posterUrl
-                        DetailArtwork(heroImage, Modifier.fillMaxSize())
+                        val heroImage = ArtworkImages.hero(media, portrait)
+                        Artwork(heroImage, Modifier.fillMaxSize(), highResolution = true)
                         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(
                             DetailNight.copy(alpha = .62f), Color.Transparent, DetailNight.copy(alpha = .35f), DetailNight))))
-                        val trailer = detail?.trailers?.firstOrNull()
-                        if (trailer != null || canPlay) IconButton(
-                            onClick = { if (trailer != null) onOpenExternal(trailer.url) else play() },
-                            modifier = Modifier.align(Alignment.Center).size(76.dp).background(DetailNight.copy(alpha = .72f), CircleShape)) {
-                            Icon(Icons.Default.PlayArrow, if (trailer != null) "Ver tráiler" else "Abrir fuentes", tint = Color.White, modifier = Modifier.size(46.dp))
-                        }
                         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 14.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(if (media.isAnime) "ANIME" else media.type.label.uppercase(Locale.forLanguageTag("es")),
@@ -172,10 +163,11 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                 if (detail != null && detail.trailers.isNotEmpty()) item(key = "trailers") {
                     DetailFold("Tráilers", "detailTrailers") {
                         LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                            items(detail.trailers, key = { it.id }) { trailer -> Column(Modifier.width(episodeWidth).clickable { onOpenExternal(trailer.url) }) {
+                            items(detail.trailers, key = { it.id }) { trailer -> Column(Modifier.width(episodeWidth)
+                                .clickable(onClickLabel = "Abrir tráiler ${trailer.title}") { onOpenExternal(trailer.url) }
+                                .semantics(mergeDescendants = true) { contentDescription = "Abrir tráiler ${trailer.title}" }) {
                                 Box(Modifier.fillMaxWidth().aspectRatio(1.78f).clip(RoundedCornerShape(18.dp))) {
                                     DetailArtwork(trailer.thumbnailUrl, Modifier.fillMaxSize())
-                                    Icon(Icons.Default.PlayCircle, "Abrir tráiler ${trailer.title}", tint = Color.White, modifier = Modifier.align(Alignment.Center).size(52.dp).background(DetailNight.copy(alpha = .5f), CircleShape))
                                 }
                                 Text(trailer.title, color = DetailText, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
                                 Text("YouTube · vídeo externo", color = DetailMuted, style = MaterialTheme.typography.bodySmall)
@@ -277,7 +269,6 @@ private fun DetailEpisodeCard(episode: EpisodeItem, media: MediaItem, progress: 
             Box(Modifier.fillMaxWidth().aspectRatio(1.78f)) {
                 DetailArtwork(episode.imageUrl ?: media.backdropUrl ?: media.posterUrl, Modifier.fillMaxSize())
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, DetailNight.copy(alpha = .55f)))))
-                Icon(Icons.Default.PlayCircle, null, tint = Color.White, modifier = Modifier.align(Alignment.Center).size(52.dp).background(DetailNight.copy(alpha = .35f), CircleShape))
                 IconButton(onClick = onActions, modifier = Modifier.align(Alignment.TopStart).padding(4.dp).size(44.dp)) {
                     Icon(if (progress?.watched == true) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
                         "Opciones del episodio T${episode.season} E${episode.number}", tint = if (progress?.watched == true) Aqua else Color.White,

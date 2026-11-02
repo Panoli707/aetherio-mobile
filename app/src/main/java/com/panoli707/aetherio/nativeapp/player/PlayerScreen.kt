@@ -153,7 +153,7 @@ fun PlayerScreen(
                                 Box(Modifier.size(if (compact) 64.dp else 80.dp), contentAlignment = Alignment.Center) {
                                     CircularProgressIndicator(Modifier.size(40.dp).semantics {
                                         contentDescription = "Cargando video"
-                                    }, color = Color.White)
+                                    }, color = MaterialTheme.colorScheme.primary)
                                 }
                             } else PlayerButton(
                                 if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
@@ -182,8 +182,8 @@ fun PlayerScreen(
                                 color = Color.White.copy(alpha = .7f), fontSize = 13.sp,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
                             if (state.videoHeight > 0) Text("${state.videoHeight}p", Modifier.padding(horizontal = 8.dp)
-                                .background(Color.White.copy(alpha = .15f)).padding(horizontal = 6.dp, vertical = 2.dp),
-                                color = Color.White, fontSize = 12.sp)
+                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = .2f)).padding(horizontal = 6.dp, vertical = 2.dp),
+                                color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Slider(
@@ -195,12 +195,12 @@ fun PlayerScreen(
                                 },
                                 enabled = canSeek,
                                 modifier = Modifier.weight(1f).semantics { contentDescription = "Posici\u00f3n de reproducci\u00f3n" },
-                                thumb = { Box(Modifier.size(10.dp).background(Color.White, CircleShape)) },
-                                colors = SliderDefaults.colors(thumbColor = Color.White, activeTrackColor = Color.White,
-                                    inactiveTrackColor = Color.White.copy(alpha = .3f),
-                                    disabledThumbColor = Color.White.copy(alpha = .35f),
-                                    disabledActiveTrackColor = Color.White.copy(alpha = .3f),
-                                    disabledInactiveTrackColor = Color.White.copy(alpha = .15f))
+                                thumb = { Box(Modifier.size(10.dp).background(MaterialTheme.colorScheme.primary, CircleShape)) },
+                                colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.secondary.copy(alpha = .3f),
+                                    disabledThumbColor = MaterialTheme.colorScheme.primary.copy(alpha = .35f),
+                                    disabledActiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = .3f),
+                                    disabledInactiveTrackColor = MaterialTheme.colorScheme.secondary.copy(alpha = .15f))
                             )
                             val displayedPosition = if (scrubbing) (scrubFraction.toDouble() * duration).toLong() else position
                             Text("${playerTime(displayedPosition)} / ${if (state.live) "EN DIRECTO" else playerTime(duration)}",
@@ -283,7 +283,7 @@ private fun PlayerButton(
 ) {
     IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(size.dp)) {
         Icon(icon, contentDescription = label, modifier = Modifier.size((if (size > 48) 48 else 26).dp),
-            tint = Color.White.copy(alpha = if (enabled) 1f else .35f))
+            tint = (if (size > 48) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface).copy(alpha = if (enabled) 1f else .35f))
     }
 }
 

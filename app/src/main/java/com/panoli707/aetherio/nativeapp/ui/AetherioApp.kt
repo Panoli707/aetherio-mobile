@@ -87,7 +87,7 @@ fun AetherioApp(
         derivedStateOf { homeScroll.firstVisibleItemIndex > 0 || homeScroll.firstVisibleItemScrollOffset > collapseOffset }
     }
     val openSearch: () -> Unit = { focus.clearFocus(); searchNeedsFocus = true; searchOpen = true }
-    LaunchedEffect(tab, categoryId) { if (tab == "anime" || categoryId == "airing") onLoadAnimeSeason() }
+    LaunchedEffect(tab, categoryId) { if (tab == "home" || tab == "anime" || categoryId == "airing") onLoadAnimeSeason() }
     val select: (MediaItem) -> Unit = { item ->
         focus.clearFocus()
         onSelectMedia(item)
@@ -148,7 +148,7 @@ fun AetherioApp(
                                 "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon, onDesktopSourceToggle,
                                     updates, onUpdateAction, onAutomaticUpdatesChange)
                                 else -> HomeScreen(state, homeScroll, pager, !linkOpen && state.sourceQuery == null && !updates.noticeVisible,
-                                    select, { categoryId = it }, onRetryHome, onContinue)
+                                    select, { categoryId = it }, onRetryHome, onContinue, onLoadAnimeSeason)
                             }
                         }
                         if (!imeVisible) FloatingNavigation(tab, tab == "home" && collapsed, { target ->

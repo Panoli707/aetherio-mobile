@@ -20,6 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
@@ -38,15 +39,20 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.panoli707.aetherio.nativeapp.data.MediaItem
+import com.panoli707.aetherio.nativeapp.data.ArtworkImages
 import com.panoli707.aetherio.nativeapp.player.MediaUrlPolicy
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import java.util.Locale
 
 @Composable
-internal fun Artwork(url: String?, modifier: Modifier = Modifier, description: String? = null, placeholderColor: Color = Color(0xFF343430)) {
+internal fun Artwork(url: String?, modifier: Modifier = Modifier, description: String? = null, placeholderColor: Color = Panel,
+    highResolution: Boolean = false) {
     val placeholder = modifier.background(placeholderColor)
+    val preferred = remember(url, highResolution) { if (highResolution) ArtworkImages.highResolution(url) else url }
+    var failed by remember(preferred) { mutableStateOf(false) }
     if (LocalInspectionMode.current || url.isNullOrBlank()) Box(placeholder)
-    else AsyncImage(model = url, contentDescription = description, contentScale = ContentScale.Crop, modifier = placeholder)
+    else AsyncImage(model = if (failed) url else preferred, contentDescription = description, contentScale = ContentScale.Crop,
+        filterQuality = FilterQuality.High, onError = { failed = true }, modifier = placeholder)
 }
 
 @Composable
@@ -161,7 +167,7 @@ internal fun LoadingRow(label: String) {
 @Composable
 internal fun FloatingNavigation(tab: String, collapsed: Boolean, onTab: (String) -> Unit, onSearch: () -> Unit,
     modifier: Modifier = Modifier) {
-    val glass = Brush.verticalGradient(listOf(Color(0xFF656354).copy(alpha = .94f), Panel.copy(alpha = .97f)))
+    val glass = Brush.linearGradient(listOf(Panel.copy(alpha = .97f), Color(0xFF292344).copy(alpha = .97f)))
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val itemWidth = ((maxWidth - 118.dp) / 4).coerceIn(48.dp, 70.dp)
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
@@ -188,11 +194,11 @@ internal fun FloatingNavigation(tab: String, collapsed: Boolean, onTab: (String)
 @Composable
 private fun NavigationItem(label: String, icon: ImageVector, selected: Boolean, compact: Boolean, width: Dp, onClick: () -> Unit) {
     Column(Modifier.width(if (compact) 48.dp else width).height(if (compact) 48.dp else 54.dp)
-        .clip(CircleShape).background(if (selected) Ink.copy(alpha = .45f) else Color.Transparent)
+        .clip(CircleShape).background(if (selected) Aqua.copy(alpha = .16f) else Color.Transparent)
         .clickable(role = Role.Tab, onClick = onClick).semantics(mergeDescendants = true) { this.selected = selected },
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Icon(icon, if (compact) label else null, Modifier.size(23.dp))
-        if (!compact) Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
+        Icon(icon, if (compact) label else null, Modifier.size(23.dp), tint = if (selected) Aqua else Muted)
+        if (!compact) Text(label, color = if (selected) Aqua else Muted, style = MaterialTheme.typography.labelSmall, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
     }
 }
 

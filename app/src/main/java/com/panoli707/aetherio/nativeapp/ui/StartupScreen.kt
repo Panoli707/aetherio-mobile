@@ -29,7 +29,7 @@ internal fun StartupScreen() {
             Spacer(Modifier.height(20.dp))
             Text("Aetherio", style = MaterialTheme.typography.headlineLarge, color = Cream)
             Spacer(Modifier.height(24.dp))
-            CircularProgressIndicator(Modifier.size(24.dp), color = Cream, strokeWidth = 2.dp)
+            CircularProgressIndicator(Modifier.size(24.dp), color = Aqua, strokeWidth = 2.dp)
             Spacer(Modifier.height(16.dp))
             Text("Cargando\u2026", style = MaterialTheme.typography.bodyMedium, color = Muted,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })

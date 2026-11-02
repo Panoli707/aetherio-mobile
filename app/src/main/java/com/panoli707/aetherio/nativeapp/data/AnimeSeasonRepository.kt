@@ -32,7 +32,7 @@ internal class AnimeSeasonRepository(client: OkHttpClient = OkHttpClient()) {
         val entries = mutableListOf<SeasonalAnime>()
         var page = 1
         do {
-            val data = request("""query SeasonalAnime(${'$'}page:Int!,${'$'}season:MediaSeason!,${'$'}year:Int!){Page(page:${'$'}page,perPage:50){pageInfo{hasNextPage}media(type:ANIME,season:${'$'}season,seasonYear:${'$'}year,status:RELEASING,isAdult:false,sort:POPULARITY_DESC){$FIELDS nextAiringEpisode{airingAt episode}}}}""",
+            val data = request("""query SeasonalAnime(${'$'}page:Int!,${'$'}season:MediaSeason!,${'$'}year:Int!){Page(page:${'$'}page,perPage:50){pageInfo{hasNextPage}media(type:ANIME,season:${'$'}season,seasonYear:${'$'}year,status:RELEASING,isAdult:false,sort:POPULARITY_DESC){$FIELDS nextAiringEpisode{airingAt episode} airingSchedule(perPage:50){nodes{episode airingAt}pageInfo{hasNextPage}}}}}""",
                 JSONObject().put("page", page).put("season", season.code).put("year", season.year)).getJSONObject("Page")
             val media = data.getJSONArray("media")
             if (media.length() > 50) throw failure()
@@ -97,6 +97,6 @@ internal class AnimeSeasonRepository(client: OkHttpClient = OkHttpClient()) {
 
     private fun failure() = IOException("No se pudo consultar el calendario de anime")
     companion object {
-        private const val FIELDS = "id title{romaji english} description(asHtml:false) coverImage{large} bannerImage episodes season seasonYear status isAdult averageScore genres"
+        private const val FIELDS = "id title{romaji english} description(asHtml:false) coverImage{extraLarge large} bannerImage episodes season seasonYear status isAdult averageScore genres"
     }
 }

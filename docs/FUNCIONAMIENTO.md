@@ -16,7 +16,9 @@ Si aparece un error de carga, comprueba la conexión y pulsa **Reintentar** cuan
 
 ## Fichas y episodios
 
-Las fichas de películas, series y anime comparten una estructura con portada grande, título o logo y metadatos. El botón principal abre las fuentes de la película o del episodio indicado; si hay progreso pendiente, muestra **Continuar** con la posición guardada.
+Las fichas de películas, series y anime comparten una estructura con portada grande, título o logo y metadatos. La portada no tiene un botón de reproducción superpuesto: usa el botón principal para abrir las fuentes de la película o del episodio indicado; si hay progreso pendiente, muestra **Continuar** con la posición guardada. Las imágenes de episodios y tráileres tampoco llevan iconos de reproducción superpuestos, pero sus tarjetas siguen siendo pulsables.
+
+La paleta azul noche, turquesa, violeta y coral se aplica a toda la aplicación, incluidos navegación, búsqueda, biblioteca, ajustes, menús y controles del reproductor. El fondo del vídeo sigue siendo negro. Las imágenes principales usan póster en vertical y fondo panorámico en horizontal, solicitando la resolución original de TMDB o la portada grande de AniList cuando existe. La nitidez final depende de la imagen disponible; no se genera una versión HD artificial.
 
 Debajo están las acciones compactas: **Biblioteca / Guardado**, **Seguir / Siguiendo** para anime, **Enlace** para una URL propia e **Información** para consultar cómo funcionan las fuentes. La sinopsis empieza resumida; **Leer sinopsis completa** la despliega y **Ver menos** vuelve a reducirla.
 
@@ -59,7 +61,9 @@ Los animes con progreso o capítulos marcados se incorporan al seguimiento. Tamb
 
 ### Temporada actual y días de emisión
 
-Abre **Anime emitiéndose ahora** desde Inicio o desde la pestaña Anime. El listado consulta AniList y exige la temporada y el año actuales, calculados según el calendario de Japón, junto con el estado **en emisión**. Ya no usa una ventana aproximada de fechas de TMDB. Una serie de años anteriores no aparece solo por seguir activa.
+En Inicio y en la pestaña Anime, **Anime emitiéndose ahora** muestra un carrusel de portadas con el nombre y el último episodio emitido confirmado; el total aparece si se conoce. Se ordena por la emisión confirmada más reciente. Si falta un horario completo, la tarjeta indica **En emisión** sin inventar un número. Toca una portada para abrir su ficha o el encabezado para ir a la temporada y sus días de emisión.
+
+El listado consulta AniList y exige la temporada y el año actuales, calculados según el calendario de Japón, junto con el estado **en emisión**. Ya no usa una ventana aproximada de fechas de TMDB. Una serie de años anteriores no aparece solo por seguir activa.
 
 Los filtros superiores permiten elegir **Todos**, un día de la semana o **Sin horario**. El día procede de la próxima emisión publicada y se muestra según **Japón (JST)**, no según la hora local ni la disponibilidad de doblaje o subtítulos. Los datos dependen del servicio; la temporada se conserva hasta una hora en memoria y puede volver a consultarse al abrir el calendario. Si falla, se avisa en lugar de sustituirla por series antiguas.
 

@@ -20,6 +20,8 @@ class AnimeSeasonLiveTest {
         val entries = repository.season(season)
         assertTrue("The current season should have releasing anime", entries.isNotEmpty())
         assertTrue(entries.all { it.item.source == CatalogSource.ANILIST && it.item.animeSeasonLabel == season.label && it.item.isAnime })
+        assertTrue(entries.any { it.latestEpisode != null })
+        assertTrue(entries.all { it.latestAiringAt == null || it.latestAiringAt <= System.currentTimeMillis() / 1000 })
         val sample = entries.first { it.nextEpisode != null && it.nextEpisode > 1 }
         val detail = repository.detail(sample.item)
         assertEquals(sample.item.id, detail.item.id)

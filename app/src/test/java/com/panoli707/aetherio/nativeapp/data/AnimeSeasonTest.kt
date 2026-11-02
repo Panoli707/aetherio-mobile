@@ -34,6 +34,25 @@ class AnimeSeasonTest {
         assertEquals(6, entry.nextEpisode)
         assertNull(AnimeSeasonProtocol.seasonal(anime().put("nextAiringEpisode", JSONObject.NULL), season, now)!!.weekday)
         assertNull(AnimeSeasonProtocol.seasonal(anime(), season, 1794000000)!!.weekday)
+        assertNull(AnimeSeasonProtocol.seasonal(anime(), season, 1794000000)!!.nextEpisode)
+    }
+
+    @Test fun latestAiredEpisodeUsesRealPastScheduleAndIsNeverNextMinusOne() {
+        val json = anime().put("airingSchedule", JSONObject("""{"nodes":[{"episode":3,"airingAt":1790949600},{"episode":8,"airingAt":1793973600},{"episode":4,"airingAt":1791554400}],"pageInfo":{"hasNextPage":false}}"""))
+        val entry = AnimeSeasonProtocol.seasonal(json, season, now)!!
+        assertEquals(4, entry.latestEpisode)
+        assertEquals(1791554400L, entry.latestAiringAt)
+        assertEquals(6, entry.nextEpisode)
+        assertNull(AnimeSeasonProtocol.seasonal(anime(), season, now)!!.latestEpisode)
+        json.getJSONObject("airingSchedule").getJSONObject("pageInfo").put("hasNextPage", true)
+        assertNull(AnimeSeasonProtocol.seasonal(json, season, now)!!.latestEpisode)
+    }
+
+    @Test fun animeCoverUsesExtraLargeWhenAvailableAndFallsBackToLarge() {
+        val json = anime().put("coverImage", JSONObject("""{"extraLarge":"https://s4.anilist.co/large.jpg","large":"https://s4.anilist.co/small.jpg"}"""))
+        assertEquals("https://s4.anilist.co/large.jpg", AnimeSeasonProtocol.item(json)!!.posterUrl)
+        json.getJSONObject("coverImage").put("extraLarge", JSONObject.NULL)
+        assertEquals("https://s4.anilist.co/small.jpg", AnimeSeasonProtocol.item(json)!!.posterUrl)
     }
 
     @Test fun detailOnlyOffersEpisodesWithPastAiringTimestampsNotTheEntireAnnouncedSeason() {

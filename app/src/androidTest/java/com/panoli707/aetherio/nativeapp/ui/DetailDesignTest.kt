@@ -70,7 +70,10 @@ class DetailDesignTest {
             DetailScreen(AppState(detail = detail), movie, rememberLazyListState(), {}, {}, {}, {}, {}, { _, _, _ -> },
                 onOpenExternal = { external = it }, onSelectRelated = { picked = it })
         } }
-        compose.onNodeWithContentDescription("Ver tráiler").performClick()
+        compose.onNodeWithContentDescription("Ver tráiler").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Abrir fuentes").assertDoesNotExist()
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailTrailers"))
+        compose.onNodeWithContentDescription("Abrir tráiler Tráiler de prueba").performClick()
         compose.runOnIdle { assertEquals(trailer.url, external) }
         compose.onNodeWithTag("detailScroll").performScrollToNode(hasText("Película relacionada"))
         compose.onNodeWithText("Película relacionada").performClick()

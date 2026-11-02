@@ -25,7 +25,8 @@ data class AnimeSeason(val year: Int, val code: String) {
     }
 }
 
-data class SeasonalAnime(val item: MediaItem, val weekday: AnimeWeekday?, val nextEpisode: Int?, val nextAiringAt: Long?)
+data class SeasonalAnime(val item: MediaItem, val weekday: AnimeWeekday?, val nextEpisode: Int?, val nextAiringAt: Long?,
+    val latestEpisode: Int? = null, val latestAiringAt: Long? = null)
 data class AnimeSeasonState(
     val season: AnimeSeason = AnimeSeason.current(),
     val entries: List<SeasonalAnime> = emptyList(),
@@ -44,7 +45,8 @@ internal object AnimeSeasonProtocol {
         val label = if (year in 1900..2200 && season in listOf("WINTER", "SPRING", "SUMMER", "FALL")) AnimeSeason(year, season).label else ""
         val genres = json.optJSONArray("genres")
         return MediaItem(id.toString(), MediaType.SERIES, title.take(500), CatalogSource.ANILIST,
-            posterUrl = CatalogJson.image(json.optJSONObject("coverImage")?.optString("large")),
+            posterUrl = CatalogJson.image(json.optJSONObject("coverImage")?.optString("extraLarge"))
+                ?: CatalogJson.image(json.optJSONObject("coverImage")?.optString("large")),
             backdropUrl = CatalogJson.image(json.optString("bannerImage")),
             overview = json.optString("description").takeUnless { it == "null" }.orEmpty()
                 .replace(Regex("<[^>]*>"), " ").replace("&amp;", "&").replace("&#039;", "'").trim().take(10000),
@@ -60,8 +62,18 @@ internal object AnimeSeasonProtocol {
         val item = item(json) ?: return null
         val next = json.optJSONObject("nextAiringEpisode")
         val nextTime = next?.optLong("airingAt", 0)?.takeIf { it > nowSeconds && it < nowSeconds + 370 * 86400L }
-        val nextEpisode = next?.optInt("episode", 0)?.takeIf { it > 0 }
-        return SeasonalAnime(item, nextTime?.let(AnimeSeason::weekday), nextEpisode, nextTime)
+        val nextEpisode = next?.optInt("episode", 0)?.takeIf { it > 0 && nextTime != null }
+        val schedule = json.optJSONObject("airingSchedule")
+        val nodes = schedule?.optJSONArray("nodes")
+        // A partial schedule cannot establish the latest episode. Never assume nextEpisode - 1.
+        val latest = if (schedule?.optJSONObject("pageInfo")?.optBoolean("hasNextPage") == true) null
+            else (0 until (nodes?.length() ?: 0)).mapNotNull { index ->
+                val node = nodes?.optJSONObject(index) ?: return@mapNotNull null
+                val episode = node.optInt("episode", 0)
+                val time = node.optLong("airingAt", 0)
+                if (episode > 0 && time in 1..nowSeconds) episode to time else null
+            }.maxByOrNull { it.second }
+        return SeasonalAnime(item, nextTime?.let(AnimeSeason::weekday), nextEpisode, nextTime, latest?.first, latest?.second)
     }
 
     fun detail(json: JSONObject, nowSeconds: Long): MediaDetail {

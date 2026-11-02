@@ -33,7 +33,7 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
         LazyColumn(state = scroll, contentPadding = PaddingValues(bottom = 120.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
             item(key = "animeHeader") {
                 if (hero == null) ScreenHeader("Anime") else Box(Modifier.fillMaxWidth().height(260.dp)) {
-                    Artwork(hero.backdropUrl ?: hero.posterUrl, Modifier.fillMaxSize())
+                    Artwork(ArtworkImages.hero(hero, portrait = false), Modifier.fillMaxSize(), highResolution = true)
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Ink))))
                     Column(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
                         Text(if (continuing.isNotEmpty()) "Continuar viendo" else "Estás viendo", style = MaterialTheme.typography.titleLarge)
@@ -49,7 +49,7 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
                         Column(Modifier.width(280.dp).clickable(onClickLabel = "Continuar ${progress.target.item.title}") { onContinue(progress) }) {
                             Artwork(progress.target.imageUrl ?: progress.target.item.backdropUrl ?: progress.target.item.posterUrl,
                                 Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(14.dp)))
-                            LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Cream)
+                            LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Aqua, trackColor = Violet.copy(alpha = .2f))
                             Text(progress.target.episodeTitle.ifBlank { progress.target.item.title }, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
                             Text("T${progress.target.season} · E${progress.target.episode} · ${progress.target.item.title}", color = Muted,
@@ -64,7 +64,7 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
                 Text("Tus animes en seguimiento, también entre un capítulo y el siguiente.", color = Muted, modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
             }
             if (state.watchingAnime.isEmpty()) item(key = "watchingEmpty") {
-                StatusMessage("Todavía no sigues ningún anime", "Reproduce un episodio o usa Añadir a Estás viendo desde su ficha.", "Ver temporada actual", onAiring)
+                StatusMessage("Todavía no sigues ningún anime", "Reproduce un episodio o usa Seguir desde su ficha.", "Ver temporada actual", onAiring)
             }
             itemsIndexed(state.watchingAnime.chunked(columns), key = { _, row -> "watching:${row.first().key}" }) { _, row ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -87,7 +87,7 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
                     repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
-            item(key = "animeCalendar") { OutlinedButton(onClick = onAiring, modifier = Modifier.fillMaxWidth().padding(18.dp)) { Text("Anime emitiéndose ahora · Ver calendario") } }
+            item(key = "animeCalendar") { AiringAnimeSection(state.animeSeason, onSelect, onAiring, onAiring) }
         }
     }
 }

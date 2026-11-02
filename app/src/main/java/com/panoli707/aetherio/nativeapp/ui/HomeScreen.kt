@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -38,7 +39,7 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerState, active: Boolean,
     onSelect: (MediaItem) -> Unit, onCategory: (String) -> Unit, onRetry: () -> Unit,
-    onContinue: (WatchProgress) -> Unit = {}) {
+    onContinue: (WatchProgress) -> Unit = {}, onRetryAnime: () -> Unit = {}) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle, active, pager.pageCount) {
         if (active && pager.pageCount > 1) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -50,7 +51,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
             }
         }
     }
-    LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(),
+    LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("homeScroll"),
         contentPadding = PaddingValues(bottom = 110.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
         if (state.heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(state.heroes, pager, onSelect) }
         else item(key = "heading") { ScreenHeader("Aetherio") }
@@ -65,7 +66,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
                             Column(Modifier.clickable(onClickLabel = "Continuar ${target.item.title}") { onContinue(progress) }) {
                                 Artwork(target.imageUrl ?: target.item.backdropUrl ?: target.item.posterUrl,
                                     Modifier.fillMaxWidth().height(140.dp))
-                                LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Cream)
+                                LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Aqua, trackColor = Violet.copy(alpha = .2f))
                                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(target.item.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
                                     if (target.episode != null) Text("T${target.season} · E${target.episode} ${target.episodeTitle}",
@@ -87,11 +88,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
             item(key = "empty") { StatusMessage("El catálogo está vacío", "No hay títulos disponibles en este momento.", "Reintentar", onRetry) }
         }
         item(key = "animeSeasonLink") {
-            Column(Modifier.padding(horizontal = 18.dp, vertical = 18.dp)) {
-                Text("Anime emitiéndose ahora", style = MaterialTheme.typography.titleLarge)
-                Text(state.animeSeason.season.label, color = Muted)
-                TextButton(onClick = { onCategory("airing") }) { Text("Ver temporada y días de emisión") }
-            }
+            AiringAnimeSection(state.animeSeason, onSelect, { onCategory("airing") }, onRetryAnime)
         }
         for (section in state.sections.filter { it.items.isNotEmpty() }) item(key = "section:${section.id}") {
             Column(Modifier.padding(top = 20.dp)) {
@@ -122,10 +119,13 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
     val scope = rememberCoroutineScope()
     Column {
         Box {
-            HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().height(560.dp)) { page ->
+            BoxWithConstraints {
+            val portrait = maxWidth < 600.dp
+            val height = if (portrait) (maxWidth * 1.42f).coerceIn(440.dp, 680.dp) else 430.dp
+            HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().height(height)) { page ->
                 val item = heroes[page]
                 Box(Modifier.fillMaxSize().clickable(onClickLabel = "Ver ${item.title}", onClick = { onSelect(item) })) {
-                    Artwork(item.backdropUrl ?: item.posterUrl, Modifier.fillMaxSize())
+                    Artwork(ArtworkImages.hero(item, portrait), Modifier.fillMaxSize(), highResolution = true)
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(
                         Color.Black.copy(alpha = .18f), Color.Transparent, Ink.copy(alpha = .15f), Ink))))
                     Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 16.dp),
@@ -136,6 +136,7 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
                             textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
                 }
+            }
             }
             if (heroes.size > 1) RoundAction("Siguiente destacado", Icons.Default.ArrowForward,
                 { scope.launch { pager.animateScrollToPage((pager.currentPage + 1) % heroes.size) } },
@@ -148,7 +149,7 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
             val start = (pager.currentPage - 3).coerceIn(0, (heroes.size - 7).coerceAtLeast(0))
             for (index in start until minOf(start + 7, heroes.size)) {
                 Box(Modifier.padding(horizontal = 4.dp).size(width = if (index == pager.currentPage) 20.dp else 5.dp, height = 5.dp)
-                    .background(if (index == pager.currentPage) Cream else Muted.copy(alpha = .45f), CircleShape))
+                    .background(if (index == pager.currentPage) Aqua else Violet.copy(alpha = .35f), CircleShape))
             }
         }
     }

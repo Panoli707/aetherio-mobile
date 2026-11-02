@@ -101,11 +101,13 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 val fetched = repository.detail(item)
                 val recentSeason = WatchProgressRules.latest(history.load(), item)?.target?.season
                 val detail = if (recentSeason != null && fetched.seasons.any { it.number == recentSeason })
-                    fetched.copy(selectedSeason = recentSeason) else fetched
+                    fetched.copy(selectedSeason = recentSeason,
+                        episodes = if (recentSeason == fetched.selectedSeason) fetched.episodes else emptyList()) else fetched
                 ensureActive()
                 if (state.value.selectedItem?.key != item.key) return@launch
                 mutableState.update { it.copy(selectedItem = detail.item, detail = detail, detailLoading = false) }
-                if (item.source == CatalogSource.TMDB) detail.selectedSeason?.let(::selectSeason)
+                if (item.source == CatalogSource.TMDB || detail.selectedSeason != fetched.selectedSeason)
+                    detail.selectedSeason?.let(::selectSeason)
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) {
                 if (state.value.selectedItem?.key == item.key) mutableState.update { it.copy(detailLoading = false, detailError = "No se pudo cargar la información. Inténtalo de nuevo.") }

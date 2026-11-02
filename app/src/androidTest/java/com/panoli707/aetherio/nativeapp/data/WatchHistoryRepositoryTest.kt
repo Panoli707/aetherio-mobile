@@ -33,6 +33,8 @@ class WatchHistoryRepositoryTest {
         second.setWatched(target, true).join()
         assertTrue(WatchHistoryRepository(context).load().first { it.target.key == target.key }.watched)
         assertEquals(30000L, second.load().first { it.target.episode == 4 }.positionMs)
+        second.setWatched(target.copy(episode = 1), true).join()
+        assertEquals(4, WatchProgressRules.continuing(second.load()).single().target.episode)
     }
 
     @Test fun explicitUnwatchedResetsResumeWithoutAffectingAnotherEpisodeAndInvalidSamplesDoNotEraseIt() = runBlocking {

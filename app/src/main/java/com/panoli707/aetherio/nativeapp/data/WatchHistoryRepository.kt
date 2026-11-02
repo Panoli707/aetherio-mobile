@@ -45,8 +45,9 @@ internal class WatchHistoryRepository internal constructor(context: Context) {
         mutex.withLock {
             loadLocked()
             val previous = mutableEntries.value.firstOrNull { it.target.key == target.key }
+            // A manual badge is not a new playback session and must not displace an unfinished later episode.
             save(WatchProgress(target, if (watched) previous?.positionMs ?: 0 else 0,
-                previous?.durationMs ?: 0, watched, System.currentTimeMillis()))
+                previous?.durationMs ?: 0, watched, previous?.updatedAt ?: 0))
         }
     }
 

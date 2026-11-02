@@ -23,7 +23,7 @@ internal fun EpisodeActionsSheet(item: MediaItem, episode: EpisodeItem, episodes
         if (!watched && scope != EpisodeWatchScope.EPISODE) confirm = scope to watched
         else { onMark(scope, watched); onDismiss() }
     }
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = Panel) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true), containerColor = MaterialTheme.colorScheme.surface) {
         Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(bottom = 16.dp)) {
             Text(episode.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 22.dp))
             Text("T${episode.season} E${episode.number} · ${item.title}", color = Muted,
@@ -59,5 +59,5 @@ internal fun EpisodeActionsSheet(item: MediaItem, episode: EpisodeItem, episodes
 @Composable
 private fun EpisodeAction(icon: ImageVector, label: String, onClick: () -> Unit) {
     ListItem(headlineContent = { Text(label) }, leadingContent = { Icon(icon, null) },
-        colors = ListItemDefaults.colors(containerColor = Panel), modifier = Modifier.clickable(onClick = onClick).fillMaxWidth())
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface), modifier = Modifier.clickable(onClick = onClick).fillMaxWidth())
 }

@@ -54,7 +54,7 @@ internal class AnimeSeasonRepository(client: OkHttpClient = OkHttpClient()) {
         var page = 1
         var media: JSONObject
         do {
-            media = request("""query AnimeDetail(${'$'}id:Int!,${'$'}page:Int!){Media(id:${'$'}id,type:ANIME){$FIELDS duration airingSchedule(perPage:50,page:${'$'}page){nodes{episode airingAt}pageInfo{hasNextPage}}}}""",
+            media = request("""query AnimeDetail(${'$'}id:Int!,${'$'}page:Int!){Media(id:${'$'}id,type:ANIME){$FIELDS duration countryOfOrigin trailer{id site} studios{nodes{name}} characters(perPage:12){edges{node{name{full}} voiceActors(language:JAPANESE){name{full} image{large}}}} relations{edges{node{id format title{romaji} coverImage{large} bannerImage season seasonYear status episodes}}} airingSchedule(perPage:50,page:${'$'}page){nodes{episode airingAt}pageInfo{hasNextPage}}}}""",
                 JSONObject().put("id", item.id.toInt()).put("page", page)).getJSONObject("Media")
             if (media.getInt("id").toString() != item.id) throw failure()
             val schedule = media.getJSONObject("airingSchedule")

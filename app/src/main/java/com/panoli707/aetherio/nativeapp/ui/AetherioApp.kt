@@ -52,7 +52,8 @@ fun AetherioApp(
     onEpisodeWatchAction: (MediaItem, EpisodeItem, EpisodeWatchScope, Boolean) -> Unit = { _, _, _, _ -> },
     onContinue: (WatchProgress) -> Unit = {},
     onToggleWatching: (MediaItem) -> Unit = {},
-    onLoadAnimeSeason: () -> Unit = {}
+    onLoadAnimeSeason: () -> Unit = {},
+    onOpenExternal: (String) -> Unit = {}
 ) {
     var startupComplete by rememberSaveable { mutableStateOf(false) }
     val startupReady = !state.homeLoading || state.sections.isNotEmpty() || state.homeError != null
@@ -121,7 +122,7 @@ fun AetherioApp(
                                  if (state.selectedItem?.key != selected.key) onSelectMedia(selected)
                              }
                              DetailScreen(state, selected, detailScroll, closeTop, onToggleSaved, onRetryDetail, onSelectSeason,
-                                   { focus.clearFocus(); linkOpen = true }, onRequestSources, onEpisodeWatchAction, onToggleWatching)
+                                   { focus.clearFocus(); linkOpen = true }, onRequestSources, onEpisodeWatchAction, onToggleWatching, onOpenExternal, select)
                         } else Column {
                             ScreenHeader("Ficha no disponible", closeTop)
                              if (state.homeLoading) LoadingRow("Recuperando ficha…")

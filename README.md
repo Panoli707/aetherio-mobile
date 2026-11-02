@@ -6,7 +6,7 @@ Aetherio es una aplicación nativa para Android con catálogo de películas y se
 
 Necesitas **Android 7.0 o posterior** y conexión a Internet.
 
-1. Descarga [**Aetherio.apk**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.8.0-preview.1/Aetherio.apk), versión preliminar **0.8.0**.
+1. Descarga [**Aetherio.apk**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.9.0-preview.1/Aetherio.apk), versión preliminar **0.9.0**.
 2. Abre el archivo desde **Descargas**, con tu navegador o gestor de archivos.
 3. Si Android lo pide, permite **Instalar aplicaciones desconocidas** para la aplicación que abre el APK.
 4. Pulsa **Instalar** y después **Abrir**. Puedes revocar ese permiso al terminar.

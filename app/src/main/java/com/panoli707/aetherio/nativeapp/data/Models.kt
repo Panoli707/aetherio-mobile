@@ -43,7 +43,9 @@ data class EpisodeItem(
     val title: String,
     val overview: String = "",
     val imageUrl: String? = null,
-    val released: Boolean = true
+    val released: Boolean = true,
+    val airedOn: String = "",
+    val runtimeMinutes: Int? = null
 )
 
 data class MediaDetail(
@@ -52,8 +54,21 @@ data class MediaDetail(
     val cast: List<CastMember> = emptyList(),
     val seasons: List<SeasonInfo> = emptyList(),
     val episodes: List<EpisodeItem> = emptyList(),
-    val selectedSeason: Int? = null
+    val selectedSeason: Int? = null,
+    val trailers: List<MediaTrailer> = emptyList(),
+    val facts: List<DetailFact> = emptyList(),
+    val availability: List<WatchRegion> = emptyList(),
+    val reviews: List<MediaReview> = emptyList(),
+    val related: List<MediaItem> = emptyList(),
+    val voteCount: Int? = null,
+    val certification: String? = null
 )
+
+data class MediaTrailer(val id: String, val title: String, val url: String, val thumbnailUrl: String)
+data class DetailFact(val label: String, val value: String)
+data class WatchPlatform(val id: Int, val name: String, val logoUrl: String?, val offer: String)
+data class WatchRegion(val country: String, val link: String?, val platforms: List<WatchPlatform>)
+data class MediaReview(val id: String, val author: String, val content: String, val publishedOn: String, val url: String?)
 
 data class HomeCatalog(val sections: List<CatalogSection>, val heroes: List<MediaItem>, val partial: Boolean = false)
 

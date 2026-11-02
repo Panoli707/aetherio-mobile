@@ -134,7 +134,9 @@ internal class AetherioRepository(
     }
     suspend fun detail(item: MediaItem): MediaDetail {
         if (item.source == CatalogSource.ANILIST) return animeRepository.detail(item)
-        val data = if (item.source == CatalogSource.TMDB) tmdb("${item.type.path}/${item.id}", mapOf("append_to_response" to "images,credits,external_ids", "include_image_language" to "es,en,null"))
+        val data = if (item.source == CatalogSource.TMDB) tmdb("${item.type.path}/${item.id}", mapOf(
+            "append_to_response" to "images,credits,external_ids,videos,watch/providers,reviews,recommendations,${if (item.type == MediaType.SERIES) "content_ratings" else "release_dates"}",
+            "include_image_language" to "es,en,null", "include_video_language" to "es,en,null"))
             else requireNotNull(json("$cinemeta/meta/${cineType(item.type)}/${item.id}.json").optJSONObject("meta"))
         check(CatalogJson.text(data, "id") == item.id)
         return CatalogJson.detail(item, data)

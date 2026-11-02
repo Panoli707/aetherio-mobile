@@ -164,10 +164,10 @@ class AetherioRepositoryTest {
             assertEquals("550", repository.detail(movie).item.id)
             val detail = fixture.request()
             authenticated(detail, "/3/movie/550")
-            assertEquals("images,credits,external_ids", detail.requestUrl!!.queryParameter("append_to_response"))
+            assertEquals("images,credits,external_ids,videos,watch/providers,reviews,recommendations,release_dates", detail.requestUrl!!.queryParameter("append_to_response"))
 
             fixture.server.enqueue(MockResponse().setBody(EPISODES))
-            assertEquals(listOf(EpisodeItem(1, 1, "Pilot")), repository.episodes(series, 1))
+            assertEquals(listOf(EpisodeItem(1, 1, "Pilot", airedOn = "2008-01-20")), repository.episodes(series, 1))
             authenticated(fixture.request(), "/3/tv/1396/season/1")
 
             fixture.server.enqueue(MockResponse().setBody(LOGOS))
@@ -237,7 +237,7 @@ class AetherioRepositoryTest {
             assertTrue(results.all { it.source == CatalogSource.CINEMETA })
             authenticated(fixture.request(), "/3/search/multi")
             assertEquals("tt0137523", repository.detail(results.first { it.type == MediaType.MOVIE }).item.id)
-            assertEquals(listOf(EpisodeItem(1, 1, "Pilot")), repository.episodes(results.first { it.type == MediaType.SERIES }, 1))
+            assertEquals(listOf(EpisodeItem(1, 1, "Pilot", airedOn = "2008-01-20")), repository.episodes(results.first { it.type == MediaType.SERIES }, 1))
             assertEquals(4, fixture.externalRequests.size)
             fixture.externalRequests.forEach { request ->
                 assertEquals("v3-cinemeta.strem.io", request.url.host)

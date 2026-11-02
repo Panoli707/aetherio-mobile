@@ -16,13 +16,21 @@ Si aparece un error de carga, comprueba la conexión y pulsa **Reintentar** cuan
 
 ## Fichas y episodios
 
-Toca una portada para consultar la sinopsis, valoración, año, géneros y reparto, según la información disponible. En las series puedes elegir una temporada y consultar sus episodios, con título, imagen y descripción cuando estén disponibles.
+Las fichas de películas, series y anime comparten una estructura con portada grande, título o logo y metadatos. El botón principal abre las fuentes de la película o del episodio indicado; si hay progreso pendiente, muestra **Continuar** con la posición guardada.
+
+Debajo están las acciones compactas: **Biblioteca / Guardado**, **Seguir / Siguiendo** para anime, **Enlace** para una URL propia e **Información** para consultar cómo funcionan las fuentes. La sinopsis empieza resumida; **Leer sinopsis completa** la despliega y **Ver menos** vuelve a reducirla.
+
+En las series, usa el selector de temporada y desliza horizontalmente las tarjetas de episodios. Cada tarjeta conserva su menú de visto/no visto y su progreso. La fecha y la duración solo se muestran cuando el catálogo las proporciona. El botón **Volver** permanece visible al desplazarte por la ficha.
+
+Las secciones **Tráilers**, **Reparto**, **Acerca de**, **Dónde ver**, **Comentarios** y **Relacionados** aparecen según los datos disponibles. Tráilers y reparto se pueden contraer. Los tráileres se abren en YouTube, no como enlaces de vídeo de Media3. Las reseñas son comentarios públicos de TMDB, no un chat ni un sistema de publicación propio de Aetherio. Toca una tarjeta relacionada para abrir su ficha.
+
+**Dónde ver** muestra ofertas por país de JustWatch a través de TMDB. Puedes cambiar la región; suscripción, alquiler, compra y anuncios se distinguen cuando existen. **Ver opciones en TMDB** abre la página de disponibilidad: no reproduce directamente Netflix ni garantiza que una oferta siga vigente. Si no hay información de una región, se indica sin inventar plataformas.
 
 Que un título o episodio aparezca en el catálogo no garantiza que tenga un vídeo disponible. Puedes buscar fuentes desde su ficha con los servicios integrados o configurar proveedores propios en **Ajustes**.
 
 ## Biblioteca y perfil
 
-En una ficha, pulsa **Guardar en biblioteca** para añadir el título a tus favoritos o **Quitar de la biblioteca** para eliminarlo. En **Biblioteca** puedes usar los filtros **Todos**, **Películas** y **Series**. Guardar un título no descarga su vídeo.
+En una ficha, pulsa **Biblioteca** para guardar el título; **Guardado** permite quitarlo. En **Biblioteca** puedes usar los filtros **Todos**, **Películas** y **Series**. Guardar un título no descarga su vídeo.
 
 En **Ajustes**, edita **Nombre del perfil** y pulsa **Guardar nombre**. Es un nombre local, no una cuenta. No hay perfiles múltiples ni sincronización entre dispositivos.
 
@@ -47,7 +55,7 @@ El progreso y los capítulos vistos se conservan al cerrar o actualizar la app, 
 
 La pestaña **Anime** muestra **Continuar viendo** arriba, con tarjetas de episodios, su posición y una barra de progreso. Debajo, **Estás viendo** presenta las portadas de los animes en seguimiento y el número de capítulos vistos; el total solo aparece cuando está disponible.
 
-Los animes con progreso o capítulos marcados se incorporan al seguimiento. También puedes usar **Añadir a Estás viendo** desde su ficha sin empezar a reproducir. **Quitar de Estás viendo** lo retira de esta lista, pero no borra el progreso ni las marcas. Un anime puede permanecer en seguimiento entre episodios o mientras esperas la siguiente emisión.
+Los animes con progreso o capítulos marcados se incorporan al seguimiento. También puedes usar **Seguir** desde su ficha sin empezar a reproducir. **Siguiendo** lo retira de esta lista, pero no borra el progreso ni las marcas. Un anime puede permanecer en seguimiento entre episodios o mientras esperas la siguiente emisión.
 
 ### Temporada actual y días de emisión
 
@@ -63,7 +71,7 @@ La lista de proveedores muestra su nombre y dominio, no sus URL completas privad
 
 **PenguPlay, HdHub, AnimES y DeepFlix** vienen integrados desde Aetherio de PC. **AnimeAV1** tiene un adaptador nativo para Android. En **Ajustes > Fuentes de Aetherio PC**, activa o desactiva cada servicio; la selección se conserva. Solo se consultan cuando buscas fuentes, no durante el arranque. La respuesta y los títulos disponibles dependen de cada proveedor.
 
-Abre una película y pulsa **Buscar fuentes**. Para una serie, elige la temporada y el episodio. Las fuentes aparecen conforme responde cada servicio. Si alguno falla, puedes usar los resultados de los demás. No necesitas copiar sus URLs ni añadir manifiestos para estas fuentes.
+Abre una película y pulsa **Ver fuentes de la película**. Para una serie, elige la temporada y el episodio. Las fuentes aparecen conforme responde cada servicio. Si alguno falla, puedes usar los resultados de los demás. No necesitas copiar sus URLs ni añadir manifiestos para estas fuentes.
 
 AnimeAV1 busca por título sin exigir IMDb. Solo ofrece coincidencias claras y episodios explícitos; no calcula desplazamientos entre temporadas o partes. Admite enlaces directos y los servidores públicos Zilla, MP4Upload y YourUpload cuando puede resolverlos sin ejecutar JavaScript ni iniciar una sesión. Si ya habías guardado tu selección de fuentes antes de añadir AnimeAV1, activa su interruptor en Ajustes.
 
@@ -74,7 +82,7 @@ Para añadir un proveedor propio:
 1. Obtén de un proveedor de confianza la URL HTTPS de un `manifest.json` compatible. Usa solo contenido que tengas permiso para reproducir.
 2. Abre **Ajustes > Proveedores propios** y pega el enlace en **URL HTTPS del manifest.json**. Usa la dirección final, sin redirecciones, con una ruta que termine en `/manifest.json`.
 3. Pulsa **Añadir proveedor** y espera la confirmación. Para quitarlo después, pulsa **Eliminar proveedor**.
-4. Abre la ficha de una película y pulsa **Buscar fuentes**. En una serie, elige la temporada y toca el episodio que quieras ver. El botón superior **Ver fuentes** corresponde al primer episodio de esa temporada mostrado en la ficha.
+4. Abre la ficha de una película y pulsa **Ver fuentes de la película**. En una serie, elige la temporada y toca el episodio que quieras ver. El botón principal indica el episodio que abrirá; si muestra **Continuar**, corresponde al progreso pendiente.
 5. En **Formato de reproducción**, deja **Auto** o elige **HLS** o **DASH** si conoces el formato. Pulsa **Reproducir** en la fuente elegida.
 
 No todos los proveedores son compatibles: deben ofrecer vídeos HTTPS para el título o episodio seleccionado. Se admiten las cabeceras de reproducción Referer, Origin y User-Agent y los metadatos Sec-Fetch limitados que necesita Zilla. Las redirecciones se mantienen en HTTPS. No se admiten torrents, DRM, extractores arbitrarios de páginas web ni sesiones con Cookie o Authorization. La calidad indicada en una fuente procede del proveedor y no garantiza la calidad del vídeo.

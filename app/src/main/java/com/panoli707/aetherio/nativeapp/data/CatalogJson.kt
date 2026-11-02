@@ -72,7 +72,9 @@ internal object CatalogJson {
                 text(it, "overview").ifEmpty { if (cinemeta) text(it, "description") else "" },
                  if (cinemeta) image(text(it, "thumbnail")) else tmdbImage(text(it, "still_path"), "w500"),
                  text(it, if (cinemeta) "released" else "air_date").take(10).let { date ->
-                     date.matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}")) && date <= SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) })
+                     date.matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}")) && date <= SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) },
+                 DetailMetadata.date(text(it, if (cinemeta) "released" else "air_date")),
+                 it.optInt("runtime", 0).takeIf { minutes -> minutes in 1..1440 })
         }.distinctBy { it.number }.sortedBy { it.number }
     fun detail(base: MediaItem, json: JSONObject): MediaDetail {
         val tmdb = base.source == CatalogSource.TMDB
@@ -89,8 +91,9 @@ internal object CatalogJson {
         val runtime = if (tmdb) json.optInt("runtime", 0).takeIf { it > 0 }
             ?: json.optJSONArray("episode_run_time")?.let { times -> (0 until times.length()).map { times.optInt(it) }.firstOrNull { it > 0 } }
             else Regex("[0-9]+").find(text(json, "runtime"))?.value?.toIntOrNull()?.takeIf { it > 0 }
-        return MediaDetail(merged(base, json), runtime, cast.take(12), ordered,
-            if (!tmdb && selected != null) episodes(json, selected, true) else emptyList(), selected)
+        val detail = MediaDetail(merged(base, json), runtime, cast.take(12), ordered,
+             if (!tmdb && selected != null) episodes(json, selected, true) else emptyList(), selected)
+        return if (tmdb) DetailMetadata.enrich(detail, json) else detail
     }
     fun encode(items: List<MediaItem>): String = JSONArray().apply {
         items.forEach { item -> put(JSONObject().apply {

@@ -38,7 +38,8 @@ class WatchProgressUiTest {
                 { _, _, _ -> played = true }, { _, ep, scope, watched ->
                     assertEquals(EpisodeWatchScope.EPISODE, scope); assertTrue(watched); marked = ep })
         } }
-        compose.onNode(hasScrollToNodeAction()).performScrollToNode(hasContentDescription("Opciones del episodio T2 E3"))
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailEpisodes"))
+        compose.onNodeWithTag("detailEpisodes").performScrollToNode(hasContentDescription("Opciones del episodio T2 E3"))
         compose.onNodeWithText("12:34 / 24:00", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithContentDescription("Opciones del episodio T2 E3").performClick()
         compose.onNodeWithText("Marcar como visto").performClick()
@@ -51,8 +52,10 @@ class WatchProgressUiTest {
             DetailScreen(AppState(detail = detail, watchProgress = listOf(progress.copy(watched = true))), anime,
                 rememberLazyListState(), {}, {}, {}, {}, {}, { _, _, _ -> })
         } }
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailEpisodes"))
+        compose.onNodeWithTag("detailEpisodes").performScrollToNode(hasContentDescription("Opciones del episodio T2 E3"))
         compose.onNodeWithText("Visto", useUnmergedTree = true).assertExists()
-        compose.onNodeWithContentDescription("Opciones del episodio T2 E3").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Opciones del episodio T2 E3").performClick()
         compose.onNodeWithText("Marcar como no visto").assertIsDisplayed()
         compose.onNodeWithText("Continuar · T2 E3 · 12:34").assertDoesNotExist()
     }

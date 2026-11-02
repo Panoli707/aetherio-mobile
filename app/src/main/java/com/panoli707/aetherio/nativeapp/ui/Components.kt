@@ -43,8 +43,8 @@ import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import java.util.Locale
 
 @Composable
-internal fun Artwork(url: String?, modifier: Modifier = Modifier, description: String? = null) {
-    val placeholder = modifier.background(Color(0xFF343430))
+internal fun Artwork(url: String?, modifier: Modifier = Modifier, description: String? = null, placeholderColor: Color = Color(0xFF343430)) {
+    val placeholder = modifier.background(placeholderColor)
     if (LocalInspectionMode.current || url.isNullOrBlank()) Box(placeholder)
     else AsyncImage(model = url, contentDescription = description, contentScale = ContentScale.Crop, modifier = placeholder)
 }

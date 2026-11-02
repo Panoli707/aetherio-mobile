@@ -3,6 +3,8 @@ package com.panoli707.aetherio.nativeapp.data
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+import java.text.SimpleDateFormat
+import java.util.Date
 import org.json.JSONObject
 
 enum class AnimeWeekday(val label: String) {
@@ -75,8 +77,38 @@ internal object AnimeSeasonProtocol {
         }.distinct().sorted()
         val episodes = if (released.isNotEmpty()) released else if (json.optString("status") == "FINISHED")
             (1..(media.episodeCount ?: 0).coerceAtMost(1000)).toList() else emptyList()
-        return MediaDetail(media, json.optInt("duration", 0).takeIf { it > 0 },
+        val dates = (0 until (nodes?.length() ?: 0)).mapNotNull { index ->
+            val node = nodes?.optJSONObject(index) ?: return@mapNotNull null
+            val time = node.optLong("airingAt", 0)
+            if (time !in 1..nowSeconds) return@mapNotNull null
+            node.optInt("episode") to SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = AnimeSeason.japan }.format(Date(time * 1000))
+        }.toMap()
+        val trailer = json.optJSONObject("trailer")?.takeIf { it.optString("site").equals("youtube", true) }
+            ?.let { DetailLinks.trailer(it.optString("id"), "Tráiler · ${media.title}") }
+        val edges = json.optJSONObject("characters")?.optJSONArray("edges")
+        val cast = (0 until (edges?.length() ?: 0)).mapNotNull { index ->
+            val edge = edges?.optJSONObject(index) ?: return@mapNotNull null
+            val actor = edge.optJSONArray("voiceActors")?.optJSONObject(0) ?: return@mapNotNull null
+            val name = actor.optJSONObject("name")?.optString("full")?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            CastMember(name, edge.optJSONObject("node")?.optJSONObject("name")?.optString("full").orEmpty(), CatalogJson.image(actor.optJSONObject("image")?.optString("large")))
+        }.distinctBy { it.name }.take(12)
+        val relatedEdges = json.optJSONObject("relations")?.optJSONArray("edges")
+        val related = (0 until (relatedEdges?.length() ?: 0)).mapNotNull { index ->
+            relatedEdges?.optJSONObject(index)?.optJSONObject("node")?.takeIf { it.optString("format") in listOf("TV", "TV_SHORT", "ONA", "OVA") }?.let(::item)
+        }.filter { it.key != media.key }.distinctBy { it.key }.take(15)
+        val facts = buildList {
+            json.optString("status").takeIf { it.isNotBlank() && it != "null" }?.let { add(DetailFact("Estado", DetailMetadata.status(it))) }
+            json.optString("countryOfOrigin").takeIf { it.matches(Regex("[A-Z]{2}")) }?.let {
+                add(DetailFact("País", Locale.Builder().setRegion(it).build().getDisplayCountry(Locale.forLanguageTag("es"))))
+            }
+            val studios = json.optJSONObject("studios")?.optJSONArray("nodes")
+            val names = (0 until (studios?.length() ?: 0)).mapNotNull { studios?.optJSONObject(it)?.optString("name") }.filter { it.isNotBlank() }
+            if (names.isNotEmpty()) add(DetailFact("Producción", names.distinct().take(8).joinToString(", ")))
+            media.episodeCount?.let { add(DetailFact("Episodios", it.toString())) }
+        }
+        return MediaDetail(media, json.optInt("duration", 0).takeIf { it > 0 }, cast = cast,
             seasons = listOf(SeasonInfo(1, media.animeSeasonLabel.ifBlank { "Temporada de anime" }, media.episodeCount ?: episodes.size)),
-            episodes = episodes.map { EpisodeItem(it, 1, "Episodio $it") }, selectedSeason = 1)
+            episodes = episodes.map { EpisodeItem(it, 1, "Episodio $it", airedOn = dates[it].orEmpty()) }, selectedSeason = 1,
+            trailers = listOfNotNull(trailer), facts = facts, related = related)
     }
 }

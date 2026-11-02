@@ -21,6 +21,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.panoli707.aetherio.nativeapp.data.AetherioViewModel
 import com.panoli707.aetherio.nativeapp.data.UpdateViewModel
 import com.panoli707.aetherio.nativeapp.data.WatchProgressCodec
+import com.panoli707.aetherio.nativeapp.data.DetailLinks
 import com.panoli707.aetherio.nativeapp.player.MediaUrlPolicy
 import com.panoli707.aetherio.nativeapp.player.VideoActivity
 import com.panoli707.aetherio.nativeapp.ui.AetherioApp
@@ -72,6 +73,11 @@ class MainActivity : ComponentActivity() {
                 onEpisodeWatchAction = model::markWatched,
                 onToggleWatching = model::toggleWatching,
                 onLoadAnimeSeason = model::loadAnimeSeason,
+                onOpenExternal = { url ->
+                    val validated = DetailLinks.validate(url)
+                    if (validated != null) try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(validated))) }
+                    catch (_: Exception) { Toast.makeText(this, "No se pudo abrir el enlace externo.", Toast.LENGTH_LONG).show() }
+                },
                 onContinue = model::resume,
                 onSearch = model::search,
                 onRetryHome = model::loadHome,

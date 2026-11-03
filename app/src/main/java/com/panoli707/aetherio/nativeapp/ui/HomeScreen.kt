@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.LinearProgressIndicator
@@ -23,6 +24,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -32,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
+import coil.compose.AsyncImage
 import com.panoli707.aetherio.nativeapp.data.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -39,7 +44,7 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerState, active: Boolean,
     onSelect: (MediaItem) -> Unit, onCategory: (String) -> Unit, onRetry: () -> Unit,
-    onContinue: (WatchProgress) -> Unit = {}, onRetryAnime: () -> Unit = {}) {
+    onContinue: (WatchProgress) -> Unit = {}, onRetryAnime: () -> Unit = {}, onProfile: () -> Unit = {}) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(lifecycle, active, pager.pageCount) {
         if (active && pager.pageCount > 1) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -53,8 +58,13 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
     }
     LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("homeScroll"),
         contentPadding = PaddingValues(bottom = 110.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
-        if (state.heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(state.heroes, pager, onSelect) }
-        else item(key = "heading") { ScreenHeader("Aetherio") }
+        if (state.heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(state.heroes, pager, onSelect, onProfile) }
+        else item(key = "heading") {
+            Box(Modifier.fillMaxWidth()) {
+                ScreenHeader("Aetherio")
+                ProfileAction(onProfile, Modifier.align(Alignment.TopEnd))
+            }
+        }
         val continuing = WatchProgressRules.continuing(state.watchProgress)
         if (continuing.isNotEmpty()) item(key = "continueWatching") {
             Column(Modifier.padding(top = 20.dp)) {
@@ -115,42 +125,69 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
 }
 
 @Composable
-private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (MediaItem) -> Unit) {
-    val scope = rememberCoroutineScope()
+private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (MediaItem) -> Unit,
+    onProfile: () -> Unit) {
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     Column {
         Box {
-            BoxWithConstraints {
-            val portrait = maxWidth < 600.dp
-            val height = if (portrait) (maxWidth * 1.42f).coerceIn(440.dp, 680.dp) else 430.dp
-            HorizontalPager(state = pager, modifier = Modifier.fillMaxWidth().height(height)) { page ->
-                val item = heroes[page]
-                Box(Modifier.fillMaxSize().clickable(onClickLabel = "Ver ${item.title}", onClick = { onSelect(item) })) {
-                    Artwork(ArtworkImages.hero(item, portrait), Modifier.fillMaxSize(), highResolution = true)
-                    Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(
-                        Color.Black.copy(alpha = .18f), Color.Transparent, Ink.copy(alpha = .15f), Ink))))
-                    Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        MediaTitle(item, Modifier.fillMaxWidth(), centered = true)
-                        Metadata(item, centered = true)
-                        if (item.overview.isNotBlank()) Text(item.overview, style = MaterialTheme.typography.bodyMedium,
-                            textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val portrait = maxWidth < 600.dp
+                val height = if (portrait) (maxWidth * 1.72f).coerceIn(460.dp, 760.dp)
+                    .coerceAtMost(screenHeight * .76f) else 430.dp.coerceAtMost(screenHeight * .85f)
+                HorizontalPager(state = pager, key = { heroes[it].key },
+                    modifier = Modifier.fillMaxWidth().height(height).testTag("homeHero")) { page ->
+                    val item = heroes[page]
+                    Box(Modifier.fillMaxSize().clickable(onClickLabel = "Ver ${item.title}", onClick = { onSelect(item) })) {
+                        // Prefer a clean backdrop: posters often already contain a title and credits.
+                        Artwork(ArtworkImages.hero(item, portrait = false), Modifier.fillMaxSize(), highResolution = true)
+                        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
+                            0f to Color.Black.copy(alpha = .28f),
+                            .35f to Color.Transparent,
+                            .55f to Ink.copy(alpha = .12f),
+                            .78f to Ink.copy(alpha = .78f),
+                            1f to Ink)))
+                        Column(Modifier.align(Alignment.BottomCenter).widthIn(max = 600.dp).fillMaxWidth()
+                            .padding(horizontal = 24.dp).padding(bottom = 18.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            HeroTitle(item, compact = !portrait)
+                            Metadata(item, centered = true)
+                            if (item.overview.isNotBlank()) Text(item.overview, style = MaterialTheme.typography.bodyMedium,
+                                textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                color = Cream.copy(alpha = .9f))
+                        }
                     }
                 }
             }
-            }
-            if (heroes.size > 1) RoundAction("Siguiente destacado", Icons.Default.ArrowForward,
-                { scope.launch { pager.animateScrollToPage((pager.currentPage + 1) % heroes.size) } },
-                Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 12.dp, end = 18.dp))
+            ProfileAction(onProfile, Modifier.align(Alignment.TopEnd))
         }
-        if (heroes.size > 1) Row(Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 2.dp)
+        if (heroes.size > 1) Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 12.dp)
             .semantics { contentDescription = "Destacado ${pager.currentPage + 1} de ${heroes.size}" },
             horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             // A bounded indicator stays readable even when the API returns many heroes.
             val start = (pager.currentPage - 3).coerceIn(0, (heroes.size - 7).coerceAtLeast(0))
             for (index in start until minOf(start + 7, heroes.size)) {
-                Box(Modifier.padding(horizontal = 4.dp).size(width = if (index == pager.currentPage) 20.dp else 5.dp, height = 5.dp)
+                Box(Modifier.padding(horizontal = 4.dp).size(width = if (index == pager.currentPage) 22.dp else 5.dp, height = 5.dp)
                     .background(if (index == pager.currentPage) Aqua else Violet.copy(alpha = .35f), CircleShape))
             }
         }
+    }
+}
+
+@Composable
+private fun ProfileAction(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    RoundAction("Abrir perfil", Icons.Default.Person, onClick,
+        modifier.statusBarsPadding().padding(top = 12.dp, end = 18.dp).testTag("homeProfile"))
+}
+
+@Composable
+private fun HeroTitle(item: MediaItem, compact: Boolean) {
+    var failed by remember(item.logoUrl) { mutableStateOf(false) }
+    val logo = remember(item.logoUrl) { ArtworkImages.highResolution(item.logoUrl) }
+    if (!logo.isNullOrBlank() && !failed && !LocalInspectionMode.current) {
+        AsyncImage(model = logo, contentDescription = item.title, contentScale = ContentScale.Fit,
+            onError = { failed = true }, modifier = Modifier.fillMaxWidth().height(if (compact) 88.dp else 124.dp))
+    } else {
+        Text(item.title, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center,
+            maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }

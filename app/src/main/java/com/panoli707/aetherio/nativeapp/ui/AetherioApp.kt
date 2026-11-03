@@ -154,7 +154,8 @@ fun AetherioApp(
                                 "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon, onDesktopSourceToggle,
                                     updates, onUpdateAction, onAutomaticUpdatesChange)
                                 else -> HomeScreen(state, homeScroll, pager, !linkOpen && state.sourceQuery == null && !updates.noticeVisible,
-                                    select, { categoryId = it }, onRetryHome, onContinue, onLoadAnimeSeason)
+                                    select, { categoryId = it }, onRetryHome, onContinue, onLoadAnimeSeason,
+                                    onProfile = { focus.clearFocus(); tab = "settings" })
                             }
                         }
                         if (!imeVisible) FloatingNavigation(tab, tab == "home" && collapsed, { target ->

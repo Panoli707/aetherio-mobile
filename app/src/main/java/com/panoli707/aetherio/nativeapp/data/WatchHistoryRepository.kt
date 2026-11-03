@@ -22,7 +22,12 @@ internal class WatchHistoryRepository internal constructor(context: Context) {
 
     private fun loadLocked() {
         if (loaded) return
-        mutableEntries.value = WatchProgressCodec.decode(preferences.getString("history", "{}").orEmpty())
+        val raw = preferences.getString("history", "{}").orEmpty()
+        val decoded = WatchProgressCodec.decode(raw)
+        val normalized = SeriesIdentity.progress(decoded)
+        if (normalized != decoded && !preferences.contains("history_before_series_v1"))
+            preferences.edit().putString("history_before_series_v1", raw).commit()
+        mutableEntries.value = normalized
         loaded = true
     }
 

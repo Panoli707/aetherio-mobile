@@ -22,7 +22,7 @@ La paleta azul noche, turquesa, violeta y coral se aplica a toda la aplicación,
 
 Debajo están las acciones compactas: **Biblioteca / Guardado**, **Seguir / Siguiendo** para anime, **Enlace** para una URL propia e **Información** para consultar cómo funcionan las fuentes. La sinopsis empieza resumida; **Leer sinopsis completa** la despliega y **Ver menos** vuelve a reducirla.
 
-En las series, usa el selector de temporada y desliza horizontalmente las tarjetas de episodios. Cada tarjeta conserva su menú de visto/no visto y su progreso. La fecha y la duración solo se muestran cuando el catálogo las proporciona. El botón **Volver** permanece visible al desplazarte por la ficha.
+En las series, usa el selector de temporada y desliza horizontalmente las tarjetas de episodios. La portada cambia con la temporada cuando el catálogo ofrece su imagen. Cada tarjeta conserva su menú de visto/no visto y su progreso. La fecha y la duración solo se muestran cuando el catálogo las proporciona. El botón **Volver** permanece visible al desplazarte por la ficha. Ya no se añade la etiqueta «ANIME» sobre la portada.
 
 Las secciones **Tráilers**, **Reparto**, **Acerca de**, **Dónde ver**, **Comentarios** y **Relacionados** aparecen según los datos disponibles. Tráilers y reparto se pueden contraer. Los tráileres se abren en YouTube, no como enlaces de vídeo de Media3. Las reseñas son comentarios públicos de TMDB, no un chat ni un sistema de publicación propio de Aetherio. Toca una tarjeta relacionada para abrir su ficha.
 
@@ -32,7 +32,7 @@ Que un título o episodio aparezca en el catálogo no garantiza que tenga un ví
 
 ## Biblioteca y perfil
 
-En una ficha, pulsa **Biblioteca** para guardar el título; **Guardado** permite quitarlo. En **Biblioteca** puedes usar los filtros **Todos**, **Películas** y **Series**. Guardar un título no descarga su vídeo.
+**Biblioteca** reúne automáticamente las películas y series en curso o vistas, además de tus favoritos y títulos en seguimiento. Puedes usar los filtros **Todos**, **Películas** y **Series**. En una ficha, **Biblioteca / Guardado** cambia solo el favorito: quitarlo no borra el historial. Guardar un título no descarga su vídeo.
 
 En **Ajustes**, edita **Nombre del perfil** y pulsa **Guardar nombre**. Es un nombre local, no una cuenta. No hay perfiles múltiples ni sincronización entre dispositivos.
 
@@ -55,19 +55,19 @@ El progreso y los capítulos vistos se conservan al cerrar o actualizar la app, 
 
 ## Anime: pendientes y seguimiento
 
-La pestaña **Anime** muestra **Continuar viendo** arriba, con tarjetas de episodios, su posición y una barra de progreso. Debajo, **Estás viendo** presenta las portadas de los animes en seguimiento y el número de capítulos vistos; el total solo aparece cuando está disponible.
+La pestaña **Anime** se limita a los animes que sigues o reproduces de la temporada de emisión actual. **Continuar viendo** muestra sus episodios pendientes, su posición y una barra de progreso. **Estás viendo** presenta sus portadas y el número de capítulos vistos; el total solo aparece cuando está disponible. Las temporadas anteriores y las completadas siguen en **Biblioteca**, sin borrar el progreso. Usa **Temporada y días de emisión** para descubrir otros títulos.
 
 Los animes con progreso o capítulos marcados se incorporan al seguimiento. También puedes usar **Seguir** desde su ficha sin empezar a reproducir. **Siguiendo** lo retira de esta lista, pero no borra el progreso ni las marcas. Un anime puede permanecer en seguimiento entre episodios o mientras esperas la siguiente emisión.
 
 ### Temporada actual y días de emisión
 
-En Inicio y en la pestaña Anime, **Anime emitiéndose ahora** muestra un carrusel de portadas con el nombre y el último episodio emitido confirmado; el total aparece si se conoce. Se ordena por la emisión confirmada más reciente. Si falta un horario completo, la tarjeta indica **En emisión** sin inventar un número. Toca una portada para abrir su ficha o el encabezado para ir a la temporada y sus días de emisión.
+En Inicio, **Anime emitiéndose ahora** muestra un carrusel de portadas con el nombre y el último episodio emitido confirmado; el total aparece si se conoce. Se ordena por la emisión confirmada más reciente. Si falta un horario completo, la tarjeta indica **En emisión** sin inventar un número. Toca una portada para abrir su ficha o el encabezado para ir a la temporada y sus días de emisión.
 
 El listado consulta AniList y exige la temporada y el año actuales, calculados según el calendario de Japón, junto con el estado **en emisión**. Ya no usa una ventana aproximada de fechas de TMDB. Una serie de años anteriores no aparece solo por seguir activa.
 
-Los filtros superiores permiten elegir **Todos**, un día de la semana o **Sin horario**. El día procede de la próxima emisión publicada y se muestra según **Japón (JST)**, no según la hora local ni la disponibilidad de doblaje o subtítulos. Los datos dependen del servicio; la temporada se conserva hasta una hora en memoria y puede volver a consultarse al abrir el calendario. Si falla, se avisa en lugar de sustituirla por series antiguas.
+El calendario empieza en **Lunes**. Puedes elegir **Todos**, otro día o **Sin horario**. Al abrir una ficha y volver, se conservan el filtro elegido y la posición del listado. El día procede de la próxima emisión publicada y se muestra según **Japón (JST)**, no según la hora local ni la disponibilidad de doblaje o subtítulos. Los datos dependen del servicio; la temporada se conserva hasta una hora en memoria y puede volver a consultarse al abrir el calendario. Si falla, se avisa en lugar de sustituirla por series antiguas.
 
-Estas fichas conservan su identidad real de AniList. Cada entrega o parte del anime tiene episodios propios; no se inventa su equivalencia con temporadas de TMDB o IMDb. Por eso la numeración local puede ser T1 aunque el título diga «3rd Season». Se muestran los capítulos con emisión confirmada. Activa **AnimeAV1** en Ajustes para buscar fuentes por título; la coincidencia debe ser exacta y la disponibilidad de vídeo no está garantizada. Los favoritos y el progreso anteriores siguen usando sus identidades originales, sin fusiones por títulos parecidos.
+Cuando existen equivalencias explícitas entre AniList y TMDB, las entregas se reúnen en una sola ficha con selector de temporada. Por ejemplo, la boticaria deja de separar la ficha con numeración continua de sus entregas por temporada. Los episodios y el progreso antiguos se traducen con los desplazamientos publicados; se guarda una copia local del historial anterior. La app convierte la numeración para cada proveedor, sin cambiar el capítulo elegido. Las equivalencias ambiguas, incompletas o inexistentes no se fuerzan y nunca se fusiona por parecido del título.
 
 La lista de proveedores muestra su nombre y dominio, no sus URL completas privadas. El reproductor y los mensajes de error tampoco muestran las URL completas de reproducción. Evita compartir enlaces de configuración que contengan datos privados.
 
@@ -77,7 +77,7 @@ La lista de proveedores muestra su nombre y dominio, no sus URL completas privad
 
 Abre una película y pulsa **Ver fuentes de la película**. Para una serie, elige la temporada y el episodio. Las fuentes aparecen conforme responde cada servicio. Si alguno falla, puedes usar los resultados de los demás. No necesitas copiar sus URLs ni añadir manifiestos para estas fuentes.
 
-AnimeAV1 busca por título sin exigir IMDb. Solo ofrece coincidencias claras y episodios explícitos; no calcula desplazamientos entre temporadas o partes. Admite enlaces directos y los servidores públicos Zilla, MP4Upload y YourUpload cuando puede resolverlos sin ejecutar JavaScript ni iniciar una sesión. Si ya habías guardado tu selección de fuentes antes de añadir AnimeAV1, activa su interruptor en Ajustes.
+AnimeAV1 busca por el título exacto de la entrega sin exigir IMDb. En las fichas unificadas se usa la entrega y el episodio que indica la tabla de equivalencias, no un desplazamiento calculado por el nombre. Admite enlaces directos y los servidores públicos Zilla, MP4Upload y YourUpload cuando puede resolverlos sin ejecutar JavaScript ni iniciar una sesión. Si ya habías guardado tu selección de fuentes antes de añadir AnimeAV1, activa su interruptor en Ajustes.
 
 Los motores de torrents, los scrapers y los ejecutores de proveedores JavaScript de PC no están incluidos. Que un proveedor aparezca en el escritorio no implica que ese motor pueda ejecutarse en Android.
 
@@ -129,6 +129,8 @@ Si abriste el vídeo desde una fuente de una ficha, **Cambiar fuente** vuelve a 
 En episodios de anime, **Saltar opening** aparece durante el intervalo de introducción cuando IntroDB dispone de tiempos para ese IMDb, temporada y capítulo. Esta consulta pública solo envía esos identificadores, no el enlace del vídeo ni las credenciales. Su disponibilidad y precisión dependen de los datos del servicio. No se adivinan equivalencias entre temporadas de TV y entregas de MyAnimeList.
 
 Si no hay tiempos disponibles, los controles ofrecen **Opening · +90 s** durante los primeros diez minutos, siempre que queden más de 90 segundos. Es un salto manual desde la posición actual, no una detección del opening. Los saltos nunca son automáticos y el bloqueo de controles impide activarlos.
+
+**Saltar ending** aparece durante un intervalo de cierre confirmado. Salta hasta su final, conservando las escenas posteriores cuando existen. Sin tiempos, **Ending · +90 s** permite avanzar manualmente cerca del final, sin fingir que se ha detectado el ending. Los iconos de transporte, menú y barra inferior comparten tamaño y áreas táctiles; la barra inferior usa seis posiciones iguales.
 
 ## Actualizaciones
 

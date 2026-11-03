@@ -21,6 +21,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -70,6 +71,30 @@ class PlayerScreenTest {
         }
         compose.onNodeWithContentDescription("Pausar").assertIsDisplayed()
         compose.onNodeWithText("1080p").assertIsDisplayed()
+    }
+
+    @Test fun endingControlIsIndependentOfOpeningAndDisappearsWhenLocked() {
+        val state = mutableStateOf(playback.copy(animeEpisode = true, positionMs = 1260000, durationMs = 1440000))
+        render(state)
+        compose.onNodeWithText("Opening · +90 s").assertDoesNotExist()
+        compose.onNodeWithText("Ending · +90 s").assertIsDisplayed().performClick()
+        compose.runOnIdle { state.value = state.value.copy(ending = OpeningInterval(1250000, 1340000)) }
+        compose.onNodeWithText("Saltar ending").assertIsDisplayed().performClick()
+        compose.onNodeWithContentDescription("Bloquear controles").performClick()
+        compose.onNodeWithText("Saltar ending").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(listOf(VideoAction.SKIP_ENDING, VideoAction.SKIP_ENDING), actions) }
+    }
+
+    @Test fun everyIconHasTheSameBoundsAndTheBottomToolbarUsesEqualSlots() {
+        render()
+        val labels = listOf("Reproducir", "Retroceder 10 segundos", "Avanzar 10 segundos", "Cambiar fuente", "Volver",
+            "Subtítulos", "Audio", "Velocidad", "Ajuste de imagen: Fit", "Información", "Girar pantalla")
+        val bounds = labels.map { compose.onNodeWithContentDescription(it).fetchSemanticsNode().boundsInRoot }
+        assertTrue(bounds.all { kotlin.math.abs(it.width - bounds.first().width) < 1 && kotlin.math.abs(it.height - bounds.first().height) < 1 })
+        val toolbar = bounds.takeLast(6)
+        assertTrue(toolbar.all { kotlin.math.abs(it.center.y - toolbar.first().center.y) < 1 })
+        val spacing = toolbar.zipWithNext().map { (a, b) -> b.center.x - a.center.x }
+        assertTrue(spacing.all { kotlin.math.abs(it - spacing.first()) < 2 })
     }
 
     @Test fun sliderSeeksAndDoubleTapsRespectSeekability() {

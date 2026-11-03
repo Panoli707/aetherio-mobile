@@ -62,4 +62,21 @@ class OpeningRepositoryTest {
             assertNull(repository.opening(target))
         } finally { client.dispatcher.executorService.shutdownNow(); client.connectionPool.evictAll() }
     }
+
+    @Test fun endingUsesExactOutroAndPreservesScenesAfterItOrOffersAnExplicitManualAdvance() {
+        val state = VideoUiState(animeEpisode = true, seekable = true, positionMs = 1260000, durationMs = 1440000)
+        assertEquals(OpeningSkip(1350000, false), endingSkip(state))
+        val outro = """{"imdb_id":"tt0409591","season":1,"episode":2,"outro":{"start_sec":1250,"end_sec":1340}}"""
+        val interval = OpeningRepository.parse(outro, target, "outro")
+        assertEquals(OpeningInterval(1250000, 1340000), interval)
+        assertEquals(OpeningSkip(1340000, true), endingSkip(state.copy(ending = interval)))
+        assertNull(endingSkip(state.copy(ending = interval, positionMs = 1340000)))
+        assertNull(endingSkip(state.copy(live = true)))
+        assertNull(endingSkip(state.copy(seekable = false)))
+        assertNull(endingSkip(state.copy(animeEpisode = false)))
+        assertNull(endingSkip(state.copy(positionMs = 30000)))
+        assertNull(endingSkip(state.copy(positionMs = 1390000)))
+        assertNull(OpeningRepository.parse(outro, target.copy(episode = 3), "outro"))
+        assertEquals(OpeningSkip(1440000, true), endingSkip(state.copy(ending = OpeningInterval(1250000, 1440000))))
+    }
 }

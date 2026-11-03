@@ -34,7 +34,9 @@ internal class OpeningRepository(client: OkHttpClient = OkHttpClient()) {
         .followRedirects(false).followSslRedirects(false)
         .connectTimeout(5, TimeUnit.SECONDS).readTimeout(5, TimeUnit.SECONDS).callTimeout(8, TimeUnit.SECONDS).build()
 
-    suspend fun opening(target: WatchTarget): OpeningInterval? {
+    suspend fun opening(target: WatchTarget): OpeningInterval? = segments(target)?.opening
+
+    suspend fun segments(target: WatchTarget): EpisodeSegments? {
         val imdb = target.item.imdbId ?: return null
         if (!target.item.isAnime || !imdb.matches(Regex("tt[0-9]{5,12}")) ||
             target.season == null || target.season < 1 || target.episode == null || target.episode < 1) return null
@@ -57,7 +59,8 @@ internal class OpeningRepository(client: OkHttpClient = OkHttpClient()) {
                         val source = body.source()
                         source.request(65537)
                         if (source.buffer.size > 65536) return@use null
-                        parse(source.readUtf8(), target)
+                        val raw = source.readUtf8()
+                        EpisodeSegments(parse(raw, target), parse(raw, target, "outro"))
                     } }.getOrNull()
                     if (continuation.isActive) continuation.resume(interval)
                 }
@@ -66,12 +69,13 @@ internal class OpeningRepository(client: OkHttpClient = OkHttpClient()) {
     }
 
     companion object {
-        internal fun parse(raw: String, target: WatchTarget): OpeningInterval? = runCatching {
+        internal fun parse(raw: String, target: WatchTarget, kind: String = "intro"): OpeningInterval? = runCatching {
             if (raw.length > 65536) return null
             val json = JSONObject(raw)
             if (json.optString("imdb_id") != target.item.imdbId || json.optInt("season", -1) != target.season ||
-                json.optInt("episode", -1) != target.episode || json.optBoolean("is_movie") || json.optBoolean("no_intro")) return null
-            val intro = json.optJSONObject("intro") ?: return null
+                json.optInt("episode", -1) != target.episode || json.optBoolean("is_movie") ||
+                kind !in listOf("intro", "outro") || json.optBoolean("no_$kind")) return null
+            val intro = json.optJSONObject(kind) ?: return null
             fun millis(name: String): Long? {
                 val seconds = (intro.opt("${name}_sec") as? Number)?.toDouble()
                 val value = seconds?.times(1000) ?: (intro.opt("${name}_ms") as? Number)?.toDouble() ?: return null
@@ -82,4 +86,18 @@ internal class OpeningRepository(client: OkHttpClient = OkHttpClient()) {
             OpeningInterval(start, end).takeIf { end - start in 5000..300000 }
         }.getOrNull()
     }
+}
+
+data class EpisodeSegments(val opening: OpeningInterval?, val ending: OpeningInterval?)
+
+fun endingSkip(state: VideoUiState): OpeningSkip? {
+    if (!state.animeEpisode || !state.seekable || state.live || state.error != null || state.durationMs <= 0) return null
+    val interval = state.ending
+    if (interval != null) return if (interval.startMs >= 0 && interval.endMs > interval.startMs &&
+        interval.endMs <= state.durationMs && state.positionMs >= interval.startMs && state.positionMs < interval.endMs)
+        OpeningSkip(interval.endMs, true) else null
+    // Explicit manual advance near the end, never an invented detected ending or an automatic finish.
+    val remaining = state.durationMs - state.positionMs
+    return if (state.positionMs >= state.durationMs * .75 && remaining > 90000 && remaining <= 300000)
+        OpeningSkip(state.positionMs + 90000, false) else null
 }

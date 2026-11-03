@@ -26,8 +26,9 @@ import com.panoli707.aetherio.nativeapp.data.*
 @Composable
 internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (MediaItem) -> Unit,
     onContinue: (WatchProgress) -> Unit, onAiring: () -> Unit) {
-    val continuing = WatchProgressRules.continuing(state.watchProgress).filter { it.target.item.isAnime }
-    val hero = continuing.firstOrNull()?.target?.item ?: state.watchingAnime.firstOrNull()
+    val current = LibraryCatalog.currentAnime(state)
+    val continuing = LibraryCatalog.currentProgress(state, current)
+    val hero = current.firstOrNull()
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val columns = (maxWidth.value / 150).toInt().coerceIn(2, 5)
         LazyColumn(state = scroll, contentPadding = PaddingValues(bottom = 120.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
@@ -61,15 +62,16 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
             }
             item(key = "watchingHeading") {
                 Text("Estás viendo", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 18.dp).padding(top = 28.dp, bottom = 12.dp))
-                Text("Tus animes en seguimiento, también entre un capítulo y el siguiente.", color = Muted, modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
+                Text("En seguimiento · ${state.animeSeason.season.label}", color = Violet, modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
             }
-            if (state.watchingAnime.isEmpty()) item(key = "watchingEmpty") {
-                StatusMessage("Todavía no sigues ningún anime", "Reproduce un episodio o usa Seguir desde su ficha.", "Ver temporada actual", onAiring)
+            if (current.isEmpty()) item(key = "watchingEmpty") {
+                if (state.animeSeason.loading) LoadingRow("Consultando tu temporada…")
+                else StatusMessage("Sin animes en curso de esta temporada", "El historial de otras temporadas está en Biblioteca.", "Ver temporada actual", onAiring)
             }
-            itemsIndexed(state.watchingAnime.chunked(columns), key = { _, row -> "watching:${row.first().key}" }) { _, row ->
+            itemsIndexed(current.chunked(columns), key = { _, row -> "watching:${row.first().key}" }) { _, row ->
                 Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { item ->
-                        val watched = state.watchProgress.filter { it.target.item.key == item.key && it.watched && (it.target.season ?: 0) > 0 }
+                        val watched = state.watchProgress.filter { LibraryCatalog.matchesCurrent(item, it.target) && it.watched && (it.target.season ?: 0) > 0 }
                             .distinctBy { it.target.key }.size
                         val progress = WatchProgressRules.latest(state.watchProgress, item)?.takeIf { !it.watched && it.positionMs > 0 }
                         Column(Modifier.weight(1f)) {
@@ -87,16 +89,16 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
                     repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
-            item(key = "animeCalendar") { AiringAnimeSection(state.animeSeason, onSelect, onAiring, onAiring) }
+            item(key = "animeCalendar") { OutlinedButton(onClick = onAiring, modifier = Modifier.padding(18.dp).fillMaxWidth()) { Text("Temporada y días de emisión") } }
         }
     }
 }
 
 @Composable
 internal fun SeasonalAnimeScreen(state: AnimeSeasonState, scroll: LazyListState, onBack: () -> Unit,
-    onSelect: (MediaItem) -> Unit, onRetry: () -> Unit) {
-    var day by rememberSaveable { mutableStateOf("all") }
-    val entries = state.entries.filter { day == "all" || (day == "unknown" && it.weekday == null) || it.weekday?.name == day }
+    onSelect: (MediaItem) -> Unit, onRetry: () -> Unit, day: String, onDay: (String) -> Unit) {
+    val entries = state.entries.sortedByDescending { it.latestAiringAt ?: 0 }.distinctBy { SeriesIdentity.item(it.item).key }
+        .filter { day == "all" || (day == "unknown" && it.weekday == null) || it.weekday?.name == day }
     Column(Modifier.fillMaxSize()) {
         ScreenHeader("Anime emitiéndose ahora", onBack)
         Text(state.season.label, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 18.dp))
@@ -104,7 +106,7 @@ internal fun SeasonalAnimeScreen(state: AnimeSeasonState, scroll: LazyListState,
             style = MaterialTheme.typography.bodySmall, color = Muted, modifier = Modifier.padding(horizontal = 18.dp, vertical = 8.dp))
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             (listOf("all" to "Todos") + AnimeWeekday.entries.map { it.name to it.label } + listOf("unknown" to "Sin horario")).forEach { (key, label) ->
-                FilterChip(selected = day == key, onClick = { day = key }, label = { Text(label) })
+                FilterChip(selected = day == key, onClick = { onDay(key) }, label = { Text(label) })
             }
         }
         if (state.error != null) StatusMessage("No se pudo actualizar la temporada", state.error, "Reintentar", onRetry)

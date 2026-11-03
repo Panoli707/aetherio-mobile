@@ -26,6 +26,7 @@ import com.panoli707.aetherio.nativeapp.data.StreamSource
 import com.panoli707.aetherio.nativeapp.data.EpisodeItem
 import com.panoli707.aetherio.nativeapp.data.WatchProgress
 import com.panoli707.aetherio.nativeapp.data.EpisodeWatchScope
+import com.panoli707.aetherio.nativeapp.data.SeriesIdentity
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import kotlinx.coroutines.launch
 
@@ -70,6 +71,7 @@ fun AetherioApp(
     var detailKey by rememberSaveable { mutableStateOf<String?>(null) }
     var linkOpen by rememberSaveable { mutableStateOf(false) }
     var libraryFilter by rememberSaveable { mutableStateOf("all") }
+    var airingDay by rememberSaveable(state.animeSeason.season.year, state.animeSeason.season.code) { mutableStateOf("MONDAY") }
     val homeScroll = rememberLazyListState()
     val animeScroll = rememberLazyListState()
     val seasonScroll = rememberLazyListState()
@@ -88,7 +90,8 @@ fun AetherioApp(
     }
     val openSearch: () -> Unit = { focus.clearFocus(); searchNeedsFocus = true; searchOpen = true }
     LaunchedEffect(tab, categoryId) { if (tab == "home" || tab == "anime" || categoryId == "airing") onLoadAnimeSeason() }
-    val select: (MediaItem) -> Unit = { item ->
+    val select: (MediaItem) -> Unit = { original ->
+        val item = SeriesIdentity.item(original)
         focus.clearFocus()
         onSelectMedia(item)
         detailKey = item.key
@@ -130,7 +133,10 @@ fun AetherioApp(
                         }
                     }
                     searchOpen -> SearchScreen(state, searchScroll, searchNeedsFocus, { searchNeedsFocus = false }, onSearch, select, closeTop)
-                    categoryId == "airing" -> SeasonalAnimeScreen(state.animeSeason, seasonScroll, closeTop, select, onLoadAnimeSeason)
+                    categoryId == "airing" -> screenState.SaveableStateProvider("airing") {
+                        SeasonalAnimeScreen(state.animeSeason, seasonScroll, closeTop, select, onLoadAnimeSeason,
+                            airingDay, { airingDay = it; scope.launch { seasonScroll.scrollToItem(0) } })
+                    }
                     categoryId != null -> {
                         val section = state.sections.firstOrNull { it.id == categoryId }
                         Column(Modifier.fillMaxSize()) {

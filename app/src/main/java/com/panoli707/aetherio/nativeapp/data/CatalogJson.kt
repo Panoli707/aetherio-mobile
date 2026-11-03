@@ -62,7 +62,8 @@ internal object CatalogJson {
             logoUrl = parsed.logoUrl ?: base.logoUrl, overview = parsed.overview.ifEmpty { base.overview },
             year = parsed.year.ifEmpty { base.year }, score = parsed.score.takeIf { it > 0 } ?: base.score,
              genres = parsed.genres.ifEmpty { base.genres }, imdbId = parsed.imdbId ?: base.imdbId,
-             episodeCount = json.optInt("number_of_episodes", 0).takeIf { it > 0 } ?: base.episodeCount)
+              episodeCount = json.optInt("number_of_episodes", 0).takeIf { it > 0 } ?: base.episodeCount,
+              seasonHint = base.seasonHint, animeEntryId = base.animeEntryId, seriesNumbering = base.seriesNumbering)
     }
     fun episodes(json: JSONObject, season: Int, cinemeta: Boolean = false): List<EpisodeItem> =
         objects(json.optJSONArray(if (cinemeta) "videos" else "episodes")).mapNotNull {
@@ -103,6 +104,7 @@ internal object CatalogJson {
             put("genres", JSONArray(item.genres)); put("anime", item.isAnime)
             put("imdb", item.imdbId)
             put("episodeCount", item.episodeCount); put("animeSeasonLabel", item.animeSeasonLabel)
+            put("seasonHint", item.seasonHint); put("animeEntryId", item.animeEntryId); put("seriesNumbering", item.seriesNumbering)
         }) }
     }.toString()
     fun decode(raw: String): List<MediaItem> = runCatching {
@@ -115,7 +117,9 @@ internal object CatalogJson {
             MediaItem(id, type, text(json, "name"), source, image(text(json, "poster")), image(text(json, "background")),
                 image(text(json, "logo")), text(json, "description"), text(json, "year"),
                 json.optDouble("imdbRating", 0.0).takeIf { it.isFinite() } ?: 0.0, strings(json.optJSONArray("genres")), json.optBoolean("anime"), imdb(text(json, "imdb")),
-                json.optInt("episodeCount", 0).takeIf { it in 1..100000 }, text(json, "animeSeasonLabel").take(40))
+                json.optInt("episodeCount", 0).takeIf { it in 1..100000 }, text(json, "animeSeasonLabel").take(40),
+                json.optInt("seasonHint", 0).takeIf { it in 1..1000 }, text(json, "animeEntryId").takeIf { it.matches(Regex("[0-9]{1,12}")) },
+                json.optBoolean("seriesNumbering"))
         }.distinctBy { it.key }
     }.getOrDefault(emptyList())
 }

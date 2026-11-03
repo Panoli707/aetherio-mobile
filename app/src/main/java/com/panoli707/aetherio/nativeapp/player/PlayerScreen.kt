@@ -150,15 +150,14 @@ fun PlayerScreen(
                                 act(VideoAction.REWIND)
                             }
                             if (state.buffering) {
-                                Box(Modifier.size(if (compact) 64.dp else 80.dp), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(Modifier.size(40.dp).semantics {
+                                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                                     CircularProgressIndicator(Modifier.size(28.dp).semantics {
                                         contentDescription = "Cargando video"
                                     }, color = MaterialTheme.colorScheme.primary)
                                 }
                             } else PlayerButton(
                                 if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                                 if (state.playing) "Pausar" else "Reproducir",
-                                size = if (compact) 64 else 80
                             ) { act(VideoAction.TOGGLE_PLAY) }
                             PlayerButton(Icons.Rounded.Forward10, "Avanzar 10 segundos", enabled = canSeek) {
                                 act(VideoAction.FORWARD)
@@ -166,10 +165,17 @@ fun PlayerScreen(
                         }
                     }
                     val skip = openingSkip(state)
-                    if (!locked && skip != null && (skip.precise || showControls)) {
-                        FilledTonalButton(onClick = { act(VideoAction.SKIP_OPENING) },
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = 8.dp)) {
-                            Text(if (skip.precise) "Saltar opening" else "Opening · +90 s")
+                    val ending = endingSkip(state)
+                    Column(Modifier.align(Alignment.BottomEnd).padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (!locked && skip != null && (skip.precise || showControls)) {
+                            FilledTonalButton(onClick = { act(VideoAction.SKIP_OPENING) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                                Text(if (skip.precise) "Saltar opening" else "Opening · +90 s")
+                            }
+                        }
+                        if (!locked && ending != null && (ending.precise || showControls)) {
+                            FilledTonalButton(onClick = { act(VideoAction.SKIP_ENDING) }, modifier = Modifier.heightIn(min = 48.dp)) {
+                                Text(if (ending.precise) "Saltar ending" else "Ending · +90 s")
+                            }
                         }
                     }
                 }
@@ -207,9 +213,9 @@ fun PlayerScreen(
                                 Modifier.padding(start = 8.dp), color = Color.White, fontSize = 12.sp)
                         }
                         Row(Modifier.horizontalScroll(rememberScrollState()).widthIn(min = controlsWidth),
-                            horizontalArrangement = Arrangement.SpaceBetween) {
+                            horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
                             listOf("text", "audio", "speed").forEach { kind ->
-                                Box {
+                                 Box(Modifier.width((controlsWidth / 6).coerceAtLeast(48.dp)), contentAlignment = Alignment.Center) {
                                     val icon = when (kind) {
                                         "text" -> Icons.Rounded.Subtitles
                                         "audio" -> Icons.Rounded.VolumeUp
@@ -244,6 +250,7 @@ fun PlayerScreen(
                                     }
                                 }
                             }
+                            Box(Modifier.width((controlsWidth / 6).coerceAtLeast(48.dp)), contentAlignment = Alignment.Center) {
                             PlayerButton(Icons.Rounded.AspectRatio, "Ajuste de imagen: $aspectLabel") {
                                 interaction++
                                 resizeMode = when (resizeMode) {
@@ -252,8 +259,13 @@ fun PlayerScreen(
                                     else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
                                 }
                             }
-                            PlayerButton(Icons.Rounded.Info, "Informaci\u00f3n") { menu = "info" }
-                            PlayerButton(Icons.Rounded.ScreenRotation, "Girar pantalla") { act(VideoAction.ROTATE) }
+                            }
+                            Box(Modifier.width((controlsWidth / 6).coerceAtLeast(48.dp)), contentAlignment = Alignment.Center) {
+                                PlayerButton(Icons.Rounded.Info, "Informaci\u00f3n") { menu = "info" }
+                            }
+                            Box(Modifier.width((controlsWidth / 6).coerceAtLeast(48.dp)), contentAlignment = Alignment.Center) {
+                                PlayerButton(Icons.Rounded.ScreenRotation, "Girar pantalla") { act(VideoAction.ROTATE) }
+                            }
                         }
                     }
                 }
@@ -278,12 +290,11 @@ private fun PlayerButton(
     icon: ImageVector,
     label: String,
     enabled: Boolean = true,
-    size: Int = 48,
     onClick: () -> Unit
 ) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(size.dp)) {
-        Icon(icon, contentDescription = label, modifier = Modifier.size((if (size > 48) 48 else 26).dp),
-            tint = (if (size > 48) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface).copy(alpha = if (enabled) 1f else .35f))
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(48.dp).testTag("playerButton:$label")) {
+        Icon(icon, contentDescription = label, modifier = Modifier.size(28.dp),
+            tint = (if (label in listOf("Reproducir", "Pausar")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface).copy(alpha = if (enabled) 1f else .35f))
     }
 }
 

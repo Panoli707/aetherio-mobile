@@ -25,7 +25,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val desktopSourceRepository = DesktopSourceRepository(sourceRepository)
     private val sourceSettings = SourceSettingsStore(application)
     private val addonStore = AddonStore(application)
-    private val mutableState = MutableStateFlow(AppState(savedItems = library.savedItems, profileName = library.profileName,
+    private val mutableState = MutableStateFlow(AppState(savedItems = SeriesIdentity.items(library.savedItems), profileName = library.profileName,
         enabledDesktopSources = sourceSettings.enabledDesktopSources))
     val state: StateFlow<AppState> = mutableState.asStateFlow()
     private var homeJob: Job? = null
@@ -58,16 +58,19 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun watching(entries: List<WatchProgress>): List<MediaItem> {
-        val hidden = library.hiddenWatchingAnime
-        return (entries.sortedByDescending { it.updatedAt }.map { it.target.item } + library.watchingAnime)
-            .filter { it.isAnime && it.type == MediaType.SERIES && it.key !in hidden }.distinctBy { it.key }
+        val hidden = library.hiddenWatchingAnime.map(SeriesIdentity::key).toSet()
+        return SeriesIdentity.items(library.watchingAnime + entries.sortedByDescending { it.updatedAt }.map { it.target.item })
+            .filter { it.isAnime && it.type == MediaType.SERIES && it.key !in hidden }
     }
 
-    fun toggleWatching(item: MediaItem) {
+    fun toggleWatching(selected: MediaItem) {
+        val item = SeriesIdentity.item(selected)
         if (!item.isAnime || item.type != MediaType.SERIES) return
         val remove = state.value.watchingAnime.any { it.key == item.key }
-        library.hiddenWatchingAnime = if (remove) library.hiddenWatchingAnime + item.key else library.hiddenWatchingAnime - item.key
-        library.watchingAnime = if (remove) library.watchingAnime.filterNot { it.key == item.key } else listOf(item) + library.watchingAnime.filterNot { it.key == item.key }
+        val hidden = library.hiddenWatchingAnime.map(SeriesIdentity::key).toSet()
+        library.hiddenWatchingAnime = if (remove) hidden + item.key else hidden - item.key
+        library.watchingAnime = if (remove) SeriesIdentity.items(library.watchingAnime).filterNot { it.key == item.key }
+            else listOf(item) + SeriesIdentity.items(library.watchingAnime).filterNot { it.key == item.key }
         mutableState.update { it.copy(watchingAnime = watching(it.watchProgress)) }
     }
 
@@ -124,7 +127,8 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
             catch (_: Exception) { mutableState.update { it.copy(homeLoading = false, homeError = "No se pudo cargar el catálogo. Inténtalo de nuevo.") } }
         }
     }
-    fun selectMedia(item: MediaItem) {
+    fun selectMedia(selected: MediaItem) {
+        val item = SeriesIdentity.item(selected)
         dismissSources()
         detailJob?.cancel()
         seasonJob?.cancel()
@@ -132,7 +136,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
             mutableState.update { it.copy(selectedItem = item, detail = null, detailLoading = true, detailError = null, episodesLoading = false) }
             try {
                 val fetched = repository.detail(item)
-                val recentSeason = WatchProgressRules.latest(history.load(), item)?.target?.season
+                val recentSeason = item.seasonHint ?: WatchProgressRules.latest(history.load(), item)?.target?.season
                 val detail = if (recentSeason != null && fetched.seasons.any { it.number == recentSeason })
                     fetched.copy(selectedSeason = recentSeason,
                         episodes = if (recentSeason == fetched.selectedSeason) fetched.episodes else emptyList()) else fetched
@@ -160,10 +164,11 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         seasonJob = viewModelScope.launch {
             mutableState.update { it.copy(detail = detail.copy(selectedSeason = number, episodes = emptyList()), episodesLoading = true, detailError = null) }
             try {
-                val episodes = repository.episodes(detail.item, number)
+                val content = repository.seasonContent(detail.item, number)
                 ensureActive()
                 if (state.value.detail?.item?.key != detail.item.key || state.value.detail?.selectedSeason != number) return@launch
-                mutableState.update { it.copy(detail = it.detail?.copy(episodes = episodes), episodesLoading = false) }
+                mutableState.update { it.copy(selectedItem = content.item,
+                    detail = it.detail?.copy(item = content.item, episodes = content.episodes), episodesLoading = false) }
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) {
                 if (state.value.detail?.item?.key == detail.item.key && state.value.detail?.selectedSeason == number)
@@ -281,8 +286,9 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 mutableState.update { it.copy(sourceQuery = resolved) }
                 var failures = 0
                 var unsupported = 0
-                val lookups = addons.filter { hasImdb }.map { addon -> null to suspend { sourceRepository.sources(addon, resolved) } } +
-                    compatibleDesktop.map { provider -> provider.id to suspend { desktopSourceRepository.sources(provider.id, resolved) } }
+                val lookups = addons.filter { hasImdb }.map { addon -> null to suspend { sourceRepository.sources(addon, repository.providerQuery(resolved, false)) } } +
+                    compatibleDesktop.map { provider -> provider.id to suspend {
+                        desktopSourceRepository.sources(provider.id, repository.providerQuery(resolved, provider.id == "animeav1")) } }
                 supervisorScope {
                     lookups.forEach { (desktopId, lookup) -> launch {
                         try {

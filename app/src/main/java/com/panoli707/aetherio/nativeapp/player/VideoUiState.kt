@@ -17,7 +17,8 @@ data class VideoUiState(
     val animeEpisode: Boolean = false,
     val opening: OpeningInterval? = null,
     val audioTracks: List<PlayerTrackOption> = emptyList(),
-    val subtitleTracks: List<PlayerTrackOption> = emptyList()
+    val subtitleTracks: List<PlayerTrackOption> = emptyList(),
+    val ending: OpeningInterval? = null
 )
 
-enum class VideoAction { TOGGLE_PLAY, REWIND, FORWARD, RETRY, FIND_SOURCES, CLOSE, ROTATE, SKIP_OPENING }
+enum class VideoAction { TOGGLE_PLAY, REWIND, FORWARD, RETRY, FIND_SOURCES, CLOSE, ROTATE, SKIP_OPENING, SKIP_ENDING }

@@ -36,7 +36,7 @@ internal fun AiringAnimeSection(state: AnimeSeasonState, onSelect: (MediaItem) -
         if (state.error != null) StatusMessage("No se pudieron actualizar las emisiones", state.error, "Reintentar", onRetry)
         if (state.loaded && !state.loading && state.error == null && state.entries.isEmpty())
             Text("No hay animes en emisión confirmados para esta temporada.", color = Muted, modifier = Modifier.padding(horizontal = 18.dp))
-        val entries = state.entries.sortedByDescending { it.latestAiringAt ?: Long.MIN_VALUE }
+        val entries = state.entries.sortedByDescending { it.latestAiringAt ?: Long.MIN_VALUE }.distinctBy { SeriesIdentity.item(it.item).key }
         LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.testTag("airingAnimeCards")) {
             items(entries, key = { it.item.key }) { entry -> AiringAnimeCard(entry, { onSelect(entry.item) }, Modifier.width(148.dp)) }

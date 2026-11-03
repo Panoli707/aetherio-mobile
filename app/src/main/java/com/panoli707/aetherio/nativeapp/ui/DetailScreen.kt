@@ -56,7 +56,9 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
     MaterialTheme(colorScheme = colors) {
         val detail = state.detail?.takeIf { it.item.key == item.key }
         val media = detail?.item ?: item
-        val recent = WatchProgressRules.latest(state.watchProgress, media)?.takeIf { !it.watched && it.positionMs > 0 }
+        val recent = WatchProgressRules.latest(state.watchProgress.filter { progress ->
+            media.type != MediaType.SERIES || detail?.selectedSeason == null || progress.target.season == detail.selectedSeason
+        }, media)?.takeIf { !it.watched && it.positionMs > 0 }
         val episodes = detail?.episodes.orEmpty().filter { it.season == detail?.selectedSeason }
         val first = episodes.firstOrNull().takeUnless { state.episodesLoading }
         val canPlay = media.type == MediaType.MOVIE || recent != null || first != null
@@ -84,8 +86,6 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                             DetailNight.copy(alpha = .62f), Color.Transparent, DetailNight.copy(alpha = .35f), DetailNight))))
                         Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 14.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(if (media.isAnime) "ANIME" else media.type.label.uppercase(Locale.forLanguageTag("es")),
-                                color = Coral, style = MaterialTheme.typography.labelLarge)
                             MediaTitle(media, Modifier.fillMaxWidth(), centered = true)
                             val metadata = buildList {
                                 if (media.score > 0) add("★ ${String.format(Locale.forLanguageTag("es"), "%.1f", media.score)}")

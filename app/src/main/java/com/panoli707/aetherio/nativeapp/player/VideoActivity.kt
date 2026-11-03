@@ -43,6 +43,7 @@ import com.panoli707.aetherio.nativeapp.ui.AetherioTheme
 import com.panoli707.aetherio.nativeapp.data.WatchHistoryRepository
 import com.panoli707.aetherio.nativeapp.data.WatchProgressCodec
 import com.panoli707.aetherio.nativeapp.data.WatchTarget
+import com.panoli707.aetherio.nativeapp.data.SeriesIdentity
 import java.io.IOException
 import java.util.Locale
 import kotlinx.coroutines.Job
@@ -127,12 +128,13 @@ class VideoActivity : ComponentActivity() {
         resumePosition = if (mediaIsLive) C.TIME_UNSET else savedInstanceState?.getLong(STATE_POSITION, C.TIME_UNSET) ?: C.TIME_UNSET
         resumePlayWhenReady = savedInstanceState?.getBoolean(STATE_PLAY_WHEN_READY, true) ?: true
         restoredSession = savedInstanceState != null
-        watchTarget = WatchProgressCodec.decodeTarget(intent.getStringExtra(EXTRA_WATCH_TARGET))
+        watchTarget = WatchProgressCodec.decodeTarget(intent.getStringExtra(EXTRA_WATCH_TARGET))?.let(SeriesIdentity.index::target)
         title = cleanLabel(intent.getStringExtra(EXTRA_TITLE)) ?: "Reproductor"
         screen = VideoUiState(title = title.toString(), subtitle = cleanLabel(intent.getStringExtra(EXTRA_PROVIDER)).orEmpty(),
             animeEpisode = watchTarget?.let { it.item.isAnime && it.episode != null && (it.season ?: 0) >= 1 } == true)
         watchTarget?.takeIf { screen.animeEpisode }?.let { target -> lifecycleScope.launch {
-            screen = screen.copy(opening = OpeningRepository().opening(target))
+            val segments = OpeningRepository().segments(SeriesIdentity.externalTarget(target))
+            screen = screen.copy(opening = segments?.opening, ending = segments?.ending)
         } }
         mediaUrl = try {
             allowDesktopHttp = intent.getBooleanExtra(EXTRA_DESKTOP_HTTP, false)
@@ -266,11 +268,12 @@ class VideoActivity : ComponentActivity() {
             }
             VideoAction.ROTATE -> requestedOrientation = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
                 ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-            VideoAction.SKIP_OPENING -> if (active != null && screen.animeEpisode && active.isCurrentMediaItemSeekable && !active.isCurrentMediaItemLive) {
+            VideoAction.SKIP_OPENING, VideoAction.SKIP_ENDING -> if (active != null && screen.animeEpisode && active.isCurrentMediaItemSeekable && !active.isCurrentMediaItemLive) {
                 val duration = active.duration
                 val position = active.currentPosition
-                val skip = openingSkip(screen.copy(positionMs = position, durationMs = duration,
-                    seekable = active.isCurrentMediaItemSeekable, live = active.isCurrentMediaItemLive))
+                val current = screen.copy(positionMs = position, durationMs = duration,
+                    seekable = active.isCurrentMediaItemSeekable, live = active.isCurrentMediaItemLive)
+                val skip = if (action == VideoAction.SKIP_OPENING) openingSkip(current) else endingSkip(current)
                 skip?.let { active.seekTo(it.targetMs); saveProgress(force = true) }
             }
         }

@@ -64,4 +64,22 @@ class WatchHistoryRepositoryTest {
         assertTrue(repository.load().none { it.watched })
         assertEquals(45000L, repository.load().first { it.target.key == other.key }.positionMs)
     }
+
+    @Test fun legacyContinuousEpisodeMigratesWithABackupAndSurvivesTheNextSaveAndReload() = runBlocking {
+        val old = WatchTarget(MediaItem("220542", MediaType.SERIES, "La boticaria", isAnime = true), 1, 25)
+        val raw = WatchProgressCodec.encode(listOf(WatchProgress(old, 75000, 1440000, updatedAt = 1)))
+        val preferences = context.getSharedPreferences("", Context.MODE_PRIVATE)
+        preferences.edit().putString("history", raw).commit()
+        val repository = WatchHistoryRepository(context)
+        val migrated = repository.load().single()
+        assertEquals(2, migrated.target.season)
+        assertEquals(1, migrated.target.episode)
+        assertEquals(75000L, migrated.positionMs)
+        assertEquals(raw, preferences.getString("history_before_series_v1", null))
+        repository.record(migrated.target, 90000, 1440000).join()
+        val reloaded = WatchHistoryRepository(context).load().single()
+        assertEquals(migrated.target.key, reloaded.target.key)
+        assertEquals(90000L, reloaded.positionMs)
+        assertEquals(raw, preferences.getString("history_before_series_v1", null))
+    }
 }

@@ -133,19 +133,79 @@ internal class AetherioRepository(
         } }.awaitAll()
     }
     suspend fun detail(item: MediaItem): MediaDetail {
-        if (item.source == CatalogSource.ANILIST) return animeRepository.detail(item)
+        if (item.source == CatalogSource.ANILIST) {
+            val canonical = SeriesIdentity.item(item)
+            if (canonical.key != item.key) return detail(canonical)
+            return animeRepository.detail(item)
+        }
         val data = if (item.source == CatalogSource.TMDB) tmdb("${item.type.path}/${item.id}", mapOf(
             "append_to_response" to "images,credits,external_ids,videos,watch/providers,reviews,recommendations,${if (item.type == MediaType.SERIES) "content_ratings" else "release_dates"}",
             "include_image_language" to "es,en,null", "include_video_language" to "es,en,null"))
             else requireNotNull(json("$cinemeta/meta/${cineType(item.type)}/${item.id}.json").optJSONObject("meta"))
         check(CatalogJson.text(data, "id") == item.id)
-        return CatalogJson.detail(item, data)
+        val detail = CatalogJson.detail(item, data)
+        val parts = SeriesIdentity.index.parts(item)
+        if (parts.isEmpty()) return detail
+        val grouped = parts.groupBy { it.season }.mapNotNull { (number, group) ->
+            val first = group.minBy { it.offset }
+            val source = detail.seasons.firstOrNull { it.number == first.tmdbSeason } ?: return@mapNotNull null
+            val until = parts.filter { it.tmdbSeason == first.tmdbSeason && it.season != number && it.offset > first.offset }
+                .minOfOrNull { it.offset } ?: source.episodeCount
+            val count = (minOf(until, source.episodeCount) - first.offset).coerceAtLeast(0)
+            if (count == 0) null else SeasonInfo(number, "Temporada $number", count)
+        }
+        val untouched = detail.seasons.filter { source -> parts.none { it.tmdbSeason == source.number } }
+            .map { source -> source.copy(number = if (parts.any { it.season == source.number }) 1000 + source.number else source.number) }
+        val seasons = (grouped + untouched).sortedBy { it.number }
+        return detail.copy(item = detail.item.copy(seriesNumbering = true, isAnime = true), seasons = seasons,
+            selectedSeason = item.seasonHint?.takeIf { hint -> seasons.any { it.number == hint } } ?: seasons.firstOrNull()?.number)
     }
     suspend fun episodes(item: MediaItem, season: Int): List<EpisodeItem> = if (item.source == CatalogSource.ANILIST)
         if (season == 1) animeRepository.detail(item).episodes else emptyList()
         else if (item.source == CatalogSource.TMDB)
         CatalogJson.episodes(tmdb("tv/${item.id}/season/$season"), season)
         else CatalogJson.episodes(requireNotNull(json("$cinemeta/meta/${cineType(item.type)}/${item.id}.json").optJSONObject("meta")), season, true)
+
+    suspend fun seasonContent(item: MediaItem, season: Int): SeasonContent {
+        val parts = SeriesIdentity.index.parts(item)
+        val group = parts.filter { it.season == season }
+        if (item.seriesNumbering && group.isNotEmpty()) {
+            val first = group.minBy { it.offset }
+            val end = parts.filter { it.tmdbSeason == first.tmdbSeason && it.season != season && it.offset > first.offset }
+                .minOfOrNull { it.offset } ?: Int.MAX_VALUE
+            val json = tmdb("tv/${item.id}/season/${first.tmdbSeason}")
+            val episodes = CatalogJson.episodes(json, first.tmdbSeason).filter { it.number > first.offset && it.number <= end }
+                .map { it.copy(season = season, number = it.number - first.offset) }
+            val art = optional { animeRepository.detail(MediaItem(first.animeId, MediaType.SERIES, item.title,
+                source = CatalogSource.ANILIST, isAnime = true)) }?.item
+            return SeasonContent(item.copy(posterUrl = art?.posterUrl ?: item.posterUrl,
+                backdropUrl = art?.backdropUrl ?: item.backdropUrl, seasonHint = season, animeEntryId = first.animeId), episodes)
+        }
+        val sourceSeason = if (item.seriesNumbering && parts.isNotEmpty() && season >= 1000) season - 1000 else season
+        if (item.source == CatalogSource.TMDB) {
+            val json = tmdb("tv/${item.id}/season/$sourceSeason")
+            val poster = CatalogJson.text(json, "poster_path").takeIf { it.startsWith("/") && !it.startsWith("//") && '\\' !in it }
+                ?.let { "https://image.tmdb.org/t/p/original$it" }
+            return SeasonContent(item.copy(posterUrl = poster ?: item.posterUrl, seasonHint = season),
+                CatalogJson.episodes(json, sourceSeason).map { it.copy(season = season) })
+        }
+        return SeasonContent(item, episodes(item, season))
+    }
+
+    suspend fun providerQuery(query: SourceQuery, animeAv1: Boolean): SourceQuery {
+        val season = query.season ?: return query
+        val episode = query.episode ?: return query
+        val parts = SeriesIdentity.index.parts(query.item)
+        if (!query.item.seriesNumbering || parts.isEmpty()) return query
+        val group = parts.filter { it.season == season }
+        if (group.isEmpty()) return if (season >= 1000) query.copy(season = season - 1000) else query
+        val base = group.minOf { it.offset }
+        if (!animeAv1) return query.copy(season = group.first().tmdbSeason, episode = episode + base)
+        val part = group.filter { episode + base > it.offset }.maxByOrNull { it.offset } ?: return query
+        val entry = animeRepository.detail(MediaItem(part.animeId, MediaType.SERIES, query.item.title,
+            source = CatalogSource.ANILIST, isAnime = true)).item
+        return query.copy(item = entry, season = 1, episode = episode + base - part.offset)
+    }
     suspend fun search(query: String): List<MediaItem> = optional {
         val data = tmdb("search/multi", mapOf("query" to query, "include_adult" to "false"))
         check(data.optJSONArray("results") != null)
@@ -160,3 +220,5 @@ internal class AetherioRepository(
         results.filterNotNull().flatten().distinctBy { it.key }
     }
 }
+
+internal data class SeasonContent(val item: MediaItem, val episodes: List<EpisodeItem>)

@@ -60,7 +60,7 @@ class AiringAnimeDesignTest {
             colors = listOf(scheme.background, scheme.surface, scheme.primary, scheme.secondary, scheme.tertiary)
             LibraryScreen(AppState(), androidx.compose.foundation.lazy.grid.rememberLazyGridState(), "all", {}, {}, {})
         } }
-        compose.onNodeWithText("Tus títulos guardados").assertExists()
+        compose.onNodeWithText("En curso, vistos y guardados").assertExists()
         compose.runOnIdle { assertEquals(listOf(Ink, Panel, Aqua, Violet, Coral), colors) }
     }
 }

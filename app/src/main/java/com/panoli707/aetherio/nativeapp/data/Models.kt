@@ -23,7 +23,10 @@ data class MediaItem(
     val isAnime: Boolean = false,
     val imdbId: String? = null,
     val episodeCount: Int? = null,
-    val animeSeasonLabel: String = ""
+    val animeSeasonLabel: String = "",
+    val seasonHint: Int? = null,
+    val animeEntryId: String? = null,
+    val seriesNumbering: Boolean = false
 ) {
     val key: String get() = "${source.name}:${type.path}:$id"
 }
@@ -36,7 +39,7 @@ data class CatalogSection(
 )
 
 data class CastMember(val name: String, val role: String, val imageUrl: String? = null)
-data class SeasonInfo(val number: Int, val name: String, val episodeCount: Int)
+data class SeasonInfo(val number: Int, val name: String, val episodeCount: Int, val posterUrl: String? = null)
 data class EpisodeItem(
     val number: Int,
     val season: Int,

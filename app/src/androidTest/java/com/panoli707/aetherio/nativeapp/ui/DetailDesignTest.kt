@@ -60,6 +60,33 @@ class DetailDesignTest {
         compose.runOnIdle { assertEquals(2, selected) }
     }
 
+    @Test fun seriesPrimaryActionAlsoSaysReproducirAndKeepsTheSelectedEpisode() {
+        val series = movie.copy(type = MediaType.SERIES, title = "Serie de prueba")
+        val detail = MediaDetail(series, seasons = listOf(SeasonInfo(2, "Temporada 2", 1)),
+            episodes = listOf(EpisodeItem(3, 2, "Capítulo tres")), selectedSeason = 2)
+        var chosen: Pair<Int?, Int?>? = null
+        compose.setContent { AetherioTheme {
+            DetailScreen(AppState(detail = detail), series, rememberLazyListState(), {}, {}, {}, {}, {},
+                { _, season, episode -> chosen = season to episode })
+        } }
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailPrimaryPlay"))
+        compose.onNodeWithText("Ver fuentes", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Reproducir · T2 E3").performClick()
+        compose.runOnIdle { assertEquals(2 to 3, chosen) }
+    }
+
+    @Test fun reproducirIsDisabledUntilASeriesHasAnEpisodeInsteadOfInventingOne() {
+        val series = movie.copy(type = MediaType.SERIES)
+        var played = false
+        compose.setContent { AetherioTheme {
+            DetailScreen(AppState(detail = MediaDetail(series)), series, rememberLazyListState(), {}, {}, {}, {}, {},
+                { _, _, _ -> played = true })
+        } }
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailPrimaryPlay"))
+        compose.onNodeWithText("Reproducir").assertIsNotEnabled().performClick()
+        compose.runOnIdle { assertFalse(played) }
+    }
+
     @Test fun trailerRelatedAndReviewActionsUseRealMetadataAndMissingSectionsStayAbsent() {
         val trailer = DetailLinks.trailer("abcDE123_-x", "Tráiler de prueba")!!
         val related = movie.copy(id = "551", title = "Película relacionada")

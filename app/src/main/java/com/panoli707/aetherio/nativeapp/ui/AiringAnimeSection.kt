@@ -37,9 +37,13 @@ internal fun AiringAnimeSection(state: AnimeSeasonState, onSelect: (MediaItem) -
         if (state.loaded && !state.loading && state.error == null && state.entries.isEmpty())
             Text("No hay animes en emisión confirmados para esta temporada.", color = Muted, modifier = Modifier.padding(horizontal = 18.dp))
         val entries = state.entries.sortedByDescending { it.latestAiringAt ?: Long.MIN_VALUE }.distinctBy { SeriesIdentity.item(it.item).key }
-        LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.testTag("airingAnimeCards")) {
-            items(entries, key = { it.item.key }) { entry -> AiringAnimeCard(entry, { onSelect(entry.item) }, Modifier.width(148.dp)) }
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val coverWidth = posterWidth(maxWidth)
+            LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.testTag("airingAnimeCards")) {
+                items(entries, key = { it.item.key }) { entry -> AiringAnimeCard(entry, { onSelect(entry.item) },
+                    Modifier.width(coverWidth).testTag("airingPoster:${entry.item.key}")) }
+            }
         }
     }
 }
@@ -47,17 +51,17 @@ internal fun AiringAnimeSection(state: AnimeSeasonState, onSelect: (MediaItem) -
 @Composable
 internal fun AiringAnimeCard(entry: SeasonalAnime, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Column(modifier.clickable(onClickLabel = "Ver ${entry.item.title}", onClick = onClick).semantics(mergeDescendants = true) { }) {
-        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(18.dp))) {
+        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(14.dp)).testTag("airingArt:${entry.item.key}")) {
             Artwork(entry.item.posterUrl, Modifier.fillMaxSize())
             Box(Modifier.fillMaxWidth().align(Alignment.BottomCenter).height(65.dp)
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Ink.copy(alpha = .9f)))))
             val episode = entry.latestEpisode
             val label = if (episode != null) "Ep. $episode / ${entry.item.episodeCount ?: "—"}" else "En emisión"
-            Text(label, color = Aqua, style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.align(Alignment.TopEnd).padding(7.dp).background(Ink.copy(alpha = .9f), RoundedCornerShape(9.dp))
-                    .padding(horizontal = 8.dp, vertical = 6.dp))
+            Text(label, color = Aqua, style = MaterialTheme.typography.labelSmall, maxLines = 1,
+                modifier = Modifier.align(Alignment.TopEnd).padding(5.dp).background(Ink.copy(alpha = .9f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 6.dp, vertical = 5.dp))
         }
-        Text(entry.item.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall,
+        Text(entry.item.title, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(top = 8.dp))
         Text(entry.item.animeSeasonLabel.ifBlank { entry.item.year }, color = Muted, style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 3.dp))

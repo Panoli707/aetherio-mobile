@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -104,7 +105,7 @@ internal fun Metadata(item: MediaItem, centered: Boolean = false) {
 internal fun Poster(item: MediaItem, onClick: () -> Unit, modifier: Modifier = Modifier, rank: Int? = null) {
     Column(modifier.clickable(onClickLabel = "Ver ${item.title}", onClick = onClick)
         .semantics(mergeDescendants = true) { }) {
-        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(14.dp))) {
+        Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(14.dp)).testTag("posterArt:${item.key}")) {
             Artwork(item.posterUrl, Modifier.fillMaxSize())
             if (rank != null) {
                 Box(Modifier.fillMaxWidth().height(64.dp).background(Brush.verticalGradient(
@@ -114,7 +115,7 @@ internal fun Poster(item: MediaItem, onClick: () -> Unit, modifier: Modifier = M
                         .semantics { contentDescription = "Puesto $rank" })
             }
         }
-        Text(item.title, maxLines = 1, overflow = TextOverflow.Ellipsis,
+        Text(item.title, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 7.dp))
         if (item.year.isNotBlank()) Text(item.year, color = Muted, style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 2.dp))

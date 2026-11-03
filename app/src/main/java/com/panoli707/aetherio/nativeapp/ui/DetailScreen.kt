@@ -67,15 +67,16 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
             else if (media.type == MediaType.MOVIE) onRequestSources(media, null, null)
             else first?.let { onRequestSources(media, it.season, it.number) }
         }
-        val playLabel = if (recent != null) "Continuar${recent.target.episode?.let { " · T${recent.target.season} E$it" }.orEmpty()} · ${watchTime(recent.positionMs)}"
+        val playLabel = if (recent != null) "Reproducir${recent.target.episode?.let { " · T${recent.target.season} E$it" }.orEmpty()} · ${watchTime(recent.positionMs)}"
             else if (media.type == MediaType.MOVIE) "Reproducir"
-            else first?.let { "Ver fuentes · T${it.season} E${it.number}" } ?: "Selecciona un episodio"
+            else first?.let { "Reproducir · T${it.season} E${it.number}" } ?: "Reproducir"
         var actions by remember(media.key) { mutableStateOf<EpisodeItem?>(null) }
         var infoOpen by rememberSaveable(media.key) { mutableStateOf(false) }
         BoxWithConstraints(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF171B3E), DetailNight)))) {
             val portrait = maxWidth < 600.dp
             val heroHeight = if (portrait) (maxWidth * 1.42f).coerceIn(440.dp, 680.dp) else 430.dp
             val episodeWidth = (maxWidth * .79f).coerceIn(260.dp, 420.dp)
+            val relatedWidth = posterWidth(maxWidth)
             LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("detailScroll"),
                 contentPadding = PaddingValues(bottom = 28.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
                 item(key = "hero") {
@@ -209,7 +210,8 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                     Column {
                         DetailHeading("Relacionados", Modifier.padding(horizontal = 18.dp))
                         LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(detail.related, key = { it.key }) { related -> Poster(related, { onSelectRelated(related) }, Modifier.width(132.dp)) }
+                            items(detail.related, key = { it.key }) { related -> Poster(related, { onSelectRelated(related) },
+                                Modifier.width(relatedWidth).testTag("relatedPoster:${related.key}")) }
                         }
                     }
                 }
@@ -264,7 +266,7 @@ private fun DetailSynopsis(overview: String, key: String) {
 private fun DetailEpisodeCard(episode: EpisodeItem, media: MediaItem, progress: WatchProgress?, width: androidx.compose.ui.unit.Dp,
     onPlay: () -> Unit, onActions: () -> Unit) {
     Surface(color = DetailPanel, shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, Violet.copy(alpha = .22f)),
-        modifier = Modifier.width(width).combinedClickable(onClick = onPlay, onClickLabel = "Ver fuentes", onLongClick = onActions, onLongClickLabel = "Opciones del episodio")) {
+        modifier = Modifier.width(width).combinedClickable(onClick = onPlay, onClickLabel = "Reproducir", onLongClick = onActions, onLongClickLabel = "Opciones del episodio")) {
         Column {
             Box(Modifier.fillMaxWidth().aspectRatio(1.78f)) {
                 DetailArtwork(episode.imageUrl ?: media.backdropUrl ?: media.posterUrl, Modifier.fillMaxSize())

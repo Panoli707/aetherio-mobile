@@ -81,8 +81,8 @@ android {
         applicationId = "com.panoli707.aetherio.nativeapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 20
-        versionName = "0.13.1"
+        versionCode = 21
+        versionName = "0.14.0"
         manifestPlaceholders["tmdbCredentialsEmbedded"] = tmdbReadAccessToken.isNotEmpty()
         testInstrumentationRunner = if (providers.gradleProperty("torrentReleaseSmoke").orNull == "true")
             "com.panoli707.aetherio.nativeapp.player.torrent.TorrentReleaseInstrumentation"

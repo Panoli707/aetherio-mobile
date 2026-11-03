@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.panoli707.aetherio.nativeapp.data.*
@@ -30,8 +31,9 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
     val continuing = LibraryCatalog.currentProgress(state, current)
     val hero = current.firstOrNull()
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val columns = (maxWidth.value / 150).toInt().coerceIn(2, 5)
-        LazyColumn(state = scroll, contentPadding = PaddingValues(bottom = 120.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
+        val columns = posterColumns(maxWidth)
+        LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("animeScroll"),
+            contentPadding = PaddingValues(bottom = 120.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
             item(key = "animeHeader") {
                 if (hero == null) ScreenHeader("Anime") else Box(Modifier.fillMaxWidth().height(260.dp)) {
                     Artwork(ArtworkImages.hero(hero, portrait = false), Modifier.fillMaxSize(), highResolution = true)
@@ -75,13 +77,14 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
                             .distinctBy { it.target.key }.size
                         val progress = WatchProgressRules.latest(state.watchProgress, item)?.takeIf { !it.watched && it.positionMs > 0 }
                         Column(Modifier.weight(1f)) {
-                            Box(Modifier.fillMaxWidth().aspectRatio(.67f).clip(RoundedCornerShape(14.dp)).clickable { onSelect(item) }) {
+                            Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(14.dp))
+                                .testTag("watchingArt:${item.key}").clickable(onClickLabel = "Ver ${item.title}") { onSelect(item) }) {
                                 Artwork(item.posterUrl, Modifier.fillMaxSize())
                                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent, Ink))))
                                 Text(if (item.episodeCount != null) "$watched/${item.episodeCount} vistos" else "$watched vistos",
                                     modifier = Modifier.align(Alignment.BottomStart).padding(8.dp), style = MaterialTheme.typography.labelMedium)
                             }
-                            Text(item.title, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+                            Text(item.title, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
                             Text(item.animeSeasonLabel.ifBlank { item.year }, color = Muted, style = MaterialTheme.typography.bodySmall)
                             TextButton(onClick = { if (progress != null) onContinue(progress) else onSelect(item) }) { Text(if (progress != null) "Continuar" else "Ver capítulos") }
                         }
@@ -110,7 +113,7 @@ internal fun SeasonalAnimeScreen(state: AnimeSeasonState, scroll: LazyListState,
             }
         }
         BoxWithConstraints(Modifier.weight(1f)) {
-            val columns = (maxWidth.value / 150).toInt().coerceIn(2, 5)
+            val columns = posterColumns(maxWidth)
             LazyColumn(state = scroll, contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 if (state.error != null) item(key = "seasonError") {
                     StatusMessage("No se pudo actualizar la temporada", state.error, "Reintentar", onRetry)

@@ -14,6 +14,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
@@ -112,7 +113,8 @@ fun AetherioApp(
     AetherioTheme {
         Surface(color = Ink, modifier = Modifier.fillMaxSize()) {
             // Only the visible screen is composed: hidden text fields cannot retain IME focus.
-            Box(Modifier.fillMaxSize().background(Ink).windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
+            Box(Modifier.fillMaxSize().background(Ink).blur(if (state.sourceQuery != null) 18.dp else 0.dp)
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
                 when {
                     detailKey != null -> {
                          val selected = state.selectedItem?.takeIf { it.key == detailKey }

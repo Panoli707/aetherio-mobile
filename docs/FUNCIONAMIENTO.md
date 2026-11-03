@@ -6,7 +6,7 @@ Aetherio permite explorar películas y series, guardar favoritos y reproducir v�
 
 Al abrir Aetherio, se muestran el logo y el nombre mientras carga el catálogo.
 
-- En **Inicio**, desliza los destacados de la cabecera o usa la flecha para avanzar.
+- En **Inicio**, desliza los destacados de la cabecera. Avanzan automáticamente mientras Inicio está activo; el botón de perfil abre Ajustes.
 - Desliza horizontalmente las secciones de películas, series y anime. Pulsa la flecha de una sección para ver sus títulos en una cuadrícula.
 - Toca la lupa **Buscar**, escribe un título y abre uno de los resultados.
 - Abre la pestaña **Anime** para ver tus episodios pendientes y los animes que sigues.
@@ -14,9 +14,11 @@ Al abrir Aetherio, se muestran el logo y el nombre mientras carga el catálogo.
 
 Si aparece un error de carga, comprueba la conexión y pulsa **Reintentar** cuando esté disponible.
 
+Las portadas mantienen la proporción 2:3 y comparten tamaños, márgenes y separación en Inicio, Anime, Biblioteca, búsqueda y relacionados. Las ventanas estrechas usan dos columnas; los teléfonos más anchos, tres; las tabletas adaptan el número al espacio. Las miniaturas de vídeo siguen siendo panorámicas.
+
 ## Fichas y episodios
 
-Las fichas de películas, series y anime comparten una estructura con portada grande, título o logo y metadatos. La portada no tiene un botón de reproducción superpuesto: usa el botón principal para abrir las fuentes de la película o del episodio indicado; si hay progreso pendiente, muestra **Continuar** con la posición guardada. Las imágenes de episodios y tráileres tampoco llevan iconos de reproducción superpuestos, pero sus tarjetas siguen siendo pulsables.
+Las fichas de películas, series y anime comparten una estructura con portada grande, título o logo y metadatos. La portada no tiene un botón de reproducción superpuesto: usa **Reproducir** para abrir las fuentes de la película o del episodio indicado; si hay progreso pendiente, el botón conserva el episodio y la posición guardada. Las imágenes de episodios y tráileres tampoco llevan iconos de reproducción superpuestos, pero sus tarjetas siguen siendo pulsables.
 
 La paleta azul noche, turquesa, violeta y coral se aplica a toda la aplicación, incluidos navegación, búsqueda, biblioteca, ajustes, menús y controles del reproductor. El fondo del vídeo sigue siendo negro. Las imágenes principales usan póster en vertical y fondo panorámico en horizontal, solicitando la resolución original de TMDB o la portada grande de AniList cuando existe. La nitidez final depende de la imagen disponible; no se genera una versión HD artificial.
 
@@ -34,7 +36,9 @@ Que un título o episodio aparezca en el catálogo no garantiza que tenga un ví
 
 **Biblioteca** reúne automáticamente las películas y series en curso o vistas, además de tus favoritos y títulos en seguimiento. Puedes usar los filtros **Todos**, **Películas** y **Series**. En una ficha, **Biblioteca / Guardado** cambia solo el favorito: quitarlo no borra el historial. Guardar un título no descarga su vídeo.
 
-En **Ajustes**, edita **Nombre del perfil** y pulsa **Guardar nombre**. Es un nombre local, no una cuenta. No hay perfiles múltiples ni sincronización entre dispositivos.
+En **Ajustes > Perfil local**, edita **Nombre del perfil** y pulsa **Guardar nombre**. Es un nombre local, no una cuenta. No hay perfiles múltiples ni sincronización entre dispositivos.
+
+Ajustes muestra una pantalla de **Configuración**, con buscador y cinco secciones: **Perfil local**, **Fuentes y contenido**, **Reproducción**, **Actualizaciones** y **Acerca de**. Cada sección abre sus controles existentes; **Acerca de** contiene las licencias. El botón Volver y el gesto Atrás regresan al listado sin cambiar las preferencias.
 
 El nombre, los favoritos y los proveedores se guardan en el dispositivo. Se conservan al actualizar sobre la instalación existente, pero **se eliminan al desinstalar o borrar los datos de la aplicación**. No hay restauración mediante una cuenta.
 
@@ -47,7 +51,7 @@ La ficha recuerda la última temporada que reproduciste. Cada capítulo muestra 
 - **Marcar como visto / no visto** para el capítulo seleccionado.
 - **Marcar anteriores como vistos / no vistos**, dentro de la misma temporada.
 - **Marcar temporada como vista / no vista**, solo para capítulos con fecha de emisión confirmada. No se incluyen capítulos futuros ni sin fecha conocida.
-- **Elegir fuente** o **Reproducir manualmente** mediante un enlace propio.
+- **Reproducir** para elegir una fuente o **Reproducir manualmente** mediante un enlace propio.
 
 Marcar un capítulo manualmente no inventa tiempo de reproducción. Marcarlo como no visto quita su marca y reinicia la posición; si la acción afecta a varios capítulos, se pide confirmación. Los cambios de temporada se guardan juntos y no afectan a otras temporadas. Al llegar al 95 % del vídeo o a su final se marca como visto automáticamente y deja de aparecer en Continuar viendo. Si vuelves a reproducir un capítulo visto, comienza desde el principio.
 
@@ -75,33 +79,35 @@ La lista de proveedores muestra su nombre y dominio, no sus URL completas privad
 
 Desde la versión preliminar 0.12.0, **Aetherio Provider Hub** se registra automáticamente como único resolvedor predeterminado: no necesitas añadir manifiestos. Los catálogos y metadatos continúan integrados en Mobile. Los adaptadores anteriores permanecen como **Fuentes adicionales (opcionales)**, desactivados por defecto para evitar consultas duplicadas. Sus selecciones antiguas se conservan sin borrarlas; una nueva activación es explícita. **AnimeAV1** sigue siendo nativo e independiente de AnimES. Consulta [contrato, migración y comprobación de Provider Hub](PROVIDER_HUB.md).
 
-Abre una película y pulsa **Ver fuentes de la película**. Para una serie, elige la temporada y el episodio. Las fuentes aparecen conforme responde cada servicio. Si alguno falla, puedes usar los resultados de los demás. No necesitas copiar sus URLs ni añadir manifiestos para estas fuentes.
+Abre una película y pulsa **Reproducir**. Para una serie, elige la temporada y el episodio. Las fuentes aparecen conforme responde cada servicio. Si alguno falla, puedes usar los resultados de los demás. No necesitas copiar sus URLs ni añadir manifiestos para estas fuentes.
+
+**Seleccionar fuente** es un panel translúcido, con fondo desenfocado en Android 12 o posterior. Puedes filtrar por proveedor y tocar la tarjeta completa de una fuente para elegirla; no hay un botón Reproducir dentro de cada tarjeta ni un selector de formato. Se respeta el formato detectado. El botón **Actualizar fuentes**, arriba a la derecha, repite la consulta y permanece visible al desplazar los resultados; se desactiva mientras carga.
 
 AnimeAV1 busca por el título exacto de la entrega sin exigir IMDb. En las fichas unificadas se usa la entrega y el episodio que indica la tabla de equivalencias, no un desplazamiento calculado por el nombre. Admite enlaces directos y los servidores públicos Zilla, MP4Upload y YourUpload cuando puede resolverlos sin ejecutar JavaScript ni iniciar una sesión. Si ya habías guardado tu selección de fuentes antes de añadir AnimeAV1, activa su interruptor en Ajustes.
 
-Los motores de torrents, los scrapers y los ejecutores de proveedores JavaScript de PC no están incluidos. Los resultados torrent del Hub se conservan con su índice de archivo y trackers, pero se muestran como no reproducibles: nunca se envían magnets a Media3 como si fueran MP4. Que el Hub devuelva una fuente no garantiza que su URL, formato o codec funcione en el dispositivo.
+Nuvio Engine permite intentar reproducir las fuentes torrent compatibles, conservando índice de archivo y trackers; nunca se envían magnets a Media3 como si fueran MP4. Los scrapers y ejecutores de proveedores JavaScript de PC no están incluidos. Que el Hub devuelva una fuente no garantiza que su URL, formato o codec funcione en el dispositivo. Consulta [las restricciones y el aviso P2P](TORRENT_ENGINE.md).
 
 Para añadir un proveedor propio:
 
 1. Obtén de un proveedor de confianza la URL HTTPS de un `manifest.json` compatible. Usa solo contenido que tengas permiso para reproducir.
-2. Abre **Ajustes > Proveedores propios** y pega el enlace en **URL HTTPS del manifest.json**. Usa la dirección final, sin redirecciones, con una ruta que termine en `/manifest.json`.
+2. Abre **Ajustes > Fuentes y contenido > Proveedores propios** y pega el enlace en **URL HTTPS del manifest.json**. Usa la dirección final, sin redirecciones, con una ruta que termine en `/manifest.json`.
 3. Pulsa **Añadir proveedor** y espera la confirmación. Para quitarlo después, pulsa **Eliminar proveedor**.
-4. Abre la ficha de una película y pulsa **Ver fuentes de la película**. En una serie, elige la temporada y toca el episodio que quieras ver. El botón principal indica el episodio que abrirá; si muestra **Continuar**, corresponde al progreso pendiente.
-5. En **Formato de reproducción**, deja **Auto** o elige **HLS** o **DASH** si conoces el formato. Pulsa **Reproducir** en la fuente elegida.
+4. Abre la ficha de una película y pulsa **Reproducir**. En una serie, elige la temporada y toca el episodio que quieras ver. El botón principal indica el episodio que abrirá y conserva la posición si hay progreso pendiente.
+5. Toca la tarjeta de la fuente elegida. Aetherio usa su formato detectado; no hay que elegir Auto, HLS o DASH en esta pantalla.
 
-No todos los proveedores son compatibles. Los proveedores propios admiten las cabeceras de reproducción Referer, Origin y User-Agent y los metadatos Sec-Fetch limitados que necesita Zilla, pero no sesiones con Cookie o Authorization. Para el Hub se admiten además las cabeceras de proveedor documentadas, incluidas Cookie y Authorization, limitadas al origen del vídeo y eliminadas en HTTP. No se reproducen torrents ni DRM ni se ejecutan extractores arbitrarios de páginas web. La calidad indicada en una fuente procede del proveedor y no garantiza la calidad del vídeo.
+No todos los proveedores son compatibles. Los proveedores propios admiten las cabeceras de reproducción Referer, Origin y User-Agent y los metadatos Sec-Fetch limitados que necesita Zilla, pero no sesiones con Cookie o Authorization. Para el Hub se admiten además las cabeceras de proveedor documentadas, incluidas Cookie y Authorization, limitadas al origen del vídeo y eliminadas en HTTP. No se reproduce DRM ni se ejecutan extractores arbitrarios de páginas web. La calidad indicada en una fuente procede del proveedor y no garantiza la calidad del vídeo.
 
 El Hub y las fuentes integradas del PC tienen una excepción limitada para vídeo HTTP en shegu.net y sus subdominios. La tarjeta avisa de ese transporte sin cifrar antes de reproducir. No permite HTTP en otros dominios ni cambia el uso de HTTPS en las APIs, proveedores propios o enlaces manuales.
 
-El Hub no requiere configurar proveedores. Si no hay fuentes, pulsa **Reintentar búsqueda** y revisa la conexión: el servicio puede no cubrir ese título o episodio, no tener una correspondencia IMDb válida o no ofrecer enlaces compatibles. Las fuentes opcionales solo se consultan si las has activado expresamente; una caída del Hub no las activa automáticamente.
+El Hub no requiere configurar proveedores. Si no hay fuentes, pulsa **Actualizar fuentes** y revisa la conexión: el servicio puede no cubrir ese título o episodio, no tener una correspondencia IMDb válida o no ofrecer enlaces compatibles. Las fuentes opcionales solo se consultan si las has activado expresamente; una caída del Hub no las activa automáticamente.
 
 ### Ejemplo opcional: Big Buck Bunny
 
 Puedes reproducir **Big Buck Bunny**, de Blender Foundation, bajo licencia **CC BY 3.0**. Consulta la [película original](https://peach.blender.org/).
 
-1. Añade en **Ajustes > Proveedores propios** este manifiesto público: `https://raw.githubusercontent.com/Panoli707/aetherio-mobile/main/examples/big-buck-bunny/manifest.json`.
+1. Añade en **Ajustes > Fuentes y contenido > Proveedores propios** este manifiesto público: `https://raw.githubusercontent.com/Panoli707/aetherio-mobile/main/examples/big-buck-bunny/manifest.json`.
 2. Busca **Big Buck Bunny** y abre la ficha correspondiente al IMDb `tt1254207`.
-3. Pulsa **Buscar fuentes** y después **Reproducir** en la fuente del ejemplo.
+3. Pulsa **Reproducir** y después toca la tarjeta de la fuente del ejemplo.
 
 Este proveedor es opcional, no está preinstalado y solo ofrece esta película.
 
@@ -109,7 +115,7 @@ Este proveedor es opcional, no está preinstalado y solo ofrece esta película.
 
 Esta alternativa no necesita proveedores. Abrirla desde una ficha no obtiene automáticamente el vídeo de ese título.
 
-1. Pulsa **Reproducir por enlace** en **Ajustes** o **Reproducir por enlace propio** en una ficha.
+1. Pulsa **Reproducir por enlace** en **Ajustes > Reproducción** o **Reproducir por enlace propio** en una ficha.
 2. Introduce en **URL HTTPS del vídeo** una dirección directa de contenido propio o autorizado.
 3. En **Formato del enlace**, deja **Automático** o selecciona **HLS** o **DASH** si conoces el formato.
 4. Pulsa **Reproducir**. Toca el vídeo para mostrar los controles de pausa y desplazamiento cuando estén disponibles.

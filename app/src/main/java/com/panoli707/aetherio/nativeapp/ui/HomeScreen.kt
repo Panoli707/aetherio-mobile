@@ -110,11 +110,13 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
                 }
                 BoxWithConstraints(Modifier.fillMaxWidth()) {
                     val bannerWidth = (maxWidth - 36.dp).coerceAtMost(520.dp)
+                    val coverWidth = posterWidth(maxWidth)
                     LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         itemsIndexed(section.items, key = { _, item -> item.key }) { index, item ->
                             when (section.style) {
                                 SectionStyle.FEATURED -> Featured(item, { onSelect(item) }, Modifier.width(bannerWidth))
-                                SectionStyle.POSTERS, SectionStyle.RANKED -> Poster(item, { onSelect(item) }, Modifier.width(132.dp),
+                                SectionStyle.POSTERS, SectionStyle.RANKED -> Poster(item, { onSelect(item) },
+                                    Modifier.width(coverWidth).testTag("homePoster:${section.id}:${item.key}"),
                                     rank = if (section.style == SectionStyle.RANKED) index + 1 else null)
                             }
                         }
@@ -133,8 +135,7 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
         Box {
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val portrait = maxWidth < 600.dp
-                val height = if (portrait) (maxWidth * 1.72f).coerceIn(460.dp, 760.dp)
-                    .coerceAtMost(screenHeight * .76f) else 430.dp.coerceAtMost(screenHeight * .85f)
+                val height = homeHeroHeight(maxWidth, screenHeight)
                 HorizontalPager(state = pager, key = { heroes[it].key },
                     modifier = Modifier.fillMaxWidth().height(height).testTag("homeHero")) { page ->
                     val item = heroes[page]
@@ -212,7 +213,7 @@ private fun HeroTitle(item: MediaItem, compact: Boolean) {
     val logo = remember(item.logoUrl) { ArtworkImages.highResolution(item.logoUrl) }
     if (!logo.isNullOrBlank() && !failed && !LocalInspectionMode.current) {
         AsyncImage(model = logo, contentDescription = item.title, contentScale = ContentScale.Fit,
-            onError = { failed = true }, modifier = Modifier.fillMaxWidth().height(if (compact) 88.dp else 124.dp))
+            onError = { failed = true }, modifier = Modifier.fillMaxWidth().height(if (compact) 80.dp else 104.dp))
     } else {
         Text(item.title, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center,
             maxLines = 2, overflow = TextOverflow.Ellipsis)

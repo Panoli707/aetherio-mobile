@@ -3,7 +3,7 @@
 ## Reproducir una fuente
 
 1. Abre una ficha y busca sus fuentes.
-2. Pulsa **Reproducir torrent**. Confirma el aviso P2P solo si tienes permiso para reproducir ese contenido.
+2. Toca la tarjeta de una fuente torrent. Confirma el aviso P2P solo si tienes permiso para reproducir ese contenido.
 3. Espera los metadatos. Si el proveedor no identifica un archivo y el torrent contiene varios vídeos, selecciona el episodio/archivo.
 4. Usa los controles habituales. **Cambiar fuente** vuelve a la búsqueda; **Reintentar** crea una sesión nueva.
 
@@ -31,7 +31,7 @@ Al salir o enviar la actividad a segundo plano se cierra el motor. Al regresar s
 
 El límite de caché no es un techo físico estricto: el motor puede proteger bloques en uso y superar el presupuesto. Aetherio comprueba el espacio libre durante la sesión y detiene la reproducción si se invade la reserva. Para recuperar espacio fuera de reproducción, usa **Ajustes de Android > Aplicaciones > Aetherio > Almacenamiento > Borrar caché**, no **Borrar datos**.
 
-Los MKV/MP4 y otras extensiones de vídeo son candidatos de selección, no una garantía de decodificación. DTS/TrueHD, HDR, perfiles de vídeo o subtítulos ASS complejos dependen de Media3 y del dispositivo. No hay transcodificación. HLS/DASH del selector se aplica a enlaces adaptativos HTTP, nunca al archivo torrent.
+Los MKV/MP4 y otras extensiones de vídeo son candidatos de selección, no una garantía de decodificación. DTS/TrueHD, HDR, perfiles de vídeo o subtítulos ASS complejos dependen de Media3 y del dispositivo. No hay transcodificación. El selector de fuentes respeta el formato HTTP detectado; los torrents se reproducen como archivo progresivo, nunca como HLS/DASH forzado.
 
 No se admiten nuevos torrents BTMH/v2, archivos `.torrent` de usuario o parámetros magnet arbitrarios de webseed. Los trackers se validan sin resolver DNS en la interfaz: se rechazan esquemas desconocidos, credenciales, controles y destinos numéricos privados/locales. Los nombres de tracker se resuelven después en el motor nativo; esto no constituye una garantía contra DNS rebinding ni una sandbox de destinos de todos los peers DHT.
 

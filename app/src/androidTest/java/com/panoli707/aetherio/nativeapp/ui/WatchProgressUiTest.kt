@@ -29,6 +29,18 @@ class WatchProgressUiTest {
         compose.runOnIdle { assertEquals(progress, resumed) }
     }
 
+    @Test fun primaryReproducirActionStillResumesTheSavedEpisode() {
+        val detail = MediaDetail(anime, seasons = listOf(SeasonInfo(2, "Temporada 2", 1)), episodes = listOf(episode), selectedSeason = 2)
+        var selected: Pair<Int?, Int?>? = null
+        compose.setContent { AetherioTheme {
+            DetailScreen(AppState(detail = detail, watchProgress = listOf(progress)), anime, rememberLazyListState(), {}, {}, {}, {}, {},
+                { _, season, number -> selected = season to number })
+        } }
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailPrimaryPlay"))
+        compose.onNodeWithText("Reproducir · T2 E3 · 12:34").performClick()
+        compose.runOnIdle { assertEquals(2 to 3, selected) }
+    }
+
     @Test fun episodeRowShowsProgressAndWatchedActionDoesNotStartPlayback() {
         var marked: EpisodeItem? = null
         var played = false
@@ -57,6 +69,6 @@ class WatchProgressUiTest {
         compose.onNodeWithText("Visto", useUnmergedTree = true).assertExists()
         compose.onNodeWithContentDescription("Opciones del episodio T2 E3").performClick()
         compose.onNodeWithText("Marcar como no visto").assertIsDisplayed()
-        compose.onNodeWithText("Continuar · T2 E3 · 12:34").assertDoesNotExist()
+        compose.onNodeWithText("Reproducir · T2 E3 · 12:34").assertDoesNotExist()
     }
 }

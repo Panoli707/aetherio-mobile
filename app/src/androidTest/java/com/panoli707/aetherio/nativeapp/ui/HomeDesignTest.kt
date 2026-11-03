@@ -126,6 +126,7 @@ class HomeDesignTest {
                 onUpdateAction = {}, onAutomaticUpdatesChange = {})
         }
         compose.onNodeWithContentDescription("Abrir perfil").performClick()
+        compose.onNodeWithText("Perfil local").performClick()
         compose.onNodeWithText("Nombre del perfil").performScrollTo().performTextReplacement("Mi perfil")
         compose.onNodeWithText("Guardar nombre").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("Mi perfil", renamed) }

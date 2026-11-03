@@ -43,7 +43,7 @@ internal fun EpisodeActionsSheet(item: MediaItem, episode: EpisodeItem, episodes
             Text("Las acciones de temporada incluyen solo capítulos con fecha de emisión confirmada.",
                 style = MaterialTheme.typography.bodySmall, color = Muted, modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp))
             HorizontalDivider()
-            EpisodeAction(Icons.Default.PlayArrow, "Elegir fuente") { onDismiss(); onSources() }
+            EpisodeAction(Icons.Default.PlayArrow, "Reproducir") { onDismiss(); onSources() }
             EpisodeAction(Icons.Default.Link, "Reproducir manualmente") { onDismiss(); onManual() }
         }
     }

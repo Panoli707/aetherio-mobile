@@ -9,10 +9,24 @@ object PlaybackHeaders {
     private const val ERROR_MESSAGE = "Invalid playback headers"
     private val encodedControl = Regex("%(?:0[0-9a-f]|1[0-9a-f]|7f)", RegexOption.IGNORE_CASE)
 
+    /** Applies to redirects, adaptive segments, keys and external subtitles alike. */
+    internal fun forDestination(headers: Map<String, String>, mediaUrl: String?, destination: okhttp3.HttpUrl): Map<String, String> {
+        val original = mediaUrl?.toHttpUrlOrNull()
+        val sameOrigin = original != null && original.scheme == destination.scheme &&
+            original.host == destination.host && original.port == destination.port
+        return headers.filterKeys { key ->
+            when (key.lowercase(Locale.ROOT)) {
+                "authorization", "cookie" -> destination.isHttps && sameOrigin
+                "referer", "origin" -> destination.isHttps
+                else -> true
+            }
+        }
+    }
+
     @JvmStatic
-    fun validate(headers: Map<String, String>): Map<String, String> {
+    fun validate(headers: Map<String, String>, allowProviderCredentials: Boolean = false): Map<String, String> {
         try {
-            require(headers.size <= 6)
+            require(headers.size <= if (allowProviderCredentials) 16 else 6)
             val result = linkedMapOf<String, String>()
             for ((key, value) in headers) {
                 val canonical = when (key.lowercase(Locale.ROOT)) {
@@ -22,6 +36,11 @@ object PlaybackHeaders {
                     "sec-fetch-dest" -> "Sec-Fetch-Dest"
                     "sec-fetch-mode" -> "Sec-Fetch-Mode"
                     "sec-fetch-site" -> "Sec-Fetch-Site"
+                    "accept" -> if (allowProviderCredentials) "Accept" else throw IllegalArgumentException()
+                    "accept-language" -> if (allowProviderCredentials) "Accept-Language" else throw IllegalArgumentException()
+                    "authorization" -> if (allowProviderCredentials) "Authorization" else throw IllegalArgumentException()
+                    "cookie" -> if (allowProviderCredentials) "Cookie" else throw IllegalArgumentException()
+                    "x-requested-with" -> if (allowProviderCredentials) "X-Requested-With" else throw IllegalArgumentException()
                     else -> throw IllegalArgumentException()
                 }
                 require(canonical !in result)
@@ -32,7 +51,7 @@ object PlaybackHeaders {
                         "Sec-Fetch-Mode" -> "cors"
                         else -> "same-origin"
                     })
-                } else if (canonical != "User-Agent") {
+                } else if (canonical in listOf("Origin", "Referer")) {
                     require(!encodedControl.containsMatchIn(value))
                     val uri = URI(value)
                     val url = value.toHttpUrlOrNull() ?: throw IllegalArgumentException()

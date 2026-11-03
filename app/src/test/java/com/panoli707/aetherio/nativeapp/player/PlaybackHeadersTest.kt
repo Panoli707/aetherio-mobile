@@ -1,9 +1,27 @@
 package com.panoli707.aetherio.nativeapp.player
 
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.junit.Assert.*
 import org.junit.Test
 
 class PlaybackHeadersTest {
+    @Test fun providerCredentialsStayOnTheVideoOriginIncludingForSegmentsKeysAndSubtitles() {
+        val headers = mapOf("Authorization" to "Bearer fixture", "Cookie" to "session=fixture",
+            "Referer" to "https://player.example/watch", "Origin" to "https://player.example", "User-Agent" to "Fixture")
+        val media = "https://cdn.example/video.m3u8"
+        assertEquals(headers, PlaybackHeaders.forDestination(headers, media, "https://cdn.example:443/segment.ts".toHttpUrl()))
+        val public = headers - setOf("Authorization", "Cookie")
+        listOf("https://other.example/es.vtt", "https://cdn.example:8443/key", "https://sub.cdn.example/segment.ts").forEach {
+            assertEquals(public, PlaybackHeaders.forDestination(headers, media, it.toHttpUrl()))
+        }
+        assertEquals(public, PlaybackHeaders.forDestination(headers, null, media.toHttpUrl()))
+        assertEquals(mapOf("User-Agent" to "Fixture"),
+            PlaybackHeaders.forDestination(headers, "http://shegu.net/video.mp4", "http://shegu.net/segment".toHttpUrl()))
+        assertEquals(emptyMap<String, String>(), PlaybackHeaders.forDestination(
+            mapOf("authorization" to "fixture", "COOKIE" to "fixture", "REFERER" to "fixture", "origin" to "fixture"), media,
+            "http://shegu.net/video.mp4".toHttpUrl()))
+    }
+
     @Test fun acceptsZillaFetchMetadataButRejectsUnrecognizedValues() {
         val headers = mapOf("Referer" to "https://player.zilla-networks.com/",
             "Origin" to "https://player.zilla-networks.com", "User-Agent" to "Player/1.0",

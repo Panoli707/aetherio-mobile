@@ -57,8 +57,10 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
             }
         }
     }
-    Text("Fuentes de Aetherio PC", style = MaterialTheme.typography.titleLarge)
-    Text("Estas fuentes se consultan solo al pulsar Buscar fuentes en una ficha. Activa las que quieras incluir en la búsqueda.",
+    Text("Aetherio Provider Hub", style = MaterialTheme.typography.titleLarge)
+    Text("Resolvedor predeterminado integrado. No necesitas añadir addons: el Hub agrega las fuentes en el servidor. Catálogos y fichas siguen integrados en Mobile.", color = Muted)
+    Text("Fuentes adicionales (opcionales)", style = MaterialTheme.typography.titleLarge)
+    Text("Desactivadas por defecto para no duplicar las consultas del Hub. Las selecciones antiguas se conservan sin borrarlas; activa aquí solo las fuentes adicionales que quieras consultar directamente. AnimeAV1 sigue siendo nativo e independiente de AnimES.",
         color = Muted)
     DesktopSources.providers.forEach { provider ->
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -94,8 +96,8 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
     if (success && state.addonError == null) Text("Proveedor guardado. Ya puedes buscar fuentes desde las fichas.", color = Rating,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     if (state.addonsLoading) LoadingRow("Cargando proveedores…")
-    else if (state.addons.isEmpty()) Text("No has añadido proveedores propios.", color = Muted)
-    state.addons.forEach { addon ->
+    else if (state.addons.none { !ProviderHub.isHub(it) }) Text("No has añadido proveedores propios.", color = Muted)
+    state.addons.filterNot(ProviderHub::isHub).forEach { addon ->
         val host = remember(addon.manifestUrl) { runCatching { URI(addon.manifestUrl).host }.getOrNull() ?: "Host no disponible" }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -112,9 +114,8 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> Unit,
-    onPlay: (StreamSource, VideoFormat) -> Unit, onSettings: () -> Unit) {
+    onPlay: (StreamSource, VideoFormat) -> Unit, onSettings: () -> Unit, onRetry: () -> Unit = {}) {
     val hasProviders = state.addons.isNotEmpty() || state.enabledDesktopSources.isNotEmpty()
-    val nativeAnimeDisabled = query.item.source == CatalogSource.ANILIST && "animeav1" !in state.enabledDesktopSources
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var format by rememberSaveable(query.key) { mutableStateOf(VideoFormat.AUTO) }
@@ -145,10 +146,6 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                     color = Muted, style = MaterialTheme.typography.bodySmall)
             }
             if (state.addonsLoading) item(key = "addonsLoading") { LoadingRow("Cargando proveedores…") }
-            else if (nativeAnimeDisabled) item(key = "enableNativeAnime") {
-                StatusMessage("Activa AnimeAV1", "Estas fichas usan la identidad de AniList. Activa su adaptador nativo para buscar por título, sin inventar un IMDb.",
-                    "Ir a Ajustes", { closeThen(onSettings) })
-            }
             else if (!hasProviders) item(key = "configure") {
                 StatusMessage("Configura tus proveedores", "Añade un manifiesto compatible en Ajustes para buscar fuentes de este título.",
                     "Ir a Ajustes", { closeThen(onSettings) })
@@ -158,10 +155,11 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                 val message = state.sourceError
                 Text(message, color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.semantics { error(message); liveRegion = LiveRegionMode.Polite })
+                if (!state.sourcesLoading) TextButton(onClick = onRetry) { Text("Reintentar búsqueda") }
             }
-            if (!state.sourcesLoading && !state.addonsLoading && hasProviders && !nativeAnimeDisabled && state.sources.isEmpty()) item(key = "empty") {
-                StatusMessage("Sin fuentes reproducibles", "Los proveedores no han devuelto enlaces compatibles para este título o episodio. " +
-                    "Las fuentes que requieren torrents, DRM o sesiones privadas no están habilitadas.")
+            if (!state.sourcesLoading && !state.addonsLoading && hasProviders && state.sourceError == null && state.sources.isEmpty()) item(key = "empty") {
+                StatusMessage("Sin resultados", "Provider Hub y los proveedores opcionales no devolvieron fuentes para este título o episodio. Puedes volver a intentarlo.",
+                    "Reintentar búsqueda", onRetry)
             }
             items(state.sources, key = { "${it.addonId}:${it.id}" }) { source ->
                 Surface(color = Ink, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
@@ -169,11 +167,12 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                         Text(source.addonName, color = Muted, style = MaterialTheme.typography.labelLarge)
                         Text(source.name.ifBlank { "Fuente de vídeo" }, style = MaterialTheme.typography.titleMedium)
                         if (source.description.isNotBlank()) Text(source.description, color = Muted, style = MaterialTheme.typography.bodyMedium)
-                        if (source.allowDesktopHttp) Text("Esta fuente puede usar v\u00eddeo HTTP sin cifrar en servidores del PC.",
+                        if (source.url.startsWith("http://", true)) Text("Esta fuente usa vídeo HTTP sin cifrar en un dominio permitido.",
                             color = Muted, style = MaterialTheme.typography.bodySmall)
-                        Button(onClick = { onPlay(source, if (format == VideoFormat.AUTO) source.format else format) },
+                        if (source.isTorrent) Text("Torrent conservado · Mobile no tiene motor torrent. Este resultado no es reproducible en esta versión.", color = Muted)
+                        Button(onClick = { onPlay(source, if (format == VideoFormat.AUTO) source.format else format) }, enabled = source.playable,
                             modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Reproducir ${source.name}, proveedor ${source.addonName}" }) {
-                            Text("Reproducir")
+                            Text(if (source.isTorrent) "Requiere motor torrent" else "Reproducir")
                         }
                     }
                 }

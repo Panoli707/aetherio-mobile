@@ -223,7 +223,7 @@ internal object SourceProtocol {
         return parent.opt(key) as? JSONObject ?: invalid()
     }
 
-    private fun playbackHeaders(stream: JSONObject, hints: JSONObject): Map<String, String> {
+    private fun playbackHeaders(stream: JSONObject, hints: JSONObject, providerCredentials: Boolean = false): Map<String, String> {
         val merged = linkedMapOf<String, String>()
         for (parent in listOf(stream, hints)) {
             val proxy = optionalObject(parent, "proxyHeaders")
@@ -233,10 +233,10 @@ internal object SourceProtocol {
             }
             for (headers in listOfNotNull(optionalObject(parent, "headers"),
                 optionalObject(parent, "requestHeaders"), flatProxy, proxy?.let { optionalObject(it, "request") })) {
-                if (headers.length() > 6) invalid()
+                if (headers.length() > if (providerCredentials) 16 else 6) invalid()
                 val values = linkedMapOf<String, String>()
                 headers.keys().forEach { key -> values[key] = headers.opt(key) as? String ?: invalid() }
-                PlaybackHeaders.validate(values).forEach { (key, value) ->
+                PlaybackHeaders.validate(values, providerCredentials).forEach { (key, value) ->
                     if (key in merged && merged[key] != value) invalid()
                     merged[key] = value
                 }
@@ -245,10 +245,10 @@ internal object SourceProtocol {
         for ((field, header) in listOf("referrer" to "Referer", "userAgent" to "User-Agent")) {
             if (header !in merged && hints.has(field) && !hints.isNull(field)) {
                 val value = hints.opt(field) as? String ?: invalid()
-                if (value.isNotEmpty()) merged.putAll(PlaybackHeaders.validate(mapOf(header to value)))
+                if (value.isNotEmpty()) merged.putAll(PlaybackHeaders.validate(mapOf(header to value), providerCredentials))
             }
         }
-        return PlaybackHeaders.validate(merged)
+        return PlaybackHeaders.validate(merged, providerCredentials)
     }
 
     private fun requiresDrm(parent: JSONObject): Boolean = listOf(
@@ -273,28 +273,55 @@ internal object SourceProtocol {
 
     fun streams(raw: String, config: AddonConfig): SourceResult = checked {
         val addon = validated(config)
-        val desktopTransport = DesktopSources.providers.any { it.manifestUrl == addon.manifestUrl }
-        val values = array(root(raw, STREAM_LIMIT), "streams")
+        val hub = ProviderHub.isHub(addon)
+        val desktopTransport = hub || DesktopSources.providers.any { it.manifestUrl == addon.manifestUrl }
+        val values = array(root(raw, STREAM_LIMIT), "streams", required = hub)
         val sources = linkedMapOf<String, StreamSource>()
         var unsupported = 0
         for (index in 0 until values.length()) {
             val source = try {
                 val stream = values.opt(index) as? JSONObject ?: invalid()
-                if (listOf("externalUrl", "ytId", "infoHash").any { stream.has(it) && !stream.isNull(it) }) invalid()
+                if (listOf("externalUrl", "ytId").any { stream.has(it) && !stream.isNull(it) }) invalid()
                 val hints = optionalObject(stream, "behaviorHints") ?: JSONObject()
                 if (requiresDrm(stream) || requiresDrm(hints)) invalid()
-                val headers = playbackHeaders(stream, hints)
-                val rawUrl = stream.opt("url") as? String ?: invalid()
-                val url = if (URI(rawUrl.trim()).scheme.equals("http", true)) {
+                val headers = playbackHeaders(stream, hints, hub)
+                val infoHash = if (!stream.has("infoHash") || stream.isNull("infoHash")) null else
+                    (stream.opt("infoHash") as? String)?.takeIf { it.matches(Regex("[A-Fa-f0-9]{40}|[A-Z2-7a-z]{32}")) } ?: invalid()
+                val fileIdx = if (!stream.has("fileIdx") || stream.isNull("fileIdx")) null else {
+                    val number = stream.opt("fileIdx") as? Number ?: invalid()
+                    number.toInt().takeIf { it >= 0 && number.toDouble() == it.toDouble() } ?: invalid()
+                }
+                val rawUrl = if (!stream.has("url") || stream.isNull("url")) "" else stream.opt("url") as? String ?: invalid()
+                val magnet = rawUrl.startsWith("magnet:", true)
+                val magnetId = if (magnet) magnetHash(rawUrl) else null
+                if (infoHash != null && magnetId != null && !infoHash.equals(magnetId, true)) invalid()
+                val url = if (rawUrl.isEmpty() && infoHash != null) null else if (magnet) null
+                else if (URI(rawUrl.trim()).scheme.equals("http", true)) {
                     if (encodedControl.containsMatchIn(rawUrl) || URI(rawUrl.trim()).rawFragment != null) invalid()
                     MediaUrlPolicy.validate(rawUrl, desktopTransport).toHttpUrlOrNull() ?: invalid()
                 } else httpsUrl(rawUrl)
                 val name = text(stream.opt("name"), 120).ifEmpty { addon.name }
                 val description = text(stream.opt("description"), 600).ifEmpty { text(stream.opt("title"), 600) }
-                val identity = listOf(addon.id, url.toString(), name, description) +
+                val trackers = strings(array(stream, "sources"), URL_LIMIT)
+                val subtitles = (0 until array(stream, "subtitles").length()).map { i ->
+                    val sub = stream.getJSONArray("subtitles").optJSONObject(i) ?: invalid()
+                    val subUrl = httpsUrl(sub.opt("url") as? String ?: invalid()).toString()
+                    StreamSubtitle(text(sub.opt("id"), 256), subUrl, text(sub.opt("lang"), 80),
+                        text(sub.opt("mimeType"), 120).ifEmpty {
+                            when (URI(subUrl).path.substringAfterLast('.').lowercase(Locale.ROOT)) {
+                                "vtt" -> "text/vtt"; "srt" -> "application/x-subrip"; "ass", "ssa" -> "text/x-ssa"
+                                "ttml" -> "application/ttml+xml"; else -> ""
+                            }
+                        }.takeIf { it.isNotEmpty() })
+                }
+                val target = if (magnet) rawUrl else url?.toString().orEmpty()
+                val identity = listOf(addon.id, target, name, description) +
                     headers.toSortedMap().flatMap { (key, value) -> listOf(key, value) }
-                StreamSource(hash(*identity.toTypedArray()), addon.id, addon.name,
-                    name, description, url.toString(), format(stream, hints, url), headers, desktopTransport)
+                val extended = if (infoHash != null || magnet || subtitles.isNotEmpty() || trackers.isNotEmpty() || fileIdx != null)
+                    listOf(infoHash.orEmpty(), fileIdx?.toString().orEmpty()) + trackers + subtitles.map { it.toString() } else emptyList()
+                StreamSource(hash(*(identity + extended).toTypedArray()), addon.id, addon.name,
+                    name, description, target, if (url != null) format(stream, hints, url) else VideoFormat.AUTO, headers, desktopTransport,
+                    infoHash, fileIdx, trackers, subtitles, hints.toString(), stream.toString())
             } catch (_: Exception) {
                 unsupported++
                 continue
@@ -302,6 +329,18 @@ internal object SourceProtocol {
             sources.putIfAbsent(source.id, source)
         }
         SourceResult(sources.values.toList(), unsupported)
+    }
+
+    private fun magnetHash(raw: String): String {
+        if (raw.length > URL_LIMIT || raw.any(Char::isISOControl) || encodedControl.containsMatchIn(raw)) invalid()
+        val uri = URI(raw)
+        if (!uri.scheme.equals("magnet", true) || uri.rawFragment != null || !uri.rawSchemeSpecificPart.startsWith("?")) invalid()
+        val ids = uri.rawSchemeSpecificPart.removePrefix("?").split('&').mapNotNull { part ->
+            val key = java.net.URLDecoder.decode(part.substringBefore('='), "UTF-8")
+            if (key != "xt") null else java.net.URLDecoder.decode(part.substringAfter('=', ""), "UTF-8")
+        }
+        val id = ids.singleOrNull()?.removePrefix("urn:btih:") ?: invalid()
+        return id.takeIf { it.matches(Regex("[A-Fa-f0-9]{40}|[A-Z2-7a-z]{32}")) } ?: invalid()
     }
 
     private fun validated(config: AddonConfig): AddonConfig {

@@ -15,7 +15,8 @@ object DesktopSources {
         DesktopSourceProvider("deepflix", "DeepFlix", "https://mg.homelabx.qzz.io/manifest.json"),
         DesktopSourceProvider("animeav1", "AnimeAV1")
     )
-    val defaultIds: Set<String> get() = providers.map { it.id }.toSet()
+    val knownIds: Set<String> get() = providers.map { it.id }.toSet()
+    val defaultIds: Set<String> get() = emptySet()
 }
 
 internal class DesktopSourceRepository(

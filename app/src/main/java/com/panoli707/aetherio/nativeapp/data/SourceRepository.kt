@@ -1,6 +1,8 @@
 package com.panoli707.aetherio.nativeapp.data
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import okhttp3.Call
@@ -14,10 +16,13 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-internal class SourceRepository(client: OkHttpClient = DEFAULT) {
+internal class SourceRepository(client: OkHttpClient = DEFAULT, requestTimeoutMs: Long = 20_000, private val attempts: Int = 1) {
+    init { require(requestTimeoutMs in 1..60_000 && attempts in 1..2) }
     private val client = client.newBuilder()
         .followRedirects(false).followSslRedirects(false)
-        .connectTimeout(8, TimeUnit.SECONDS).readTimeout(12, TimeUnit.SECONDS).callTimeout(20, TimeUnit.SECONDS)
+        .retryOnConnectionFailure(false)
+        .connectTimeout(minOf(8_000, requestTimeoutMs), TimeUnit.MILLISECONDS)
+        .readTimeout(requestTimeoutMs, TimeUnit.MILLISECONDS).callTimeout(requestTimeoutMs, TimeUnit.MILLISECONDS)
         .addNetworkInterceptor { chain ->
             val url = chain.request().url
             try {
@@ -38,7 +43,19 @@ internal class SourceRepository(client: OkHttpClient = DEFAULT) {
         fetch(url, SourceProtocol.STREAM_LIMIT) { SourceProtocol.streams(it, config) }
     }
 
-    private suspend fun <T> fetch(url: HttpUrl, limit: Int, parse: (String) -> T): T =
+    private suspend fun <T> fetch(url: HttpUrl, limit: Int, parse: (String) -> T): T {
+        repeat(attempts) { attempt ->
+            try { return fetchOnce(url, limit, parse) }
+            catch (e: CancellationException) { throw e }
+            catch (e: SourceFetchException) {
+                if (!e.retryable || attempt == attempts - 1) throw e
+                delay(250)
+            }
+        }
+        throw failure()
+    }
+
+    private suspend fun <T> fetchOnce(url: HttpUrl, limit: Int, parse: (String) -> T): T =
         suspendCancellableCoroutine { continuation ->
             val call = try {
                 client.newCall(Request.Builder().url(url).get().build())
@@ -50,14 +67,14 @@ internal class SourceRepository(client: OkHttpClient = DEFAULT) {
             try {
                 call.enqueue(object : Callback {
                     override fun onFailure(call: Call, e: IOException) {
-                        if (continuation.isActive) continuation.resumeWithException(failure())
+                        if (continuation.isActive) continuation.resumeWithException(failure(retryable = true))
                     }
 
                     override fun onResponse(call: Call, response: Response) {
                         // Parse on OkHttp's worker, with cancellation attached through EOF and parsing.
                         val result: Result<T> = try {
                             response.use {
-                                if (!it.isSuccessful) throw failure()
+                                if (!it.isSuccessful) throw failure(it.code in setOf(408, 502, 503, 504))
                                 val body = it.body ?: throw failure()
                                 if (body.contentLength() > limit) throw failure()
                                 val source = body.source()
@@ -65,6 +82,10 @@ internal class SourceRepository(client: OkHttpClient = DEFAULT) {
                                 if (source.buffer.size > limit) throw failure()
                                 parse(source.readUtf8())
                             }.let { Result.success(it) }
+                        } catch (e: SourceFetchException) {
+                            Result.failure(e)
+                        } catch (e: IOException) {
+                            Result.failure(failure(retryable = true))
                         } catch (_: Exception) {
                             Result.failure(failure())
                         }
@@ -78,7 +99,8 @@ internal class SourceRepository(client: OkHttpClient = DEFAULT) {
             }
         }
 
-    private fun failure() = IOException("No se pudo consultar la fuente")
+    private fun failure(retryable: Boolean = false) = SourceFetchException(retryable)
+    private class SourceFetchException(val retryable: Boolean) : IOException("No se pudo consultar la fuente")
 
     private companion object {
         val DEFAULT: OkHttpClient = OkHttpClient.Builder()

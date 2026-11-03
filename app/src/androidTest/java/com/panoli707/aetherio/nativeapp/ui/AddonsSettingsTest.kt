@@ -25,7 +25,7 @@ class AddonsSettingsTest {
     private val privateUrl = "https://example.org/private/manifest.json?token=synthetic-private-secret"
     private val providerName = "Synthetic private provider"
 
-    @Test fun desktopSourcesAreCheckedByDefaultAndSettingsDoNotExposeUrls() {
+    @Test fun hubIsIntegratedAndAdditionalSourcesAreOffByDefaultWithoutExposingUrls() {
         compose.setContent {
             AetherioTheme {
                 Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -35,12 +35,12 @@ class AddonsSettingsTest {
         }
 
         assertEquals(5, DesktopSources.providers.size)
-        compose.onNodeWithText("Fuentes de Aetherio PC").assertIsDisplayed()
-        compose.onNodeWithText("Estas fuentes se consultan solo al pulsar Buscar fuentes", substring = true).assertExists()
+        compose.onNodeWithText("Aetherio Provider Hub").assertIsDisplayed()
+        compose.onNodeWithText("No necesitas añadir addons", substring = true).assertExists()
         compose.onAllNodes(isToggleable()).assertCountEquals(5)
         DesktopSources.providers.forEach { provider ->
             compose.onNodeWithText(provider.name).performScrollTo().assertIsDisplayed()
-            compose.onNodeWithContentDescription(provider.name).assertIsOn()
+            compose.onNodeWithContentDescription(provider.name).assertIsOff()
             provider.manifestUrl?.let { compose.onNodeWithText(it, substring = true, useUnmergedTree = true).assertDoesNotExist() }
         }
         compose.onNodeWithText("No respondi\u00f3 en la \u00faltima consulta").assertDoesNotExist()
@@ -51,7 +51,7 @@ class AddonsSettingsTest {
 
     @Test fun desktopSourceToggleReportsIdAndUsesControlledStateAndLastQueryError() {
         val provider = DesktopSources.providers.first()
-        val state = mutableStateOf(AppState(addonsLoading = false, desktopSourceErrors = setOf(provider.id)))
+        val state = mutableStateOf(AppState(addonsLoading = false, enabledDesktopSources = setOf(provider.id), desktopSourceErrors = setOf(provider.id)))
         val changes = mutableListOf<Pair<String, Boolean>>()
         compose.setContent {
             AetherioTheme {
@@ -71,13 +71,13 @@ class AddonsSettingsTest {
         toggle.assertIsOff()
         compose.runOnIdle {
             assertEquals(listOf(provider.id to false), changes)
-            assertEquals(DesktopSources.defaultIds - provider.id, state.value.enabledDesktopSources)
+            assertEquals(emptySet<String>(), state.value.enabledDesktopSources)
         }
         toggle.performClick()
         toggle.assertIsOn()
         compose.runOnIdle {
             assertEquals(listOf(provider.id to false, provider.id to true), changes)
-            assertEquals(DesktopSources.defaultIds, state.value.enabledDesktopSources)
+            assertEquals(setOf(provider.id), state.value.enabledDesktopSources)
         }
     }
 

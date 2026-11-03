@@ -22,6 +22,8 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val library = LocalLibraryStore(application)
     private val history = WatchHistoryRepository.get(application)
     private val sourceRepository = SourceRepository()
+    private val hubRepository = SourceRepository(requestTimeoutMs = 45_000, attempts = 2)
+    private val providerDefaults = ProviderDefaultsStore(application)
     private val desktopSourceRepository = DesktopSourceRepository(sourceRepository)
     private val sourceSettings = SourceSettingsStore(application)
     private val addonStore = AddonStore(application)
@@ -36,6 +38,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private var addonRestoreJob: Job? = null
     private var playbackQuery: SourceQuery? = null
     private var animeSeasonJob: Job? = null
+    private var addonRestoreFailed = false
 
     fun rememberPlaybackQuery(fromSources: Boolean) {
         playbackQuery = state.value.sourceQuery.takeIf { fromSources }
@@ -102,11 +105,15 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         loadHome()
         addonRestoreJob = viewModelScope.launch {
             try {
-                val addons = withContext(Dispatchers.IO) { addonStore.load() }
+                val addons = withContext(Dispatchers.IO) {
+                    providerDefaults.initialize(emptyList())
+                    ProviderHub.withDefault(addonStore.load())
+                }
                 mutableState.update { it.copy(addons = addons, addonsLoading = false) }
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) {
-                mutableState.update { it.copy(addonsLoading = false, addonError = "No se pudieron abrir los proveedores guardados. Vuelve a configurarlos.") }
+                addonRestoreFailed = true
+                mutableState.update { it.copy(addonsLoading = false, addonError = "No se pudieron abrir los proveedores guardados. Se conservan sin sobrescribir; reinicia la app para reintentar. Provider Hub sigue integrado.") }
             }
         }
     }
@@ -217,7 +224,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     fun removeAddon(id: String) = changeAddons { existing -> existing.filterNot { it.id == id } }
 
     fun setDesktopSourceEnabled(id: String, enabled: Boolean) {
-        if (id !in DesktopSources.defaultIds) return
+        if (id !in DesktopSources.knownIds) return
         val selected = if (enabled) state.value.enabledDesktopSources + id else state.value.enabledDesktopSources - id
         sourceSettings.enabledDesktopSources = selected
         mutableState.update { it.copy(enabledDesktopSources = selected, desktopSourceErrors = it.desktopSourceErrors - id) }
@@ -225,12 +232,12 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun changeAddons(change: suspend (List<AddonConfig>) -> List<AddonConfig>) {
-        if (state.value.addonSaving || state.value.addonsLoading) return
+        if (state.value.addonSaving || state.value.addonsLoading || addonRestoreFailed) return
         mutableState.update { it.copy(addonSaving = true, addonError = null) }
         viewModelScope.launch {
             try {
-                val updated = change(state.value.addons)
-                withContext(Dispatchers.IO) { addonStore.save(updated) }
+                val updated = ProviderHub.withDefault(change(state.value.addons))
+                withContext(Dispatchers.IO) { addonStore.save(updated.filterNot(ProviderHub::isHub)) }
                 ensureActive()
                 mutableState.update { it.copy(addons = updated) }
                 state.value.sourceQuery?.let { requestSources(it.item, it.season, it.episode) }
@@ -267,26 +274,27 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                     mutableState.update { it.copy(sourcesLoading = false, sourceError = "Selecciona una temporada y un episodio.") }
                     return@launch
                 }
-                val media = if (item.imdbId == null && item.source == CatalogSource.TMDB) {
-                    try { repository.detail(item).item }
+                val canonical = SeriesIdentity.item(item)
+                val media = if (canonical.imdbId == null && canonical.source == CatalogSource.TMDB) {
+                    try { repository.detail(canonical).item }
                     catch (e: CancellationException) { throw e }
-                    catch (_: Exception) { item }
-                } else item
+                    catch (_: Exception) { canonical }
+                } else canonical
                 ensureActive()
                 val imdb = media.imdbId ?: media.id.takeIf { media.source == CatalogSource.CINEMETA }
                 val hasImdb = imdb != null && imdb.matches(Regex("tt[0-9]{5,12}"))
                 val compatibleDesktop = desktop.filter { it.manifestUrl == null || hasImdb }
                 if (!hasImdb && compatibleDesktop.isEmpty()) {
-                    mutableState.update { it.copy(sourcesLoading = false, sourceError = if (item.source == CatalogSource.ANILIST)
-                        "Activa AnimeAV1 en Ajustes para buscar fuentes de esta ficha de anime."
-                        else "No se encontró un identificador IMDb compatible para este título.") }
+                    mutableState.update { it.copy(sourcesLoading = false,
+                        sourceError = "Falta una correspondencia IMDb válida para consultar Provider Hub. No se inventará un identificador. AnimeAV1 nativo permanece como opción explícita en Ajustes.") }
                     return@launch
                 }
                 val resolved = query.copy(item = media)
                 mutableState.update { it.copy(sourceQuery = resolved) }
                 var failures = 0
                 var unsupported = 0
-                val lookups = addons.filter { hasImdb }.map { addon -> null to suspend { sourceRepository.sources(addon, repository.providerQuery(resolved, false)) } } +
+                val lookups = addons.filter { hasImdb }.map { addon -> null to suspend {
+                    (if (ProviderHub.isHub(addon)) hubRepository else sourceRepository).sources(addon, repository.providerQuery(resolved, false)) } } +
                     compatibleDesktop.map { provider -> provider.id to suspend {
                         desktopSourceRepository.sources(provider.id, repository.providerQuery(resolved, provider.id == "animeav1")) } }
                 supervisorScope {
@@ -315,17 +323,16 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                     if (current.sourceQuery?.key != resolved.key) current else current.copy(
                         sourcesLoading = false,
                         sourceError = when {
-                            current.sources.isNotEmpty() && failures == 0 -> null
-                            current.sources.isNotEmpty() -> "Algunos proveedores no respondieron. Las fuentes disponibles se pueden reproducir."
-                            failures > 0 -> "No se pudieron consultar los proveedores. Revisa la conexión y su configuración."
-                            unsupported > 0 -> "El proveedor devolvió fuentes no compatibles, como torrents, DRM o sesiones privadas."
-                            else -> "Los proveedores no devolvieron fuentes para este título o episodio."
+                            failures > 0 -> "Provider Hub o un proveedor opcional no respondió. Reintenta la consulta; no se activarán otras fuentes automáticamente."
+                            current.sources.isNotEmpty() && current.sources.none { it.playable } -> "Se recibieron torrents, pero Mobile no tiene motor torrent. No se enviarán a Media3."
+                            unsupported > 0 -> "Se rechazaron resultados con URL malformada, DRM o datos no compatibles. Recibir un resultado no garantiza reproducción."
+                            else -> null // A successful empty response uses the distinct "Sin resultados" UI state.
                         }
                     )
                 }
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) {
-                if (state.value.sourceQuery?.key == query.key) mutableState.update {
+                if (state.value.sourceQuery?.key in setOf(query.key, query.copy(item = SeriesIdentity.item(item)).key)) mutableState.update {
                     it.copy(sourcesLoading = false, sourceError = "No se pudo identificar el título o consultar sus fuentes. Inténtalo de nuevo.")
                 }
             }

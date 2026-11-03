@@ -94,7 +94,7 @@ data class AppState(
     val watchingAnime: List<MediaItem> = emptyList(),
     val animeSeason: AnimeSeasonState = AnimeSeasonState(),
     val profileName: String = "Usuario",
-    val addons: List<AddonConfig> = emptyList(),
+    val addons: List<AddonConfig> = listOf(ProviderHub.config),
     val enabledDesktopSources: Set<String> = DesktopSources.defaultIds,
     val desktopSourceErrors: Set<String> = emptySet(),
     val addonsLoading: Boolean = true,

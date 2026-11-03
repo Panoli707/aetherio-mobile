@@ -27,7 +27,7 @@ class SourceRepositoryTest {
     private val series = MediaItem("tt0903747", MediaType.SERIES, "Series", source = CatalogSource.CINEMETA)
 
     // The private CA and custom trust configuration exist exclusively in these tests.
-    private class TlsFixture(listener: EventListener = EventListener.NONE) : Closeable {
+    private class TlsFixture(listener: EventListener = EventListener.NONE, requestTimeoutMs: Long = 20_000, attempts: Int = 1) : Closeable {
         val server = MockWebServer()
         val client: OkHttpClient
         val repository: SourceRepository
@@ -43,7 +43,7 @@ class SourceRepositoryTest {
             server.start()
             client = OkHttpClient.Builder().sslSocketFactory(clientCertificates.sslSocketFactory(), clientCertificates.trustManager)
                 .followRedirects(true).followSslRedirects(true).retryOnConnectionFailure(false).eventListener(listener).build()
-            repository = SourceRepository(client)
+            repository = SourceRepository(client, requestTimeoutMs, attempts)
         }
 
         fun url(): String = server.url("/private/config/manifest.json?token=private-secret&encoded=a%2Fb").toString()
@@ -235,7 +235,7 @@ class SourceRepositoryTest {
             override fun responseBodyStart(call: Call) { bodyStarted.countDown() }
             override fun canceled(call: Call) { cancelled.countDown() }
         }
-        TlsFixture(listener).use { fixture ->
+        TlsFixture(listener, attempts = 2).use { fixture ->
             fixture.server.enqueue(MockResponse().setBody(manifest).throttleBody(1, 100, TimeUnit.MILLISECONDS))
             val job = launch(Dispatchers.Default) { fixture.repository.configure(fixture.url()) }
             try {
@@ -244,9 +244,25 @@ class SourceRepositoryTest {
                 assertTrue("OkHttp did not receive cancellation", cancelled.await(5, TimeUnit.SECONDS))
                 assertTrue(activeCall.get().isCanceled())
                 assertTrue(job.isCancelled)
+                assertEquals(1, fixture.server.requestCount)
             } finally {
                 job.cancelAndJoin()
             }
+        }
+    }
+
+    @Test fun timeoutHasAtMostTwoAttemptsAndMalformedJsonIsNotRetried() = runBlocking {
+        TlsFixture(requestTimeoutMs = 500, attempts = 2).use { fixture ->
+            repeat(2) { fixture.server.enqueue(MockResponse().setHeadersDelay(2, TimeUnit.SECONDS).setBody("""{"streams":[]}""")) }
+            val start = System.nanoTime()
+            rejects { fixture.repository.sources(config(fixture), SourceQuery(movie)) }
+            assertTrue(TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - start) < 6000)
+            assertTrue(fixture.server.requestCount in 1..2)
+        }
+        TlsFixture(attempts = 2).use { fixture ->
+            fixture.server.enqueue(MockResponse().setBody("invalid json"))
+            rejects { fixture.repository.sources(config(fixture), SourceQuery(movie)) }
+            assertEquals(1, fixture.server.requestCount)
         }
     }
 }

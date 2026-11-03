@@ -38,26 +38,26 @@ class SourceSettingsStoreTest {
         targetContext.deleteSharedPreferences(preferencesName)
     }
 
-    @Test fun freshPreferencesDefaultToAllFiveDesktopSourcesWithoutWritingThem() {
-        assertEquals(setOf("penguplay", "hdhub", "animes", "deepflix", "animeav1"), SourceSettingsStore(context).enabledDesktopSources)
+    @Test fun freshPreferencesHaveNoAdditionalDesktopSourcesAndDoNotWriteOldSelections() {
+        assertTrue(SourceSettingsStore(context).enabledDesktopSources.isEmpty())
         assertFalse(preferences.contains("desktop"))
     }
 
     @Test fun selectedAndEmptySetsPersistAcrossInstancesAndUnknownIdsAreFiltered() {
         val store = SourceSettingsStore(context)
         store.enabledDesktopSources = setOf("penguplay", "animes", "unknown-provider")
-        assertEquals(setOf("penguplay", "animes"), preferences.getStringSet("desktop", null))
+        assertEquals(setOf("penguplay", "animes"), preferences.getStringSet("hub_optional_sources_v1", null))
         assertEquals(setOf("penguplay", "animes"), SourceSettingsStore(context).enabledDesktopSources)
 
         store.enabledDesktopSources = emptySet()
-        assertTrue(preferences.contains("desktop"))
+        assertTrue(preferences.contains("hub_optional_sources_v1"))
         assertEquals(emptySet<String>(), SourceSettingsStore(context).enabledDesktopSources)
 
         store.enabledDesktopSources = setOf("unknown-provider")
-        assertEquals(emptySet<String>(), preferences.getStringSet("desktop", null))
+        assertEquals(emptySet<String>(), preferences.getStringSet("hub_optional_sources_v1", null))
         assertEquals(emptySet<String>(), SourceSettingsStore(context).enabledDesktopSources)
 
-        assertTrue(preferences.edit().putStringSet("desktop", setOf("hdhub", "unknown-provider")).commit())
+        assertTrue(preferences.edit().putStringSet("hub_optional_sources_v1", setOf("hdhub", "unknown-provider")).commit())
         assertEquals(setOf("hdhub"), SourceSettingsStore(context).enabledDesktopSources)
     }
 

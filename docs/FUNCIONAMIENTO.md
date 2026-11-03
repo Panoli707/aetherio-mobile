@@ -73,13 +73,13 @@ La lista de proveedores muestra su nombre y dominio, no sus URL completas privad
 
 ## Proveedores y fuentes de reproducción
 
-**PenguPlay, HdHub, AnimES y DeepFlix** vienen integrados desde Aetherio de PC. **AnimeAV1** tiene un adaptador nativo para Android. En **Ajustes > Fuentes de Aetherio PC**, activa o desactiva cada servicio; la selección se conserva. Solo se consultan cuando buscas fuentes, no durante el arranque. La respuesta y los títulos disponibles dependen de cada proveedor.
+En la integración de Provider Hub, **Aetherio Provider Hub** se registra automáticamente como único resolvedor predeterminado: no necesitas añadir manifiestos. Los catálogos y metadatos continúan integrados en Mobile. Los adaptadores anteriores permanecen como **Fuentes adicionales (opcionales)**, desactivados por defecto para evitar consultas duplicadas. Sus selecciones antiguas se conservan sin borrarlas; una nueva activación es explícita. **AnimeAV1** sigue siendo nativo e independiente de AnimES. Consulta [contrato, migración y comprobación de Provider Hub](PROVIDER_HUB.md) para esta integración de desarrollo.
 
 Abre una película y pulsa **Ver fuentes de la película**. Para una serie, elige la temporada y el episodio. Las fuentes aparecen conforme responde cada servicio. Si alguno falla, puedes usar los resultados de los demás. No necesitas copiar sus URLs ni añadir manifiestos para estas fuentes.
 
 AnimeAV1 busca por el título exacto de la entrega sin exigir IMDb. En las fichas unificadas se usa la entrega y el episodio que indica la tabla de equivalencias, no un desplazamiento calculado por el nombre. Admite enlaces directos y los servidores públicos Zilla, MP4Upload y YourUpload cuando puede resolverlos sin ejecutar JavaScript ni iniciar una sesión. Si ya habías guardado tu selección de fuentes antes de añadir AnimeAV1, activa su interruptor en Ajustes.
 
-Los motores de torrents, los scrapers y los ejecutores de proveedores JavaScript de PC no están incluidos. Que un proveedor aparezca en el escritorio no implica que ese motor pueda ejecutarse en Android.
+Los motores de torrents, los scrapers y los ejecutores de proveedores JavaScript de PC no están incluidos. Los resultados torrent del Hub se conservan con su índice de archivo y trackers, pero se muestran como no reproducibles: nunca se envían magnets a Media3 como si fueran MP4. Que el Hub devuelva una fuente no garantiza que su URL, formato o codec funcione en el dispositivo.
 
 Para añadir un proveedor propio:
 
@@ -89,11 +89,11 @@ Para añadir un proveedor propio:
 4. Abre la ficha de una película y pulsa **Ver fuentes de la película**. En una serie, elige la temporada y toca el episodio que quieras ver. El botón principal indica el episodio que abrirá; si muestra **Continuar**, corresponde al progreso pendiente.
 5. En **Formato de reproducción**, deja **Auto** o elige **HLS** o **DASH** si conoces el formato. Pulsa **Reproducir** en la fuente elegida.
 
-No todos los proveedores son compatibles: deben ofrecer vídeos HTTPS para el título o episodio seleccionado. Se admiten las cabeceras de reproducción Referer, Origin y User-Agent y los metadatos Sec-Fetch limitados que necesita Zilla. Las redirecciones se mantienen en HTTPS. No se admiten torrents, DRM, extractores arbitrarios de páginas web ni sesiones con Cookie o Authorization. La calidad indicada en una fuente procede del proveedor y no garantiza la calidad del vídeo.
+No todos los proveedores son compatibles. Los proveedores propios admiten las cabeceras de reproducción Referer, Origin y User-Agent y los metadatos Sec-Fetch limitados que necesita Zilla, pero no sesiones con Cookie o Authorization. Para el Hub se admiten además las cabeceras de proveedor documentadas, incluidas Cookie y Authorization, limitadas al origen del vídeo y eliminadas en HTTP. No se reproducen torrents ni DRM ni se ejecutan extractores arbitrarios de páginas web. La calidad indicada en una fuente procede del proveedor y no garantiza la calidad del vídeo.
 
-Las fuentes integradas del PC tienen una excepción limitada para vídeo HTTP en shegu.net y sus subdominios. La tarjeta avisa de ese transporte sin cifrar antes de reproducir. No permite HTTP en otros dominios ni cambia el uso de HTTPS en las APIs, proveedores propios o enlaces manuales.
+El Hub y las fuentes integradas del PC tienen una excepción limitada para vídeo HTTP en shegu.net y sus subdominios. La tarjeta avisa de ese transporte sin cifrar antes de reproducir. No permite HTTP en otros dominios ni cambia el uso de HTTPS en las APIs, proveedores propios o enlaces manuales.
 
-Si aparece **Configura tus proveedores**, pulsa **Ir a Ajustes**. Si no hay fuentes, revisa la conexión y el proveedor: puede no cubrir ese título o episodio, o no ofrecer enlaces compatibles. Puedes usar las fuentes disponibles de otros proveedores aunque uno falle.
+El Hub no requiere configurar proveedores. Si no hay fuentes, pulsa **Reintentar búsqueda** y revisa la conexión: el servicio puede no cubrir ese título o episodio, no tener una correspondencia IMDb válida o no ofrecer enlaces compatibles. Las fuentes opcionales solo se consultan si las has activado expresamente; una caída del Hub no las activa automáticamente.
 
 ### Ejemplo opcional: Big Buck Bunny
 

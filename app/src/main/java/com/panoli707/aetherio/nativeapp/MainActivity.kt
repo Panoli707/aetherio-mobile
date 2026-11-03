@@ -22,6 +22,10 @@ import com.panoli707.aetherio.nativeapp.data.AetherioViewModel
 import com.panoli707.aetherio.nativeapp.data.UpdateViewModel
 import com.panoli707.aetherio.nativeapp.data.WatchProgressCodec
 import com.panoli707.aetherio.nativeapp.data.DetailLinks
+import com.panoli707.aetherio.nativeapp.data.ProviderHub
+import com.panoli707.aetherio.nativeapp.data.SourcePlayback
+import org.json.JSONArray
+import org.json.JSONObject
 import com.panoli707.aetherio.nativeapp.player.MediaUrlPolicy
 import com.panoli707.aetherio.nativeapp.player.VideoActivity
 import com.panoli707.aetherio.nativeapp.ui.AetherioApp
@@ -93,7 +97,7 @@ class MainActivity : ComponentActivity() {
                 onAutomaticUpdatesChange = updateModel::setAutomatic,
                 onPlaySource = { source, format ->
                     try {
-                        val validated = MediaUrlPolicy.validate(source.url, source.allowDesktopHttp)
+                        val validated = SourcePlayback.httpUrl(source)
                         val query = model.state.value.sourceQuery
                         val title = query?.let {
                             if (it.season != null && it.episode != null) "${it.item.title} · T${it.season} E${it.episode}" else it.item.title
@@ -107,6 +111,11 @@ class MainActivity : ComponentActivity() {
                             .putExtra(VideoActivity.EXTRA_TITLE, title)
                             .putExtra(VideoActivity.EXTRA_PROVIDER, source.addonName)
                             .putExtra(VideoActivity.EXTRA_HAS_SOURCES, query != null)
+                            .putExtra(VideoActivity.EXTRA_PROVIDER_HEADERS, source.addonId == ProviderHub.config.id)
+                            .putExtra(VideoActivity.EXTRA_SUBTITLES, JSONArray().apply {
+                                source.subtitles.forEach { sub -> put(JSONObject().put("id", sub.id).put("url", sub.url)
+                                    .put("lang", sub.lang).put("mimeType", sub.mimeType)) }
+                            }.toString())
                             .putExtra(VideoActivity.EXTRA_WATCH_TARGET, watchTarget?.let(WatchProgressCodec::encodeTarget))
                             .putExtra(VideoActivity.EXTRA_HEADERS, Bundle().apply {
                                 source.headers.forEach { (name, value) -> putString(name, value) }

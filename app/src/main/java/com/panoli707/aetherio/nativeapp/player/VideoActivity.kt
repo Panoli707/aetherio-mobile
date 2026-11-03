@@ -51,6 +51,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
+import org.json.JSONArray
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class VideoActivity : ComponentActivity() {
@@ -79,9 +80,12 @@ class VideoActivity : ComponentActivity() {
             .addNetworkInterceptor { chain ->
                 try { MediaUrlPolicy.validate(chain.request().url.toString(), allowDesktopHttp) }
                 catch (_: IllegalArgumentException) { throw IOException("Destino de video no permitido") }
-                val request = if (chain.request().url.isHttps) chain.request() else chain.request().newBuilder()
-                    .removeHeader("Authorization").removeHeader("Cookie").removeHeader("Referer").removeHeader("Origin").build()
-                chain.proceed(request)
+                val request = chain.request()
+                val headers = request.headers.names().associateWith { request.header(it).orEmpty() }
+                val allowed = PlaybackHeaders.forDestination(headers, mediaUrl, request.url)
+                val builder = request.newBuilder()
+                (headers.keys - allowed.keys).forEach(builder::removeHeader)
+                chain.proceed(builder.build())
             }.build()
     }
 
@@ -141,7 +145,7 @@ class VideoActivity : ComponentActivity() {
             val headers = intent.getBundleExtra(EXTRA_HEADERS)
             playbackHeaders = PlaybackHeaders.validate(headers?.keySet()?.associateWith {
                 headers.getString(it) ?: throw IllegalArgumentException()
-            }.orEmpty())
+            }.orEmpty(), intent.getBooleanExtra(EXTRA_PROVIDER_HEADERS, false))
             MediaUrlPolicy.validate(intent.getStringExtra(EXTRA_URL).orEmpty(), allowDesktopHttp)
         } catch (_: RuntimeException) {
             screen = screen.copy(error = "El enlace de video no es valido o no esta permitido.")
@@ -240,7 +244,19 @@ class VideoActivity : ComponentActivity() {
             active.addListener(listener)
             active.playWhenReady = resumePlayWhenReady
             val mime = VideoFormat.entries.mapNotNull { it.mimeType }.firstOrNull { it == intent.getStringExtra(EXTRA_MIME) }
-            active.setMediaItem(MediaItem.Builder().setUri(url).setMimeType(mime).build(),
+            val subtitles = mutableListOf<MediaItem.SubtitleConfiguration>()
+            val rawSubtitles = intent.getStringExtra(EXTRA_SUBTITLES)
+            if (rawSubtitles != null && rawSubtitles.length <= 128 * 1024) runCatching {
+                val array = JSONArray(rawSubtitles)
+                for (i in 0 until minOf(array.length(), 200)) {
+                    val sub = array.getJSONObject(i)
+                    val subUrl = MediaUrlPolicy.validate(sub.getString("url"))
+                    val subMime = sub.optString("mimeType").takeIf { it in setOf("text/vtt", "application/x-subrip", "text/x-ssa", "application/ttml+xml") } ?: continue
+                    subtitles.add(MediaItem.SubtitleConfiguration.Builder(Uri.parse(subUrl)).setMimeType(subMime)
+                        .setLanguage(sub.optString("lang").take(80)).setId(sub.optString("id").take(256)).build())
+                }
+            }
+            active.setMediaItem(MediaItem.Builder().setUri(url).setMimeType(mime).setSubtitleConfigurations(subtitles).build(),
                 if (mediaIsLive) C.TIME_UNSET else resumePosition)
             active.prepare()
         } catch (_: RuntimeException) {
@@ -370,6 +386,8 @@ class VideoActivity : ComponentActivity() {
         const val EXTRA_HAS_SOURCES = "com.panoli707.aetherio.nativeapp.player.HAS_SOURCES"
         const val EXTRA_FIND_SOURCES = "com.panoli707.aetherio.nativeapp.player.FIND_SOURCES"
         const val EXTRA_WATCH_TARGET = "com.panoli707.aetherio.nativeapp.player.WATCH_TARGET"
+        const val EXTRA_PROVIDER_HEADERS = "com.panoli707.aetherio.nativeapp.player.PROVIDER_HEADERS"
+        const val EXTRA_SUBTITLES = "com.panoli707.aetherio.nativeapp.player.SUBTITLES"
         private const val TAG = "AetherioNativePlayer"
         private const val STATE_POSITION = "player.position"
         private const val STATE_PLAY_WHEN_READY = "player.playWhenReady"

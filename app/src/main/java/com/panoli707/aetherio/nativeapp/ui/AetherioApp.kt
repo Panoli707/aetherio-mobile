@@ -168,7 +168,8 @@ fun AetherioApp(
             if (linkOpen && state.sourceQuery == null) VideoLinkDialog(onDismiss = { focus.clearFocus(); linkOpen = false }, onOpenVideo = onOpenVideo)
             state.sourceQuery?.let { query ->
                 key(query.key) {
-                    SourceSheet(state, query, onDismissSources, onPlaySource, onSettings = {
+                    SourceSheet(state, query, onDismissSources, onPlaySource,
+                        onRetry = { onRequestSources(query.item, query.season, query.episode) }, onSettings = {
                         focus.clearFocus()
                         onDismissSources()
                         linkOpen = false

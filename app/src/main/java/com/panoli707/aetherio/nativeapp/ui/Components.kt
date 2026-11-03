@@ -68,10 +68,11 @@ internal fun RoundAction(description: String, icon: ImageVector, onClick: () -> 
 internal fun MediaTitle(item: MediaItem, modifier: Modifier = Modifier, centered: Boolean = false) {
     var failed by remember(item.logoUrl) { mutableStateOf(false) }
     val inspection = LocalInspectionMode.current
+    val logo = remember(item.logoUrl) { ArtworkImages.highResolution(item.logoUrl) }
     Box(modifier, contentAlignment = if (centered) Alignment.Center else Alignment.CenterStart) {
-        if (!item.logoUrl.isNullOrBlank() && !failed && !inspection) {
+        if (!logo.isNullOrBlank() && !failed && !inspection) {
             AsyncImage(
-                model = item.logoUrl, contentDescription = item.title,
+                model = logo, contentDescription = item.title,
                 contentScale = ContentScale.Fit, onError = { failed = true },
                 modifier = Modifier.fillMaxWidth().height(88.dp)
             )

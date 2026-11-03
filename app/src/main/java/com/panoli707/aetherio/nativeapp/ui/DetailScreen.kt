@@ -80,7 +80,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                 contentPadding = PaddingValues(bottom = 28.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
                 item(key = "hero") {
                     Box(Modifier.fillMaxWidth().height(heroHeight).testTag("detailHero")) {
-                        val heroImage = ArtworkImages.hero(media, portrait)
+                        val heroImage = ArtworkImages.detailHero(media)
                         Artwork(heroImage, Modifier.fillMaxSize(), highResolution = true)
                         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(
                             DetailNight.copy(alpha = .62f), Color.Transparent, DetailNight.copy(alpha = .35f), DetailNight))))

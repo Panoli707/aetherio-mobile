@@ -21,4 +21,11 @@ class ArtworkImagesTest {
         assertEquals("backdrop", ArtworkImages.hero(item.copy(posterUrl = null), portrait = true))
         assertEquals("poster", ArtworkImages.hero(item.copy(backdropUrl = null), portrait = false))
     }
+
+    @Test fun detailHeroPrefersCleanBackdropAndFallsBackToPoster() {
+        val item = MediaItem("1", MediaType.MOVIE, "Title", posterUrl = "poster", backdropUrl = "backdrop", logoUrl = "logo")
+        assertEquals("backdrop", ArtworkImages.detailHero(item))
+        assertEquals("poster", ArtworkImages.detailHero(item.copy(backdropUrl = null)))
+        assertNull(ArtworkImages.detailHero(item.copy(backdropUrl = null, posterUrl = null)))
+    }
 }

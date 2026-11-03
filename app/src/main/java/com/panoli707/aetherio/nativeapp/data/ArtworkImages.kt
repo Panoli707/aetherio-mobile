@@ -17,4 +17,7 @@ internal object ArtworkImages {
 
     fun hero(item: MediaItem, portrait: Boolean): String? = if (portrait)
         item.posterUrl ?: item.backdropUrl else item.backdropUrl ?: item.posterUrl
+
+    /** Detail screens overlay a separate title logo, so prefer clean landscape artwork over a text-heavy poster. */
+    fun detailHero(item: MediaItem): String? = item.backdropUrl ?: item.posterUrl
 }

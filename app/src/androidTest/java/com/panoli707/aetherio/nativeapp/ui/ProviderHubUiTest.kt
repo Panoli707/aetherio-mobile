@@ -38,4 +38,33 @@ class ProviderHubUiTest {
         compose.onNodeWithText("Reproducir").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("Fixture", played?.headers?.get("User-Agent")); assertFalse(played!!.isTorrent) }
     }
+
+    @Test fun providerFiltersShowCountsAndRestoreAllSources() {
+        val sources = listOf(
+            StreamSource("alpha-1", "alpha", "AnimeAV1", "Alpha uno", "Primer resultado", "https://cdn.example/1.m3u8"),
+            StreamSource("alpha-2", "alpha", "AnimeAV1", "Alpha dos", "Segundo resultado", "https://cdn.example/2.m3u8",
+                format = com.panoli707.aetherio.nativeapp.player.VideoFormat.HLS,
+                subtitles = listOf(StreamSubtitle("es", "https://cdn.example/es.vtt", "es"))),
+            StreamSource("beta-1", "beta", "Proveedor Beta", "Beta uno", "Tercer resultado", "https://cdn.example/3.m3u8")
+        )
+        compose.setContent { AetherioTheme {
+            SourceSheet(AppState(addonsLoading = false, sources = sources), query, {}, { _, _ -> }, {})
+        } }
+
+        compose.onNodeWithContentDescription("Todas las fuentes, 3").assertExists()
+        compose.onNodeWithContentDescription("AnimeAV1, 2 fuentes").performClick()
+        compose.onNodeWithText("Alpha uno").assertExists()
+        compose.onNodeWithText("Alpha dos").assertExists()
+        compose.onAllNodesWithText("HLS").assertCountEquals(2)
+        compose.onNodeWithText("Sub: es").assertExists()
+        compose.onNodeWithText("Beta uno").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Proveedor Beta, 1 fuente").performClick()
+        compose.onNodeWithText("Beta uno").assertExists()
+        compose.onNodeWithText("Alpha uno").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Todas las fuentes, 3").performClick()
+        compose.onNodeWithText("Alpha uno").assertExists()
+        compose.onNodeWithText("Beta uno").assertExists()
+    }
 }

@@ -2,6 +2,7 @@ package com.panoli707.aetherio.nativeapp.ui
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -119,6 +120,14 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var format by rememberSaveable(query.key) { mutableStateOf(VideoFormat.AUTO) }
+    var selectedProvider by rememberSaveable(query.key) { mutableStateOf<String?>(null) }
+    val providers = remember(state.sources) { state.sources.distinctBy { it.addonId }.map { it.addonId to it.addonName } }
+    LaunchedEffect(state.sources, selectedProvider) {
+        if (selectedProvider != null && state.sources.none { it.addonId == selectedProvider }) selectedProvider = null
+    }
+    val visibleSources = remember(state.sources, selectedProvider) {
+        if (selectedProvider == null) state.sources else state.sources.filter { it.addonId == selectedProvider }
+    }
     // Finish the sheet animation before changing the underlying destination.
     val closeThen: (() -> Unit) -> Unit = { action -> scope.launch { sheet.hide(); if (!sheet.isVisible) action() } }
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = Panel, contentColor = Cream) {
@@ -128,9 +137,31 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     RoundAction("Volver", Icons.Default.ArrowBack, { closeThen(onDismiss) })
                     Column(Modifier.weight(1f)) {
-                        Text(query.item.title, style = MaterialTheme.typography.titleLarge)
+                        Text("Seleccionar fuente", style = MaterialTheme.typography.titleLarge)
+                        Text(query.item.title, color = Cream, style = MaterialTheme.typography.titleMedium,
+                            maxLines = 2, overflow = TextOverflow.Ellipsis)
                         Text(if (query.season != null && query.episode != null) "Temporada ${query.season} · Episodio ${query.episode}"
-                            else "Fuentes de reproducción", color = Muted)
+                            else "Fuentes de reproducción", color = Muted, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+            }
+            item(key = "providers") {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(vertical = 2.dp)) {
+                    item(key = "provider:all") {
+                        FilterChip(selected = selectedProvider == null, onClick = { selectedProvider = null },
+                            label = { Text("Todas ${state.sources.size}") }, modifier = Modifier.semantics {
+                                contentDescription = "Todas las fuentes, ${state.sources.size}"
+                            })
+                    }
+                    providers.forEach { (providerId, providerName) ->
+                        val count = state.sources.count { it.addonId == providerId }
+                        item(key = "provider:$providerId") {
+                            FilterChip(selected = selectedProvider == providerId, onClick = { selectedProvider = providerId },
+                                label = { Text("$providerName $count", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                modifier = Modifier.semantics {
+                                    contentDescription = "$providerName, $count ${if (count == 1) "fuente" else "fuentes"}"
+                                })
+                        }
                     }
                 }
             }
@@ -161,15 +192,36 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                 StatusMessage("Sin resultados", "Provider Hub y los proveedores opcionales no devolvieron fuentes para este título o episodio. Puedes volver a intentarlo.",
                     "Reintentar búsqueda", onRetry)
             }
-            items(state.sources, key = { "${it.addonId}:${it.id}" }) { source ->
-                Surface(color = Ink, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(source.addonName, color = Muted, style = MaterialTheme.typography.labelLarge)
-                        Text(source.name.ifBlank { "Fuente de vídeo" }, style = MaterialTheme.typography.titleMedium)
-                        if (source.description.isNotBlank()) Text(source.description, color = Muted, style = MaterialTheme.typography.bodyMedium)
+            items(visibleSources, key = { "${it.addonId}:${it.id}" }) { source ->
+                Surface(color = Ink.copy(alpha = .94f), shape = RoundedCornerShape(20.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Cream.copy(alpha = .08f)),
+                    modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                        Text(source.name.ifBlank { "Fuente de vídeo" }, style = MaterialTheme.typography.titleMedium,
+                            maxLines = 3, overflow = TextOverflow.Ellipsis)
+                        Text("Presentado por ${source.addonName}", color = Muted, style = MaterialTheme.typography.labelLarge,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        if (source.description.isNotBlank()) Text(source.description, color = Muted, style = MaterialTheme.typography.bodyMedium,
+                            maxLines = 5, overflow = TextOverflow.Ellipsis)
+                        val badges = buildList {
+                            source.format.takeIf { it != VideoFormat.AUTO }?.label?.let(::add)
+                            source.subtitles.map { it.lang.trim() }.filter(String::isNotEmpty).distinct().forEach { add("Sub: $it") }
+                        }
+                        if (badges.isNotEmpty()) {
+                            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                items(badges, key = { it }) { badge ->
+                                    Surface(color = Panel, shape = RoundedCornerShape(12.dp),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, Cream.copy(alpha = .12f))) {
+                                        Text(badge, modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                                            style = MaterialTheme.typography.labelLarge, color = Cream)
+                                    }
+                                }
+                            }
+                        }
                         if (source.url.startsWith("http://", true)) Text("Esta fuente usa vídeo HTTP sin cifrar en un dominio permitido.",
                             color = Muted, style = MaterialTheme.typography.bodySmall)
-                        if (source.isTorrent) Text("Torrent conservado · Mobile no tiene motor torrent. Este resultado no es reproducible en esta versión.", color = Muted)
+                        if (source.isTorrent) Text("Torrent conservado · Mobile no tiene motor torrent. Este resultado no es reproducible en esta versión.",
+                            color = Muted, style = MaterialTheme.typography.bodySmall)
                         Button(onClick = { onPlay(source, if (format == VideoFormat.AUTO) source.format else format) }, enabled = source.playable,
                             modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Reproducir ${source.name}, proveedor ${source.addonName}" }) {
                             Text(if (source.isTorrent) "Requiere motor torrent" else "Reproducir")

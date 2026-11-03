@@ -41,7 +41,7 @@ private enum class SettingsSection(val title: String, val summary: String, val i
     SOURCES("Fuentes y contenido", "Provider Hub, fuentes adicionales y proveedores propios", Icons.Default.Explore, "addons animeav1 manifest catálogo"),
     PLAYBACK("Reproducción", "Reproductor integrado y vídeo por enlace", Icons.Default.PlayArrow, "audio subtítulos velocidad torrent https vídeo"),
     UPDATES("Actualizaciones", "Buscar versiones y gestionar las descargas", Icons.Default.SystemUpdate, "versión descargar instalar automáticas"),
-    ABOUT("Acerca de", "Aetherio, licencias y software libre", Icons.Default.Info, "información gpl código motor nuvio")
+    ABOUT("Acerca de", "Aetherio, licencias y software libre", Icons.Default.Info, "información gpl código motor")
 }
 
 @Composable

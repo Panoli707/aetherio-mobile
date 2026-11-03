@@ -16,7 +16,7 @@ Al salir o enviar la actividad a segundo plano se cierra el motor. Al regresar s
 | Aspecto | Configuración |
 |---|---|
 | Motor | Nuvio Engine 0.1.6, libtorrent 2.0.12 |
-| Reproductor | Media3 1.5.1 oficial; no se incorpora MPV ni el fork de ExoPlayer de Nuvio |
+| Reproductor | Media3 1.5.1 oficial |
 | Solicitudes | Hash v1 de 40 caracteres hex o 32 Base32; magnet BTIH |
 | Archivo | Índice explícito validado; pista de nombre; vídeo único; selector si hay ambigüedad |
 | Trackers | `tr` de magnet y `sources` con prefijo `tracker:`; DHT lo administra el motor |
@@ -58,7 +58,7 @@ Requisitos: JDK 17, SDK Android 36, Gradle wrapper incluido. Configura `JAVA_HOM
 .\scripts\android.ps1 -Action verifyRelease
 ```
 
-El módulo torrent usa las bibliotecas nativas incluidas: para compilar la aplicación no necesitas NDK, CMake ni descargar Nuvio en runtime. El script verifica SHA-256 del AAR antes de extraerlas. Reconstruir el núcleo nativo sí exige el toolchain upstream descrito junto al archivo fuente.
+El módulo torrent usa las bibliotecas nativas incluidas: para compilar la aplicación no necesitas NDK, CMake ni descargar el motor en runtime. El script verifica SHA-256 del AAR antes de extraerlas. Reconstruir el núcleo nativo sí exige el toolchain upstream descrito junto al archivo fuente.
 
 Las pruebas JVM cubren hash, codec, validación, selección, capacidades, espacio y ciclo de sesión con tiempo virtual. Las pruebas Android incluyen cancelación en segundo plano/recreación y un torrent privado de un vídeo generado para pruebas, servido por un webseed local controlado. Esa prueba verifica bloques mediante el motor real y solicita el primer frame a Media3; no usa títulos comerciales ni confirma disponibilidad de torrents de Provider Hub. El recorrido magnet/peers públicos requiere una comprobación independiente en la red del usuario.
 

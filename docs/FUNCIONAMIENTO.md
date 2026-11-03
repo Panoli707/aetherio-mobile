@@ -46,7 +46,7 @@ El nombre, los favoritos y los proveedores se guardan en el dispositivo. Se cons
 
 Al reproducir una película o un episodio desde sus fuentes, Aetherio guarda localmente la posición y la duración del vídeo cada cinco segundos y al pausar o salir. En **Inicio > Continuar viendo** aparece el último episodio pendiente de cada serie o anime, o la película sin terminar. Pulsa la tarjeta, elige una fuente disponible y el vídeo se reanudará desde la posición guardada. Los enlaces pueden caducar, por eso se vuelven a consultar las fuentes en lugar de guardar sus direcciones.
 
-La ficha recuerda la última temporada que reproduciste. Cada capítulo muestra el minuto y segundo guardados, la duración y una barra de progreso. Toca el icono circular de su miniatura o mantén pulsado el capítulo para abrir el menú inferior de acciones, inspirado en Nuvio:
+La ficha recuerda la última temporada que reproduciste. Cada capítulo muestra el minuto y segundo guardados, la duración y una barra de progreso. Toca el icono circular de su miniatura o mantén pulsado el capítulo para abrir el menú inferior de acciones:
 
 - **Marcar como visto / no visto** para el capítulo seleccionado.
 - **Marcar anteriores como vistos / no vistos**, dentro de la misma temporada.
@@ -85,7 +85,7 @@ Abre una película y pulsa **Reproducir**. Para una serie, elige la temporada y 
 
 AnimeAV1 busca por el título exacto de la entrega sin exigir IMDb. En las fichas unificadas se usa la entrega y el episodio que indica la tabla de equivalencias, no un desplazamiento calculado por el nombre. Admite enlaces directos y los servidores públicos Zilla, MP4Upload y YourUpload cuando puede resolverlos sin ejecutar JavaScript ni iniciar una sesión. Si ya habías guardado tu selección de fuentes antes de añadir AnimeAV1, activa su interruptor en Ajustes.
 
-Nuvio Engine permite intentar reproducir las fuentes torrent compatibles, conservando índice de archivo y trackers; nunca se envían magnets a Media3 como si fueran MP4. Los scrapers y ejecutores de proveedores JavaScript de PC no están incluidos. Que el Hub devuelva una fuente no garantiza que su URL, formato o codec funcione en el dispositivo. Consulta [las restricciones y el aviso P2P](TORRENT_ENGINE.md).
+El motor integrado permite intentar reproducir las fuentes torrent compatibles, conservando índice de archivo y trackers; nunca se envían magnets a Media3 como si fueran MP4. Los scrapers y ejecutores de proveedores JavaScript de PC no están incluidos. Que el Hub devuelva una fuente no garantiza que su URL, formato o codec funcione en el dispositivo. Consulta [las restricciones y el aviso P2P](TORRENT_ENGINE.md).
 
 Para añadir un proveedor propio:
 

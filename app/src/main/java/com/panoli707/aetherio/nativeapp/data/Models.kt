@@ -28,7 +28,8 @@ data class MediaItem(
     val animeEntryId: String? = null,
     val seriesNumbering: Boolean = false,
     val voteCount: Int? = null,
-    val certification: String? = null
+    val certification: String? = null,
+    val portraitArtworkUrl: String? = null
 ) {
     val key: String get() = "${source.name}:${type.path}:$id"
 }

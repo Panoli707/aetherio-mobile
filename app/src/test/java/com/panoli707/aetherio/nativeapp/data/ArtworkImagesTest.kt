@@ -22,10 +22,23 @@ class ArtworkImagesTest {
         assertEquals("poster", ArtworkImages.hero(item.copy(backdropUrl = null), portrait = false))
     }
 
-    @Test fun detailHeroPrefersCleanBackdropAndFallsBackToPoster() {
-        val item = MediaItem("1", MediaType.MOVIE, "Title", posterUrl = "poster", backdropUrl = "backdrop", logoUrl = "logo")
-        assertEquals("backdrop", ArtworkImages.detailHero(item))
-        assertEquals("poster", ArtworkImages.detailHero(item.copy(backdropUrl = null)))
-        assertNull(ArtworkImages.detailHero(item.copy(backdropUrl = null, posterUrl = null)))
+    @Test fun phoneHeadersPreferCleanPortraitsThenPostersAndOnlyThenLandscape() {
+        MediaType.entries.forEach { type ->
+            val item = MediaItem("1", type, "Title", posterUrl = "poster", backdropUrl = "backdrop", portraitArtworkUrl = "clean")
+            val candidates = ArtworkImages.headers(item, portrait = true)
+            assertEquals(listOf("clean", "poster", "backdrop"), candidates.map { it.url })
+            assertEquals(2f / 3f, candidates.first().aspectRatio)
+            assertFalse(candidates.first().containsTitle)
+            assertTrue(candidates[1].containsTitle)
+            assertEquals(listOf("backdrop", "clean", "poster"), ArtworkImages.headers(item, portrait = false).map { it.url })
+            assertEquals("poster", ArtworkImages.headers(item.copy(portraitArtworkUrl = null), true).first().url)
+            assertEquals(16f / 9f, ArtworkImages.headers(item.copy(portraitArtworkUrl = null, posterUrl = null), true).single().aspectRatio)
+        }
+    }
+
+    @Test fun headerFallbacksIgnoreBlankImagesAndDuplicateUrls() {
+        val item = MediaItem("1", MediaType.MOVIE, "Title", posterUrl = "", backdropUrl = " ")
+        assertTrue(ArtworkImages.headers(item, true).isEmpty())
+        assertEquals(1, ArtworkImages.headers(item.copy(posterUrl = "same", backdropUrl = "same"), true).size)
     }
 }

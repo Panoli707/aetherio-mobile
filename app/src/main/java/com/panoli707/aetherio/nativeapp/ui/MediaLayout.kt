@@ -18,3 +18,9 @@ internal fun posterWidth(width: Dp): Dp = ((width - 36.dp - 12.dp * (posterColum
 internal fun homeHeroHeight(width: Dp, height: Dp): Dp = if (width < 600.dp)
     (width * 1.36f).coerceIn(340.dp, 620.dp).coerceAtMost(height * .62f)
 else 400.dp.coerceAtMost(height * .70f)
+
+/** Fit the complete illustration; banners stay short and portrait covers cannot consume the screen. */
+internal fun heroArtworkHeight(width: Dp, viewportHeight: Dp, aspectRatio: Float): Dp {
+    val ratio = aspectRatio.takeIf { it.isFinite() && it > 0f } ?: (16f / 9f)
+    return (width / ratio).coerceAtMost(viewportHeight * .55f).coerceAtMost(620.dp).coerceAtLeast(1.dp)
+}

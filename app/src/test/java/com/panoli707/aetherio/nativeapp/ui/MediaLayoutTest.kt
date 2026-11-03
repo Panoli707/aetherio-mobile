@@ -25,4 +25,19 @@ class MediaLayoutTest {
         assertEquals(252.dp, homeHeroHeight(800.dp, 360.dp))
         assertEquals(400.dp, homeHeroHeight(900.dp, 1280.dp))
     }
+
+    @Test fun portraitHeadersAreBoundedAndLandscapeBannersKeepTheirNaturalHeight() {
+        listOf(320.dp to 480.dp, 360.dp to 800.dp, 411.dp to 900.dp, 800.dp to 360.dp,
+            900.dp to 1280.dp).forEach { (width, height) ->
+            val portrait = heroArtworkHeight(width, height, 2f / 3f)
+            val landscape = heroArtworkHeight(width, height, 16f / 9f)
+            assertTrue(portrait <= height * .55f)
+            assertTrue(landscape <= width * (9f / 16f))
+            assertTrue(landscape <= portrait)
+            assertTrue(portrait <= 620.dp)
+            listOf(0f, -1f, Float.NaN, Float.POSITIVE_INFINITY).forEach { ratio ->
+                assertEquals(landscape, heroArtworkHeight(width, height, ratio))
+            }
+        }
+    }
 }

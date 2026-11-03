@@ -5,6 +5,21 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CatalogJsonTest {
+    @Test fun headerArtworkSelectsOnlyHighResolutionTextlessPortraitsAndSurvivesPersistence() {
+        val images = JSONObject("""{"posters":[
+            {"iso_639_1":"es","width":2000,"aspect_ratio":0.667,"vote_average":10,"file_path":"/title.jpg"},
+            {"iso_639_1":null,"width":500,"aspect_ratio":0.667,"vote_average":10,"file_path":"/small.jpg"},
+            {"iso_639_1":null,"width":3000,"aspect_ratio":1.78,"vote_average":10,"file_path":"/banner.jpg"},
+            {"iso_639_1":null,"width":1200,"aspect_ratio":0.667,"vote_average":8,"file_path":"/clean.jpg"}] }""")
+        assertEquals("https://image.tmdb.org/t/p/original/clean.jpg", CatalogJson.portraitArtwork(images))
+        val json = JSONObject("""{"id":550,"title":"Title"}""").put("images", images)
+        val item = CatalogJson.item(json, MediaType.MOVIE, CatalogSource.TMDB)!!
+        assertEquals(CatalogJson.portraitArtwork(images), item.portraitArtworkUrl)
+        assertEquals(item, CatalogJson.decode(CatalogJson.encode(listOf(item))).single())
+        assertEquals(item.portraitArtworkUrl, CatalogJson.detail(item, JSONObject("""{"id":550}""")).item.portraitArtworkUrl)
+        assertNull(CatalogJson.portraitArtwork(JSONObject("""{"posters":[]}""")))
+    }
+
     @Test fun featuredMetadataIncludesRealVotesAgeRatingAndGenresAndSurvivesPersistence() {
         val detail = CatalogJson.detail(MediaItem("550", MediaType.MOVIE, "Película"), JSONObject("""{
             "id":550,"title":"Película","vote_average":6.4,"vote_count":58,"release_date":"2026-01-01",

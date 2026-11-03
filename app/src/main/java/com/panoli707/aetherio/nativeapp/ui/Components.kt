@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
@@ -39,6 +40,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import coil.size.Precision
 import com.panoli707.aetherio.nativeapp.data.MediaItem
 import com.panoli707.aetherio.nativeapp.data.ArtworkImages
 import com.panoli707.aetherio.nativeapp.player.MediaUrlPolicy
@@ -47,12 +50,18 @@ import java.util.Locale
 
 @Composable
 internal fun Artwork(url: String?, modifier: Modifier = Modifier, description: String? = null, placeholderColor: Color = Panel,
-    highResolution: Boolean = false) {
+    highResolution: Boolean = false, contentScale: ContentScale = ContentScale.Crop) {
     val placeholder = modifier.background(placeholderColor)
     val preferred = remember(url, highResolution) { if (highResolution) ArtworkImages.highResolution(url) else url }
     var failed by remember(preferred) { mutableStateOf(false) }
+    val context = LocalContext.current
+    val selected = if (failed) url else preferred
+    val request = remember(context, selected) {
+        // AsyncImage supplies the measured pixel size: do not decode a full original for a small card.
+        ImageRequest.Builder(context).data(selected).precision(Precision.EXACT).build()
+    }
     if (LocalInspectionMode.current || url.isNullOrBlank()) Box(placeholder)
-    else AsyncImage(model = if (failed) url else preferred, contentDescription = description, contentScale = ContentScale.Crop,
+    else AsyncImage(model = request, contentDescription = description, contentScale = contentScale,
         filterQuality = FilterQuality.High, onError = { failed = true }, modifier = placeholder)
 }
 
@@ -74,7 +83,7 @@ internal fun MediaTitle(item: MediaItem, modifier: Modifier = Modifier, centered
         if (!logo.isNullOrBlank() && !failed && !inspection) {
             AsyncImage(
                 model = logo, contentDescription = item.title,
-                contentScale = ContentScale.Fit, onError = { failed = true },
+                contentScale = ContentScale.Fit, filterQuality = FilterQuality.High, onError = { failed = true },
                 modifier = Modifier.fillMaxWidth().height(88.dp)
             )
         } else {
@@ -127,7 +136,8 @@ internal fun Featured(item: MediaItem, onClick: () -> Unit, modifier: Modifier =
     Box(modifier.aspectRatio(1.78f).clip(RoundedCornerShape(16.dp))
         .clickable(onClickLabel = "Ver ${item.title}", onClick = onClick)
         .semantics(mergeDescendants = true) { }) {
-        Artwork(item.backdropUrl ?: item.posterUrl, Modifier.fillMaxSize())
+        Artwork(item.backdropUrl ?: item.posterUrl, Modifier.fillMaxSize(),
+            contentScale = if (item.backdropUrl.isNullOrBlank()) ContentScale.Fit else ContentScale.Crop)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
             listOf(Color.Transparent, Ink.copy(alpha = .15f), Ink.copy(alpha = .92f)))))
         Column(Modifier.align(Alignment.BottomCenter).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {

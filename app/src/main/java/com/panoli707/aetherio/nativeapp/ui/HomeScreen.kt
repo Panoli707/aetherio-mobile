@@ -22,11 +22,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -36,7 +33,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
-import coil.compose.AsyncImage
 import com.panoli707.aetherio.nativeapp.data.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -76,7 +72,8 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
                         Column(Modifier.width(260.dp).clip(RoundedCornerShape(14.dp)).background(Panel)) {
                             Column(Modifier.clickable(onClickLabel = "Continuar ${target.item.title}") { onContinue(progress) }) {
                                 Artwork(target.imageUrl ?: target.item.backdropUrl ?: target.item.posterUrl,
-                                    Modifier.fillMaxWidth().height(140.dp))
+                                    Modifier.fillMaxWidth().height(140.dp), contentScale =
+                                    if (target.imageUrl == null && target.item.backdropUrl == null) ContentScale.Fit else ContentScale.Crop)
                                 LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Accent, trackColor = Outline)
                                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(target.item.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
@@ -136,22 +133,18 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val portrait = maxWidth < 600.dp
                 val height = homeHeroHeight(maxWidth, screenHeight)
-                HorizontalPager(state = pager, key = { heroes[it].key },
-                    modifier = Modifier.fillMaxWidth().height(height).testTag("homeHero")) { page ->
+                HorizontalPager(state = pager, key = { heroes[it].key }, verticalAlignment = Alignment.Top,
+                    modifier = Modifier.fillMaxWidth().testTag("homeHero")) { page ->
                     val item = heroes[page]
-                    Box(Modifier.fillMaxSize().clickable(onClickLabel = "Ver ${item.title}", onClick = { onSelect(item) })) {
-                        // Prefer a clean backdrop: posters often already contain a title and credits.
-                        Artwork(ArtworkImages.hero(item, portrait = false), Modifier.fillMaxSize(), highResolution = true)
-                        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
-                            0f to Color.Black.copy(alpha = .28f),
-                            .35f to Color.Transparent,
-                            .55f to Ink.copy(alpha = .12f),
-                            .78f to Ink.copy(alpha = .78f),
-                            1f to Ink)))
-                        Column(Modifier.align(Alignment.BottomCenter).widthIn(max = 600.dp).fillMaxWidth()
+                    Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Ver ${item.title}", onClick = { onSelect(item) }),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        val hasPosterTitle = ArtworkImages.headers(item, portrait).firstOrNull()?.containsTitle == true
+                        val footerSpace = if (hasPosterTitle) 100.dp else 196.dp
+                        HeroArtwork(item, portrait, screenHeight,
+                            maxArtworkHeight = (height - footerSpace).coerceAtLeast(100.dp))
+                        Column(Modifier.widthIn(max = 600.dp).fillMaxWidth()
                             .padding(horizontal = 24.dp).padding(bottom = 18.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            HeroTitle(item, compact = !portrait)
                             HeroMetadata(item)
                             if (item.overview.isNotBlank()) Text(item.overview, style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
@@ -205,17 +198,4 @@ private fun HeroMetadata(item: MediaItem) {
 private fun ProfileAction(onClick: () -> Unit, modifier: Modifier = Modifier) {
     RoundAction("Abrir perfil", Icons.Default.Person, onClick,
         modifier.statusBarsPadding().padding(top = 12.dp, end = 18.dp).testTag("homeProfile"))
-}
-
-@Composable
-private fun HeroTitle(item: MediaItem, compact: Boolean) {
-    var failed by remember(item.logoUrl) { mutableStateOf(false) }
-    val logo = remember(item.logoUrl) { ArtworkImages.highResolution(item.logoUrl) }
-    if (!logo.isNullOrBlank() && !failed && !LocalInspectionMode.current) {
-        AsyncImage(model = logo, contentDescription = item.title, contentScale = ContentScale.Fit,
-            onError = { failed = true }, modifier = Modifier.fillMaxWidth().height(if (compact) 80.dp else 104.dp))
-    } else {
-        Text(item.title, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center,
-            maxLines = 2, overflow = TextOverflow.Ellipsis)
-    }
 }

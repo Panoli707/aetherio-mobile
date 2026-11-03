@@ -4,6 +4,16 @@ import java.net.URI
 
 /** Upgrade only known TMDB image variants; never rewrite provider or signed URLs. */
 internal object ArtworkImages {
+    data class Header(val url: String, val aspectRatio: Float, val containsTitle: Boolean = false)
+
+    /** Never fill a portrait header by zooming into a landscape banner. */
+    fun headers(item: MediaItem, portrait: Boolean): List<Header> {
+        val clean = item.portraitArtworkUrl?.takeIf(String::isNotBlank)?.let { Header(it, 2f / 3f) }
+        val poster = item.posterUrl?.takeIf(String::isNotBlank)?.let { Header(it, 2f / 3f, containsTitle = true) }
+        val backdrop = item.backdropUrl?.takeIf(String::isNotBlank)?.let { Header(it, 16f / 9f) }
+        return (if (portrait) listOf(clean, poster, backdrop) else listOf(backdrop, clean, poster))
+            .filterNotNull().distinctBy { it.url }
+    }
     fun highResolution(url: String?): String? {
         if (url == null) return null
         return runCatching {
@@ -18,6 +28,4 @@ internal object ArtworkImages {
     fun hero(item: MediaItem, portrait: Boolean): String? = if (portrait)
         item.posterUrl ?: item.backdropUrl else item.backdropUrl ?: item.posterUrl
 
-    /** Detail screens overlay a separate title logo, so prefer clean landscape artwork over a text-heavy poster. */
-    fun detailHero(item: MediaItem): String? = item.backdropUrl ?: item.posterUrl
 }

@@ -60,7 +60,8 @@ internal object WatchProgressCodec {
         // Store catalog metadata only, never playback URLs, headers or provider credentials.
         val compact = target.item.copy(overview = "", genres = emptyList(), logoUrl = null,
             posterUrl = target.item.posterUrl?.takeIf { it.length <= 1024 },
-            backdropUrl = target.item.backdropUrl?.takeIf { it.length <= 1024 })
+            backdropUrl = target.item.backdropUrl?.takeIf { it.length <= 1024 },
+            portraitArtworkUrl = target.item.portraitArtworkUrl?.takeIf { it.length <= 1024 })
         put("item", JSONArray(CatalogJson.encode(listOf(compact))).getJSONObject(0))
         put("season", target.season); put("episode", target.episode)
         put("episodeTitle", target.episodeTitle.take(500)); put("image", CatalogJson.image(target.imageUrl?.takeIf { it.length <= 1024 }))

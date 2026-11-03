@@ -70,20 +70,17 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
         var infoOpen by rememberSaveable(media.key) { mutableStateOf(false) }
         BoxWithConstraints(Modifier.fillMaxSize().background(DetailNight)) {
             val portrait = maxWidth < 600.dp
-            val heroHeight = if (portrait) (maxWidth * 1.42f).coerceIn(440.dp, 680.dp) else 430.dp
+            val viewportHeight = maxHeight
             val episodeWidth = (maxWidth * .79f).coerceIn(260.dp, 420.dp)
             val relatedWidth = posterWidth(maxWidth)
             LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("detailScroll"),
                 contentPadding = PaddingValues(bottom = 28.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
                 item(key = "hero") {
-                    Box(Modifier.fillMaxWidth().height(heroHeight).testTag("detailHero")) {
-                        val heroImage = ArtworkImages.detailHero(media)
-                        Artwork(heroImage, Modifier.fillMaxSize(), highResolution = true)
-                        Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(
-                            DetailNight.copy(alpha = .62f), Color.Transparent, DetailNight.copy(alpha = .35f), DetailNight))))
-                        Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 14.dp),
+                    Column(Modifier.fillMaxWidth().background(DetailNight).testTag("detailHero"),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        HeroArtwork(media, portrait, viewportHeight)
+                        Column(Modifier.widthIn(max = 600.dp).fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 14.dp, top = 10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            MediaTitle(media, Modifier.fillMaxWidth(), centered = true)
                             val metadata = buildList {
                                 if (media.score > 0) add("★ ${String.format(Locale.forLanguageTag("es"), "%.1f", media.score)}")
                                 detail?.voteCount?.let { add("${NumberFormat.getIntegerInstance(Locale.forLanguageTag("es")).format(it)} votos") }

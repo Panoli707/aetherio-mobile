@@ -3,26 +3,32 @@ package com.panoli707.aetherio.nativeapp.player
 import androidx.activity.compose.BackHandler
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.automirrored.rounded.VolumeOff
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.selected
@@ -30,10 +36,16 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import kotlinx.coroutines.delay
+import coil.compose.AsyncImage
+import com.panoli707.aetherio.nativeapp.ui.Accent
+import com.panoli707.aetherio.nativeapp.ui.Outline
+import com.panoli707.aetherio.nativeapp.ui.Panel
+import com.panoli707.aetherio.nativeapp.ui.GlassPanelAlpha
 
 @OptIn(UnstableApi::class)
 @kotlin.OptIn(ExperimentalMaterial3Api::class)
@@ -46,6 +58,7 @@ fun PlayerScreen(
     onSpeed: (Float) -> Unit,
     onTrack: (String) -> Unit,
     onTorrentFile: (Int) -> Unit = {},
+    onVolume: (Float) -> Unit = {},
     video: @Composable (Int) -> Unit
 ) {
     var resizeMode by rememberSaveable { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
@@ -68,7 +81,10 @@ fun PlayerScreen(
         AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> "Zoom"
         else -> "Fit"
     }
-    BackHandler { currentAction(VideoAction.CLOSE) }
+    BackHandler {
+        if (menu != null) { menu = null; interaction++ }
+        else currentAction(VideoAction.CLOSE)
+    }
     LaunchedEffect(canSeek, state.error) {
         if (!canSeek) scrubbing = false
         if (state.error != null) menu = null
@@ -122,190 +138,172 @@ fun PlayerScreen(
                 }
             )
         })
-        if (showControls || locked) {
-            Box(Modifier.fillMaxWidth().height(160.dp).background(Brush.verticalGradient(
-                listOf(Color.Black.copy(alpha = .7f), Color.Transparent)
-            )))
-        }
-        if (showControls && state.error == null) {
-            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(260.dp)
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .8f)))))
+        val chrome = showControls && menu != "info"
+        if (chrome) {
+            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(200.dp)
+                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .5f)))))
         }
         BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
-            val compact = maxHeight < 420.dp
             val wide = maxWidth >= 600.dp
-            val gutter = if (wide) 32.dp else 12.dp
-            val controlsWidth = maxWidth - gutter * 2
-            Column(Modifier.fillMaxSize().padding(horizontal = gutter)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically) {
-                    if (showControls && canChangeSource) PlayerButton(Icons.Rounded.SwapHoriz, "Cambiar fuente") {
-                        act(VideoAction.FIND_SOURCES)
-                    }
-                    if (showControls || locked) PlayerButton(
-                        if (locked) Icons.Rounded.LockOpen else Icons.Rounded.Lock,
-                        if (locked) "Desbloquear controles" else "Bloquear controles"
-                    ) { locked = !locked; visible = true; menu = null; interaction++ }
-                    if (showControls) PlayerButton(Icons.AutoMirrored.Rounded.ArrowBack, "Volver") {
-                        act(VideoAction.CLOSE)
-                    }
-                }
-                Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    if (showControls && state.error != null) {
-                        Column(Modifier.verticalScroll(rememberScrollState()).padding(8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(state.error, color = Color.White)
-                            TextButton(onClick = { act(VideoAction.RETRY) }) { Text("Reintentar", color = Color.White) }
-                            if (canChangeSource) TextButton(onClick = { act(VideoAction.FIND_SOURCES) }) {
-                                Text("Cambiar fuente", color = Color.White)
-                            }
-                        }
-                    } else if (showControls) {
-                        Row(verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(if (wide) 48.dp else 16.dp)) {
-                            PlayerButton(Icons.Rounded.Replay10, "Retroceder 10 segundos", enabled = canSeek) {
-                                act(VideoAction.REWIND)
-                            }
-                             if (state.buffering) {
-                                 Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
-                                     CircularProgressIndicator(Modifier.size(28.dp).semantics {
-                                        contentDescription = "Cargando video"
-                                    }, color = MaterialTheme.colorScheme.primary)
-                                 }
-                            } else PlayerButton(
-                                if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
-                                if (state.playing) "Pausar" else "Reproducir",
-                            ) { act(VideoAction.TOGGLE_PLAY) }
-                            PlayerButton(Icons.Rounded.Forward10, "Avanzar 10 segundos", enabled = canSeek) {
-                                act(VideoAction.FORWARD)
-                            }
+            val compact = maxHeight < 360.dp
+            val errorMaxHeight = (maxHeight - 80.dp).coerceAtLeast(48.dp)
+            val gutter = if (wide) 24.dp else 12.dp
+            val centerSize = if (compact) 72.dp else 80.dp
+            val bottomSpace = if (compact && wide) 112.dp else if (wide) 164.dp else 216.dp
+            Box(Modifier.fillMaxSize().padding(horizontal = gutter, vertical = 8.dp).testTag("playerSafeArea")) {
+                if (chrome) {
+                    Row(Modifier.align(Alignment.TopStart), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PlayerButton(Icons.Rounded.Close, "Volver", glass = true) { act(VideoAction.CLOSE) }
+                        if (canChangeSource) PlayerButton(Icons.Rounded.SwapHoriz, "Cambiar fuente", glass = true) {
+                            act(VideoAction.FIND_SOURCES)
                         }
                     }
-                    if (showControls && state.error == null) state.torrentLabel?.let { label ->
-                        Text(label, color = Color.White, modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
-                    }
-                    val skip = openingSkip(state)
-                    val ending = endingSkip(state)
-                    Column(Modifier.align(Alignment.BottomEnd).padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (!locked && skip != null && (skip.precise || showControls)) {
-                            FilledTonalButton(onClick = { act(VideoAction.SKIP_OPENING) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                                Text(if (skip.precise) "Saltar opening" else "Opening · +90 s")
-                            }
-                        }
-                        if (!locked && ending != null && (ending.precise || showControls)) {
-                            FilledTonalButton(onClick = { act(VideoAction.SKIP_ENDING) }, modifier = Modifier.heightIn(min = 48.dp)) {
-                                Text(if (ending.precise) "Saltar ending" else "Ending · +90 s")
-                            }
-                        }
+                    Row(Modifier.align(Alignment.TopEnd).width(if (wide) 220.dp else 172.dp)
+                        .glass(videoOverlay = true).padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(if (state.volume == 0f) Icons.AutoMirrored.Rounded.VolumeOff else Icons.AutoMirrored.Rounded.VolumeUp,
+                            contentDescription = null, tint = Color.White, modifier = Modifier.size(24.dp))
+                        PlayerSlider(state.volume.coerceIn(0f, 1f), { interaction++; onVolume(it) }, {}, true,
+                            "Volumen", Modifier.weight(1f).padding(start = 8.dp))
                     }
                 }
-                if (showControls && state.error == null) {
-                    Column(Modifier.padding(bottom = if (compact) 0.dp else 12.dp)) {
-                        state.torrentMetrics?.let { metrics ->
-                            Text("P2P · ${metrics.peers} peers · ${metrics.downloadBytesPerSecond / 1024} KiB/s", color = Color.LightGray,
-                                style = MaterialTheme.typography.bodySmall)
+                if (locked) PlayerButton(Icons.Rounded.LockOpen, "Desbloquear controles",
+                    modifier = Modifier.align(Alignment.TopEnd), glass = true) {
+                    locked = false; visible = true; interaction++
+                }
+                if (chrome && state.error != null) {
+                    Column(Modifier.align(Alignment.Center).widthIn(max = 520.dp).heightIn(max = errorMaxHeight)
+                        .glass(RoundedCornerShape(20.dp)).verticalScroll(rememberScrollState()).padding(16.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(state.error, color = Color.White)
+                        TextButton(onClick = { act(VideoAction.RETRY) }) { Text("Reintentar", color = Color.White) }
+                        if (canChangeSource) TextButton(onClick = { act(VideoAction.FIND_SOURCES) }) {
+                            Text("Cambiar fuente", color = Color.White)
                         }
-                        Text(state.title, color = Color.White, fontSize = (if (wide) 26 else 20).sp,
-                            fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (state.subtitle.isNotBlank()) Text(state.subtitle, Modifier.weight(1f),
-                                color = Color.White.copy(alpha = .7f), fontSize = 13.sp,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            if (state.videoHeight > 0) Text("${state.videoHeight}p", Modifier.padding(horizontal = 8.dp)
-                                .background(MaterialTheme.colorScheme.secondary.copy(alpha = .2f)).padding(horizontal = 6.dp, vertical = 2.dp),
-                                color = MaterialTheme.colorScheme.secondary, fontSize = 12.sp)
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Slider(
-                                value = if (scrubbing) scrubFraction else if (duration > 0) position.toFloat() / duration else 0f,
-                                onValueChange = { scrubbing = true; scrubFraction = it; interaction++ },
-                                onValueChangeFinished = {
-                                    if (canSeek) onSeek((scrubFraction.toDouble() * duration).toLong().coerceIn(0L, duration))
-                                    scrubbing = false; interaction++
-                                },
-                                enabled = canSeek,
-                                modifier = Modifier.weight(1f).semantics { contentDescription = "Posici\u00f3n de reproducci\u00f3n" },
-                                thumb = { Box(Modifier.size(10.dp).background(MaterialTheme.colorScheme.primary, CircleShape)) },
-                                colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary, activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.secondary.copy(alpha = .3f),
-                                    disabledThumbColor = MaterialTheme.colorScheme.primary.copy(alpha = .35f),
-                                    disabledActiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = .3f),
-                                    disabledInactiveTrackColor = MaterialTheme.colorScheme.secondary.copy(alpha = .15f))
-                            )
-                            val displayedPosition = if (scrubbing) (scrubFraction.toDouble() * duration).toLong() else position
-                            Text("${playerTime(displayedPosition)} / ${if (state.live) "EN DIRECTO" else playerTime(duration)}",
-                                Modifier.padding(start = 8.dp), color = Color.White, fontSize = 12.sp)
-                        }
-                        Row(Modifier.horizontalScroll(rememberScrollState()).widthIn(min = controlsWidth),
-                            horizontalArrangement = Arrangement.SpaceEvenly, verticalAlignment = Alignment.CenterVertically) {
-                            listOf("text", "audio", "speed").forEach { kind ->
-                                 Box(Modifier.width((controlsWidth / 6).coerceAtLeast(48.dp)), contentAlignment = Alignment.Center) {
-                                    val icon = when (kind) {
-                                        "text" -> Icons.Rounded.Subtitles
-                                        "audio" -> Icons.Rounded.VolumeUp
-                                        else -> Icons.Rounded.Speed
-                                    }
-                                    val label = when (kind) { "text" -> "Subt\u00edtulos"; "audio" -> "Audio"; else -> "Velocidad" }
-                                    PlayerButton(icon, label) { menu = kind }
-                                    DropdownMenu(expanded = menu == kind, onDismissRequest = { menu = null; interaction++ }) {
-                                        if (kind == "speed") {
-                                            listOf(.5f, .75f, 1f, 1.25f, 1.5f, 2f).forEach { speed ->
-                                                DropdownMenuItem(text = { Text("${speed}x",
-                                                    fontWeight = if (state.speed == speed) FontWeight.Bold else FontWeight.Normal) },
-                                                    modifier = Modifier.semantics { selected = state.speed == speed },
-                                                    onClick = { onSpeed(speed); menu = null; interaction++ })
+                    }
+                } else if (chrome) {
+                    // Independent of the footer: transport stays at the actual video centre.
+                    Row(Modifier.align(Alignment.Center).testTag("playerTransport"),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(if (wide) 28.dp else 20.dp)) {
+                        PlayerButton(Icons.Rounded.Replay10, "Retroceder 10 segundos", enabled = canSeek,
+                            size = 56.dp, iconSize = 30.dp, glass = true) { act(VideoAction.REWIND) }
+                        if (state.buffering) Box(Modifier.size(centerSize).glass(CircleShape, videoOverlay = true), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(Modifier.size(32.dp).semantics { contentDescription = "Cargando video" },
+                                color = Accent, strokeWidth = 3.dp)
+                        } else PlayerButton(if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                            if (state.playing) "Pausar" else "Reproducir", size = centerSize, iconSize = 40.dp,
+                            glass = true) { act(VideoAction.TOGGLE_PLAY) }
+                        PlayerButton(Icons.Rounded.Forward10, "Avanzar 10 segundos", enabled = canSeek,
+                            size = 56.dp, iconSize = 30.dp, glass = true) { act(VideoAction.FORWARD) }
+                    }
+                    Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().testTag("playerFooter")) {
+                        val tools: @Composable () -> Unit = {
+                            Row(Modifier.glass(videoOverlay = true).padding(horizontal = 4.dp).testTag("playerTools"),
+                                verticalAlignment = Alignment.CenterVertically) {
+                                listOf("speed", "text", "audio").forEach { kind ->
+                                    Box {
+                                        val icon = when (kind) {
+                                            "text" -> Icons.Rounded.Subtitles
+                                            "audio" -> Icons.Rounded.GraphicEq
+                                            else -> Icons.Rounded.Speed
+                                        }
+                                        val label = when (kind) { "text" -> "Subtítulos"; "audio" -> "Audio"; else -> "Velocidad" }
+                                        PlayerButton(icon, label) { menu = kind; interaction++ }
+                                        DropdownMenu(expanded = menu == kind, onDismissRequest = { menu = null; interaction++ },
+                                            containerColor = Panel) {
+                                            if (kind == "speed") {
+                                                listOf(.5f, .75f, 1f, 1.25f, 1.5f, 2f).forEach { speed ->
+                                                    DropdownMenuItem(text = {
+                                                        Text("${speed}x", color = if (state.speed == speed) Accent else Color.White,
+                                                            fontWeight = if (state.speed == speed) FontWeight.Bold else FontWeight.Normal)
+                                                    },
+                                                        modifier = Modifier.semantics { selected = state.speed == speed },
+                                                        onClick = { onSpeed(speed); menu = null; interaction++ })
+                                                }
+                                            } else {
+                                                val tracks = if (kind == "text") state.subtitleTracks else state.audioTracks
+                                                if (kind == "text" && tracks.none { it.id == "text:none" }) {
+                                                    DropdownMenuItem(text = {
+                                                        Text("Desactivar subtítulos", color = if (tracks.none { it.selected }) Accent else Color.White)
+                                                    },
+                                                        modifier = Modifier.semantics { selected = tracks.none { it.selected } },
+                                                        onClick = { onTrack("text:none"); menu = null; interaction++ })
+                                                }
+                                                tracks.forEach { track ->
+                                                    DropdownMenuItem(text = {
+                                                        Text(track.label, color = if (track.selected) Accent else Color.White,
+                                                            fontWeight = if (track.selected) FontWeight.Bold else FontWeight.Normal)
+                                                    },
+                                                        modifier = Modifier.semantics { selected = track.selected },
+                                                        onClick = { onTrack(track.id); menu = null; interaction++ })
+                                                }
+                                                if (tracks.isEmpty() && kind == "audio") DropdownMenuItem(
+                                                    text = { Text("Sin pistas de audio", color = Color.LightGray) }, onClick = {}, enabled = false)
                                             }
-                                        } else {
-                                            val tracks = if (kind == "text") state.subtitleTracks else state.audioTracks
-                                            if (kind == "text" && tracks.none { it.id == "text:none" }) {
-                                                DropdownMenuItem(text = { Text("Desactivar subt\u00edtulos") },
-                                                    modifier = Modifier.semantics { selected = tracks.none { it.selected } },
-                                                    onClick = { onTrack("text:none"); menu = null; interaction++ })
-                                            }
-                                            tracks.forEach { track ->
-                                                DropdownMenuItem(text = { Text(track.label,
-                                                    fontWeight = if (track.selected) FontWeight.Bold else FontWeight.Normal) },
-                                                    modifier = Modifier.semantics { selected = track.selected },
-                                                    onClick = { onTrack(track.id); menu = null; interaction++ })
-                                            }
-                                            if (tracks.isEmpty() && kind == "audio") DropdownMenuItem(
-                                                text = { Text("Sin pistas de audio") }, onClick = {}, enabled = false)
                                         }
                                     }
                                 }
-                            }
-                            Box(Modifier.width((controlsWidth / 6).coerceAtLeast(48.dp)), contentAlignment = Alignment.Center) {
-                            PlayerButton(Icons.Rounded.AspectRatio, "Ajuste de imagen: $aspectLabel") {
-                                interaction++
-                                resizeMode = when (resizeMode) {
-                                    AspectRatioFrameLayout.RESIZE_MODE_FIT -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-                                    AspectRatioFrameLayout.RESIZE_MODE_FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                    else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                PlayerButton(Icons.Rounded.AspectRatio, "Ajuste de imagen: $aspectLabel") {
+                                    interaction++
+                                    resizeMode = when (resizeMode) {
+                                        AspectRatioFrameLayout.RESIZE_MODE_FIT -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+                                        AspectRatioFrameLayout.RESIZE_MODE_FILL -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                        else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                    }
                                 }
-                            }
-                            }
-                            Box(Modifier.width((controlsWidth / 6).coerceAtLeast(48.dp)), contentAlignment = Alignment.Center) {
-                                PlayerButton(Icons.Rounded.Info, "Informaci\u00f3n") { menu = "info" }
-                            }
-                            Box(Modifier.width((controlsWidth / 6).coerceAtLeast(48.dp)), contentAlignment = Alignment.Center) {
+                                PlayerButton(Icons.Rounded.Lock, "Bloquear controles") {
+                                    locked = true; visible = true; menu = null; interaction++
+                                }
                                 PlayerButton(Icons.Rounded.ScreenRotation, "Girar pantalla") { act(VideoAction.ROTATE) }
                             }
                         }
+                        if (wide) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                            PlayerMetadata(state, Modifier.weight(1f), compact)
+                            tools()
+                        } else {
+                            PlayerMetadata(state, Modifier.fillMaxWidth(), compact)
+                            Spacer(Modifier.height(8.dp))
+                            Box(Modifier.align(Alignment.End)) { tools() }
+                        }
+                        val displayedPosition = if (scrubbing) (scrubFraction.toDouble() * duration).toLong() else position
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(playerTime(displayedPosition), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            PlayerSlider(if (scrubbing) scrubFraction else if (duration > 0) position.toFloat() / duration else 0f,
+                                { scrubbing = true; scrubFraction = it; interaction++ }, {
+                                    if (canSeek) onSeek((scrubFraction.toDouble() * duration).toLong().coerceIn(0L, duration))
+                                    scrubbing = false; interaction++
+                                }, canSeek, "Posición de reproducción", Modifier.weight(1f))
+                            Text(if (state.live) "EN DIRECTO" else playerTime(duration), color = Color.White,
+                                fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                            if (compact && wide) PlayerButton(Icons.Rounded.Info, "Información") { menu = "info"; interaction++ }
+                        }
+                        if (!compact || !wide) TextButton(onClick = { menu = "info"; interaction++ },
+                            modifier = Modifier.height(48.dp).testTag("playerInfo"), contentPadding = PaddingValues(horizontal = 0.dp)) {
+                            Text("Info", color = Color.White, fontSize = 14.sp,
+                                modifier = Modifier.semantics { contentDescription = "Información" })
+                        }
+                    }
+                }
+                val skip = openingSkip(state)
+                val ending = endingSkip(state)
+                if (!locked && state.error == null && menu != "info") {
+                    Row(Modifier.align(Alignment.BottomEnd).padding(bottom = if (chrome) bottomSpace else 12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (skip != null && (skip.precise || chrome)) GlassSkipButton(
+                            if (skip.precise) "Saltar opening" else "Opening · +90 s") { act(VideoAction.SKIP_OPENING) }
+                        if (ending != null && (ending.precise || chrome)) GlassSkipButton(
+                            if (ending.precise) "Saltar ending" else "Ending · +90 s") { act(VideoAction.SKIP_ENDING) }
                     }
                 }
             }
+            if (menu == "info" && !locked) {
+                Box(Modifier.fillMaxSize().clickable { menu = null; interaction++ })
+                PlayerInfo(state, Modifier.align(Alignment.BottomCenter).padding(horizontal = gutter, vertical = 16.dp)
+                    .fillMaxWidth().heightIn(max = maxHeight * .65f)) { menu = null; interaction++ }
+            }
         }
-        if (menu == "info" && !locked) AlertDialog(
-            onDismissRequest = { menu = null; interaction++ },
-            title = { Text(state.title) },
-            text = {
-                Column {
-                    if (state.subtitle.isNotBlank()) Text(state.subtitle)
-                    if (state.videoHeight > 0) Text("Resoluci\u00f3n: ${state.videoHeight}p")
-                }
-            },
-            confirmButton = { TextButton(onClick = { menu = null; interaction++ }) { Text("Cerrar") } }
-        )
     }
 }
 
@@ -314,11 +312,80 @@ private fun PlayerButton(
     icon: ImageVector,
     label: String,
     enabled: Boolean = true,
+    modifier: Modifier = Modifier,
+    size: Dp = 48.dp,
+    iconSize: Dp = 26.dp,
+    glass: Boolean = false,
     onClick: () -> Unit
 ) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(48.dp).testTag("playerButton:$label")) {
-        Icon(icon, contentDescription = label, modifier = Modifier.size(28.dp),
-            tint = (if (label in listOf("Reproducir", "Pausar")) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface).copy(alpha = if (enabled) 1f else .35f))
+    val button = modifier.size(size).testTag("playerButton:$label")
+    IconButton(onClick = onClick, enabled = enabled, modifier = if (glass) button.glass(CircleShape, videoOverlay = true) else button) {
+        Icon(icon, contentDescription = label, modifier = Modifier.size(iconSize),
+            tint = Color.White.copy(alpha = if (enabled) 1f else .35f))
+    }
+}
+
+/** Translucency only: blurring the SurfaceView would blur controls, not the video behind them. */
+private fun Modifier.glass(shape: Shape = RoundedCornerShape(50), videoOverlay: Boolean = false) = clip(shape)
+    .background(if (videoOverlay) Brush.linearGradient(listOf(Color.White.copy(alpha = .18f), Panel.copy(alpha = .24f)))
+        else Brush.linearGradient(listOf(Panel.copy(alpha = GlassPanelAlpha), Panel.copy(alpha = GlassPanelAlpha))))
+    .border(1.dp, Color.White.copy(alpha = .28f), shape)
+
+@kotlin.OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PlayerSlider(value: Float, onValue: (Float) -> Unit, onFinished: () -> Unit,
+    enabled: Boolean, label: String, modifier: Modifier = Modifier) {
+    val colors = SliderDefaults.colors(thumbColor = Accent, activeTrackColor = Accent,
+        inactiveTrackColor = Outline, disabledThumbColor = Color.White.copy(alpha = .35f),
+        disabledActiveTrackColor = Color.White.copy(alpha = .35f), disabledInactiveTrackColor = Color.White.copy(alpha = .12f))
+    Slider(value = value, onValueChange = onValue, onValueChangeFinished = onFinished,
+        enabled = enabled, modifier = modifier.height(48.dp).semantics { contentDescription = label },
+        colors = colors, thumb = { Box(Modifier.size(12.dp).background(if (enabled) Accent else Color.White.copy(alpha = .35f), CircleShape)) },
+        track = { slider -> SliderDefaults.Track(sliderState = slider, modifier = Modifier.height(4.dp),
+            enabled = enabled, colors = colors, thumbTrackGapSize = 0.dp, drawStopIndicator = null) })
+}
+
+@Composable
+private fun PlayerMetadata(state: VideoUiState, modifier: Modifier, compact: Boolean) {
+    Column(modifier) {
+        if (state.episodeLabel.isNotBlank()) Text(state.episodeLabel, color = Color.White.copy(alpha = .7f),
+            fontSize = 11.sp, maxLines = 1)
+        Text(state.title, color = Color.White, fontSize = (if (compact) 17 else 20).sp,
+            fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (state.subtitle.isNotBlank()) Text(state.subtitle, Modifier.weight(1f, fill = false),
+                color = Color.White.copy(alpha = .7f), fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (state.videoHeight > 0) Text("${state.videoHeight}p", color = Color.White.copy(alpha = .8f), fontSize = 11.sp)
+        }
+    }
+}
+
+@Composable
+private fun GlassSkipButton(label: String, onClick: () -> Unit) {
+    TextButton(onClick = onClick, modifier = Modifier.glass(videoOverlay = true).heightIn(min = 48.dp)) {
+        Text(label, color = Color.White)
+    }
+}
+
+@Composable
+private fun PlayerInfo(state: VideoUiState, modifier: Modifier, onClose: () -> Unit) {
+    Row(modifier.glass(RoundedCornerShape(20.dp), videoOverlay = true).clickable(onClick = {})
+        .padding(16.dp).testTag("playerInfoCard"), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        if (!state.posterUrl.isNullOrBlank()) AsyncImage(model = state.posterUrl, contentDescription = "Portada",
+            modifier = Modifier.width(76.dp).height(114.dp).clip(RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            Text(state.title, color = Color.White, fontWeight = FontWeight.Medium, fontSize = 18.sp)
+            if (state.subtitle.isNotBlank()) Text(state.subtitle, color = Color.White.copy(alpha = .7f), fontSize = 12.sp)
+            if (state.overview.isNotBlank()) Text(state.overview, color = Color.White, fontSize = 14.sp,
+                modifier = Modifier.padding(top = 8.dp))
+            if (state.videoHeight > 0) Text("Resolución: ${state.videoHeight}p", color = Color.White.copy(alpha = .8f), fontSize = 12.sp)
+            state.torrentLabel?.let { Text(it, color = Color.White.copy(alpha = .8f), fontSize = 12.sp) }
+            state.torrentMetrics?.let { metrics ->
+                Text("P2P · ${metrics.peers} peers · ${metrics.downloadBytesPerSecond / 1024} KiB/s",
+                    color = Color.White.copy(alpha = .8f), fontSize = 12.sp)
+            }
+        }
+        PlayerButton(Icons.Rounded.Close, "Cerrar", onClick = onClose)
     }
 }
 

@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.StateRestorationTester
@@ -20,6 +21,9 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import android.graphics.Bitmap
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -39,6 +43,7 @@ class PlayerScreenTest {
     private val seeks = mutableListOf<Long>()
     private val speeds = mutableListOf<Float>()
     private val tracks = mutableListOf<String>()
+    private val volumes = mutableListOf<Float>()
     private lateinit var back: OnBackPressedDispatcher
 
     @Test fun openingUsesExactTimingsOrClearlyLabelledManualAdvanceAndRespectsLock() {
@@ -85,16 +90,46 @@ class PlayerScreenTest {
         compose.runOnIdle { assertEquals(listOf(VideoAction.SKIP_ENDING, VideoAction.SKIP_ENDING), actions) }
     }
 
-    @Test fun everyIconHasTheSameBoundsAndTheBottomToolbarUsesEqualSlots() {
+    @Test fun transportIsCenteredAndLargerWhileToolsKeepEqualTouchTargets() {
         render()
-        val labels = listOf("Reproducir", "Retroceder 10 segundos", "Avanzar 10 segundos", "Cambiar fuente", "Volver",
-            "Subtítulos", "Audio", "Velocidad", "Ajuste de imagen: Fit", "Información", "Girar pantalla")
-        val bounds = labels.map { compose.onNodeWithContentDescription(it).fetchSemanticsNode().boundsInRoot }
-        assertTrue(bounds.all { kotlin.math.abs(it.width - bounds.first().width) < 1 && kotlin.math.abs(it.height - bounds.first().height) < 1 })
-        val toolbar = bounds.takeLast(6)
+        val play = compose.onNodeWithContentDescription("Reproducir").fetchSemanticsNode().boundsInRoot
+        val rewind = compose.onNodeWithContentDescription("Retroceder 10 segundos").fetchSemanticsNode().boundsInRoot
+        val forward = compose.onNodeWithContentDescription("Avanzar 10 segundos").fetchSemanticsNode().boundsInRoot
+        val safe = compose.onNodeWithTag("playerSafeArea").fetchSemanticsNode().boundsInRoot
+        assertTrue(play.width > rewind.width && play.height > rewind.height)
+        assertTrue(kotlin.math.abs(play.center.x - safe.center.x) < 2)
+        assertTrue(kotlin.math.abs(play.center.y - safe.center.y) < 2)
+        assertTrue(kotlin.math.abs(rewind.center.y - forward.center.y) < 1)
+        val toolbar = listOf("Velocidad", "Subtítulos", "Audio", "Ajuste de imagen: Fit", "Bloquear controles", "Girar pantalla")
+            .map { compose.onNodeWithContentDescription(it).fetchSemanticsNode().boundsInRoot }
+        assertTrue(toolbar.all { kotlin.math.abs(it.width - toolbar.first().width) < 1 && kotlin.math.abs(it.height - toolbar.first().height) < 1 })
         assertTrue(toolbar.all { kotlin.math.abs(it.center.y - toolbar.first().center.y) < 1 })
         val spacing = toolbar.zipWithNext().map { (a, b) -> b.center.x - a.center.x }
         assertTrue(spacing.all { kotlin.math.abs(it - spacing.first()) < 2 })
+        val footer = compose.onNodeWithTag("playerFooter").fetchSemanticsNode().boundsInRoot
+        assertTrue(play.bottom <= footer.top)
+        assertTrue(toolbar.all { it.left >= safe.left && it.right <= safe.right && it.bottom <= safe.bottom })
+        val close = compose.onNodeWithContentDescription("Volver").fetchSemanticsNode().boundsInRoot
+        val volume = compose.onNodeWithContentDescription("Volumen").fetchSemanticsNode().boundsInRoot
+        assertTrue(close.right < volume.left && close.top < play.top)
+        captureIfRequested("player-controls")
+    }
+
+    @Test fun volumeAndTranslucentInfoUseRealStateAndBackDismissesTheCard() {
+        val state = mutableStateOf(playback.copy(overview = "Una aventura para recordar.", episodeLabel = "T1 · E2"))
+        render(state)
+        compose.onNodeWithText("T1 · E2").assertIsDisplayed()
+        compose.onNodeWithContentDescription("Volumen")
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(.4f) }
+        compose.runOnIdle { assertEquals(listOf(.4f), volumes) }
+        compose.onNodeWithContentDescription("Información").performClick()
+        compose.onNodeWithTag("playerInfoCard").assertIsDisplayed()
+        compose.onNodeWithText(state.value.overview).assertIsDisplayed()
+        captureIfRequested("player-info")
+        compose.onNodeWithContentDescription("Reproducir").assertDoesNotExist()
+        compose.runOnIdle { back.onBackPressed(); assertTrue(actions.isEmpty()) }
+        compose.onNodeWithTag("playerInfoCard").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Reproducir").assertIsDisplayed()
     }
 
     @Test fun sliderSeeksAndDoubleTapsRespectSeekability() {
@@ -178,7 +213,7 @@ class PlayerScreenTest {
         compose.onNodeWithText("1.5x").performScrollTo().performClick()
         compose.onNodeWithContentDescription("Informaci\u00f3n").performClick()
         compose.onNodeWithText("Resoluci\u00f3n: 720p").assertIsDisplayed()
-        compose.onNodeWithText("Cerrar").performClick()
+        compose.onNodeWithContentDescription("Cerrar").performClick()
         compose.runOnIdle {
             assertEquals(listOf("audio:es", "text:en", "text:none"), tracks)
             assertEquals(listOf(1.5f), speeds)
@@ -237,6 +272,13 @@ class PlayerScreenTest {
         compose.onNodeWithText("Reintentar").assertIsDisplayed()
     }
 
+    private fun captureIfRequested(name: String) {
+        if (InstrumentationRegistry.getArguments().getString("capturePlayer") != "true") return
+        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
+        val directory = InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null)
+        File(directory, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+    }
+
     private fun render(
         state: State<VideoUiState> = mutableStateOf(playback),
         canChangeSource: State<Boolean> = mutableStateOf(true)
@@ -244,7 +286,8 @@ class PlayerScreenTest {
         compose.setContent {
             back = LocalOnBackPressedDispatcherOwner.current!!.onBackPressedDispatcher
             MaterialTheme {
-                PlayerScreen(state.value, canChangeSource.value, actions::add, seeks::add, speeds::add, tracks::add) {
+                PlayerScreen(state.value, canChangeSource.value, actions::add, seeks::add, speeds::add, tracks::add,
+                    onVolume = { volumes.add(it) }) {
                     Box(Modifier.fillMaxSize().background(Color.Black))
                 }
             }

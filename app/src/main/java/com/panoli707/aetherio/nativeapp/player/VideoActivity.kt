@@ -143,8 +143,13 @@ class VideoActivity : ComponentActivity() {
         restoredSession = savedInstanceState != null
         watchTarget = WatchProgressCodec.decodeTarget(intent.getStringExtra(EXTRA_WATCH_TARGET))?.let(SeriesIdentity.index::target)
         title = cleanLabel(intent.getStringExtra(EXTRA_TITLE)) ?: "Reproductor"
-        screen = VideoUiState(title = title.toString(), subtitle = cleanLabel(intent.getStringExtra(EXTRA_PROVIDER)).orEmpty(),
-            animeEpisode = watchTarget?.let { it.item.isAnime && it.episode != null && (it.season ?: 0) >= 1 } == true)
+        screen = VideoUiState(title = watchTarget?.episodeTitle?.takeIf { it.isNotBlank() }
+            ?: watchTarget?.item?.title ?: title.toString(), subtitle = cleanLabel(intent.getStringExtra(EXTRA_PROVIDER)).orEmpty(),
+            animeEpisode = watchTarget?.let { it.item.isAnime && it.episode != null && (it.season ?: 0) >= 1 } == true,
+            volume = savedInstanceState?.getFloat(STATE_VOLUME, 1f)?.coerceIn(0f, 1f) ?: 1f,
+            episodeLabel = watchTarget?.let { target -> target.season?.let { "T$it · E${target.episode}" } }.orEmpty(),
+            posterUrl = watchTarget?.item?.posterUrl,
+            overview = intent.getStringExtra(EXTRA_OVERVIEW)?.take(4000)?.trim().orEmpty())
         watchTarget?.takeIf { screen.animeEpisode }?.let { target -> lifecycleScope.launch {
             val segments = OpeningRepository().segments(SeriesIdentity.externalTarget(target))
             screen = screen.copy(opening = segments?.opening, ending = segments?.ending)
@@ -170,6 +175,11 @@ class VideoActivity : ComponentActivity() {
                 PlayerScreen(screen, intent.getBooleanExtra(EXTRA_HAS_SOURCES, false), ::onAction,
                     onSeek = { player?.takeIf { it.isCurrentMediaItemSeekable }?.seekTo(it) },
                     onSpeed = { player?.setPlaybackSpeed(it) }, onTrack = ::selectTrack,
+                    onVolume = { value ->
+                        val volume = value.coerceIn(0f, 1f)
+                        screen = screen.copy(volume = volume)
+                        player?.volume = volume
+                    },
                     video = { mode -> AndroidView(
                         factory = { context -> PlayerView(context).apply {
                             useController = false
@@ -228,6 +238,7 @@ class VideoActivity : ComponentActivity() {
         outState.putLong(STATE_POSITION, resumePosition)
         outState.putBoolean(STATE_PLAY_WHEN_READY, resumePlayWhenReady)
         outState.putInt(STATE_ORIENTATION, requestedOrientation)
+        outState.putFloat(STATE_VOLUME, screen.volume)
         super.onSaveInstanceState(outState)
     }
 
@@ -314,6 +325,7 @@ class VideoActivity : ComponentActivity() {
             val source = torrentRoute?.let { TorrentDataSourceFactory(it, remoteSource) } ?: remoteSource
             val active = ExoPlayer.Builder(this).setMediaSourceFactory(DefaultMediaSourceFactory(source)).build()
             player = active
+            active.volume = screen.volume
             active.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
                 .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(), true)
             active.setHandleAudioBecomingNoisy(true)
@@ -459,6 +471,7 @@ class VideoActivity : ComponentActivity() {
         const val EXTRA_URL = "com.panoli707.aetherio.nativeapp.player.URL"
         const val EXTRA_TORRENT_REQUEST = "com.panoli707.aetherio.nativeapp.player.TORRENT_REQUEST"
         const val EXTRA_TITLE = "com.panoli707.aetherio.nativeapp.player.TITLE"
+        const val EXTRA_OVERVIEW = "com.panoli707.aetherio.nativeapp.player.OVERVIEW"
         const val EXTRA_MIME = "com.panoli707.aetherio.nativeapp.player.MIME"
         const val EXTRA_HEADERS = "com.panoli707.aetherio.nativeapp.player.HEADERS"
         const val EXTRA_DESKTOP_HTTP = "com.panoli707.aetherio.nativeapp.player.DESKTOP_HTTP"
@@ -473,5 +486,6 @@ class VideoActivity : ComponentActivity() {
         private const val STATE_PLAY_WHEN_READY = "player.playWhenReady"
         private const val STATE_LIVE = "player.live"
         private const val STATE_ORIENTATION = "player.orientation"
+        private const val STATE_VOLUME = "player.volume"
     }
 }

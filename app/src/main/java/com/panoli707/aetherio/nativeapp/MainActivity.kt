@@ -91,6 +91,7 @@ class MainActivity : ComponentActivity() {
                     val watchTarget = model.playbackTarget(source.addonId in setOf("pc:animeav1", "pc:animes"))
                     val target = Intent(this, VideoActivity::class.java)
                         .putExtra(VideoActivity.EXTRA_TITLE, title)
+                        .putExtra(VideoActivity.EXTRA_OVERVIEW, query?.item?.overview?.take(4000))
                         .putExtra(VideoActivity.EXTRA_PROVIDER, source.addonName)
                         .putExtra(VideoActivity.EXTRA_HAS_SOURCES, query != null)
                         .putExtra(VideoActivity.EXTRA_WATCH_TARGET, watchTarget?.let(WatchProgressCodec::encodeTarget))

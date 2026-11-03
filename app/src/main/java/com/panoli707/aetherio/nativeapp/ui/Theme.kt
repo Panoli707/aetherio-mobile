@@ -18,6 +18,9 @@ internal val Aqua = Color(0xFF55E6D1)
 internal val Violet = Color(0xFFB39AFF)
 internal val Coral = Color(0xFFFF927D)
 internal val Rating = Aqua
+internal val Accent = Color(0xFFA78BFA)
+internal val Outline = Color(0xFF777786)
+internal const val GlassPanelAlpha = .94f
 
 @Composable
 internal fun AetherioTheme(content: @Composable () -> Unit) {

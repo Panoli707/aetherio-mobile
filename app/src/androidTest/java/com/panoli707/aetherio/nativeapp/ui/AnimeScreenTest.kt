@@ -67,6 +67,35 @@ class AnimeScreenTest {
         compose.runOnIdle { assertEquals(EpisodeWatchScope.SEASON to true, marked); assertFalse(played) }
     }
 
+    @Test fun failedRefreshDoesNotShowAnEmptyFilterAndRetryCanRestoreTheSeason() {
+        val state = mutableStateOf(AnimeSeasonState(AnimeSeason(2026, "FALL"), loaded = true, error = "AniList está tardando demasiado"))
+        val entry = SeasonalAnime(anime, AnimeWeekday.MONDAY, 3, 1793973600)
+        var retried = false
+        compose.setContent { AetherioTheme {
+            SeasonalAnimeScreen(state.value, rememberLazyListState(), {}, {}, {
+                retried = true
+                state.value = state.value.copy(entries = listOf(entry), error = null, loaded = true)
+            }, "MONDAY", {})
+        } }
+        compose.onNodeWithText("Sin emisiones para este filtro").assertDoesNotExist()
+        compose.onNodeWithText("Reintentar").performScrollTo().performClick()
+        compose.runOnIdle { assertTrue(retried) }
+        compose.onNodeWithText("No se pudo actualizar la temporada").assertDoesNotExist()
+        compose.onNodeWithText(anime.title).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun updateFailureKeepsPreviousPostersAccessibleBelowTheWarning() {
+        val state = AnimeSeasonState(AnimeSeason(2026, "FALL"),
+            entries = listOf(SeasonalAnime(anime, AnimeWeekday.MONDAY, 3, 1793973600)),
+            loaded = true, error = "Sin conexión")
+        compose.setContent { AetherioTheme {
+            SeasonalAnimeScreen(state, rememberLazyListState(), {}, {}, {}, "all", {})
+        } }
+        compose.onNodeWithText("No se pudo actualizar la temporada").assertExists()
+        compose.onNodeWithText("Sin emisiones para este filtro").assertDoesNotExist()
+        compose.onNodeWithText(anime.title).performScrollTo().assertIsDisplayed()
+    }
+
     @Test fun calendarStartsOnMondayAndKeepsTheChosenDayAfterOpeningAndClosingADetail() {
         val monday = anime.copy(id = "900000001", title = "Anime lunes")
         val friday = anime.copy(id = "900000002", title = "Anime viernes")

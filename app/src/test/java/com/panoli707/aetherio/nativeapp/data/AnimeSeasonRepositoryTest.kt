@@ -50,7 +50,7 @@ class AnimeSeasonRepositoryTest {
 
     @Test fun aFailedSecondPageIsNotExposedOrCachedAsACompleteCurrentSeason() = runBlocking {
         var count = 0
-        val client = client { request -> count++; if (variables(request).getInt("page") == 1) 200 to page(true, 1) else 429 to "{}" }
+        val client = client { request -> count++; if (variables(request).getInt("page") == 1) 200 to page(true, 1) else 400 to "{}" }
         try {
             val repository = AnimeSeasonRepository(client)
             repeat(2) {

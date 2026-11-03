@@ -3,6 +3,7 @@ package com.panoli707.aetherio.nativeapp.ui
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -51,6 +52,18 @@ class AiringAnimeDesignTest {
         } }
         compose.onNodeWithText("Reintentar").performClick()
         compose.runOnIdle { assertTrue(retried) }
+    }
+
+    @Test fun retryRestoresHomeCoversAndRemovesTheFailureMessage() {
+        val state = mutableStateOf(AnimeSeasonState(error = "Sin conexión"))
+        compose.setContent { AetherioTheme {
+            AiringAnimeSection(state.value, {}, {}, {
+                state.value = AnimeSeasonState(entries = listOf(SeasonalAnime(anime, null, null, null)), loaded = true)
+            })
+        } }
+        compose.onNodeWithText("Reintentar").performClick()
+        compose.onNodeWithText("No se pudieron actualizar las emisiones").assertDoesNotExist()
+        compose.onNodeWithText(anime.title).assertExists()
     }
 
     @Test fun sharedThemeUsesTheApprovedDetailPaletteForAllSurfacesAndControls() {

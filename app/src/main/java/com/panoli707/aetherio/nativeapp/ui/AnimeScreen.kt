@@ -109,12 +109,18 @@ internal fun SeasonalAnimeScreen(state: AnimeSeasonState, scroll: LazyListState,
                 FilterChip(selected = day == key, onClick = { onDay(key) }, label = { Text(label) })
             }
         }
-        if (state.error != null) StatusMessage("No se pudo actualizar la temporada", state.error, "Reintentar", onRetry)
-        if (state.loading && state.entries.isEmpty()) LoadingRow("Consultando la temporada actual…")
-        else if (entries.isEmpty() && state.loaded) StatusMessage("Sin emisiones para este filtro", "No hay animes en emisión de ${state.season.label} con ese horario confirmado.")
-        else BoxWithConstraints(Modifier.weight(1f)) {
+        BoxWithConstraints(Modifier.weight(1f)) {
             val columns = (maxWidth.value / 150).toInt().coerceIn(2, 5)
             LazyColumn(state = scroll, contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (state.error != null) item(key = "seasonError") {
+                    StatusMessage("No se pudo actualizar la temporada", state.error, "Reintentar", onRetry)
+                }
+                if (state.loading && state.entries.isEmpty()) item(key = "seasonLoading") {
+                    LoadingRow("Consultando la temporada actual…")
+                }
+                else if (entries.isEmpty() && state.loaded && state.error == null && !state.loading) item(key = "seasonEmpty") {
+                    StatusMessage("Sin emisiones para este filtro", "No hay animes en emisión de ${state.season.label} con ese horario confirmado.")
+                }
                 items(entries.chunked(columns), key = { row -> row.first().item.key }) { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                         row.forEach { entry -> Column(Modifier.weight(1f)) {

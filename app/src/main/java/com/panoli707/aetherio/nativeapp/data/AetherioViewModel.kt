@@ -1,8 +1,10 @@
 package com.panoli707.aetherio.nativeapp.data
 
 import android.app.Application
+import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.panoli707.aetherio.nativeapp.BuildConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.Dispatchers
@@ -37,7 +39,9 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private var sourceJob: Job? = null
     private var addonRestoreJob: Job? = null
     private var playbackQuery: SourceQuery? = null
-    private var animeSeasonJob: Job? = null
+    private val animeSeasonLoader = AnimeSeasonLoader(viewModelScope, { animeRepository.season(it) },
+        { change -> mutableState.update { it.copy(animeSeason = change(it.animeSeason)) } },
+        { error -> if (BuildConfig.DEBUG) Log.w("AnimeCalendar", (error as? AnimeCalendarException)?.diagnostic ?: "kind=UNKNOWN") })
     private var addonRestoreFailed = false
 
     fun rememberPlaybackQuery(fromSources: Boolean) {
@@ -78,18 +82,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun loadAnimeSeason() {
-        if (animeSeasonJob?.isActive == true) return
-        animeSeasonJob = viewModelScope.launch {
-            val season = AnimeSeason.current()
-            mutableState.update { it.copy(animeSeason = if (it.animeSeason.season == season)
-                it.animeSeason.copy(loading = true, error = null) else AnimeSeasonState(season, loading = true)) }
-            try {
-                val entries = animeRepository.season(season)
-                mutableState.update { it.copy(animeSeason = AnimeSeasonState(season, entries, loaded = true)) }
-            } catch (e: CancellationException) { throw e }
-            catch (_: Exception) { mutableState.update { it.copy(animeSeason = it.animeSeason.copy(loading = false,
-                error = "No se pudo actualizar la temporada de anime. Inténtalo de nuevo.")) } }
-        }
+        animeSeasonLoader.load()
     }
 
     fun playbackTarget(animeSource: Boolean): WatchTarget? {

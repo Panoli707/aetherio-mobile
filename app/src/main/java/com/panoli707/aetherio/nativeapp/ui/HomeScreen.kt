@@ -40,6 +40,7 @@ import coil.compose.AsyncImage
 import com.panoli707.aetherio.nativeapp.data.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 @Composable
 internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerState, active: Boolean,
@@ -150,7 +151,7 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
                             .padding(horizontal = 24.dp).padding(bottom = 18.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             HeroTitle(item, compact = !portrait)
-                            Metadata(item, centered = true)
+                            HeroMetadata(item)
                             if (item.overview.isNotBlank()) Text(item.overview, style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis,
                                 color = Cream.copy(alpha = .9f))
@@ -168,6 +169,32 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
             for (index in start until minOf(start + 7, heroes.size)) {
                 Box(Modifier.padding(horizontal = 4.dp).size(width = if (index == pager.currentPage) 22.dp else 5.dp, height = 5.dp)
                     .background(if (index == pager.currentPage) Aqua else Violet.copy(alpha = .35f), CircleShape))
+            }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun HeroMetadata(item: MediaItem) {
+    val details = listOf(item.year, item.genres.firstOrNull().orEmpty(), item.certification.orEmpty())
+        .filter(String::isNotBlank)
+    FlowRow(Modifier.fillMaxWidth().testTag("homeHeroMetadata"),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (item.score.isFinite() && item.score > 0) {
+            Text(String.format(Locale.forLanguageTag("es"), "%.1f", item.score), color = Rating,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.semantics { contentDescription = "Valoración ${item.score} sobre 10" })
+        }
+        item.voteCount?.takeIf { it > 0 }?.let { votes ->
+            Text(votes.toString(), color = Muted.copy(alpha = .75f), style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.semantics { contentDescription = "$votes votos" })
+        }
+        details.forEachIndexed { index, detail ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (index > 0) Text("·", color = Muted, style = MaterialTheme.typography.bodySmall)
+                Text(detail, color = Muted, style = MaterialTheme.typography.bodySmall)
             }
         }
     }

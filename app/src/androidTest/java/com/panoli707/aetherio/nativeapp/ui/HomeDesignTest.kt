@@ -20,6 +20,32 @@ class HomeDesignTest {
         overview = "Una aventura en el bosque.", year = "2026", score = 6.7)
     private val second = movie.copy(id = "900000002", title = "Segunda película")
 
+    @Test fun featuredMetadataShowsRatingVotesYearGenreAndAgeRatingUnderTheTitle() {
+        compose.setContent { AetherioTheme {
+            HomeScreen(AppState(heroes = listOf(movie.copy(voteCount = 58, genres = listOf("Terror"),
+                certification = "16 (ES)")), homeLoading = false), rememberLazyListState(),
+                rememberPagerState { 1 }, false, {}, {}, {})
+        } }
+        compose.onNodeWithTag("homeHeroMetadata", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("6,7", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription("58 votos", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("2026", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("Terror", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("16 (ES)", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText(movie.overview, useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test fun missingFeaturedMetadataDoesNotShowFakeRatingsOrVotes() {
+        compose.setContent { AetherioTheme {
+            HomeScreen(AppState(heroes = listOf(movie.copy(score = 0.0, year = "")), homeLoading = false),
+                rememberLazyListState(), rememberPagerState { 1 }, false, {}, {}, {})
+        } }
+        compose.onNodeWithText("0,0", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithContentDescription("0 votos", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText("NR", useUnmergedTree = true).assertDoesNotExist()
+        compose.onNodeWithText(movie.title).assertIsDisplayed()
+    }
+
     @Test fun profileDoesNotAdvanceTheCarouselOrOpenTheMovie() {
         lateinit var pager: PagerState
         var profileOpened = false

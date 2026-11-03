@@ -150,7 +150,7 @@ class AetherioRepositoryTest {
         }
     }
 
-    @Test fun searchDetailSeasonAndHeroImagesUseAuthorizationWithoutApiKey() = runBlocking {
+    @Test fun searchDetailSeasonAndHeroMetadataUseAuthorizationWithoutApiKey() = runBlocking {
         TlsFixture().use { fixture ->
             val repository = fixture.repository()
             fixture.server.enqueue(MockResponse().setBody(CATALOG))
@@ -170,10 +170,17 @@ class AetherioRepositoryTest {
             assertEquals(listOf(EpisodeItem(1, 1, "Pilot", airedOn = "2008-01-20")), repository.episodes(series, 1))
             authenticated(fixture.request(), "/3/tv/1396/season/1")
 
-            fixture.server.enqueue(MockResponse().setBody(LOGOS))
-            assertEquals("https://image.tmdb.org/t/p/w500/logo.png", repository.heroes(listOf(movie)).single().logoUrl)
+            fixture.server.enqueue(MockResponse().setBody(HERO_DETAIL))
+            val hero = repository.heroes(listOf(movie)).single()
+            assertEquals("https://image.tmdb.org/t/p/w500/logo.png", hero.logoUrl)
+            assertEquals("2026", hero.year)
+            assertEquals(6.4, hero.score, 0.0)
+            assertEquals(58, hero.voteCount)
+            assertEquals(listOf("Terror"), hero.genres)
+            assertEquals("16 (ES)", hero.certification)
             val images = fixture.request()
-            authenticated(images, "/3/movie/550/images", language = false)
+            authenticated(images, "/3/movie/550")
+            assertEquals("images,release_dates", images.requestUrl!!.queryParameter("append_to_response"))
             assertEquals("es,en,null", images.requestUrl!!.queryParameter("include_image_language"))
             assertEquals(0, fixture.externalRequests.size)
         }
@@ -191,17 +198,41 @@ class AetherioRepositoryTest {
                 assertNull(request.getHeader("Authorization"))
                 assertNull(request.requestUrl!!.queryParameter("api_key"))
             }
-            repeat(4) { fixture.server.enqueue(MockResponse().setBody(LOGOS)) }
+            repeat(4) { fixture.server.enqueue(MockResponse().setBody(HERO_DETAIL)) }
             assertEquals(4, repository.heroes(List(5) { movie }).size)
             repeat(4) {
                 val request = fixture.request()
-                assertEquals("/api/tmdb/movie/550/images", request.requestUrl!!.encodedPath)
+                assertEquals("/api/tmdb/movie/550", request.requestUrl!!.encodedPath)
                 assertNull(request.getHeader("Authorization"))
             }
             val cine = movie.copy(id = "tt0137523", source = CatalogSource.CINEMETA)
             val withLogo = movie.copy(logoUrl = "https://image.tmdb.org/t/p/w500/logo.png")
-            assertEquals(listOf(cine, withLogo), repository.heroes(listOf(cine, withLogo)))
-            assertEquals(6, fixture.server.requestCount)
+            fixture.server.enqueue(MockResponse().setBody(HERO_DETAIL))
+            val heroes = repository.heroes(listOf(cine, withLogo))
+            assertEquals(listOf(cine.key, withLogo.key), heroes.map { it.key })
+            assertEquals(listOf("Terror"), heroes.last().genres)
+            assertEquals(7, fixture.server.requestCount)
+            assertEquals("v3-cinemeta.strem.io", fixture.externalRequests.single().url.host)
+            assertNull(fixture.externalRequests.single().header("Authorization"))
+        }
+    }
+
+    @Test fun missingOrMismatchedHeroDetailsKeepExistingMetadataAndSeriesUseContentRatings() = runBlocking {
+        TlsFixture().use { fixture ->
+            val repository = fixture.repository()
+            val existing = movie.copy(score = 7.2, year = "2025", genres = listOf("Drama"), voteCount = 12)
+            fixture.server.enqueue(MockResponse().setResponseCode(503))
+            assertEquals(existing, repository.heroes(listOf(existing)).single())
+            fixture.request()
+            fixture.server.enqueue(MockResponse().setBody("""{"id":999,"title":"Wrong movie"}"""))
+            assertEquals(existing, repository.heroes(listOf(existing)).single())
+            fixture.request()
+            fixture.server.enqueue(MockResponse().setBody("""{"id":1396,"name":"Breaking Bad",
+                "genres":[{"name":"Drama"}],"content_ratings":{"results":[{"iso_3166_1":"US","rating":"TV-MA"}]}}"""))
+            assertEquals("TV-MA (US)", repository.heroes(listOf(series)).single().certification)
+            val request = fixture.request()
+            authenticated(request, "/3/tv/1396")
+            assertEquals("images,content_ratings", request.requestUrl!!.queryParameter("append_to_response"))
         }
     }
 
@@ -311,7 +342,10 @@ class AetherioRepositoryTest {
         const val CATALOG = """{"results":[{"id":550,"media_type":"movie","title":"Fight Club","name":"Fight Club"}]}"""
         const val DETAIL = """{"id":550,"title":"Fight Club","external_ids":{"imdb_id":"tt0137523"}}"""
         const val EPISODES = """{"episodes":[{"episode_number":1,"name":"Pilot","air_date":"2008-01-20"}]}"""
-        const val LOGOS = """{"logos":[{"iso_639_1":"es","file_path":"/logo.png"}]}"""
+        const val HERO_DETAIL = """{"id":550,"title":"Fight Club","release_date":"2026-01-02",
+            "vote_average":6.4,"vote_count":58,"genres":[{"id":27,"name":"Terror"}],
+            "images":{"logos":[{"iso_639_1":"es","file_path":"/logo.png"}]},
+            "release_dates":{"results":[{"iso_3166_1":"ES","release_dates":[{"certification":"16"}]}]}}"""
         const val CINEMETA_CATALOG = """{"metas":[{"id":"tt0137523","name":"Fight Club"}]}"""
         const val CINEMETA_DETAIL = """{"meta":{"id":"tt0137523","name":"Fight Club","videos":[{"season":1,"episode":1,"title":"Pilot","released":"2008-01-20T00:00:00Z"}]}}"""
     }

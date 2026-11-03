@@ -79,13 +79,18 @@ internal object DetailMetadata {
         }.distinctBy { it.id }.take(20)
         val related = CatalogJson.catalog(json.optJSONObject("recommendations") ?: JSONObject(), detail.item.type, CatalogSource.TMDB)
             .filter { it.key != detail.item.key }.take(20)
-        val ratings = if (detail.item.type == MediaType.SERIES) objects(json.optJSONObject("content_ratings")?.optJSONArray("results"))
+        return detail.copy(trailers = trailers, facts = facts, availability = availability, reviews = reviews, related = related,
+            voteCount = json.optInt("vote_count", 0).takeIf { it > 0 } ?: detail.item.voteCount,
+            certification = certification(json, detail.item.type) ?: detail.item.certification)
+    }
+
+    fun certification(json: JSONObject, type: MediaType): String? {
+        val ratings = if (type == MediaType.SERIES) objects(json.optJSONObject("content_ratings")?.optJSONArray("results"))
             .mapNotNull { value -> text(value, "rating").takeIf(String::isNotBlank)?.let { text(value, "iso_3166_1") to it } }
         else objects(json.optJSONObject("release_dates")?.optJSONArray("results")).flatMap { country ->
             objects(country.optJSONArray("release_dates")).mapNotNull { value -> text(value, "certification").takeIf(String::isNotBlank)?.let { text(country, "iso_3166_1") to it } }
         }
         val rating = ratings.sortedBy { when (it.first) { "ES" -> 0; "US" -> 1; else -> 2 } }.firstOrNull()
-        return detail.copy(trailers = trailers, facts = facts, availability = availability, reviews = reviews, related = related,
-            voteCount = json.optInt("vote_count", 0).takeIf { it > 0 }, certification = rating?.let { "${it.second} (${it.first})" })
+        return rating?.let { "${it.second} (${it.first})" }
     }
 }

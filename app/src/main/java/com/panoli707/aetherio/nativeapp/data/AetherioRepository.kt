@@ -126,8 +126,14 @@ internal class AetherioRepository(
     }
     suspend fun heroes(items: List<MediaItem>): List<MediaItem> = supervisorScope {
         items.take(4).map { item -> async {
-            if (item.source != CatalogSource.TMDB || item.logoUrl != null) item else optional {
-                item.copy(logoUrl = CatalogJson.logo(json("$tmdb/${item.type.path}/${item.id}/images", mapOf("include_image_language" to "es,en,null"))))
+            if (item.source == CatalogSource.ANILIST) item else optional {
+                // Trending results omit named genres and age ratings, even when they already have a logo.
+                val data = if (item.source == CatalogSource.TMDB) tmdb("${item.type.path}/${item.id}", mapOf(
+                    "append_to_response" to "images,${if (item.type == MediaType.SERIES) "content_ratings" else "release_dates"}",
+                    "include_image_language" to "es,en,null"))
+                else requireNotNull(json("$cinemeta/meta/${cineType(item.type)}/${item.id}.json").optJSONObject("meta"))
+                check(CatalogJson.text(data, "id") == item.id)
+                CatalogJson.detail(item, data).item
             } ?: item
         } }.awaitAll()
     }

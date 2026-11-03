@@ -45,7 +45,9 @@ internal object CatalogJson {
             text(json, if (tmdb) "overview" else "description"), Regex("[0-9]{4}").find(date)?.value.orEmpty(), score,
             if (tmdb) objects(json.optJSONArray("genres")).mapNotNull { text(it, "name").takeIf(String::isNotEmpty) }
             else strings(json.optJSONArray("genres")), anime,
-            if (tmdb) imdb(text(json.optJSONObject("external_ids") ?: JSONObject(), "imdb_id")) else imdb(id))
+            if (tmdb) imdb(text(json.optJSONObject("external_ids") ?: JSONObject(), "imdb_id")) else imdb(id),
+            voteCount = if (tmdb) json.optInt("vote_count", 0).takeIf { it > 0 } else null,
+            certification = if (tmdb) DetailMetadata.certification(json, type) else null)
     }
     fun catalog(json: JSONObject, type: MediaType, source: CatalogSource, anime: Boolean = false): List<MediaItem> =
         objects(json.optJSONArray(if (source == CatalogSource.TMDB) "results" else "metas"))
@@ -63,7 +65,8 @@ internal object CatalogJson {
             year = parsed.year.ifEmpty { base.year }, score = parsed.score.takeIf { it > 0 } ?: base.score,
              genres = parsed.genres.ifEmpty { base.genres }, imdbId = parsed.imdbId ?: base.imdbId,
               episodeCount = json.optInt("number_of_episodes", 0).takeIf { it > 0 } ?: base.episodeCount,
-              seasonHint = base.seasonHint, animeEntryId = base.animeEntryId, seriesNumbering = base.seriesNumbering)
+               seasonHint = base.seasonHint, animeEntryId = base.animeEntryId, seriesNumbering = base.seriesNumbering,
+               voteCount = parsed.voteCount ?: base.voteCount, certification = parsed.certification ?: base.certification)
     }
     fun episodes(json: JSONObject, season: Int, cinemeta: Boolean = false): List<EpisodeItem> =
         objects(json.optJSONArray(if (cinemeta) "videos" else "episodes")).mapNotNull {
@@ -104,7 +107,8 @@ internal object CatalogJson {
             put("genres", JSONArray(item.genres)); put("anime", item.isAnime)
             put("imdb", item.imdbId)
             put("episodeCount", item.episodeCount); put("animeSeasonLabel", item.animeSeasonLabel)
-            put("seasonHint", item.seasonHint); put("animeEntryId", item.animeEntryId); put("seriesNumbering", item.seriesNumbering)
+             put("seasonHint", item.seasonHint); put("animeEntryId", item.animeEntryId); put("seriesNumbering", item.seriesNumbering)
+             put("voteCount", item.voteCount); put("certification", item.certification)
         }) }
     }.toString()
     fun decode(raw: String): List<MediaItem> = runCatching {
@@ -119,7 +123,8 @@ internal object CatalogJson {
                 json.optDouble("imdbRating", 0.0).takeIf { it.isFinite() } ?: 0.0, strings(json.optJSONArray("genres")), json.optBoolean("anime"), imdb(text(json, "imdb")),
                 json.optInt("episodeCount", 0).takeIf { it in 1..100000 }, text(json, "animeSeasonLabel").take(40),
                 json.optInt("seasonHint", 0).takeIf { it in 1..1000 }, text(json, "animeEntryId").takeIf { it.matches(Regex("[0-9]{1,12}")) },
-                json.optBoolean("seriesNumbering"))
+                json.optBoolean("seriesNumbering"), json.optInt("voteCount", 0).takeIf { it > 0 },
+                text(json, "certification").takeIf(String::isNotBlank))
         }.distinctBy { it.key }
     }.getOrDefault(emptyList())
 }

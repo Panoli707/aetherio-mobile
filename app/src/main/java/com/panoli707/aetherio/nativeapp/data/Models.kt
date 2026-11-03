@@ -26,7 +26,9 @@ data class MediaItem(
     val animeSeasonLabel: String = "",
     val seasonHint: Int? = null,
     val animeEntryId: String? = null,
-    val seriesNumbering: Boolean = false
+    val seriesNumbering: Boolean = false,
+    val voteCount: Int? = null,
+    val certification: String? = null
 ) {
     val key: String get() = "${source.name}:${type.path}:$id"
 }

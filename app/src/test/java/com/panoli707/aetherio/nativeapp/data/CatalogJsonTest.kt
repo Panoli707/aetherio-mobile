@@ -5,6 +5,35 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CatalogJsonTest {
+    @Test fun featuredMetadataIncludesRealVotesAgeRatingAndGenresAndSurvivesPersistence() {
+        val detail = CatalogJson.detail(MediaItem("550", MediaType.MOVIE, "Película"), JSONObject("""{
+            "id":550,"title":"Película","vote_average":6.4,"vote_count":58,"release_date":"2026-01-01",
+            "genres":[{"id":27,"name":"Terror"}],"release_dates":{"results":[
+                {"iso_3166_1":"US","release_dates":[{"certification":"R"}]},
+                {"iso_3166_1":"ES","release_dates":[{"certification":"16"}]}]}}"""))
+        val item = detail.item
+        assertEquals(58, item.voteCount)
+        assertEquals("16 (ES)", item.certification)
+        assertEquals(listOf("Terror"), item.genres)
+        assertEquals("2026", item.year)
+        assertEquals(detail.voteCount, item.voteCount)
+        assertEquals(detail.certification, item.certification)
+        assertEquals(item, CatalogJson.decode(CatalogJson.encode(listOf(item))).single())
+        val incomplete = CatalogJson.detail(item, JSONObject("""{"id":550,"vote_count":-1}""")).item
+        assertEquals(item.voteCount, incomplete.voteCount)
+        assertEquals(item.certification, incomplete.certification)
+    }
+
+    @Test fun absentFeaturedMetadataDoesNotInventVotesOrAnAgeRating() {
+        val item = CatalogJson.item(JSONObject("""{"id":550,"title":"Película","vote_count":0}"""),
+            MediaType.MOVIE, CatalogSource.TMDB)!!
+        assertNull(item.voteCount)
+        assertNull(item.certification)
+        val old = CatalogJson.decode("""[{"id":"550","type":"MOVIE","source":"TMDB","name":"Película"}]""").single()
+        assertNull(old.voteCount)
+        assertNull(old.certification)
+    }
+
     @Test fun resolvesAndPersistsImdbWithoutChangingCatalogIdentity() {
         val base = MediaItem("10378", MediaType.MOVIE, "Big Buck Bunny")
         val detail = CatalogJson.detail(base, JSONObject("""{"id":10378,"title":"Big Buck Bunny","external_ids":{"imdb_id":"tt1254207"}}"""))

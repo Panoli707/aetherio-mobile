@@ -33,15 +33,15 @@ data class StreamSource(
     val rawStream: String = "{}"
 ) {
     val isTorrent: Boolean get() = infoHash != null || url.startsWith("magnet:", true)
-    val playable: Boolean get() = !isTorrent && url.isNotEmpty()
+    val playable: Boolean get() = isTorrent || url.isNotEmpty()
 }
 
 data class StreamSubtitle(val id: String, val url: String, val lang: String, val mimeType: String? = null)
 
-/** No torrent engine is bundled. A magnet/infoHash must never reach Media3's HTTP datasource. */
+/** Torrents have a separate session resolver; a magnet/infoHash must never reach the HTTP datasource. */
 internal object SourcePlayback {
     fun httpUrl(source: StreamSource): String {
-        require(!source.isTorrent) { "Esta versión de Mobile no tiene motor torrent" }
+        require(!source.isTorrent) { "El torrent requiere una sesión del motor, no una URL HTTP directa" }
         return com.panoli707.aetherio.nativeapp.player.MediaUrlPolicy.validate(source.url, source.allowDesktopHttp)
     }
 }

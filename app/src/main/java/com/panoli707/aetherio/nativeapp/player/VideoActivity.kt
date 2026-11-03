@@ -44,6 +44,8 @@ import com.panoli707.aetherio.nativeapp.data.WatchHistoryRepository
 import com.panoli707.aetherio.nativeapp.data.WatchProgressCodec
 import com.panoli707.aetherio.nativeapp.data.WatchTarget
 import com.panoli707.aetherio.nativeapp.data.SeriesIdentity
+import com.panoli707.aetherio.nativeapp.AetherioApplication
+import com.panoli707.aetherio.nativeapp.player.torrent.*
 import java.io.IOException
 import java.util.Locale
 import kotlinx.coroutines.Job
@@ -65,6 +67,12 @@ class VideoActivity : ComponentActivity() {
     private var mediaIsLive = false
     private var ticker: Job? = null
     private var startJob: Job? = null
+    private var torrentRequest: TorrentRequest? = null
+    private var torrentSession: TorrentSessionManager.Session? = null
+    private var torrentRoute: TorrentRoute? = null
+    private var torrentJob: Job? = null
+    private var lastTorrentProgress = 0L
+    private var lastTorrentProgressAt = 0L
     private var watchTarget: WatchTarget? = null
     private val history by lazy { WatchHistoryRepository.get(application) }
     private var progressInitialized = false
@@ -103,7 +111,7 @@ class VideoActivity : ComponentActivity() {
         override fun onPlaybackStateChanged(state: Int) {
             AndroidLog.i(TAG, "stateInt=$state")
             if (state == Player.STATE_READY) sessionReady = true
-            if (state == Player.STATE_ENDED) saveProgress(force = true, ended = true)
+            if (state == Player.STATE_ENDED) { saveProgress(force = true, ended = true); closeTorrent() }
         }
         override fun onPlayerError(error: PlaybackException) {
             saveProgress(force = true)
@@ -117,6 +125,7 @@ class VideoActivity : ComponentActivity() {
                 error.errorCode in 4000..4999 -> "Este formato de video o audio no es compatible con el dispositivo."
                 else -> "No se pudo reproducir esta fuente. Revisa la conexion o elige otra."
             })
+            if (torrentRequest != null) { releasePlayer(); closeTorrent() }
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         }
     }
@@ -141,13 +150,18 @@ class VideoActivity : ComponentActivity() {
             screen = screen.copy(opening = segments?.opening, ending = segments?.ending)
         } }
         mediaUrl = try {
-            allowDesktopHttp = intent.getBooleanExtra(EXTRA_DESKTOP_HTTP, false)
-            val headers = intent.getBundleExtra(EXTRA_HEADERS)
+            if (intent.hasExtra(EXTRA_TORRENT_REQUEST)) {
+                require(!intent.hasExtra(EXTRA_URL))
+                torrentRequest = TorrentRequest.decode(requireNotNull(intent.getStringExtra(EXTRA_TORRENT_REQUEST)))
+            }
+            allowDesktopHttp = torrentRequest == null && intent.getBooleanExtra(EXTRA_DESKTOP_HTTP, false)
+            val headers = if (torrentRequest == null) intent.getBundleExtra(EXTRA_HEADERS) else null
             playbackHeaders = PlaybackHeaders.validate(headers?.keySet()?.associateWith {
                 headers.getString(it) ?: throw IllegalArgumentException()
-            }.orEmpty(), intent.getBooleanExtra(EXTRA_PROVIDER_HEADERS, false))
-            MediaUrlPolicy.validate(intent.getStringExtra(EXTRA_URL).orEmpty(), allowDesktopHttp)
+            }.orEmpty(), torrentRequest == null && intent.getBooleanExtra(EXTRA_PROVIDER_HEADERS, false))
+            if (torrentRequest != null) null else MediaUrlPolicy.validate(intent.getStringExtra(EXTRA_URL).orEmpty(), allowDesktopHttp)
         } catch (_: RuntimeException) {
+            torrentRequest = null
             screen = screen.copy(error = "El enlace de video no es valido o no esta permitido.")
             null
         }
@@ -166,7 +180,7 @@ class VideoActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize(), onReset = null,
                         onRelease = { it.player = null },
                         update = { it.player = player; it.resizeMode = mode }
-                    ) })
+                     ) }, onTorrentFile = { index -> torrentSession?.selectFile(index) })
             }
         }
         hideSystemBars()
@@ -182,8 +196,8 @@ class VideoActivity : ComponentActivity() {
             }
             // onStart runs before Lifecycle dispatches ON_START; cancellation in onStop is the guard.
             if (!isActive || isFinishing) return@launch
-            startPlayer()
-            ticker = lifecycleScope.launch { while (isActive) { refreshState(); saveProgress(); delay(500) } }
+            preparePlayback()
+            ticker = lifecycleScope.launch { while (isActive) { refreshState(); saveProgress(); checkTorrentStall(); delay(500) } }
         }
     }
     override fun onPause() {
@@ -196,6 +210,7 @@ class VideoActivity : ComponentActivity() {
         ticker?.cancel()
         ticker = null
         releasePlayer()
+        closeTorrent()
         super.onStop()
     }
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -223,19 +238,80 @@ class VideoActivity : ComponentActivity() {
         }
     }
 
+    private fun preparePlayback() {
+        val request = torrentRequest
+        if (request == null) { startPlayer(); return }
+        closeTorrent()
+        screen = screen.copy(error = null, buffering = true, torrentLabel = "Iniciando motor", torrentFiles = emptyList(), torrentMetrics = null)
+        val session = (application as AetherioApplication).torrentSessions.open(request)
+        torrentSession = session
+        torrentJob = lifecycleScope.launch {
+            session.state.collect { state ->
+                if (torrentSession !== session) return@collect
+                when (state) {
+                    is TorrentState.Preparing -> screen = screen.copy(torrentLabel = state.label, buffering = true)
+                    is TorrentState.SelectFile -> screen = screen.copy(torrentLabel = "Selecciona el archivo", torrentFiles = state.files)
+                    is TorrentState.Ready -> {
+                        if (torrentRoute !== state.route) {
+                            torrentRoute = state.route
+                            mediaUrl = state.route.url
+                            lastTorrentProgressAt = SystemClock.elapsedRealtime()
+                            lastTorrentProgress = 0L
+                            screen = screen.copy(torrentLabel = null, torrentFiles = emptyList())
+                            startPlayer()
+                        }
+                        screen = screen.copy(torrentMetrics = state.metrics)
+                    }
+                    is TorrentState.Failed -> {
+                        releasePlayer()
+                        closeTorrent()
+                        screen = screen.copy(error = state.message, buffering = false, torrentLabel = null, torrentFiles = emptyList())
+                    }
+                    TorrentState.Closed -> Unit
+                }
+            }
+        }
+    }
+
+    private fun closeTorrent() {
+        torrentJob?.cancel()
+        torrentJob = null
+        torrentSession?.close()
+        torrentSession = null
+        torrentRoute = null
+        if (torrentRequest != null) mediaUrl = null
+        screen = screen.copy(torrentLabel = null, torrentFiles = emptyList(), torrentMetrics = null)
+    }
+
+    private fun checkTorrentStall() {
+        val active = player ?: return
+        if (torrentRoute == null) return
+        val now = SystemClock.elapsedRealtime()
+        val bytes = screen.torrentMetrics?.let { it.verifiedBytes + it.deliveredBytes } ?: 0L
+        if (!active.playWhenReady || active.playbackState != Player.STATE_BUFFERING || bytes != lastTorrentProgress) {
+            lastTorrentProgressAt = now
+            lastTorrentProgress = bytes
+        } else if (now - lastTorrentProgressAt >= 120_000) {
+            releasePlayer()
+            closeTorrent()
+            screen = screen.copy(error = "El torrent no está entregando datos. Reintenta o elige otra fuente.", buffering = false)
+        }
+    }
+
     private fun startPlayer() {
         val url = mediaUrl ?: return
         if (player != null) return
         screen = screen.copy(error = null, buffering = true, videoHeight = 0)
         sessionReady = false
         try {
-            val source = ResolvingDataSource.Factory(
+            val remoteSource = ResolvingDataSource.Factory(
                 OkHttpDataSource.Factory(httpClient).setDefaultRequestProperties(playbackHeaders)
             ) { spec ->
                 val validated = try { MediaUrlPolicy.validate(spec.uri.toString(), allowDesktopHttp) }
                 catch (_: IllegalArgumentException) { throw IOException("Destino de video no permitido") }
                 spec.withUri(Uri.parse(validated))
             }
+            val source = torrentRoute?.let { TorrentDataSourceFactory(it, remoteSource) } ?: remoteSource
             val active = ExoPlayer.Builder(this).setMediaSourceFactory(DefaultMediaSourceFactory(source)).build()
             player = active
             active.setAudioAttributes(AudioAttributes.Builder().setUsage(C.USAGE_MEDIA)
@@ -243,7 +319,7 @@ class VideoActivity : ComponentActivity() {
             active.setHandleAudioBecomingNoisy(true)
             active.addListener(listener)
             active.playWhenReady = resumePlayWhenReady
-            val mime = VideoFormat.entries.mapNotNull { it.mimeType }.firstOrNull { it == intent.getStringExtra(EXTRA_MIME) }
+            val mime = if (torrentRequest != null) null else VideoFormat.entries.mapNotNull { it.mimeType }.firstOrNull { it == intent.getStringExtra(EXTRA_MIME) }
             val subtitles = mutableListOf<MediaItem.SubtitleConfiguration>()
             val rawSubtitles = intent.getStringExtra(EXTRA_SUBTITLES)
             if (rawSubtitles != null && rawSubtitles.length <= 128 * 1024) runCatching {
@@ -261,6 +337,7 @@ class VideoActivity : ComponentActivity() {
             active.prepare()
         } catch (_: RuntimeException) {
             releasePlayer()
+            closeTorrent()
             screen = screen.copy(buffering = false, error = "No se pudo preparar el reproductor.")
         }
     }
@@ -268,15 +345,17 @@ class VideoActivity : ComponentActivity() {
     private fun onAction(action: VideoAction) {
         val active = player
         when (action) {
-            VideoAction.CLOSE -> { saveProgress(force = true); finish() }
+            VideoAction.CLOSE -> { saveProgress(force = true); releasePlayer(); closeTorrent(); finish() }
             VideoAction.FIND_SOURCES -> {
                 if (intent.getBooleanExtra(EXTRA_HAS_SOURCES, false)) {
                     saveProgress(force = true)
+                    releasePlayer()
+                    closeTorrent()
                     setResult(RESULT_OK, Intent().putExtra(EXTRA_FIND_SOURCES, true))
                     finish()
                 }
             }
-            VideoAction.RETRY -> { releasePlayer(); startPlayer() }
+            VideoAction.RETRY -> { releasePlayer(); preparePlayback() }
             VideoAction.TOGGLE_PLAY -> if (active?.isPlaying == true) active.pause() else active?.play()
             VideoAction.REWIND, VideoAction.FORWARD -> if (active?.isCurrentMediaItemSeekable == true) {
                 val target = active.currentPosition + if (action == VideoAction.REWIND) -10_000 else 10_000
@@ -378,6 +457,7 @@ class VideoActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_URL = "com.panoli707.aetherio.nativeapp.player.URL"
+        const val EXTRA_TORRENT_REQUEST = "com.panoli707.aetherio.nativeapp.player.TORRENT_REQUEST"
         const val EXTRA_TITLE = "com.panoli707.aetherio.nativeapp.player.TITLE"
         const val EXTRA_MIME = "com.panoli707.aetherio.nativeapp.player.MIME"
         const val EXTRA_HEADERS = "com.panoli707.aetherio.nativeapp.player.HEADERS"

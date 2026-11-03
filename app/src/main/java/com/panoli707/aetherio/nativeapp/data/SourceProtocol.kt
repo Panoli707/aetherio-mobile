@@ -286,7 +286,7 @@ internal object SourceProtocol {
                 if (requiresDrm(stream) || requiresDrm(hints)) invalid()
                 val headers = playbackHeaders(stream, hints, hub)
                 val infoHash = if (!stream.has("infoHash") || stream.isNull("infoHash")) null else
-                    (stream.opt("infoHash") as? String)?.takeIf { it.matches(Regex("[A-Fa-f0-9]{40}|[A-Z2-7a-z]{32}")) } ?: invalid()
+                    (stream.opt("infoHash") as? String)?.let(com.panoli707.aetherio.nativeapp.player.torrent.TorrentRequestParser::canonicalHash) ?: invalid()
                 val fileIdx = if (!stream.has("fileIdx") || stream.isNull("fileIdx")) null else {
                     val number = stream.opt("fileIdx") as? Number ?: invalid()
                     number.toInt().takeIf { it >= 0 && number.toDouble() == it.toDouble() } ?: invalid()
@@ -339,8 +339,8 @@ internal object SourceProtocol {
             val key = java.net.URLDecoder.decode(part.substringBefore('='), "UTF-8")
             if (key != "xt") null else java.net.URLDecoder.decode(part.substringAfter('=', ""), "UTF-8")
         }
-        val id = ids.singleOrNull()?.removePrefix("urn:btih:") ?: invalid()
-        return id.takeIf { it.matches(Regex("[A-Fa-f0-9]{40}|[A-Z2-7a-z]{32}")) } ?: invalid()
+        val id = ids.singleOrNull()?.takeIf { it.startsWith("urn:btih:", true) }?.substring(9) ?: invalid()
+        return com.panoli707.aetherio.nativeapp.player.torrent.TorrentRequestParser.canonicalHash(id)
     }
 
     private fun validated(config: AddonConfig): AddonConfig {

@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "AetherioMobile"
 include(":app")
+include(":torrent-engine")

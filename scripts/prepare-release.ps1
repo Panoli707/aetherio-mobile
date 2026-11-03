@@ -116,7 +116,8 @@ if ($values[0] -cmatch '=\(type 0x12\)0xffffffff\s*$') {
     if (-not $AllowEmbeddedTmdbReadToken) {
         throw 'El APK incluye una credencial TMDB extraible. Requiere autorizacion explicita con -AllowEmbeddedTmdbReadToken.'
     }
-    Write-Warning 'Publicacion autorizada con token de lectura TMDB incorporado. El token puede extraerse del APK.'
+    Write-Warning 'Publicacion autorizada con token de lectura TMDB incorporado. Aunque este ofuscado, el token puede extraerse del APK.'
+    & (Join-Path $PSScriptRoot 'check-tmdb-obfuscation.ps1') -ApkPath $sourceApk
 } elseif ($values[0] -cnotmatch '=\(type 0x12\)0x0\s*$') {
     throw 'El APK no permite confirmar la ausencia de credenciales privadas.'
 }

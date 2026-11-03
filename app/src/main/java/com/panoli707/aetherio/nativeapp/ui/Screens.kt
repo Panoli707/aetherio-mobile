@@ -133,6 +133,8 @@ internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink:
             Text("Reproduce un vídeo mediante su URL HTTPS directa. Solo enlaces propios o autorizados; " +
                 "esta opción es independiente de los proveedores configurados.", color = Muted)
             OutlinedButton(onClick = onLink) { Icon(Icons.Default.PlayArrow, null); Spacer(Modifier.width(8.dp)); Text("Reproducir por enlace") }
+            HorizontalDivider(Modifier.padding(vertical = 12.dp))
+            LicenseSettings()
         }
     }
 }

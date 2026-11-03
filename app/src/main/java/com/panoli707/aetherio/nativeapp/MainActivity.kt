@@ -16,6 +16,15 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import com.panoli707.aetherio.nativeapp.data.StreamSource
+import com.panoli707.aetherio.nativeapp.player.VideoFormat
+import com.panoli707.aetherio.nativeapp.player.torrent.TorrentRequestParser
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.panoli707.aetherio.nativeapp.data.AetherioViewModel
@@ -46,6 +55,7 @@ class MainActivity : ComponentActivity() {
             val state by model.state.collectAsStateWithLifecycle()
             val updates by updateModel.state.collectAsStateWithLifecycle()
             val activityState by lifecycle.currentStateFlow.collectAsStateWithLifecycle()
+            var pendingTorrent by remember { mutableStateOf<StreamSource?>(null) }
             val videoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 if (result.resultCode == RESULT_OK && result.data?.getBooleanExtra(VideoActivity.EXTRA_FIND_SOURCES, false) == true) {
                     model.reopenPlaybackSources()
@@ -68,6 +78,45 @@ class MainActivity : ComponentActivity() {
                         }
                     } catch (_: Exception) { updateModel.installationUnavailable() }
                 }
+            }
+            val launchSource: (StreamSource, VideoFormat) -> Unit = { source, format ->
+                try {
+                    val torrent = if (source.isTorrent) TorrentRequestParser.fromSource(source) else null
+                    val validated = if (torrent == null) SourcePlayback.httpUrl(source) else null
+                    val query = model.state.value.sourceQuery
+                    val title = query?.let {
+                        if (it.season != null && it.episode != null) "${it.item.title} · T${it.season} E${it.episode}" else it.item.title
+                    } ?: "Reproductor"
+                    model.rememberPlaybackQuery(fromSources = true)
+                    val watchTarget = model.playbackTarget(source.addonId in setOf("pc:animeav1", "pc:animes"))
+                    val target = Intent(this, VideoActivity::class.java)
+                        .putExtra(VideoActivity.EXTRA_TITLE, title)
+                        .putExtra(VideoActivity.EXTRA_PROVIDER, source.addonName)
+                        .putExtra(VideoActivity.EXTRA_HAS_SOURCES, query != null)
+                        .putExtra(VideoActivity.EXTRA_WATCH_TARGET, watchTarget?.let(WatchProgressCodec::encodeTarget))
+                        .putExtra(VideoActivity.EXTRA_SUBTITLES, JSONArray().apply {
+                            source.subtitles.forEach { sub -> put(JSONObject().put("id", sub.id).put("url", sub.url)
+                                .put("lang", sub.lang).put("mimeType", sub.mimeType)) }
+                        }.toString())
+                    if (torrent != null) target.putExtra(VideoActivity.EXTRA_TORRENT_REQUEST, torrent.encode())
+                    else target.putExtra(VideoActivity.EXTRA_URL, validated)
+                        .putExtra(VideoActivity.EXTRA_MIME, format.mimeType)
+                        .putExtra(VideoActivity.EXTRA_DESKTOP_HTTP, source.allowDesktopHttp)
+                        .putExtra(VideoActivity.EXTRA_PROVIDER_HEADERS, source.addonId == ProviderHub.config.id)
+                        .putExtra(VideoActivity.EXTRA_HEADERS, Bundle().apply {
+                            source.headers.forEach { (name, value) -> putString(name, value) }
+                        })
+                    videoLauncher.launch(target)
+                    model.dismissSources()
+                } catch (_: Exception) {
+                    Toast.makeText(this, "No se pudo abrir esta fuente. Prueba otra opción.", Toast.LENGTH_LONG).show()
+                }
+            }
+            pendingTorrent?.let { source ->
+                AlertDialog(onDismissRequest = { pendingTorrent = null }, title = { Text("Reproducción torrent P2P") },
+                    text = { Text("Tu dirección IP puede ser visible para otros participantes. Esta fuente puede consumir muchos datos y almacenamiento. La subida de contenido está desactivada. Usa contenido que tengas permiso para reproducir.") },
+                    confirmButton = { TextButton(onClick = { pendingTorrent = null; launchSource(source, VideoFormat.AUTO) }) { Text("Continuar") } },
+                    dismissButton = { TextButton(onClick = { pendingTorrent = null }) { Text("Cancelar") } })
             }
             AetherioApp(
                 state = state,
@@ -96,34 +145,8 @@ class MainActivity : ComponentActivity() {
                 onUpdateAction = updateModel::onAction,
                 onAutomaticUpdatesChange = updateModel::setAutomatic,
                 onPlaySource = { source, format ->
-                    try {
-                        val validated = SourcePlayback.httpUrl(source)
-                        val query = model.state.value.sourceQuery
-                        val title = query?.let {
-                            if (it.season != null && it.episode != null) "${it.item.title} · T${it.season} E${it.episode}" else it.item.title
-                        } ?: "Reproductor"
-                        model.rememberPlaybackQuery(fromSources = true)
-                        val watchTarget = model.playbackTarget(source.addonId in setOf("pc:animeav1", "pc:animes"))
-                        videoLauncher.launch(Intent(this, VideoActivity::class.java)
-                            .putExtra(VideoActivity.EXTRA_URL, validated)
-                            .putExtra(VideoActivity.EXTRA_MIME, format.mimeType)
-                            .putExtra(VideoActivity.EXTRA_DESKTOP_HTTP, source.allowDesktopHttp)
-                            .putExtra(VideoActivity.EXTRA_TITLE, title)
-                            .putExtra(VideoActivity.EXTRA_PROVIDER, source.addonName)
-                            .putExtra(VideoActivity.EXTRA_HAS_SOURCES, query != null)
-                            .putExtra(VideoActivity.EXTRA_PROVIDER_HEADERS, source.addonId == ProviderHub.config.id)
-                            .putExtra(VideoActivity.EXTRA_SUBTITLES, JSONArray().apply {
-                                source.subtitles.forEach { sub -> put(JSONObject().put("id", sub.id).put("url", sub.url)
-                                    .put("lang", sub.lang).put("mimeType", sub.mimeType)) }
-                            }.toString())
-                            .putExtra(VideoActivity.EXTRA_WATCH_TARGET, watchTarget?.let(WatchProgressCodec::encodeTarget))
-                            .putExtra(VideoActivity.EXTRA_HEADERS, Bundle().apply {
-                                source.headers.forEach { (name, value) -> putString(name, value) }
-                            }))
-                        model.dismissSources()
-                    } catch (_: Exception) {
-                        Toast.makeText(this, "No se pudo abrir esta fuente. Prueba otra opción.", Toast.LENGTH_LONG).show()
-                    }
+                    if (source.isTorrent) { if (pendingTorrent == null) pendingTorrent = source }
+                    else launchSource(source, format)
                 },
                 onOpenVideo = { url, format ->
                     try {

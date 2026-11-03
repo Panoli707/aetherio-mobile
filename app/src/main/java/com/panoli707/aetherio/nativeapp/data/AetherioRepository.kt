@@ -1,6 +1,5 @@
 package com.panoli707.aetherio.nativeapp.data
 
-import com.panoli707.aetherio.nativeapp.BuildConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -23,7 +22,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 internal class AetherioRepository(
-    private val readAccessToken: String = BuildConfig.TMDB_READ_ACCESS_TOKEN,
+    private val readAccessToken: String = EmbeddedTmdbToken.value,
     client: OkHttpClient = OkHttpClient(),
     private val tmdbBase: HttpUrl = (if (readAccessToken.isNotBlank()) "https://api.themoviedb.org/3"
         else "https://trkll.aetherio.workers.dev/api/tmdb").toHttpUrl(),

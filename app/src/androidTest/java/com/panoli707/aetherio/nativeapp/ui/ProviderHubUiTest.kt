@@ -26,16 +26,45 @@ class ProviderHubUiTest {
         compose.runOnIdle { assertTrue(retried) }
     }
 
-    @Test fun torrentIsVisibleButCannotBeLaunchedAndHttpKeepsItsHeaders() {
+    @Test fun torrentCanBeSelectedAndHttpKeepsItsHeaders() {
         val result = SourceProtocol.streams("""{"streams":[{"name":"HTTP fixture","url":"https://cdn.example/video.mp4","headers":{"User-Agent":"Fixture"}},
           {"name":"Torrent fixture","infoHash":"0123456789abcdef0123456789abcdef01234567","fileIdx":3,"sources":["tracker:udp://tracker.example:80"]}]}""", ProviderHub.config)
         var played: StreamSource? = null
         compose.setContent { AetherioTheme {
             SourceSheet(AppState(addonsLoading = false, sources = result.sources), query, {}, { source, _ -> played = source }, {})
         } }
-        compose.onNodeWithText("Requiere motor torrent").performScrollTo().assertIsNotEnabled()
-        compose.runOnIdle { assertNull(played) }
+        compose.onNodeWithText("Reproducir torrent").performScrollTo().assertIsEnabled().performClick()
+        compose.runOnIdle { assertTrue(played!!.isTorrent); assertEquals(3, played!!.fileIdx) }
         compose.onNodeWithText("Reproducir").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("Fixture", played?.headers?.get("User-Agent")); assertFalse(played!!.isTorrent) }
+    }
+
+    @Test fun providerFiltersShowCountsAndRestoreAllSources() {
+        val sources = listOf(
+            StreamSource("alpha-1", "alpha", "AnimeAV1", "Alpha uno", "Primer resultado", "https://cdn.example/1.m3u8"),
+            StreamSource("alpha-2", "alpha", "AnimeAV1", "Alpha dos", "Segundo resultado", "https://cdn.example/2.m3u8",
+                format = com.panoli707.aetherio.nativeapp.player.VideoFormat.HLS,
+                subtitles = listOf(StreamSubtitle("es", "https://cdn.example/es.vtt", "es"))),
+            StreamSource("beta-1", "beta", "Proveedor Beta", "Beta uno", "Tercer resultado", "https://cdn.example/3.m3u8")
+        )
+        compose.setContent { AetherioTheme {
+            SourceSheet(AppState(addonsLoading = false, sources = sources), query, {}, { _, _ -> }, {})
+        } }
+
+        compose.onNodeWithContentDescription("Todas las fuentes, 3").assertExists()
+        compose.onNodeWithContentDescription("AnimeAV1, 2 fuentes").performClick()
+        compose.onNodeWithText("Alpha uno").assertExists()
+        compose.onNodeWithText("Alpha dos").assertExists()
+        compose.onNode(hasText("HLS") and !hasClickAction()).assertExists()
+        compose.onNodeWithText("Sub: es").assertExists()
+        compose.onNodeWithText("Beta uno").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Proveedor Beta, 1 fuente").performClick()
+        compose.onNodeWithText("Beta uno").assertExists()
+        compose.onNodeWithText("Alpha uno").assertDoesNotExist()
+
+        compose.onNodeWithContentDescription("Todas las fuentes, 3").performClick()
+        compose.onNodeWithText("Alpha uno").assertExists()
+        compose.onNodeWithText("Beta uno").assertExists()
     }
 }

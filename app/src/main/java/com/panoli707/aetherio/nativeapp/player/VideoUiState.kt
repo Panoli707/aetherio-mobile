@@ -18,7 +18,10 @@ data class VideoUiState(
     val opening: OpeningInterval? = null,
     val audioTracks: List<PlayerTrackOption> = emptyList(),
     val subtitleTracks: List<PlayerTrackOption> = emptyList(),
-    val ending: OpeningInterval? = null
+    val ending: OpeningInterval? = null,
+    val torrentLabel: String? = null,
+    val torrentMetrics: com.panoli707.aetherio.nativeapp.player.torrent.TorrentMetrics? = null,
+    val torrentFiles: List<com.panoli707.aetherio.nativeapp.player.torrent.TorrentFile> = emptyList()
 )
 
 enum class VideoAction { TOGGLE_PLAY, REWIND, FORWARD, RETRY, FIND_SOURCES, CLOSE, ROTATE, SKIP_OPENING, SKIP_ENDING }

@@ -68,7 +68,7 @@ class ProviderHubTest {
         assertEquals(7, torrent.fileIdx)
         assertEquals(listOf("tracker:udp://tracker.example:80/announce", "dht:$hash"), torrent.sources)
         assertEquals("episode.mkv", JSONObject(torrent.behaviorHints).getString("filename"))
-        assertFalse(torrent.playable)
+        assertTrue(torrent.playable)
         assertEquals(2, result.sources[2].fileIdx)
         assertTrue(result.sources[2].url.startsWith("magnet:"))
         for (source in result.sources.drop(1)) {

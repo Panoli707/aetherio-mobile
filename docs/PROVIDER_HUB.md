@@ -2,7 +2,7 @@
 
 ## Alcance
 
-La versión preliminar **0.12.0** usa `https://aetherio-provider-hub.xoolinnbeats.workers.dev` como único resolvedor **predeterminado** de streams. Esta publicación de Mobile no modifica ni despliega Workers. Los addons personalizados y las fuentes opcionales activadas expresamente siguen disponibles.
+La versión preliminar **0.13.0** usa `https://aetherio-provider-hub.xoolinnbeats.workers.dev` como único resolvedor **predeterminado** de streams. Esta publicación de Mobile no modifica ni despliega Workers. Los addons personalizados y las fuentes opcionales activadas expresamente siguen disponibles.
 
 El contrato actual del Hub solo ofrece `stream` para películas y series con IMDb. **Inicio, búsqueda, fichas y episodios conservan TMDB, AniList y Cinemeta integrados.** Pasar también todos los catálogos y metadatos por el Hub requiere trabajo de backend pendiente: no existen recursos `catalog` ni `meta` en este contrato. `/addons.json` es un directorio, no un proxy de streams.
 
@@ -25,7 +25,7 @@ Las rutas son `/stream/movie/ttNNNNN.json` y `/stream/series/ttNNNNN:temporada:e
 Se reutilizan `SourceProtocol`, `SourceRepository`, el selector de fuentes y Media3. El resultado conserva `url`, `infoHash`, `fileIdx`, `sources`, `subtitles`, cabeceras y `behaviorHints`; `rawStream` conserva además el objeto original validado en memoria. No se persisten respuestas de streams ni se almacenan indefinidamente listas vacías.
 
 - HTTP: solo URLs que superan la validación: HTTPS y la excepción HTTP preexistente para `shegu.net` y subdominios. Una cadena cifrada, sin esquema o malformada se rechaza, sin anteponer `https://`. Los indicadores `verified`, `isReal` o `notWebReady` no garantizan reproducción.
-- Torrents: se retienen hashes y magnets válidos, incluso sin `url`, con índice de archivo y trackers. **No hay motor torrent en Mobile.** Se muestran con reproducción deshabilitada. `SourcePlayback` impide pasarlos al datasource HTTP de Media3; no se añaden dependencias torrent en esta tarea.
+- Torrents: se retienen hashes v1 y magnets válidos, incluso sin `url`, con índice de archivo y trackers. Desde **0.13.0**, Nuvio Engine los convierte en una ruta HTTP local ligada a la sesión. `SourcePlayback` sigue impidiendo pasar magnets al datasource HTTP. La disponibilidad de participantes y la compatibilidad del dispositivo determinan si se puede reproducir. Consulta [el motor y sus límites](TORRENT_ENGINE.md).
 - Cabeceras: se combinan las cabeceras del stream y `behaviorHints.proxyHeaders.request`, rechazando conflictos, controles e inyección. Para el Hub se admiten también `Accept`, `Accept-Language`, `Authorization`, `Cookie` y `X-Requested-With`; las cabeceras de transporte como `Host` no se aceptan. Son valores devueltos por el proveedor, nunca el token local TMDB. Las credenciales de reproducción se eliminan al cambiar de origen o usar HTTP. Los campos de respuesta del proxy se conservan como metadatos; Mobile no es un proxy HTTP.
 - Subtítulos: se conservan URL, ID, idioma y MIME. Media3 recibe los formatos identificados VTT, SRT, SSA/ASS y TTML; no se promete compatibilidad con todos los formatos o codecs.
 - El Hub usa un timeout total de 45 segundos por intento y como máximo dos intentos; solo se repiten fallos transitorios de transporte o HTTP 408/502/503/504. JSON inválido, errores de contrato y listas vacías no disparan reintentos automáticos. La cancelación cancela OkHttp, incluso durante la lectura del cuerpo. Los cuerpos y colecciones tienen límites de tamaño.
@@ -56,9 +56,9 @@ adb -s emulator-5554 install -r app/build/outputs/apk/androidTest/debug/app-debu
 adb -s emulator-5554 shell am instrument -w -r -e class com.panoli707.aetherio.nativeapp.data.ProviderDefaultsStoreTest,com.panoli707.aetherio.nativeapp.data.SourceSettingsStoreTest,com.panoli707.aetherio.nativeapp.ui.ProviderHubUiTest,com.panoli707.aetherio.nativeapp.ui.AddonsSettingsTest com.panoli707.aetherio.nativeapp.test/androidx.test.runner.AndroidJUnitRunner
 ```
 
-Verifica en Ajustes que el Hub figure integrado y las fuentes adicionales estén apagadas. Busca un título con IMDb, abre sus fuentes y comprueba por separado carga, error, lista vacía, resultados HTTP y torrents deshabilitados. Al repetir la inicialización debe seguir habiendo un único Hub y conservarse los proveedores propios. La prueba de migración usa preferencias y claves de prueba aisladas, no las del usuario.
+Verifica en Ajustes que el Hub figure integrado y las fuentes adicionales estén apagadas. Busca un título con IMDb, abre sus fuentes y comprueba por separado carga, error, lista vacía, resultados HTTP y selección torrent. Al repetir la inicialización debe seguir habiendo un único Hub y conservarse los proveedores propios. La prueba de migración usa preferencias y claves de prueba aisladas, no las del usuario.
 
-## Resultados de la comprobación
+## Resultados históricos de la comprobación 0.12.0
 
 - Compilados el APK debug y el APK de pruebas Android; `lintDebug` sin errores.
 - Suite JVM final: **165 pruebas aprobadas, sin fallos ni omitidas**, incluido el test público opcional. Cubre rutas, campos HTTP/torrent, índices, cabeceras, aislamiento de credenciales por origen/transporte, JSON inválido, URLs malformadas, vacíos, timeout, reintentos y cancelación.
@@ -75,6 +75,6 @@ Verifica en Ajustes que el Hub figure integrado y las fuentes adicionales estén
 
 «URLs HTTP aceptadas» significa únicamente que la URL y los campos superarían las comprobaciones locales; no confirma acceso al archivo, decodificación ni reproducción. Los tests no fijan estos recuentos.
 
-## Pendientes de backend y motor
+## Disponibilidad y límites
 
-En la comprobación inicial de ambos ejemplos se recibieron respuestas HTTP 200 con streams, pero sus entradas `url` no eran URLs HTTP directas válidas; los otros resultados eran torrents. Esto confirma respuesta del endpoint, **no disponibilidad de una fuente reproducible en Mobile**. Hace falta que el backend entregue URLs válidas o incorporar por separado un motor torrent para cubrir esos casos. No se han probado esos vídeos en un dispositivo, ni se promete reproducción universal.
+En la comprobación inicial de ambos ejemplos se recibieron respuestas HTTP 200 con streams, pero sus entradas `url` no eran URLs HTTP directas válidas; los otros resultados eran torrents. El motor integrado en 0.13.0 permite intentar esos torrents, pero no repara URLs cifradas ni garantiza participantes o códecs. Los recuentos anteriores son históricos, no una prueba de reproducción de esos títulos. No se promete reproducción universal.

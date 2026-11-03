@@ -68,7 +68,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
             else first?.let { onRequestSources(media, it.season, it.number) }
         }
         val playLabel = if (recent != null) "Continuar${recent.target.episode?.let { " · T${recent.target.season} E$it" }.orEmpty()} · ${watchTime(recent.positionMs)}"
-            else if (media.type == MediaType.MOVIE) "Ver fuentes de la película"
+            else if (media.type == MediaType.MOVIE) "Reproducir"
             else first?.let { "Ver fuentes · T${it.season} E${it.number}" } ?: "Selecciona un episodio"
         var actions by remember(media.key) { mutableStateOf<EpisodeItem?>(null) }
         var infoOpen by rememberSaveable(media.key) { mutableStateOf(false) }

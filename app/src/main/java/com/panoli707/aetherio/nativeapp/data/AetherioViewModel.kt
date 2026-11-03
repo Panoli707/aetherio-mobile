@@ -324,7 +324,6 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                         sourcesLoading = false,
                         sourceError = when {
                             failures > 0 -> "Provider Hub o un proveedor opcional no respondió. Reintenta la consulta; no se activarán otras fuentes automáticamente."
-                            current.sources.isNotEmpty() && current.sources.none { it.playable } -> "Se recibieron torrents, pero Mobile no tiene motor torrent. No se enviarán a Media3."
                             unsupported > 0 -> "Se rechazaron resultados con URL malformada, DRM o datos no compatibles. Recibir un resultado no garantiza reproducción."
                             else -> null // A successful empty response uses the distinct "Sin resultados" UI state.
                         }

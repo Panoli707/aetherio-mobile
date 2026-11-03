@@ -25,7 +25,7 @@ class DetailDesignTest {
                 { item, season, episode -> assertEquals(movie.key, item.key); assertNull(season); assertNull(episode); played = true })
         } }
         compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailPrimaryPlay"))
-        compose.onNodeWithText("Ver fuentes de la película").performClick()
+        compose.onNodeWithText("Reproducir").performClick()
         compose.onNodeWithContentDescription("Guardar en biblioteca").performClick()
         compose.onNodeWithContentDescription("Reproducir por enlace propio").performClick()
         compose.onNodeWithTag("detailEpisodes").assertDoesNotExist()

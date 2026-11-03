@@ -7,7 +7,7 @@
 
 ## Descargar e instalar
 
-1. Descarga [**Aetherio.apk desde GitHub**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.12.0-preview.1/Aetherio.apk), versión preliminar **0.12.0**. Comprueba que corresponde al repositorio `Panoli707/aetherio-mobile`.
+1. Descarga [**Aetherio.apk desde GitHub**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.13.0-preview.1/Aetherio.apk), versión preliminar **0.13.0**. Comprueba que corresponde al repositorio `Panoli707/aetherio-mobile`.
 2. Abre **Descargas** en el navegador o gestor de archivos del dispositivo y toca `Aetherio.apk`.
 3. Si Android lo solicita, permite **Instalar aplicaciones desconocidas** únicamente para el navegador o gestor de archivos que está abriendo el APK. El nombre de la opción puede variar según el dispositivo.
 4. Regresa al archivo y pulsa **Instalar**. Cuando termine, pulsa **Abrir**.
@@ -36,7 +36,7 @@ El interruptor de actualizaciones automáticas en **Ajustes > Actualizaciones** 
 
 ## Primer uso y datos guardados
 
-Puedes explorar el catálogo, buscar títulos y guardar favoritos sin configurar nada. Provider Hub se registra automáticamente como único resolvedor predeterminado, sin añadir addons. PenguPlay, HdHub, AnimES, DeepFlix y AnimeAV1 permanecen como fuentes adicionales opcionales, apagadas por defecto. Para buscar vídeos, abre una ficha y pulsa **Buscar fuentes**. Los torrents se muestran, pero no se reproducen porque Mobile no tiene motor torrent. La disponibilidad de URLs válidas depende del servicio. Consulta [las limitaciones y comprobaciones del Hub](PROVIDER_HUB.md). También puedes añadir un manifiesto compatible en **Proveedores propios** o usar un enlace HTTPS directo propio o autorizado.
+Puedes explorar el catálogo, buscar títulos y guardar favoritos sin configurar nada. Provider Hub se registra automáticamente como único resolvedor predeterminado, sin añadir addons. PenguPlay, HdHub, AnimES, DeepFlix y AnimeAV1 permanecen como fuentes adicionales opcionales, apagadas por defecto. Para buscar vídeos, abre una ficha y pulsa **Buscar fuentes**. Las fuentes torrent muestran **Reproducir torrent** y un aviso P2P: tu IP puede ser visible y el consumo de datos/almacenamiento puede ser alto. La disponibilidad depende de participantes y códecs. Si un pack no identifica el episodio, elige su archivo. Consulta [los límites del motor](TORRENT_ENGINE.md) y [del Hub](PROVIDER_HUB.md). También puedes añadir un manifiesto compatible en **Proveedores propios** o usar un enlace HTTPS directo propio o autorizado.
 
 El nombre del perfil, los favoritos, los proveedores, el progreso y los capítulos vistos se guardan en el dispositivo. No hay cuentas ni sincronización: **desinstalar la aplicación o borrar sus datos elimina esa información**.
 

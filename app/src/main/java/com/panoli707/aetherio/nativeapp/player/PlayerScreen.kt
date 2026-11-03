@@ -45,6 +45,7 @@ fun PlayerScreen(
     onSeek: (Long) -> Unit,
     onSpeed: (Float) -> Unit,
     onTrack: (String) -> Unit,
+    onTorrentFile: (Int) -> Unit = {},
     video: @Composable (Int) -> Unit
 ) {
     var resizeMode by rememberSaveable { mutableIntStateOf(AspectRatioFrameLayout.RESIZE_MODE_FIT) }
@@ -90,6 +91,22 @@ fun PlayerScreen(
         }
     }) {
         Box(Modifier.fillMaxSize()) { video(resizeMode) }
+        if (state.torrentFiles.isNotEmpty()) {
+            AlertDialog(onDismissRequest = { act(VideoAction.CLOSE) },
+                title = { Text("Selecciona el archivo de vídeo") },
+                text = {
+                    androidx.compose.foundation.lazy.LazyColumn(Modifier.heightIn(max = 360.dp)) {
+                        items(state.torrentFiles.size) { index ->
+                            val file = state.torrentFiles[index]
+                            TextButton(onClick = { onTorrentFile(file.index) }) {
+                                Text("${file.label}${if (file.pathTruncated) "…" else ""} · ${file.size / (1024 * 1024)} MiB")
+                            }
+                        }
+                    }
+                }, confirmButton = {}, dismissButton = {
+                    TextButton(onClick = { act(if (canChangeSource) VideoAction.FIND_SOURCES else VideoAction.CLOSE) }) { Text("Cancelar") }
+                })
+        }
         Box(Modifier.fillMaxSize().testTag("playerSurface").semantics {
             if (!locked) {
                 contentDescription = "Mostrar u ocultar controles"
@@ -149,12 +166,12 @@ fun PlayerScreen(
                             PlayerButton(Icons.Rounded.Replay10, "Retroceder 10 segundos", enabled = canSeek) {
                                 act(VideoAction.REWIND)
                             }
-                            if (state.buffering) {
+                             if (state.buffering) {
                                  Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
                                      CircularProgressIndicator(Modifier.size(28.dp).semantics {
                                         contentDescription = "Cargando video"
                                     }, color = MaterialTheme.colorScheme.primary)
-                                }
+                                 }
                             } else PlayerButton(
                                 if (state.playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
                                 if (state.playing) "Pausar" else "Reproducir",
@@ -163,6 +180,9 @@ fun PlayerScreen(
                                 act(VideoAction.FORWARD)
                             }
                         }
+                    }
+                    if (showControls && state.error == null) state.torrentLabel?.let { label ->
+                        Text(label, color = Color.White, modifier = Modifier.align(Alignment.TopCenter).padding(top = 8.dp))
                     }
                     val skip = openingSkip(state)
                     val ending = endingSkip(state)
@@ -181,6 +201,10 @@ fun PlayerScreen(
                 }
                 if (showControls && state.error == null) {
                     Column(Modifier.padding(bottom = if (compact) 0.dp else 12.dp)) {
+                        state.torrentMetrics?.let { metrics ->
+                            Text("P2P · ${metrics.peers} peers · ${metrics.downloadBytesPerSecond / 1024} KiB/s", color = Color.LightGray,
+                                style = MaterialTheme.typography.bodySmall)
+                        }
                         Text(state.title, color = Color.White, fontSize = (if (wide) 26 else 20).sp,
                             fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Row(verticalAlignment = Alignment.CenterVertically) {

@@ -106,7 +106,7 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
         Text(message, color = MaterialTheme.colorScheme.error,
             modifier = Modifier.semantics { error(message); liveRegion = LiveRegionMode.Polite })
     }
-    if (success && state.addonError == null) Text("Proveedor guardado. Ya puedes buscar fuentes desde las fichas.", color = Rating,
+    if (success && state.addonError == null) Text("Proveedor guardado. Ya puedes buscar fuentes desde las fichas.", color = Success,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
     if (state.addonsLoading) LoadingRow("Cargando proveedores…")
     else if (state.addons.none { !ProviderHub.isHub(it) }) Text("No has añadido proveedores propios.", color = Muted)
@@ -143,13 +143,13 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
     val closeThen: (() -> Unit) -> Unit = { action -> scope.launch { sheet.hide(); if (!sheet.isVisible) action() } }
     val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     // The app behind this dialog is blurred on API 31+; older Android keeps a darker translucent tint.
-    val panelAlpha = if (android.os.Build.VERSION.SDK_INT >= 31) .58f else .86f
+    val panelAlpha = if (android.os.Build.VERSION.SDK_INT >= 31) GlassPanelAlpha else .96f
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = Color.Transparent,
         contentColor = Cream, tonalElevation = 0.dp, scrimColor = Color.Black.copy(alpha = .24f),
         dragHandle = null, shape = shape, sheetMaxWidth = 720.dp) {
         SourceSystemBars()
         Column(Modifier.fillMaxWidth().fillMaxHeight(.94f).clip(shape)
-            .background(Brush.verticalGradient(listOf(Panel.copy(alpha = panelAlpha), Ink.copy(alpha = panelAlpha + .10f))))
+            .background(Brush.verticalGradient(listOf(Panel.copy(alpha = panelAlpha), Ink.copy(alpha = (panelAlpha + .04f).coerceAtMost(1f)))))
             .border(1.dp, Cream.copy(alpha = .16f), shape).testTag("sourceGlassPanel")) {
             Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp, bottom = 6.dp)
                 .size(width = 32.dp, height = 4.dp).background(Cream.copy(alpha = .35f), CircleShape))
@@ -171,7 +171,7 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)) {
                 item(key = "provider:all") {
                     FilterChip(selected = selectedProvider == null, onClick = { selectedProvider = null },
-                        colors = sourceFilterColors(), border = BorderStroke(1.dp, Cream.copy(alpha = .18f)),
+                        colors = sourceFilterColors(), border = BorderStroke(1.dp, if (selectedProvider == null) Accent else Outline),
                         label = { Text("Todas ${state.sources.size}") }, modifier = Modifier.semantics {
                             contentDescription = "Todas las fuentes, ${state.sources.size}"
                         })
@@ -180,7 +180,7 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                     val count = state.sources.count { it.addonId == providerId }
                     item(key = "provider:$providerId") {
                         FilterChip(selected = selectedProvider == providerId, onClick = { selectedProvider = providerId },
-                            colors = sourceFilterColors(), border = BorderStroke(1.dp, Cream.copy(alpha = .18f)),
+                            colors = sourceFilterColors(), border = BorderStroke(1.dp, if (selectedProvider == providerId) Accent else Outline),
                             label = { Text("$providerName $count", maxLines = 1, overflow = TextOverflow.Ellipsis) },
                             modifier = Modifier.semantics {
                                 contentDescription = "$providerName, $count ${if (count == 1) "fuente" else "fuentes"}"
@@ -250,7 +250,7 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
 
 @Composable
 private fun sourceFilterColors() = FilterChipDefaults.filterChipColors(containerColor = Cream.copy(alpha = .045f),
-    labelColor = Cream, selectedContainerColor = Violet.copy(alpha = .24f), selectedLabelColor = Cream)
+    labelColor = Cream, selectedContainerColor = AccentContainer, selectedLabelColor = OnAccentContainer)
 
 @Composable
 private fun SourceSystemBars() {
@@ -270,9 +270,9 @@ private fun SourceSystemBars() {
 private fun SourceToolbarAction(description: String, icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit, enabled: Boolean = true, loading: Boolean = false) {
     IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(48.dp)
-        .background(Cream.copy(alpha = .07f), CircleShape).border(1.dp, Cream.copy(alpha = .15f), CircleShape)
+        .background(Cream.copy(alpha = .07f), CircleShape).border(1.dp, Outline, CircleShape)
         .semantics { contentDescription = description }) {
-        if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = Aqua, strokeWidth = 2.dp)
+        if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = Accent, strokeWidth = 2.dp)
         else Icon(icon, null, tint = Cream.copy(alpha = if (enabled) 1f else .45f))
     }
 }

@@ -163,14 +163,14 @@ private fun ProfileSettings(profileName: String, onRename: (String) -> Unit) {
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
         keyboardActions = KeyboardActions(onDone = { focus.clearFocus() }), modifier = Modifier.fillMaxWidth())
     Button(onClick = { focus.clearFocus(); onRename(name.trim()); saved = true }, enabled = name.isNotBlank()) { Text("Guardar nombre") }
-    if (saved) Text("Nombre guardado en este dispositivo.", color = Rating,
+    if (saved) Text("Nombre guardado en este dispositivo.", color = Success,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
 }
 
 @Composable
 private fun SettingsInfo(icon: ImageVector, title: String, description: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        Icon(icon, null, tint = Aqua, modifier = Modifier.padding(top = 2.dp).size(24.dp))
+        Icon(icon, null, tint = Muted, modifier = Modifier.padding(top = 2.dp).size(24.dp))
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)
             Text(description, color = Muted, style = MaterialTheme.typography.bodyMedium)

@@ -52,7 +52,7 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
                         Column(Modifier.width(280.dp).clickable(onClickLabel = "Continuar ${progress.target.item.title}") { onContinue(progress) }) {
                             Artwork(progress.target.imageUrl ?: progress.target.item.backdropUrl ?: progress.target.item.posterUrl,
                                 Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(14.dp)))
-                            LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Aqua, trackColor = Violet.copy(alpha = .2f))
+                            LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Accent, trackColor = Outline)
                             Text(progress.target.episodeTitle.ifBlank { progress.target.item.title }, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
                             Text("T${progress.target.season} · E${progress.target.episode} · ${progress.target.item.title}", color = Muted,
@@ -64,7 +64,7 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
             }
             item(key = "watchingHeading") {
                 Text("Estás viendo", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(horizontal = 18.dp).padding(top = 28.dp, bottom = 12.dp))
-                Text("En seguimiento · ${state.animeSeason.season.label}", color = Violet, modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
+                Text("En seguimiento · ${state.animeSeason.season.label}", color = Muted, modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
             }
             if (current.isEmpty()) item(key = "watchingEmpty") {
                 if (state.animeSeason.loading) LoadingRow("Consultando tu temporada…")

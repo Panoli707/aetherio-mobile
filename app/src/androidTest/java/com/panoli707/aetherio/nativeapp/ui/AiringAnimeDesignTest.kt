@@ -74,6 +74,6 @@ class AiringAnimeDesignTest {
             LibraryScreen(AppState(), androidx.compose.foundation.lazy.grid.rememberLazyGridState(), "all", {}, {}, {})
         } }
         compose.onNodeWithText("En curso, vistos y guardados").assertExists()
-        compose.runOnIdle { assertEquals(listOf(Ink, Panel, Aqua, Violet, Coral), colors) }
+        compose.runOnIdle { assertEquals(listOf(Ink, Panel, Accent, Muted, Cream), colors) }
     }
 }

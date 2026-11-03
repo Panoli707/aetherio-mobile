@@ -28,9 +28,9 @@ internal fun AiringAnimeSection(state: AnimeSeasonState, onSelect: (MediaItem) -
             .semantics(mergeDescendants = true) { }.padding(horizontal = 18.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text("Anime emitiéndose ahora", style = MaterialTheme.typography.titleLarge)
-                Text(state.season.label + " · Temporada y días de emisión", color = Violet, style = MaterialTheme.typography.bodySmall)
+                Text(state.season.label + " · Temporada y días de emisión", color = Muted, style = MaterialTheme.typography.bodySmall)
             }
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Aqua)
+            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Accent)
         }
         if (state.loading && state.entries.isEmpty()) LoadingRow("Consultando emisiones…")
         if (state.error != null) StatusMessage("No se pudieron actualizar las emisiones", state.error, "Reintentar", onRetry)
@@ -57,7 +57,7 @@ internal fun AiringAnimeCard(entry: SeasonalAnime, onClick: () -> Unit, modifier
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Ink.copy(alpha = .9f)))))
             val episode = entry.latestEpisode
             val label = if (episode != null) "Ep. $episode / ${entry.item.episodeCount ?: "—"}" else "En emisión"
-            Text(label, color = Aqua, style = MaterialTheme.typography.labelSmall, maxLines = 1,
+            Text(label, color = Muted, style = MaterialTheme.typography.labelSmall, maxLines = 1,
                 modifier = Modifier.align(Alignment.TopEnd).padding(5.dp).background(Ink.copy(alpha = .9f), RoundedCornerShape(8.dp))
                     .padding(horizontal = 6.dp, vertical = 5.dp))
         }

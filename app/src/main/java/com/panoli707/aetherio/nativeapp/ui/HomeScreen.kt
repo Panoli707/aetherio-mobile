@@ -77,7 +77,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
                             Column(Modifier.clickable(onClickLabel = "Continuar ${target.item.title}") { onContinue(progress) }) {
                                 Artwork(target.imageUrl ?: target.item.backdropUrl ?: target.item.posterUrl,
                                     Modifier.fillMaxWidth().height(140.dp))
-                                LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Aqua, trackColor = Violet.copy(alpha = .2f))
+                                LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Accent, trackColor = Outline)
                                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(target.item.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)
                                     if (target.episode != null) Text("T${target.season} · E${target.episode} ${target.episodeTitle}",
@@ -169,7 +169,7 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
             val start = (pager.currentPage - 3).coerceIn(0, (heroes.size - 7).coerceAtLeast(0))
             for (index in start until minOf(start + 7, heroes.size)) {
                 Box(Modifier.padding(horizontal = 4.dp).size(width = if (index == pager.currentPage) 22.dp else 5.dp, height = 5.dp)
-                    .background(if (index == pager.currentPage) Aqua else Violet.copy(alpha = .35f), CircleShape))
+                    .background(if (index == pager.currentPage) Accent else Outline, CircleShape))
             }
         }
     }

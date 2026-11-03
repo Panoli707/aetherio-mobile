@@ -40,7 +40,7 @@ class StartupScreenTest {
             assertNotNull(icon)
             assertTrue(icon is GradientDrawable)
             assertNull(attributes.getDrawable(1))
-            assertEquals(Color.rgb(0x08, 0x0F, 0x24), attributes.getColor(2, Color.TRANSPARENT))
+            assertEquals(Color.rgb(0x0B, 0x0B, 0x0F), attributes.getColor(2, Color.TRANSPARENT))
 
             val bitmap = Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)
             try {

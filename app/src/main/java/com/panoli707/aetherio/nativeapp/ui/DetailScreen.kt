@@ -49,11 +49,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
     onRequestSources: (MediaItem, Int?, Int?) -> Unit,
     onEpisodeWatchAction: (MediaItem, EpisodeItem, EpisodeWatchScope, Boolean) -> Unit = { _, _, _, _ -> },
     onToggleWatching: (MediaItem) -> Unit = {}, onOpenExternal: (String) -> Unit = {}, onSelectRelated: (MediaItem) -> Unit = {}) {
-    val colors = MaterialTheme.colorScheme.copy(primary = Aqua, onPrimary = DetailNight,
-        secondary = Violet, onSecondary = DetailNight, tertiary = Coral,
-        background = DetailNight, onBackground = DetailText, surface = DetailPanel, onSurface = DetailText,
-        surfaceVariant = Color(0xFF203554), onSurfaceVariant = DetailMuted, outline = Color(0xFF59729B))
-    MaterialTheme(colorScheme = colors) {
+    MaterialTheme(colorScheme = MaterialTheme.colorScheme) {
         val detail = state.detail?.takeIf { it.item.key == item.key }
         val media = detail?.item ?: item
         val recent = WatchProgressRules.latest(state.watchProgress.filter { progress ->
@@ -72,7 +68,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
             else first?.let { "Reproducir · T${it.season} E${it.number}" } ?: "Reproducir"
         var actions by remember(media.key) { mutableStateOf<EpisodeItem?>(null) }
         var infoOpen by rememberSaveable(media.key) { mutableStateOf(false) }
-        BoxWithConstraints(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF171B3E), DetailNight)))) {
+        BoxWithConstraints(Modifier.fillMaxSize().background(DetailNight)) {
             val portrait = maxWidth < 600.dp
             val heroHeight = if (portrait) (maxWidth * 1.42f).coerceIn(440.dp, 680.dp) else 430.dp
             val episodeWidth = (maxWidth * .79f).coerceIn(260.dp, 420.dp)
@@ -107,7 +103,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                     Column(Modifier.padding(horizontal = 18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         Surface(onClick = play, enabled = canPlay, shape = RoundedCornerShape(20.dp),
                             color = Color.Transparent, modifier = Modifier.fillMaxWidth().testTag("detailPrimaryPlay")) {
-                            Row(Modifier.background(Brush.horizontalGradient(if (canPlay) listOf(Aqua, Violet) else listOf(DetailPanel, DetailPanel)))
+                            Row(Modifier.background(if (canPlay) Accent else DetailPanel)
                                 .padding(horizontal = 18.dp, vertical = 17.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.Default.PlayArrow, null, tint = if (canPlay) DetailNight else DetailMuted)
                                 Spacer(Modifier.width(8.dp))
@@ -135,8 +131,8 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                     Column {
                         var seasonsOpen by remember { mutableStateOf(false) }
                         Box(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
-                            TextButton(onClick = { seasonsOpen = true }, colors = ButtonDefaults.textButtonColors(contentColor = Violet),
-                                modifier = Modifier.background(Violet.copy(alpha = .12f), RoundedCornerShape(16.dp))) {
+                            TextButton(onClick = { seasonsOpen = true }, colors = ButtonDefaults.textButtonColors(contentColor = Accent),
+                                modifier = Modifier.background(AccentContainer, RoundedCornerShape(16.dp))) {
                                 Text(detail.seasons.firstOrNull { it.number == detail.selectedSeason }?.name ?: "Temporadas", style = MaterialTheme.typography.titleLarge)
                                 Icon(Icons.Default.KeyboardArrowDown, "Seleccionar temporada")
                             }
@@ -194,7 +190,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                         DetailHeading("Acerca de")
                         val facts = detail?.facts.orEmpty() + listOf(DetailFact("Tipo", if (media.isAnime) "Anime · ${media.type.label}" else media.type.label), DetailFact("Catálogo", media.source.name))
                         facts.forEachIndexed { index, fact ->
-                            Row(Modifier.fillMaxWidth().background(if (index % 2 == 0) Violet.copy(alpha = .07f) else Aqua.copy(alpha = .045f), RoundedCornerShape(12.dp))
+                            Row(Modifier.fillMaxWidth().background(if (index % 2 == 0) Panel else RaisedPanel, RoundedCornerShape(12.dp))
                                 .padding(12.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                                 Text(fact.label, color = DetailText, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(.8f))
                                 Text(fact.value, color = DetailMuted, textAlign = TextAlign.End, modifier = Modifier.weight(1.2f))
@@ -245,8 +241,8 @@ private fun DetailSmallAction(label: String, icon: ImageVector, description: Str
     Column(modifier.widthIn(min = 48.dp).clip(RoundedCornerShape(14.dp)).clickable(onClick = onClick)
         .semantics(mergeDescendants = true) { contentDescription = description; this.selected = selected }.padding(horizontal = 4.dp, vertical = 10.dp),
         horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(icon, null, tint = if (selected) Aqua else Violet)
-        Text(label, color = if (selected) Aqua else DetailMuted, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp))
+        Icon(icon, null, tint = if (selected) Accent else DetailMuted)
+        Text(label, color = if (selected) Accent else DetailMuted, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 5.dp))
     }
 }
 
@@ -258,14 +254,14 @@ private fun DetailSynopsis(overview: String, key: String) {
         Text(overview.ifBlank { "No hay sinopsis disponible para este título." }, color = DetailMuted, textAlign = TextAlign.Center,
             maxLines = if (expanded) Int.MAX_VALUE else 3, overflow = TextOverflow.Ellipsis,
             onTextLayout = { if (!expanded) truncated = it.hasVisualOverflow }, style = MaterialTheme.typography.bodyMedium)
-        if (truncated || expanded) TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Ver menos" else "Leer sinopsis completa", color = Aqua) }
+        if (truncated || expanded) TextButton(onClick = { expanded = !expanded }) { Text(if (expanded) "Ver menos" else "Leer sinopsis completa", color = Accent) }
     }
 }
 
 @Composable
 private fun DetailEpisodeCard(episode: EpisodeItem, media: MediaItem, progress: WatchProgress?, width: androidx.compose.ui.unit.Dp,
     onPlay: () -> Unit, onActions: () -> Unit) {
-    Surface(color = DetailPanel, shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, Violet.copy(alpha = .22f)),
+    Surface(color = DetailPanel, shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, Divider),
         modifier = Modifier.width(width).combinedClickable(onClick = onPlay, onClickLabel = "Reproducir", onLongClick = onActions, onLongClickLabel = "Opciones del episodio")) {
         Column {
             Box(Modifier.fillMaxWidth().aspectRatio(1.78f)) {
@@ -273,21 +269,21 @@ private fun DetailEpisodeCard(episode: EpisodeItem, media: MediaItem, progress: 
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, DetailNight.copy(alpha = .55f)))))
                 IconButton(onClick = onActions, modifier = Modifier.align(Alignment.TopStart).padding(4.dp).size(44.dp)) {
                     Icon(if (progress?.watched == true) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                        "Opciones del episodio T${episode.season} E${episode.number}", tint = if (progress?.watched == true) Aqua else Color.White,
+                        "Opciones del episodio T${episode.season} E${episode.number}", tint = if (progress?.watched == true) Success else Cream,
                         modifier = Modifier.background(DetailNight.copy(alpha = .65f), CircleShape))
                 }
                 episode.runtimeMinutes?.let { Text("$it min", color = DetailText, style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp).background(DetailNight.copy(alpha = .8f), RoundedCornerShape(6.dp)).padding(5.dp)) }
             }
             Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text("T${episode.season} · Episodio ${episode.number}", color = Coral, style = MaterialTheme.typography.labelMedium)
+                Text("T${episode.season} · Episodio ${episode.number}", color = DetailMuted, style = MaterialTheme.typography.labelMedium)
                 Text(episode.title, color = DetailText, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 if (episode.overview.isNotBlank()) Text(episode.overview, color = DetailMuted, style = MaterialTheme.typography.bodySmall, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 if (episode.airedOn.isNotBlank()) Text(episode.airedOn, color = DetailMuted, style = MaterialTheme.typography.bodySmall)
-                if (progress?.watched == true) Text("Visto", color = Aqua, style = MaterialTheme.typography.labelMedium)
+                if (progress?.watched == true) Text("Visto", color = Success, style = MaterialTheme.typography.labelMedium)
                 if (progress != null && progress.durationMs > 0) {
-                    Text("${watchTime(progress.positionMs)} / ${watchTime(progress.durationMs)}", color = Aqua, style = MaterialTheme.typography.bodySmall)
-                    LinearProgressIndicator(progress = { progress.fraction }, color = Aqua, trackColor = Violet.copy(alpha = .2f), modifier = Modifier.fillMaxWidth())
+                    Text("${watchTime(progress.positionMs)} / ${watchTime(progress.durationMs)}", color = DetailMuted, style = MaterialTheme.typography.bodySmall)
+                    LinearProgressIndicator(progress = { progress.fraction }, color = Accent, trackColor = Outline, modifier = Modifier.fillMaxWidth())
                 }
             }
         }
@@ -305,7 +301,7 @@ private fun DetailFold(title: String, tag: String, content: @Composable () -> Un
     Column(Modifier.padding(top = 12.dp, bottom = 8.dp).testTag(tag)) {
         TextButton(onClick = { expanded = !expanded }, modifier = Modifier.padding(horizontal = 10.dp)) {
             Text(title, color = DetailText, style = MaterialTheme.typography.titleLarge)
-            Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, if (expanded) "Contraer $title" else "Expandir $title", tint = Violet)
+            Icon(if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, if (expanded) "Contraer $title" else "Expandir $title", tint = DetailMuted)
         }
         if (expanded) content()
     }
@@ -320,7 +316,7 @@ private fun DetailAvailability(regions: List<WatchRegion>, key: String, onOpen: 
         DetailHeading("Dónde ver")
         Text("Disponibilidad de JustWatch a través de TMDB", color = DetailMuted, style = MaterialTheme.typography.bodySmall)
         Box {
-            TextButton(onClick = { menu = true }) { Text("Región: $country", color = Violet); Icon(Icons.Default.KeyboardArrowDown, "Elegir región", tint = Violet) }
+            TextButton(onClick = { menu = true }) { Text("Región: $country", color = Accent); Icon(Icons.Default.KeyboardArrowDown, "Elegir región", tint = Accent) }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, containerColor = DetailPanel) {
                 (listOf(country) + regions.map { it.country }).distinct().sorted().forEach { code ->
                     DropdownMenuItem(text = { Text(Locale.Builder().setRegion(code).build().getDisplayCountry(Locale.forLanguageTag("es")) + " ($code)") },
@@ -335,11 +331,11 @@ private fun DetailAvailability(regions: List<WatchRegion>, key: String, onOpen: 
                     Column(Modifier.width(100.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                         DetailArtwork(provider.logoUrl, Modifier.size(76.dp).clip(RoundedCornerShape(18.dp)))
                         Text(provider.name, color = DetailText, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-                        Text(provider.offer, color = Aqua, style = MaterialTheme.typography.labelSmall)
+                        Text(provider.offer, color = DetailMuted, style = MaterialTheme.typography.labelSmall)
                     }
                 }
             }
-            selected.link?.let { link -> TextButton(onClick = { onOpen(link) }) { Text("Ver opciones en TMDB", color = Aqua) } }
+            selected.link?.let { link -> TextButton(onClick = { onOpen(link) }) { Text("Ver opciones en TMDB", color = Accent) } }
         }
     }
 }
@@ -352,10 +348,10 @@ private fun DetailReviews(reviews: List<MediaReview>, width: androidx.compose.ui
         Text("Reseñas públicas de usuarios de TMDB", color = DetailMuted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp))
         LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             itemsIndexed(reviews, key = { _, review -> review.id }) { index, review ->
-                Column(Modifier.width(width).clip(RoundedCornerShape(20.dp)).background(if (index % 2 == 0) Color(0xFF152F3D) else Color(0xFF292344))
+                Column(Modifier.width(width).clip(RoundedCornerShape(20.dp)).background(if (index % 2 == 0) Panel else RaisedPanel)
                     .clickable(onClickLabel = "Leer reseña de ${review.author}") { selected = review }.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(review.content, color = DetailText, maxLines = 5, overflow = TextOverflow.Ellipsis)
-                    Text(review.author, color = Aqua, style = MaterialTheme.typography.titleSmall)
+                    Text(review.author, color = DetailText, style = MaterialTheme.typography.titleSmall)
                     if (review.publishedOn.isNotBlank()) Text(review.publishedOn, color = DetailMuted, style = MaterialTheme.typography.bodySmall)
                 }
             }

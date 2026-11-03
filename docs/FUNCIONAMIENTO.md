@@ -73,7 +73,7 @@ La lista de proveedores muestra su nombre y dominio, no sus URL completas privad
 
 ## Proveedores y fuentes de reproducción
 
-En la integración de Provider Hub, **Aetherio Provider Hub** se registra automáticamente como único resolvedor predeterminado: no necesitas añadir manifiestos. Los catálogos y metadatos continúan integrados en Mobile. Los adaptadores anteriores permanecen como **Fuentes adicionales (opcionales)**, desactivados por defecto para evitar consultas duplicadas. Sus selecciones antiguas se conservan sin borrarlas; una nueva activación es explícita. **AnimeAV1** sigue siendo nativo e independiente de AnimES. Consulta [contrato, migración y comprobación de Provider Hub](PROVIDER_HUB.md) para esta integración de desarrollo.
+Desde la versión preliminar 0.12.0, **Aetherio Provider Hub** se registra automáticamente como único resolvedor predeterminado: no necesitas añadir manifiestos. Los catálogos y metadatos continúan integrados en Mobile. Los adaptadores anteriores permanecen como **Fuentes adicionales (opcionales)**, desactivados por defecto para evitar consultas duplicadas. Sus selecciones antiguas se conservan sin borrarlas; una nueva activación es explícita. **AnimeAV1** sigue siendo nativo e independiente de AnimES. Consulta [contrato, migración y comprobación de Provider Hub](PROVIDER_HUB.md).
 
 Abre una película y pulsa **Ver fuentes de la película**. Para una serie, elige la temporada y el episodio. Las fuentes aparecen conforme responde cada servicio. Si alguno falla, puedes usar los resultados de los demás. No necesitas copiar sus URLs ni añadir manifiestos para estas fuentes.
 

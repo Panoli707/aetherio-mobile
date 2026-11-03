@@ -2,7 +2,7 @@
 
 ## Alcance
 
-Esta integración de desarrollo usa `https://aetherio-provider-hub.xoolinnbeats.workers.dev` como único resolvedor **predeterminado** de streams. No despliega Workers ni publica una versión. Los addons personalizados y las fuentes opcionales activadas expresamente siguen disponibles.
+La versión preliminar **0.12.0** usa `https://aetherio-provider-hub.xoolinnbeats.workers.dev` como único resolvedor **predeterminado** de streams. Esta publicación de Mobile no modifica ni despliega Workers. Los addons personalizados y las fuentes opcionales activadas expresamente siguen disponibles.
 
 El contrato actual del Hub solo ofrece `stream` para películas y series con IMDb. **Inicio, búsqueda, fichas y episodios conservan TMDB, AniList y Cinemeta integrados.** Pasar también todos los catálogos y metadatos por el Hub requiere trabajo de backend pendiente: no existen recursos `catalog` ni `meta` en este contrato. `/addons.json` es un directorio, no un proxy de streams.
 
@@ -64,7 +64,7 @@ Verifica en Ajustes que el Hub figure integrado y las fuentes adicionales estén
 - Suite JVM final: **165 pruebas aprobadas, sin fallos ni omitidas**, incluido el test público opcional. Cubre rutas, campos HTTP/torrent, índices, cabeceras, aislamiento de credenciales por origen/transporte, JSON inválido, URLs malformadas, vacíos, timeout, reintentos y cancelación.
 - Pruebas Android focalizadas en `emulator-5554` (Android 14): **12 aprobadas**. Incluyen registro inicial aislado sin red, inicialización repetida, migración cifrada, conservación de datos/preferencias, fuentes opcionales apagadas y selector HTTP/torrent.
 - Regresiones Android: **16 aprobadas** en `VideoActivityTest`, `PlayerScreenTest` y `StartupScreenTest`. En total son **28 casos Android distintos**. Tras la última compilación se repitieron los 12 casos focalizados y los 2 de `VideoActivityTest`: **14/14 aprobados**. Estas regresiones usan estados y enlaces inválidos de prueba, no reproducción real de vídeos del Hub.
-- `git diff --check` sin errores. No se modificaron versión, firma, manifiesto Android ni enlaces de descarga públicos. No se desplegaron Workers ni se publicó una release.
+- La verificación original de la integración se hizo sin publicar ni modificar versión, firma o enlaces de descarga. Para la publicación autorizada de Mobile se incrementan `versionName` a `0.12.0` y `versionCode` a `18`, manteniendo paquete y firma. No se despliegan Workers.
 - `/health` y `/manifest.json`: HTTP 200; servicio `1.8.0`, identidad `com.aetherio.hub`, recursos `stream` para `movie/series`.
 - El test Kotlin público también pasó, sin descargar vídeo ni ejecutar torrents. Resultado observado, no una cantidad garantizada:
 

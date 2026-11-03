@@ -52,11 +52,14 @@ internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink:
     var search by rememberSaveable { mutableStateOf("") }
     val pages = rememberSaveableStateHolder()
     val focus = LocalFocusManager.current
-    val selected = SettingsSection.entries.firstOrNull { it.name == destination }
+    // Observe the route in this composition, not inside an inline enum lookup.
+    val route = destination
+    val selected = SettingsSection.entries.firstOrNull { it.name == route }
     val back = { focus.clearFocus(); destination = null }
     BackHandler(enabled = selected != null, onBack = back)
 
-    pages.SaveableStateProvider(selected?.name ?: "overview") {
+    // Each route has its own composition identity as well as its saved form/scroll state.
+    key(route) { pages.SaveableStateProvider(route ?: "overview") {
         Column(Modifier.fillMaxSize().imePadding().verticalScroll(rememberScrollState()).testTag("settingsScroll")
             .padding(bottom = 128.dp).navigationBarsPadding()) {
             if (selected == null) {
@@ -131,7 +134,7 @@ internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink:
                 }
             }
         }
-    }
+    } }
 }
 
 @Composable

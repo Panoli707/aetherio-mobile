@@ -84,9 +84,13 @@ android {
         versionCode = 21
         versionName = "0.14.0"
         manifestPlaceholders["tmdbCredentialsEmbedded"] = tmdbReadAccessToken.isNotEmpty()
-        testInstrumentationRunner = if (providers.gradleProperty("torrentReleaseSmoke").orNull == "true")
-            "com.panoli707.aetherio.nativeapp.player.torrent.TorrentReleaseInstrumentation"
-        else "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = when {
+            providers.gradleProperty("settingsReleaseSmoke").orNull == "true" ->
+                "com.panoli707.aetherio.nativeapp.ui.SettingsReleaseInstrumentation"
+            providers.gradleProperty("torrentReleaseSmoke").orNull == "true" ->
+                "com.panoli707.aetherio.nativeapp.player.torrent.TorrentReleaseInstrumentation"
+            else -> "androidx.test.runner.AndroidJUnitRunner"
+        }
     }
 
     buildTypes {

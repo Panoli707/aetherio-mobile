@@ -28,8 +28,10 @@ class ArtworkImagesTest {
             val candidates = ArtworkImages.headers(item, portrait = true)
             assertEquals(listOf("clean", "poster", "backdrop"), candidates.map { it.url })
             assertEquals(2f / 3f, candidates.first().aspectRatio)
-            assertFalse(candidates.first().containsTitle)
-            assertTrue(candidates[1].containsTitle)
+            assertEquals(ArtworkTitlePresence.UNKNOWN, candidates.first().titlePresence)
+            assertEquals(ArtworkTitlePresence.UNKNOWN, candidates[1].titlePresence)
+            assertTrue(ArtworkImages.separateTitle(candidates[1], detail = true))
+            assertFalse(ArtworkImages.separateTitle(candidates[1], detail = false)) // Compact Home remains unchanged.
             assertEquals(listOf("backdrop", "clean", "poster"), ArtworkImages.headers(item, portrait = false).map { it.url })
             assertEquals("poster", ArtworkImages.headers(item.copy(portraitArtworkUrl = null), true).first().url)
             assertEquals(16f / 9f, ArtworkImages.headers(item.copy(portraitArtworkUrl = null, posterUrl = null), true).single().aspectRatio)
@@ -40,5 +42,21 @@ class ArtworkImagesTest {
         val item = MediaItem("1", MediaType.MOVIE, "Title", posterUrl = "", backdropUrl = " ")
         assertTrue(ArtworkImages.headers(item, true).isEmpty())
         assertEquals(1, ArtworkImages.headers(item.copy(posterUrl = "same", backdropUrl = "same"), true).size)
+    }
+
+    @Test fun onlyConfirmedEmbeddedTitlesCanHideTheIndependentDetailTitle() {
+        val item = MediaItem("1", MediaType.SERIES, "Title", posterUrl = "poster")
+        ArtworkTitlePresence.entries.forEach { presence ->
+            val header = ArtworkImages.headers(item.copy(posterTitlePresence = presence), true).single()
+            assertEquals(presence != ArtworkTitlePresence.EMBEDDED, ArtworkImages.separateTitle(header, true))
+        }
+        assertTrue(ArtworkImages.separateTitle(null, true))
+    }
+
+    @Test fun logoVariantsKeepProviderLanguageOrderAndNeverRewriteSignedOrForeignUrls() {
+        val item = MediaItem("1", MediaType.SERIES, "Title", logoUrl = "https://image.tmdb.org/t/p/w500/es.png",
+            logoAlternatives = listOf("https://cdn.example/logo.png?signature=x", "https://image.tmdb.org/t/p/w500/es.png"))
+        assertEquals(listOf("https://image.tmdb.org/t/p/original/es.png", item.logoUrl,
+            "https://cdn.example/logo.png?signature=x"), ArtworkImages.logos(item))
     }
 }

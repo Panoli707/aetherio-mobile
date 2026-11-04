@@ -46,4 +46,14 @@ class MediaLayoutTest {
         assertEquals((natural * .82f).value, heroArtworkHeight(360.dp, 800.dp, 2f / 3f, 180.dp).value, .01f)
         assertEquals(202.5f, heroArtworkHeight(360.dp, 800.dp, 16f / 9f).value, .01f)
     }
+
+    @Test fun detailsKeepTheEntireImageAtFullWidthRegardlessOfViewportHeight() {
+        for (width in listOf(240.dp, 360.dp, 411.dp, 800.dp)) {
+            for (ratio in listOf(.4f, 2f / 3f, 1f, 16f / 9f, 4f))
+                assertEquals((width / ratio).value, detailArtworkHeight(width, ratio).value, .01f)
+        }
+        listOf(0f, -1f, Float.NaN, Float.POSITIVE_INFINITY).forEach {
+            assertEquals(540.dp, detailArtworkHeight(360.dp, it))
+        }
+    }
 }

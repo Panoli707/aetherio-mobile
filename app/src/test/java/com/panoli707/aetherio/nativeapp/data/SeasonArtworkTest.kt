@@ -50,4 +50,15 @@ class SeasonArtworkTest {
         val unique = SeasonArtwork.mapped(base, 3, null, false, "unique-poster", "unique-logo", "unique-clean")
         assertEquals("unique-clean", unique.portraitArtworkUrl)
     }
+
+    @Test fun aFreshSeasonDoesNotInheritAnEmbeddedTitleFlagFromAnUnrelatedCover() {
+        val known = base.copy(posterTitlePresence = ArtworkTitlePresence.EMBEDDED, logoAlternatives = listOf("backup-logo"))
+        val season = SeasonArtwork.apply(known, 2, poster = "season-poster", logo = "season-logo", logos = listOf("season-backup"))
+        assertEquals(ArtworkTitlePresence.UNKNOWN, season.posterTitlePresence)
+        assertEquals("season-logo", season.logoUrl)
+        assertEquals(listOf("season-backup", "general-logo", "backup-logo"), season.logoAlternatives)
+        val mapped = SeasonArtwork.mapped(known, 2, known.copy(posterUrl = "entry", posterTitlePresence = ArtworkTitlePresence.ABSENT),
+            true, null, null, null)
+        assertEquals(ArtworkTitlePresence.ABSENT, mapped.posterTitlePresence)
+    }
 }

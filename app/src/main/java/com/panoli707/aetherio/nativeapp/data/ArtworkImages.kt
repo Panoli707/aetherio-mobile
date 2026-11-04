@@ -4,16 +4,24 @@ import java.net.URI
 
 /** Upgrade only known TMDB image variants; never rewrite provider or signed URLs. */
 internal object ArtworkImages {
-    data class Header(val url: String, val aspectRatio: Float, val containsTitle: Boolean = false)
+    enum class Kind { PORTRAIT, POSTER, BACKDROP }
+    data class Header(val url: String, val aspectRatio: Float, val kind: Kind,
+        val titlePresence: ArtworkTitlePresence = ArtworkTitlePresence.UNKNOWN)
 
     /** Never fill a portrait header by zooming into a landscape banner. */
     fun headers(item: MediaItem, portrait: Boolean): List<Header> {
-        val clean = item.portraitArtworkUrl?.takeIf(String::isNotBlank)?.let { Header(it, 2f / 3f) }
-        val poster = item.posterUrl?.takeIf(String::isNotBlank)?.let { Header(it, 2f / 3f, containsTitle = true) }
-        val backdrop = item.backdropUrl?.takeIf(String::isNotBlank)?.let { Header(it, 16f / 9f) }
+        val clean = item.portraitArtworkUrl?.takeIf(String::isNotBlank)?.let { Header(it, 2f / 3f, Kind.PORTRAIT, item.portraitTitlePresence) }
+        val poster = item.posterUrl?.takeIf(String::isNotBlank)?.let { Header(it, 2f / 3f, Kind.POSTER, item.posterTitlePresence) }
+        val backdrop = item.backdropUrl?.takeIf(String::isNotBlank)?.let { Header(it, 16f / 9f, Kind.BACKDROP, item.backdropTitlePresence) }
         return (if (portrait) listOf(clean, poster, backdrop) else listOf(backdrop, clean, poster))
             .filterNotNull().distinctBy { it.url }
     }
+    fun separateTitle(header: Header?, detail: Boolean): Boolean = if (detail)
+        header?.titlePresence != ArtworkTitlePresence.EMBEDDED
+    else header == null || header.titlePresence == ArtworkTitlePresence.ABSENT || header.kind != Kind.POSTER
+
+    fun logos(item: MediaItem): List<String> = (listOfNotNull(item.logoUrl) + item.logoAlternatives)
+        .filter(String::isNotBlank).flatMap { listOfNotNull(highResolution(it), it) }.distinct()
     fun highResolution(url: String?): String? {
         if (url == null) return null
         return runCatching {

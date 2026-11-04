@@ -71,8 +71,8 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
         var infoOpen by rememberSaveable(media.key) { mutableStateOf(false) }
         BoxWithConstraints(Modifier.fillMaxSize().background(DetailNight)) {
             val portrait = maxWidth < 600.dp
-             val viewportHeight = maxHeight
-             val artworkWidth = maxWidth
+            val viewportHeight = maxHeight
+            val artworkWidth = maxWidth
             val episodeWidth = (maxWidth * .79f).coerceIn(260.dp, 420.dp)
             val relatedWidth = posterWidth(maxWidth)
             LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("detailScroll"),
@@ -80,12 +80,12 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                 item(key = "hero") {
                     Column(Modifier.fillMaxWidth().background(DetailNight).testTag("detailHero"),
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                         if (detail == null && (state.detailLoading || state.detailError != null)) {
-                             Box(Modifier.fillMaxWidth().height(heroArtworkHeight(artworkWidth, viewportHeight, 2f / 3f))
-                                 .testTag("detailArtworkPlaceholder"), contentAlignment = Alignment.Center) {
-                                 if (state.detailLoading) CircularProgressIndicator(color = Accent)
-                             }
-                         } else HeroArtwork(media, portrait, viewportHeight)
+                        if (detail == null && (state.detailLoading || state.detailError != null)) {
+                            Box(Modifier.fillMaxWidth().height(detailArtworkHeight(artworkWidth, 2f / 3f))
+                                .testTag("detailArtworkPlaceholder"), contentAlignment = Alignment.Center) {
+                                if (state.detailLoading) CircularProgressIndicator(color = Accent)
+                            }
+                        } else HeroArtwork(media, portrait, viewportHeight, fullImage = true)
                         Column(Modifier.widthIn(max = 600.dp).fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 14.dp, top = 10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             val metadata = buildList {

@@ -64,6 +64,30 @@ class CatalogJsonTest {
         assertEquals("TMDB:movie:10378", item.key)
     }
 
+    @Test fun titleContentAndLogoAlternativesPersistWithoutBreakingOlderLibraries() {
+        val item = MediaItem("550", MediaType.MOVIE, "Title", posterUrl = "https://example.org/poster.jpg",
+            posterTitlePresence = ArtworkTitlePresence.EMBEDDED, portraitTitlePresence = ArtworkTitlePresence.ABSENT,
+            logoUrl = "https://example.org/primary.png", logoAlternatives = listOf("https://example.org/fallback.png"))
+        assertEquals(item, CatalogJson.decode(CatalogJson.encode(listOf(item))).single())
+        val old = CatalogJson.decode("""[{"id":"550","type":"MOVIE","source":"TMDB","name":"Title","posterTitlePresence":"unsupported"}]""").single()
+        assertEquals(ArtworkTitlePresence.UNKNOWN, old.posterTitlePresence)
+        assertTrue(old.logoAlternatives.isEmpty())
+        val refreshed = CatalogJson.detail(item, JSONObject("""{"id":550,"title":"Title","poster_path":"/new.jpg"}""")).item
+        assertEquals(ArtworkTitlePresence.UNKNOWN, refreshed.posterTitlePresence)
+    }
+
+    @Test fun logosPreferSpanishThenEnglishAndKeepSafeAlternativesWithoutInferringPosterText() {
+        val json = JSONObject("""{"id":550,"title":"Title","poster_path":"/poster.jpg","images":{"logos":[
+            {"iso_639_1":"en","file_path":"/en.png","width":2000},
+            {"iso_639_1":"es","file_path":"/es-small.png","width":300},
+            {"iso_639_1":"es","file_path":"/es-large.png","width":1200},
+            {"iso_639_1":"es","file_path":"//unsafe.png","width":4000}]}}""")
+        val item = CatalogJson.item(json, MediaType.MOVIE, CatalogSource.TMDB)!!
+        assertEquals("https://image.tmdb.org/t/p/w500/es-large.png", item.logoUrl)
+        assertEquals(listOf("https://image.tmdb.org/t/p/w500/es-small.png", "https://image.tmdb.org/t/p/w500/en.png"), item.logoAlternatives)
+        assertEquals(ArtworkTitlePresence.UNKNOWN, item.posterTitlePresence)
+    }
+
     @Test fun tmdbSearchKeepsNamespacesAndIgnoresPeopleAndMalformedEntries() {
         val items = CatalogJson.search(JSONObject("""{"results":[
             {"id":550,"media_type":"movie","title":"Fight Club","release_date":"1999-10-15","poster_path":"/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg","vote_average":8.4},

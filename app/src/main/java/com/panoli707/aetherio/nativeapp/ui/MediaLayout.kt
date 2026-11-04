@@ -28,3 +28,9 @@ internal fun heroArtworkHeight(width: Dp, viewportHeight: Dp, aspectRatio: Float
     // On a short window, allow scrolling rather than cropping most of a face or shrinking the poster.
     return preferred.coerceAtLeast(naturalHeight * .82f).coerceAtLeast(1.dp)
 }
+
+/** Detail pages scroll: the complete image, including an embedded title at either edge, has priority. */
+internal fun detailArtworkHeight(width: Dp, aspectRatio: Float): Dp {
+    val ratio = aspectRatio.takeIf { it.isFinite() && it > 0f } ?: (2f / 3f)
+    return (width / ratio).coerceAtLeast(1.dp)
+}

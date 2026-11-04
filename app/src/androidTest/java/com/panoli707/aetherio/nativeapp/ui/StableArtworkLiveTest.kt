@@ -35,7 +35,7 @@ class StableArtworkLiveTest {
         val seasons = runBlocking { (1..3).map { repository.seasonContent(base, it).item } }
         assertEquals(3, seasons.map { ArtworkImages.headers(it, true).first().url }.distinct().size)
         val selected = mutableStateOf(seasons[0])
-        compose.setContent { AetherioTheme { Box(Modifier.width(360.dp)) { HeroArtwork(selected.value, true, 800.dp) } } }
+        compose.setContent { AetherioTheme { Box(Modifier.width(360.dp)) { HeroArtwork(selected.value, true, 800.dp, fullImage = true) } } }
         val signatures = mutableListOf<List<Int>>()
         for (number in listOf(1, 2, 3, 1)) {
             compose.runOnIdle { selected.value = seasons[number - 1] }

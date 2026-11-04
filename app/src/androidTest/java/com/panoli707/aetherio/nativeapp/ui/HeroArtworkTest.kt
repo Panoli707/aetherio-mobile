@@ -161,12 +161,10 @@ class HeroArtworkTest {
             }
         } }
         waitForImage()
-        compose.onNodeWithTag("detailPrimaryPlay").assertIsDisplayed()
-        compose.onNodeWithText("Ciencia ficción", substring = true).assertIsDisplayed()
         val image = compose.onNodeWithTag("heroImage").getUnclippedBoundsInRoot()
-        val action = compose.onNodeWithTag("detailPrimaryPlay").getUnclippedBoundsInRoot()
-        assertTrue(image.bottom < action.top)
-        assertEquals(heroArtworkHeight(300.dp, 600.dp, 2f / 3f).value, (image.bottom - image.top).value, 1f)
+        assertEquals(detailArtworkHeight(300.dp, 2f / 3f).value, (image.bottom - image.top).value, 1f)
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailPrimaryPlay"))
+        compose.onNodeWithTag("detailPrimaryPlay").assertIsDisplayed()
     }
 
     @Test fun landscapeHeaderPrefersTheBannerInsteadOfCroppingThePortraitPoster() {
@@ -180,7 +178,7 @@ class HeroArtworkTest {
         compose.onNodeWithText(item.title).assertIsDisplayed()
     }
 
-    @Test fun movieAndSeriesDetailsKeepMetadataAndPrimaryActionVisibleBelowABoundedCover() {
+    @Test fun movieAndSeriesDetailsKeepMetadataAndPrimaryActionReachableBelowTheFullCover() {
         val item = mutableStateOf(MediaItem("550", MediaType.MOVIE, "Detail title",
             posterUrl = fixture(1200, 1800), year = "2026", score = 6.9, genres = listOf("Animación")))
         compose.setContent { AetherioTheme {
@@ -191,11 +189,13 @@ class HeroArtworkTest {
             }
         } }
         waitForImage()
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailPrimaryPlay"))
         compose.onNodeWithTag("detailPrimaryPlay").assertIsDisplayed()
         compose.onNodeWithText("2026", substring = true).assertIsDisplayed()
         compose.onNodeWithContentDescription("Volver").assertIsDisplayed()
         saveScreenshot("movie-cover.png")
         compose.runOnIdle { item.value = item.value.copy(type = MediaType.SERIES, isAnime = true) }
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailPrimaryPlay"))
         compose.onNodeWithTag("detailPrimaryPlay").assertIsDisplayed()
         compose.onNodeWithText("Animación", substring = true).assertIsDisplayed()
         saveScreenshot("series-cover.png")

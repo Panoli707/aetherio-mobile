@@ -7,6 +7,8 @@ enum class MediaType(val path: String, val label: String) {
 
 enum class CatalogSource { TMDB, CINEMETA, ANILIST }
 enum class SectionStyle { POSTERS, RANKED, FEATURED }
+/** Image content, not a guess based on a provider field or its language tag. */
+enum class ArtworkTitlePresence { UNKNOWN, EMBEDDED, ABSENT }
 
 data class MediaItem(
     val id: String,
@@ -29,7 +31,11 @@ data class MediaItem(
     val seriesNumbering: Boolean = false,
     val voteCount: Int? = null,
     val certification: String? = null,
-    val portraitArtworkUrl: String? = null
+    val portraitArtworkUrl: String? = null,
+    val posterTitlePresence: ArtworkTitlePresence = ArtworkTitlePresence.UNKNOWN,
+    val portraitTitlePresence: ArtworkTitlePresence = ArtworkTitlePresence.UNKNOWN,
+    val backdropTitlePresence: ArtworkTitlePresence = ArtworkTitlePresence.UNKNOWN,
+    val logoAlternatives: List<String> = emptyList()
 ) {
     val key: String get() = "${source.name}:${type.path}:$id"
 }

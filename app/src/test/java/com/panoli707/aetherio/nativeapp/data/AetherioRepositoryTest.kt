@@ -280,6 +280,28 @@ class AetherioRepositoryTest {
         }
     }
 
+    @Test fun boticariaUsesEachMappedEntryWithoutARepeatedTmdbPortraitAndKeepsEpisodeOffsets() = runBlocking {
+        TlsFixture().use { fixture ->
+            val requested = mutableListOf<String>()
+            val repository = AetherioRepository(readAccessToken = TOKEN, client = fixture.client, tmdbBase = fixture.server.url("/3"),
+                seasonAnimeArtwork = { entry -> requested.add(entry.id); entry.copy(posterUrl = "https://example.org/${entry.id}.jpg") })
+            val base = SeriesIdentity.item(MediaItem("220542", MediaType.SERIES, "Los diarios de la boticaria",
+                portraitArtworkUrl = "https://example.org/general.jpg"))
+            for (number in 1..3) {
+                val episodes = (1..72).joinToString(",") { """{"episode_number":$it,"name":"Episode $it"}""" }
+                fixture.server.enqueue(MockResponse().setBody("""{"poster_path":"/shared.jpg","images":{"posters":[
+                    {"file_path":"/shared-clean.jpg","iso_639_1":null,"width":1200,"aspect_ratio":0.666}]},"episodes":[$episodes]}"""))
+                val content = repository.seasonContent(base, number)
+                assertEquals("https://example.org/${requested.last()}.jpg", ArtworkImages.headers(content.item, true).first().url)
+                assertNull(content.item.portraitArtworkUrl)
+                assertEquals(1, content.episodes.first().number); assertEquals(number, content.episodes.first().season)
+                assertEquals(24, content.episodes.size)
+                authenticated(fixture.request(), "/3/tv/220542/season/1")
+            }
+            assertEquals(listOf("161645", "176301", "195516"), requested)
+        }
+    }
+
     @Test fun failedTmdbSearchFallsBackToCinemetaWithoutForwardingAuthorization() = runBlocking {
         TlsFixture().use { fixture ->
             val repository = fixture.repository()

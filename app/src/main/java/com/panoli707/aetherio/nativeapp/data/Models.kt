@@ -89,6 +89,7 @@ data class AppState(
     val detailLoading: Boolean = false,
     val detailError: String? = null,
     val episodesLoading: Boolean = false,
+    val pendingSeason: Int? = null,
     val searchQuery: String = "",
     val searchResults: List<MediaItem> = emptyList(),
     val searchLoading: Boolean = false,

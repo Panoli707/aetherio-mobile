@@ -58,7 +58,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
         }, media)?.takeIf { !it.watched && it.positionMs > 0 }
         val episodes = detail?.episodes.orEmpty().filter { it.season == detail?.selectedSeason }
         val first = episodes.firstOrNull().takeUnless { state.episodesLoading }
-        val canPlay = media.type == MediaType.MOVIE || recent != null || first != null
+        val canPlay = media.type == MediaType.MOVIE || (!state.episodesLoading && (recent != null || first != null))
         val play: () -> Unit = {
             if (recent != null) onRequestSources(media, recent.target.season, recent.target.episode)
             else if (media.type == MediaType.MOVIE) onRequestSources(media, null, null)
@@ -71,7 +71,8 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
         var infoOpen by rememberSaveable(media.key) { mutableStateOf(false) }
         BoxWithConstraints(Modifier.fillMaxSize().background(DetailNight)) {
             val portrait = maxWidth < 600.dp
-            val viewportHeight = maxHeight
+             val viewportHeight = maxHeight
+             val artworkWidth = maxWidth
             val episodeWidth = (maxWidth * .79f).coerceIn(260.dp, 420.dp)
             val relatedWidth = posterWidth(maxWidth)
             LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("detailScroll"),
@@ -79,7 +80,12 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                 item(key = "hero") {
                     Column(Modifier.fillMaxWidth().background(DetailNight).testTag("detailHero"),
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        HeroArtwork(media, portrait, viewportHeight)
+                         if (detail == null && (state.detailLoading || state.detailError != null)) {
+                             Box(Modifier.fillMaxWidth().height(heroArtworkHeight(artworkWidth, viewportHeight, 2f / 3f))
+                                 .testTag("detailArtworkPlaceholder"), contentAlignment = Alignment.Center) {
+                                 if (state.detailLoading) CircularProgressIndicator(color = Accent)
+                             }
+                         } else HeroArtwork(media, portrait, viewportHeight)
                         Column(Modifier.widthIn(max = 600.dp).fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 14.dp, top = 10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             val metadata = buildList {
@@ -131,7 +137,8 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                         Box(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
                             TextButton(onClick = { seasonsOpen = true }, colors = ButtonDefaults.textButtonColors(contentColor = Accent),
                                 modifier = Modifier.background(AccentContainer, RoundedCornerShape(16.dp))) {
-                                Text(detail.seasons.firstOrNull { it.number == detail.selectedSeason }?.name ?: "Temporadas", style = MaterialTheme.typography.titleLarge)
+                                val requested = state.pendingSeason ?: detail.selectedSeason
+                                Text(detail.seasons.firstOrNull { it.number == requested }?.name ?: "Temporadas", style = MaterialTheme.typography.titleLarge)
                                 Icon(Icons.Default.KeyboardArrowDown, "Seleccionar temporada")
                             }
                             DropdownMenu(expanded = seasonsOpen, onDismissRequest = { seasonsOpen = false }, containerColor = DetailPanel) {
@@ -140,7 +147,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                                     onClick = { seasonsOpen = false; onSeason(season.number) }) }
                             }
                         }
-                        if (state.episodesLoading) LoadingRow("Cargando episodios…")
+                        if (state.episodesLoading) LoadingRow("Cargando temporada ${state.pendingSeason ?: detail.selectedSeason}…")
                         else if (episodes.isEmpty() && state.detailError == null) StatusMessage("Sin episodios disponibles", "No hay episodios publicados para esta temporada.")
                         else {
                             val selected = episodes.indexOfFirst { it.season == recent?.target?.season && it.number == recent?.target?.episode }.coerceAtLeast(0)

@@ -24,6 +24,11 @@ class SeriesIdentityLiveTest {
         val second = repository.seasonContent(detail.item, 2)
         assertNotNull(first.item.posterUrl)
         assertNotEquals(first.item.posterUrl, second.item.posterUrl)
+        // The visible priority matters: changing posterUrl alone used to leave the shared portrait on top.
+        assertEquals(first.item.posterUrl, ArtworkImages.headers(first.item, true).first().url)
+        assertEquals(second.item.posterUrl, ArtworkImages.headers(second.item, true).first().url)
+        assertNull(first.item.portraitArtworkUrl)
+        assertNull(second.item.portraitArtworkUrl)
         assertEquals(1, first.episodes.first().season)
         assertEquals(2, second.episodes.first().season)
         assertEquals(1, second.episodes.first().number)

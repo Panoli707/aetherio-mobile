@@ -87,6 +87,22 @@ class DetailDesignTest {
         compose.runOnIdle { assertFalse(played) }
     }
 
+    @Test fun pendingSeasonDisablesResumeAndDoesNotLabelOldEpisodesAsTheNewSeason() {
+        val series = movie.copy(type = MediaType.SERIES)
+        val detail = MediaDetail(series, seasons = listOf(SeasonInfo(1, "Temporada 1", 1), SeasonInfo(2, "Temporada 2", 1)),
+            episodes = listOf(EpisodeItem(1, 1, "Old episode")), selectedSeason = 1)
+        compose.setContent { AetherioTheme {
+            DetailScreen(AppState(detail = detail, episodesLoading = true, pendingSeason = 2,
+                watchProgress = listOf(WatchProgress(WatchTarget(series, 1, 1), 60_000, 1_440_000))),
+                series, rememberLazyListState(), {}, {}, {}, {}, {}, { _, _, _ -> })
+        } }
+        compose.onNodeWithTag("detailPrimaryPlay").assertIsNotEnabled()
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasText("Cargando temporada 2…"))
+        compose.onNodeWithText("Temporada 2").assertIsDisplayed()
+        compose.onNodeWithTag("detailEpisodes").assertDoesNotExist()
+        compose.onNodeWithText("Old episode").assertDoesNotExist()
+    }
+
     @Test fun trailerRelatedAndReviewActionsUseRealMetadataAndMissingSectionsStayAbsent() {
         val trailer = DetailLinks.trailer("abcDE123_-x", "Tráiler de prueba")!!
         val related = movie.copy(id = "551", title = "Película relacionada")

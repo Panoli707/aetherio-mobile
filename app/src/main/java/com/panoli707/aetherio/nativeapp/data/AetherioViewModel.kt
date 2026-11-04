@@ -33,8 +33,9 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         enabledDesktopSources = sourceSettings.enabledDesktopSources))
     val state: StateFlow<AppState> = mutableState.asStateFlow()
     private var homeJob: Job? = null
-    private var detailJob: Job? = null
-    private var seasonJob: Job? = null
+    private val detailLoader = DetailLoader(viewModelScope, repository::detail, repository::seasonContent,
+        { item -> WatchProgressRules.latest(history.load(), item)?.target?.season }, { state.value },
+        { change -> mutableState.update(change) })
     private var searchJob: Job? = null
     private var sourceJob: Job? = null
     private var addonRestoreJob: Job? = null
@@ -130,55 +131,10 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     fun selectMedia(selected: MediaItem) {
         val item = SeriesIdentity.item(selected)
         dismissSources()
-        detailJob?.cancel()
-        seasonJob?.cancel()
-        detailJob = viewModelScope.launch {
-            mutableState.update { it.copy(selectedItem = item, detail = null, detailLoading = true, detailError = null, episodesLoading = false) }
-            try {
-                val fetched = repository.detail(item)
-                val recentSeason = item.seasonHint ?: WatchProgressRules.latest(history.load(), item)?.target?.season
-                val detail = if (recentSeason != null && fetched.seasons.any { it.number == recentSeason })
-                    fetched.copy(selectedSeason = recentSeason,
-                        episodes = if (recentSeason == fetched.selectedSeason) fetched.episodes else emptyList()) else fetched
-                ensureActive()
-                if (state.value.selectedItem?.key != item.key) return@launch
-                mutableState.update { it.copy(selectedItem = detail.item, detail = detail, detailLoading = false) }
-                if (item.source == CatalogSource.TMDB || detail.selectedSeason != fetched.selectedSeason)
-                    detail.selectedSeason?.let(::selectSeason)
-            } catch (e: CancellationException) { throw e }
-            catch (_: Exception) {
-                if (state.value.selectedItem?.key == item.key) mutableState.update { it.copy(detailLoading = false, detailError = "No se pudo cargar la información. Inténtalo de nuevo.") }
-            }
-        }
+        detailLoader.open(item)
     }
-    fun retryDetail() {
-        val current = state.value
-        val detail = current.detail
-        if (detail?.selectedSeason != null && current.detailError != null) selectSeason(detail.selectedSeason)
-        else current.selectedItem?.let(::selectMedia)
-    }
-    fun selectSeason(number: Int) {
-        val detail = state.value.detail ?: return
-        if (detail.seasons.none { it.number == number }) return
-        val artworkBase = detail.artworkBase ?: detail.item
-        seasonJob?.cancel()
-        seasonJob = viewModelScope.launch {
-            mutableState.update { it.copy(selectedItem = artworkBase,
-                detail = detail.copy(item = artworkBase, artworkBase = artworkBase, selectedSeason = number, episodes = emptyList()),
-                episodesLoading = true, detailError = null) }
-            try {
-                val content = repository.seasonContent(artworkBase, number)
-                ensureActive()
-                if (state.value.detail?.item?.key != detail.item.key || state.value.detail?.selectedSeason != number) return@launch
-                mutableState.update { it.copy(selectedItem = content.item,
-                    detail = it.detail?.copy(item = content.item, episodes = content.episodes), episodesLoading = false) }
-            } catch (e: CancellationException) { throw e }
-            catch (_: Exception) {
-                if (state.value.detail?.item?.key == detail.item.key && state.value.detail?.selectedSeason == number)
-                    mutableState.update { it.copy(episodesLoading = false, detailError = "No se pudieron cargar los episodios. Inténtalo de nuevo.") }
-            }
-        }
-    }
+    fun retryDetail() = detailLoader.retry()
+    fun selectSeason(number: Int) = detailLoader.select(number)
     fun search(query: String) {
         searchJob?.cancel()
         searchJob = viewModelScope.launch {

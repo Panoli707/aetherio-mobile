@@ -33,4 +33,21 @@ class SeasonArtworkTest {
         assertEquals("anime-logo", season.logoUrl)
         assertEquals(WatchTarget(base, 3, 1).key, WatchTarget(season, 3, 1).key)
     }
+
+    @Test fun sharedTmdbPortraitNeverHidesAMappedSeasonPoster() {
+        val one = SeasonArtwork.mapped(base, 1, base.copy(posterUrl = "anilist-one", portraitArtworkUrl = null),
+            true, "shared-poster", "shared-logo", "shared-clean")
+        val two = SeasonArtwork.mapped(base, 2, base.copy(posterUrl = "anilist-two", portraitArtworkUrl = null),
+            true, "shared-poster", "shared-logo", "shared-clean")
+        assertNull(one.portraitArtworkUrl); assertNull(two.portraitArtworkUrl)
+        assertEquals("anilist-one", ArtworkImages.headers(one, true).first().url)
+        assertEquals("anilist-two", ArtworkImages.headers(two, true).first().url)
+    }
+
+    @Test fun aMissingMappedEntryUsesTheSeriesBaseInsteadOfClaimingSharedArtBelongsToThisSeason() {
+        assertEquals(base.copy(seasonHint = 3), SeasonArtwork.mapped(base, 3, null, true,
+            "shared-poster", "shared-logo", "shared-clean"))
+        val unique = SeasonArtwork.mapped(base, 3, null, false, "unique-poster", "unique-logo", "unique-clean")
+        assertEquals("unique-clean", unique.portraitArtworkUrl)
+    }
 }

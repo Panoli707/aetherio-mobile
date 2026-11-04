@@ -4,10 +4,11 @@ Aetherio permite explorar películas y series, guardar favoritos y reproducir v�
 
 ## Inicio y búsqueda
 
-Al abrir Aetherio, se muestran el logo y el nombre mientras carga el catálogo.
+Al abrir Aetherio, se muestran el logo y el nombre mientras arranca la interfaz. El catálogo aparece por partes y puede reutilizar metadatos guardados, sin esperar a que respondan todos los servicios.
 
 - En **Inicio**, desliza los destacados de la cabecera. Avanzan automáticamente mientras Inicio está activo; el botón de perfil abre Ajustes.
 - Desliza horizontalmente las secciones de películas, series y anime. Pulsa la flecha de una sección para ver sus títulos en una cuadrícula.
+- Inicio incorpora las 44 filas predeterminadas de PC, los siete accesos por plataforma y los exploradores de géneros. Los filtros y las diferencias de Android están en [Catálogo de Inicio](CATALOGO_INICIO.md). **Actualizar catálogo**, junto al perfil, fuerza una consulta nueva sin borrar tus datos.
 - Toca la lupa **Buscar**, escribe un título y abre uno de los resultados.
 - Abre la pestaña **Anime** para ver tus episodios pendientes y los animes que sigues.
 - Si la navegación se reduce al desplazarte, toca **Inicio** para volver arriba y recuperar las otras pestañas.
@@ -20,7 +21,7 @@ Las portadas mantienen la proporción 2:3 y comparten tamaños, márgenes y sepa
 
 Las fichas de películas, series y anime comparten una estructura con portada grande, título o logo y metadatos. La portada no tiene un botón de reproducción superpuesto: usa **Reproducir** para abrir las fuentes de la película o del episodio indicado; si hay progreso pendiente, el botón conserva el episodio y la posición guardada. Las imágenes de episodios y tráileres tampoco llevan iconos de reproducción superpuestos, pero sus tarjetas siguen siendo pulsables.
 
-La paleta azul noche, turquesa, violeta y coral se aplica a toda la aplicación, incluidos navegación, búsqueda, biblioteca, ajustes, menús y controles del reproductor. El fondo del vídeo sigue siendo negro. Las imágenes principales usan póster en vertical y fondo panorámico en horizontal, solicitando la resolución original de TMDB o la portada grande de AniList cuando existe. La nitidez final depende de la imagen disponible; no se genera una versión HD artificial.
+La paleta negra, blanca y violeta se aplica a toda la aplicación, incluidos navegación, búsqueda, biblioteca, ajustes, menús y controles del reproductor. El fondo del vídeo sigue siendo negro. Las imágenes principales usan póster en vertical y fondo panorámico en horizontal, solicitando la resolución original de TMDB o la portada grande de AniList cuando existe. La nitidez final depende de la imagen disponible; no se genera una versión HD artificial.
 
 Debajo están las acciones compactas: **Biblioteca / Guardado**, **Seguir / Siguiendo** para anime, **Enlace** para una URL propia e **Información** para consultar cómo funcionan las fuentes. La sinopsis empieza resumida; **Leer sinopsis completa** la despliega y **Ver menos** vuelve a reducirla.
 
@@ -65,9 +66,9 @@ Los animes con progreso o capítulos marcados se incorporan al seguimiento. Tamb
 
 ### Temporada actual y días de emisión
 
-En Inicio, **Anime emitiéndose ahora** muestra un carrusel de portadas con el nombre y el último episodio emitido confirmado; el total aparece si se conoce. Se ordena por la emisión confirmada más reciente. Si falta un horario completo, la tarjeta indica **En emisión** sin inventar un número. Toca una portada para abrir su ficha o el encabezado para ir a la temporada y sus días de emisión.
+En Inicio, **Anime en emisión** sigue el orden del catálogo de PC. Cuando una tarjeta tiene un horario confirmado, incorpora el último episodio emitido y el total conocido. No se adivina un capítulo a partir de la próxima emisión. Toca una portada para abrir su ficha o la flecha para ir a la temporada y sus días de emisión.
 
-El listado consulta AniList y exige la temporada y el año actuales, calculados según el calendario de Japón, junto con el estado **en emisión**. Ya no usa una ventana aproximada de fechas de TMDB. Una serie de años anteriores no aparece solo por seguir activa.
+El calendario consulta AniList y exige la temporada y el año actuales, calculados según el calendario de Japón, junto con el estado **en emisión**. No usa una ventana aproximada de fechas de TMDB: una serie de años anteriores no aparece solo por seguir activa. La fila de descubrimiento de Inicio sí puede usar la alternativa TMDB de PC cuando falla AniList; se identifica como alternativa y no inventa horarios ni episodios confirmados.
 
 El calendario empieza en **Lunes**. Puedes elegir **Todos**, otro día o **Sin horario**. Al abrir una ficha y volver, se conservan el filtro elegido y la posición del listado. El día procede de la próxima emisión publicada y se muestra según **Japón (JST)**, no según la hora local ni la disponibilidad de doblaje o subtítulos. Los datos dependen del servicio; la temporada se conserva hasta una hora en memoria y puede volver a consultarse al abrir el calendario. Si falla, se avisa en lugar de sustituirla por series antiguas.
 

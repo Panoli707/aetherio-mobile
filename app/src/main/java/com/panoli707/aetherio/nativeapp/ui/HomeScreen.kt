@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.LinearProgressIndicator
@@ -65,11 +66,13 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
         }
     },
         contentPadding = PaddingValues(bottom = 110.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
-        if (state.heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(state.heroes, pager, onSelect, onProfile) }
+        if (state.heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(state.heroes, pager, onSelect, onProfile, onRetry, state.homeLoading) }
         else item(key = "heading") {
             Box(Modifier.fillMaxWidth()) {
                 ScreenHeader("Aetherio")
                 ProfileAction(onProfile, Modifier.align(Alignment.TopEnd))
+                RoundAction("Actualizar catálogo", Icons.Default.Refresh, onRetry,
+                    Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 12.dp, end = 76.dp), enabled = !state.homeLoading)
             }
         }
         val continuing = WatchProgressRules.continuing(state.watchProgress)
@@ -98,6 +101,10 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
                 }
             }
         }
+        item(key = "streaming-platforms") {
+            CatalogNavigationRow("Explora por plataforma", "streamingPlatforms",
+                DesktopHomeCatalog.platforms.map { "platform:${it.id}" to it.name }, onCategory)
+        }
         if (state.homeError != null) item(key = "error") {
             StatusMessage(if (state.sections.isEmpty()) "No se pudo cargar el catálogo" else "Faltan algunas secciones",
                 state.homeError, "Reintentar", onRetry)
@@ -105,30 +112,18 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
         if (!state.homeLoading && state.homeError == null && state.sections.all { it.items.isEmpty() } && state.heroes.isEmpty()) {
             item(key = "empty") { StatusMessage("El catálogo está vacío", "No hay títulos disponibles en este momento.", "Reintentar", onRetry) }
         }
-        item(key = "animeSeasonLink") {
+        if (state.sections.none { it.id == "mal.airing_anime" }) item(key = "animeSeasonLink") {
             AiringAnimeSection(state.animeSeason, onSelect, { onCategory("airing") }, onRetryAnime)
         }
-        for (section in state.sections.filter { it.items.isNotEmpty() }) item(key = "section:${section.id}") {
-            Column(Modifier.padding(top = 20.dp)) {
-                Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, bottom = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Text(section.title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    RoundAction("Ver ${section.title}", Icons.Default.ArrowForward, { onCategory(section.id) })
-                }
-                BoxWithConstraints(Modifier.fillMaxWidth()) {
-                    val bannerWidth = (maxWidth - 36.dp).coerceAtMost(520.dp)
-                    val coverWidth = posterWidth(maxWidth)
-                    LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        itemsIndexed(section.items, key = { _, item -> item.key }, contentType = { _, _ -> section.style }) { index, item ->
-                            when (section.style) {
-                                SectionStyle.FEATURED -> Featured(item, { onSelect(item) }, Modifier.width(bannerWidth))
-                                SectionStyle.POSTERS, SectionStyle.RANKED -> Poster(item, { onSelect(item) },
-                                    Modifier.width(coverWidth).testTag("homePoster:${section.id}:${item.key}"),
-                                    rank = if (section.style == SectionStyle.RANKED) index + 1 else null)
-                            }
-                        }
-                    }
-                }
+        for (section in state.sections.filter { it.items.isNotEmpty() || it.loading || it.error != null }) {
+            item(key = "section:${section.id}") { HomeCatalogSection(section, onSelect, onCategory, onRetry, state.animeSeason) }
+            if (section.id == "tmdb.top_movie") item(key = "movie-series-genres") {
+                CatalogNavigationRow("Explorar géneros - Series y películas", "movieSeriesGenres",
+                    DesktopHomeCatalog.genres.map { "genre:${it.id}" to it.title }, onCategory)
+            }
+            if (section.id == "jikan.recommendations") item(key = "anime-genres") {
+                CatalogNavigationRow("Explorar géneros - Anime", "animeGenres",
+                    DesktopHomeCatalog.animeGenres.map { "anime-genre:${it.id}" to it.title }, onCategory)
             }
         }
     }
@@ -136,7 +131,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
 
 @Composable
 private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (MediaItem) -> Unit,
-    onProfile: () -> Unit) {
+    onProfile: () -> Unit, onRefresh: () -> Unit, loading: Boolean) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     Column {
         Box {
@@ -160,7 +155,9 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
                     }
                 }
             }
-            ProfileAction(onProfile, Modifier.align(Alignment.TopEnd))
+             ProfileAction(onProfile, Modifier.align(Alignment.TopEnd))
+             RoundAction("Actualizar catálogo", Icons.Default.Refresh, onRefresh,
+                 Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 12.dp, end = 76.dp), enabled = !loading)
         }
         if (heroes.size > 1) Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 12.dp)
             .semantics { contentDescription = "Destacado ${pager.currentPage + 1} de ${heroes.size}" },

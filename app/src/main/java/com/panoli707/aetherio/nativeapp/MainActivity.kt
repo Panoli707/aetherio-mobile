@@ -128,6 +128,7 @@ class MainActivity : ComponentActivity() {
                 onEpisodeWatchAction = model::markWatched,
                 onToggleWatching = model::toggleWatching,
                 onLoadAnimeSeason = model::loadAnimeSeason,
+                onBrowse = model::loadBrowse,
                 onOpenExternal = { url ->
                     val validated = DetailLinks.validate(url)
                     if (validated != null) try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(validated))) }
@@ -139,7 +140,7 @@ class MainActivity : ComponentActivity() {
                 },
                 onContinue = model::resume,
                 onSearch = model::search,
-                onRetryHome = model::loadHome,
+                onRetryHome = model::refreshHome,
                 onRetryDetail = model::retryDetail,
                 onSelectSeason = model::selectSeason,
                 onRenameProfile = model::renameProfile,

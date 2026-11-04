@@ -66,9 +66,10 @@ internal fun Artwork(url: String?, modifier: Modifier = Modifier, description: S
 }
 
 @Composable
-internal fun RoundAction(description: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun RoundAction(description: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     IconButton(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.size(48.dp).clip(CircleShape)
             .background(Panel.copy(alpha = .88f)).border(1.dp, Cream.copy(alpha = .14f), CircleShape)
     ) { Icon(icon, contentDescription = description, tint = Cream) }

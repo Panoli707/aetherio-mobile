@@ -26,7 +26,7 @@ Las actualizaciones automáticas están desactivadas por defecto. Si las activas
 
 ## Fuentes y Provider Hub
 
-Provider Hub se registra automáticamente como único resolvedor predeterminado de fuentes. No necesitas añadir addons para empezar. Los catálogos, la búsqueda y las fichas conservan los servicios integrados de TMDB, AniList y Cinemeta; el Hub solo resuelve streams.
+Provider Hub se registra automáticamente como único resolvedor predeterminado de fuentes. No necesitas añadir addons para empezar. Los catálogos, la búsqueda y las fichas usan los servicios integrados de TMDB, AniList y Cinemeta; Inicio añade Jikan/MyAnimeList para sus filas de anime. El Hub solo resuelve streams.
 
 Abre una ficha, pulsa **Reproducir** y toca la tarjeta de una fuente. Puedes gestionar fuentes adicionales y proveedores propios en **Ajustes > Fuentes y contenido** o usar una URL HTTPS directa desde **Ajustes > Reproducción**.
 
@@ -36,8 +36,10 @@ La disponibilidad depende de cada proveedor, la red y los códecs del dispositiv
 
 - [Instalación y actualización](docs/INSTALACION.md).
 - [Funcionamiento de la aplicación](docs/FUNCIONAMIENTO.md).
+- [Catálogo de Inicio adaptado de PC: filas, plataformas y géneros](docs/CATALOGO_INICIO.md).
 - [Contrato y límites de Provider Hub](docs/PROVIDER_HUB.md).
 - [Motor torrent: compilación, pruebas y restricciones](docs/TORRENT_ENGINE.md).
+- [Rendimiento del desarrollo y mantenimiento del disco](docs/RENDIMIENTO_Y_MANTENIMIENTO.md).
 
 ## Licencia
 

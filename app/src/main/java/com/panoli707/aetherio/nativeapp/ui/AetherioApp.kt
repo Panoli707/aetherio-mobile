@@ -29,6 +29,7 @@ import com.panoli707.aetherio.nativeapp.data.WatchProgress
 import com.panoli707.aetherio.nativeapp.data.MediaTrailer
 import com.panoli707.aetherio.nativeapp.data.EpisodeWatchScope
 import com.panoli707.aetherio.nativeapp.data.SeriesIdentity
+import com.panoli707.aetherio.nativeapp.data.DesktopHomeCatalog
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import kotlinx.coroutines.launch
 
@@ -57,7 +58,8 @@ fun AetherioApp(
     onToggleWatching: (MediaItem) -> Unit = {},
     onLoadAnimeSeason: () -> Unit = {},
     onOpenExternal: (String) -> Unit = {},
-    onPlayTrailer: (MediaTrailer) -> Unit = {}
+    onPlayTrailer: (MediaTrailer) -> Unit = {},
+    onBrowse: (String, Boolean) -> Unit = { _, _ -> }
 ) {
     var startupComplete by rememberSaveable { mutableStateOf(false) }
     val startupReady = !state.homeLoading || state.sections.isNotEmpty() || state.homeError != null
@@ -71,6 +73,7 @@ fun AetherioApp(
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var searchNeedsFocus by rememberSaveable { mutableStateOf(false) }
     var categoryId by rememberSaveable { mutableStateOf<String?>(null) }
+    var parentCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
     var detailKey by rememberSaveable { mutableStateOf<String?>(null) }
     var linkOpen by rememberSaveable { mutableStateOf(false) }
     var libraryFilter by rememberSaveable { mutableStateOf("all") }
@@ -81,6 +84,7 @@ fun AetherioApp(
     val libraryScroll = rememberLazyGridState()
     val searchScroll = rememberLazyGridState()
     val categoryScroll = rememberSaveable(categoryId, saver = LazyGridState.Saver) { LazyGridState() }
+    val browseScroll = rememberSaveable(categoryId, saver = LazyListState.Saver) { LazyListState() }
     val detailScroll = rememberSaveable(detailKey, saver = LazyListState.Saver) { LazyListState() }
     val pager = rememberPagerState { state.heroes.size }
     val screenState = rememberSaveableStateHolder()
@@ -93,6 +97,10 @@ fun AetherioApp(
     }
     val openSearch: () -> Unit = { focus.clearFocus(); searchNeedsFocus = true; searchOpen = true }
     LaunchedEffect(tab, categoryId) { if (tab == "home" || tab == "anime" || categoryId == "airing") onLoadAnimeSeason() }
+    LaunchedEffect(categoryId, parentCategoryId) {
+        val id = parentCategoryId ?: categoryId
+        if (id != null && DesktopHomeCatalog.browseTitle(id) != null) onBrowse(id, false)
+    }
     val select: (MediaItem) -> Unit = { original ->
         val item = SeriesIdentity.item(original)
         focus.clearFocus()
@@ -106,7 +114,7 @@ fun AetherioApp(
             linkOpen -> linkOpen = false
             detailKey != null -> detailKey = null
             searchOpen -> { searchOpen = false; searchNeedsFocus = false }
-            categoryId != null -> categoryId = null
+            categoryId != null -> { categoryId = parentCategoryId; parentCategoryId = null }
             tab != "home" -> tab = "home"
         }
     }
@@ -144,13 +152,21 @@ fun AetherioApp(
                             airingDay, { airingDay = it; scope.launch { seasonScroll.scrollToItem(0) } })
                     }
                     categoryId != null -> {
-                        val section = state.sections.firstOrNull { it.id == categoryId }
-                        Column(Modifier.fillMaxSize()) {
-                            ScreenHeader(section?.title ?: "Categoría", closeTop)
-                             if (section == null && state.homeLoading) LoadingRow("Cargando categoría…")
-                             else if (section == null || section.items.isEmpty()) StatusMessage("No hay títulos disponibles", "Vuelve al catálogo para ver otras categorías.")
-                            else CatalogGrid(section.items, categoryScroll, select, Modifier.weight(1f), ranked = section.style == SectionStyle.RANKED)
-                        }
+                         val browseTitle = categoryId?.let(DesktopHomeCatalog::browseTitle)
+                         val section = (state.sections + state.browse.sections).firstOrNull { it.id == categoryId }
+                         if (browseTitle != null) {
+                             val id = categoryId!!
+                             val browse = if (state.browse.id == id) state.browse else com.panoli707.aetherio.nativeapp.data.CatalogBrowseState(id, browseTitle, loading = true)
+                             CatalogBrowseScreen(browse, categoryScroll, browseScroll, closeTop, select,
+                                 { child -> parentCategoryId = id; categoryId = child }, { onBrowse(id, true) })
+                         } else {
+                         Column(Modifier.fillMaxSize()) {
+                             ScreenHeader(section?.title ?: "Categoría", closeTop)
+                              if (section == null && (state.homeLoading || state.browse.loading)) LoadingRow("Cargando categoría…")
+                              else if (section == null || section.items.isEmpty()) StatusMessage("No hay títulos disponibles", "Vuelve al catálogo para ver otras categorías.")
+                             else CatalogGrid(section.items, categoryScroll, select, Modifier.weight(1f), ranked = section.style == SectionStyle.RANKED)
+                         }
+                         }
                     }
                     else -> {
                         screenState.SaveableStateProvider(tab) {
@@ -160,7 +176,7 @@ fun AetherioApp(
                                 "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon, onDesktopSourceToggle,
                                     updates, onUpdateAction, onAutomaticUpdatesChange)
                                 else -> HomeScreen(state, homeScroll, pager, !linkOpen && state.sourceQuery == null && !updates.noticeVisible,
-                                    select, { categoryId = it }, onRetryHome, onContinue, onLoadAnimeSeason,
+                                     select, { parentCategoryId = null; categoryId = it }, onRetryHome, onContinue, onLoadAnimeSeason,
                                     onProfile = { focus.clearFocus(); tab = "settings" })
                             }
                         }

@@ -72,7 +72,8 @@ class AetherioRepositoryTest {
         }
 
         fun repository(token: String = TOKEN, base: HttpUrl = server.url(if (token.isNotBlank()) "/3" else "/api/tmdb")) =
-            AetherioRepository(readAccessToken = token, client = client, tmdbBase = base)
+            AetherioRepository(readAccessToken = token, client = client, tmdbBase = base,
+                homeAnimeSource = HomeAnimeSource { emptyList() })
 
         fun request(): RecordedRequest = server.takeRequest(5, TimeUnit.SECONDS)
             ?: throw AssertionError("Expected catalog request")
@@ -138,15 +139,136 @@ class AetherioRepositoryTest {
                 override fun dispatch(request: RecordedRequest) = MockResponse().setBody(CATALOG)
             }
             val home = fixture.repository().home()
-            assertEquals(6, home.sections.size)
+            assertEquals(44, home.sections.size)
             assertFalse(home.partial)
-            assertEquals("550", home.heroes.single().id)
-            val requests = List(6) { fixture.request() }
+            assertTrue(home.heroes.isNotEmpty())
+            assertTrue(home.heroes.all { it.id == "550" })
+            val requests = List(44) { fixture.request() }
             assertEquals(setOf("/3/trending/movie/day", "/3/trending/tv/day"),
                 requests.map { it.requestUrl!!.encodedPath }.filter { it.contains("/trending/") }.toSet())
             requests.forEach { request -> authenticated(request, request.requestUrl!!.encodedPath) }
-            assertEquals(4, requests.count { it.requestUrl!!.encodedPath.startsWith("/3/discover/") })
+            assertEquals(40, requests.count { it.requestUrl!!.encodedPath.startsWith("/3/discover/") })
+            val editorial = requests.filter { it.requestUrl!!.encodedPath.startsWith("/3/discover/") && it.requestUrl!!.queryParameter("with_watch_providers") == null }
+            assertTrue(editorial.isNotEmpty())
+            editorial.forEach { assertNull("Editorial and anime queries must not inherit the starter region", it.requestUrl!!.queryParameter("region")) }
+            assertEquals(setOf("/3/tv/popular", "/3/movie/popular"), requests.map { it.requestUrl!!.encodedPath }.filter { it.endsWith("/popular") }.toSet())
             assertEquals(0, fixture.externalRequests.size)
+        }
+    }
+
+    @Test fun homePublishesProgressAndReusesAllCachedRowsUntilExplicitRefresh() = runBlocking {
+        TlsFixture().use { fixture ->
+            fixture.server.dispatcher = object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest) = MockResponse().setBody(CATALOG)
+            }
+            val saved = mutableMapOf<String, List<MediaItem>>()
+            val cache = object : HomeItemsCache {
+                override fun read(key: String) = saved[key]
+                override fun write(key: String, items: List<MediaItem>) { saved[key] = items }
+            }
+            val repository = AetherioRepository(TOKEN, fixture.client, fixture.server.url("/3"), homeCache = cache,
+                homeAnimeSource = HomeAnimeSource { emptyList() })
+            val updates = mutableListOf<HomeCatalog>()
+            repository.home(onUpdate = { updates += it })
+            assertEquals(44, updates.first().sections.size)
+            assertTrue(updates.first().sections.all { it.loading })
+            assertTrue(updates.any { update -> update.sections.any { it.items.isNotEmpty() } && update.sections.any { it.loading } })
+            assertTrue(updates.last().sections.none { it.loading || it.error != null })
+            assertEquals(44, fixture.server.requestCount)
+            val cached = repository.home()
+            assertEquals(44, cached.sections.size)
+            assertEquals(44, fixture.server.requestCount)
+            assertTrue(cached.sections.all { it.items.isNotEmpty() })
+            repository.home(force = true)
+            assertEquals(88, fixture.server.requestCount)
+        }
+    }
+
+    @Test fun failedRefreshKeepsCachedRowsAndTheirExactIdentities() = runBlocking {
+        TlsFixture().use { fixture ->
+            val saved = DesktopHomeCatalog.rails().associate { spec ->
+                "${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())}:${spec.id}" to
+                    listOf(movie.copy(posterUrl = "https://image.tmdb.org/t/p/w500/p.jpg"))
+            }
+            val cache = object : HomeItemsCache {
+                override fun read(key: String) = saved[key]
+                override fun write(key: String, items: List<MediaItem>) = Unit
+            }
+            fixture.server.dispatcher = object : Dispatcher() { override fun dispatch(request: RecordedRequest) = MockResponse().setResponseCode(503) }
+            val repository = AetherioRepository(TOKEN, fixture.client, fixture.server.url("/3"), homeCache = cache,
+                homeAnimeSource = HomeAnimeSource { emptyList() })
+            val result = repository.home(force = true)
+            assertTrue(result.partial)
+            val row = result.sections.first { it.id == "tmdb.home.movie.horror" }
+            assertEquals(listOf(movie.key), row.items.map { it.key })
+            assertNotNull(row.error)
+            assertFalse(row.loading)
+        }
+    }
+
+    @Test fun genreAndPlatformBrowsersRetainQueryFiltersAndAuthorizationScope() = runBlocking {
+        TlsFixture().use { fixture ->
+            fixture.server.dispatcher = object : Dispatcher() { override fun dispatch(request: RecordedRequest) = MockResponse().setBody(CATALOG) }
+            val repository = fixture.repository()
+            val rows = repository.browse("platform:netflix")
+            assertEquals(listOf("Top 10 Anime", "Películas populares", "Series populares", "Top 10 Películas", "Series mejor valoradas"), rows.map { it.title })
+            val platformRequests = List(5) { fixture.request() }
+            platformRequests.forEach { request ->
+                authenticated(request, request.requestUrl!!.encodedPath)
+                assertEquals("8", request.requestUrl!!.queryParameter("with_watch_providers"))
+                assertEquals("PE", request.requestUrl!!.queryParameter("watch_region"))
+            }
+            val genre = repository.browse("genre:action-adventure").single()
+            assertEquals(listOf(MediaType.MOVIE, MediaType.SERIES), genre.items.map { it.type })
+            val genreRequests = List(10) { fixture.request() }
+            assertEquals(setOf("1","2","3","4","5"), genreRequests.map { it.requestUrl!!.queryParameter("page") }.toSet())
+            genreRequests.forEach { request ->
+                authenticated(request, request.requestUrl!!.encodedPath, language = false)
+                assertEquals("es-ES", request.requestUrl!!.queryParameter("language"))
+                assertEquals("false", request.requestUrl!!.queryParameter("include_adult"))
+                assertEquals(if (request.requestUrl!!.encodedPath.endsWith("movie")) "28|12" else "10759", request.requestUrl!!.queryParameter("with_genres"))
+            }
+            assertEquals(0, fixture.externalRequests.size)
+        }
+    }
+
+    @Test fun actualAnimeClientsNeverReceiveTmdbAuthorization() = runBlocking {
+        TlsFixture().use { fixture ->
+            fixture.server.dispatcher = object : Dispatcher() { override fun dispatch(request: RecordedRequest) = MockResponse().setBody(CATALOG) }
+            val repository = AetherioRepository(TOKEN, fixture.client, fixture.server.url("/3"))
+            val result = repository.home()
+            assertEquals(44, result.sections.size)
+            assertFalse(result.partial)
+            assertTrue(fixture.externalRequests.any { it.url.host == "graphql.anilist.co" })
+            assertTrue(fixture.externalRequests.any { it.url.host == "trkll.aetherio.workers.dev" && it.url.encodedPath.startsWith("/api/jikan/") })
+            fixture.externalRequests.forEach { request ->
+                assertNull(request.header("Authorization"))
+                assertNull(request.header("Cookie"))
+                assertFalse(request.url.toString().contains(TOKEN))
+            }
+        }
+    }
+
+    @Test fun cancellingHomeCancelsAllFourActiveRequestsInsteadOfStartingMoreRows() = runBlocking {
+        val started = CountDownLatch(4)
+        val calls: MutableList<Call> = Collections.synchronizedList(mutableListOf())
+        val listener = object : EventListener() {
+            override fun callStart(call: Call) { calls.add(call) }
+            override fun responseBodyStart(call: Call) { started.countDown() }
+        }
+        TlsFixture(listener).use { fixture ->
+            fixture.server.dispatcher = object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest) = MockResponse().setBody(CATALOG).throttleBody(1, 100, TimeUnit.MILLISECONDS)
+            }
+            val job = launch(Dispatchers.Default) { fixture.repository().home() }
+            try {
+                assertTrue("The four bounded requests did not start", started.await(5, TimeUnit.SECONDS))
+                withTimeout(5_000) { job.cancelAndJoin() }
+                assertTrue(job.isCancelled)
+                assertEquals(calls.map { it.request().url.encodedPath }.toString(), 4, calls.size)
+                assertTrue(calls.all { it.isCanceled() })
+                assertTrue(fixture.server.requestCount <= 4)
+            } finally { job.cancelAndJoin() }
         }
     }
 
@@ -382,7 +504,7 @@ class AetherioRepositoryTest {
 
     private companion object {
         const val TOKEN = "synthetic-read-token"
-        const val CATALOG = """{"results":[{"id":550,"media_type":"movie","title":"Fight Club","name":"Fight Club"}]}"""
+        const val CATALOG = """{"results":[{"id":550,"media_type":"movie","title":"Fight Club","name":"Fight Club","poster_path":"/poster.jpg","backdrop_path":"/background.jpg"}]}"""
         const val DETAIL = """{"id":550,"title":"Fight Club","external_ids":{"imdb_id":"tt0137523"}}"""
         const val EPISODES = """{"episodes":[{"episode_number":1,"name":"Pilot","air_date":"2008-01-20"}]}"""
         const val HERO_DETAIL = """{"id":550,"title":"Fight Club","release_date":"2026-01-02",

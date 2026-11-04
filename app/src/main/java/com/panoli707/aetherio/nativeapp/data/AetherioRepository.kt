@@ -8,6 +8,10 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.sync.withPermit
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.HttpUrl
@@ -18,6 +22,10 @@ import okhttp3.Response
 import org.json.JSONObject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import java.text.Normalizer
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -26,8 +34,10 @@ internal class AetherioRepository(
     client: OkHttpClient = OkHttpClient(),
     private val tmdbBase: HttpUrl = (if (readAccessToken.isNotBlank()) "https://api.themoviedb.org/3"
         else "https://trkll.aetherio.workers.dev/api/tmdb").toHttpUrl(),
-    private val animeRepository: AnimeSeasonRepository = AnimeSeasonRepository(),
-    private val seasonAnimeArtwork: suspend (MediaItem) -> MediaItem? = { animeRepository.detail(it).item }
+    private val animeRepository: AnimeSeasonRepository = AnimeSeasonRepository(client),
+    private val seasonAnimeArtwork: suspend (MediaItem) -> MediaItem? = { animeRepository.detail(it).item },
+    private val homeCache: HomeItemsCache? = null,
+    private val homeAnimeSource: HomeAnimeSource? = null
 ) {
     init {
         val direct = readAccessToken.isNotBlank()
@@ -55,6 +65,11 @@ internal class AetherioRepository(
         }.build()
     // Do not let even same-origin redirects forward credentials outside the API path.
     private val authenticatedClient = this.client.newBuilder().followRedirects(false).followSslRedirects(false).build()
+    private val tmdbSlots = Semaphore(4)
+    private val homeSlots = Semaphore(4)
+    private val homeAnime by lazy { homeAnimeSource ?: HomeAnimeRepository(client, animeRepository) }
+    private val animeMatches = mutableMapOf<String, MediaItem?>()
+    private val animeMatchLock = Mutex()
 
     private fun authenticatedTmdb(url: HttpUrl): Boolean = readAccessToken.isNotBlank() &&
         url.isHttps && url.host == tmdbBase.host && url.port == tmdbBase.port &&
@@ -98,32 +113,185 @@ internal class AetherioRepository(
     private suspend fun <T> optional(block: suspend () -> T): T? = try { block() }
         catch (e: CancellationException) { throw e } catch (_: Exception) { null }
     private suspend fun tmdb(path: String, params: Map<String, String> = emptyMap()): JSONObject =
-        json("$tmdb/$path", mapOf("language" to "es-ES", "page" to "1") + params)
+        tmdbSlots.withPermit { json("$tmdb/$path", mapOf("language" to "es-ES", "page" to "1") + params) }
     private fun cineType(type: MediaType) = if (type == MediaType.MOVIE) "movie" else "series"
     private suspend fun trending(type: MediaType): List<MediaItem> = optional {
         CatalogJson.catalog(tmdb("trending/${type.path}/day"), type, CatalogSource.TMDB).also { check(it.isNotEmpty()) }
     } ?: CatalogJson.catalog(json("$cinemeta/catalog/${cineType(type)}/top.json"), type, CatalogSource.CINEMETA)
-    private suspend fun anime(type: MediaType, extra: Map<String, String>): List<MediaItem> = CatalogJson.catalog(
-        tmdb("discover/${type.path}", mapOf("with_genres" to "16", "with_original_language" to "ja", "sort_by" to "vote_average.desc", "vote_count.gte" to "200") + extra),
-        type, CatalogSource.TMDB, true)
-    suspend fun home(): HomeCatalog {
-        val results = supervisorScope {
-            fun section(id: String, title: String, style: SectionStyle = SectionStyle.POSTERS, fetch: suspend () -> List<MediaItem>) =
-                CatalogSection(id, title, emptyList(), style) to fetch
-            val specs = listOf(
-                section("movies", "Películas en tendencias") { trending(MediaType.MOVIE) },
-                section("series", "Series en tendencias") { trending(MediaType.SERIES) },
-                section("anime90", "Lo mejor de los 90: anime", SectionStyle.FEATURED) {
-                    anime(MediaType.SERIES, mapOf("first_air_date.gte" to "1990-01-01", "first_air_date.lte" to "1999-12-31")) },
-                section("animeMovies", "Top 15 películas anime", SectionStyle.RANKED) { anime(MediaType.MOVIE, emptyMap()).take(15) },
-                section("animeSeries", "Top 15 series anime", SectionStyle.RANKED) { anime(MediaType.SERIES, emptyMap()).take(15) },
-                section("anime2010", "Lo mejor de los 2010: anime", SectionStyle.FEATURED) {
-                    anime(MediaType.SERIES, mapOf("first_air_date.gte" to "2010-01-01", "first_air_date.lte" to "2019-12-31")) })
-            specs.map { (section, fetch) -> async { optional { section.copy(items = fetch()) } } }.awaitAll()
+    private fun day() = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    private suspend fun cached(key: String): List<MediaItem>? = withContext(Dispatchers.IO) { optional { homeCache?.read(key) } }
+    private suspend fun remember(key: String, items: List<MediaItem>) = withContext(Dispatchers.IO) { optional { homeCache?.write(key, items) }; Unit }
+
+    suspend fun home(force: Boolean = false, onUpdate: suspend (HomeCatalog) -> Unit = {}): HomeCatalog = supervisorScope {
+        val homeContext = coroutineContext
+        val today = day()
+        val specs = DesktopHomeCatalog.rails()
+        val sections = specs.map { spec ->
+            val saved = cached("$today:${spec.id}").orEmpty()
+            spec.section(saved, loading = force || saved.isEmpty()).copy(subtitle = if (saved.isEmpty()) "" else "Catálogo guardado")
+        }.toMutableList()
+        val lock = Mutex()
+        fun snapshot(): HomeCatalog {
+            val ready = DesktopHomeCatalog.dedupeAnime(sections.toList())
+            return HomeCatalog(ready, DesktopHomeCatalog.heroes(ready, today), partial = ready.any { it.error != null })
         }
-        val sections = results.filterNotNull().filter { it.items.isNotEmpty() }
-        check(sections.isNotEmpty())
-        return HomeCatalog(sections, sections.firstOrNull { it.id == "movies" }?.items.orEmpty().take(4), partial = results.any { it == null })
+        onUpdate(snapshot())
+        specs.mapIndexed { index, spec -> async {
+            if (!sections[index].loading) return@async
+            val fetched = homeSlots.withPermit {
+                // A cancelled sibling can release a permit before cancellation reaches every queued child.
+                homeContext.ensureActive()
+                optional { fetchRail(spec) }
+            }
+            ensureActive()
+            lock.withLock {
+                val old = sections[index]
+                sections[index] = if (fetched != null && fetched.items.isNotEmpty()) fetched
+                    else old.copy(loading = false, error = if (old.items.isEmpty()) "No se pudo cargar esta fila. Reintenta la actualización." else "No se pudo actualizar; se conserva el catálogo guardado.")
+                if (fetched != null && fetched.items.isNotEmpty()) remember("$today:${spec.id}", fetched.items)
+                onUpdate(snapshot())
+            }
+        } }.awaitAll()
+        snapshot()
+    }
+
+    private fun catalogItems(json: JSONObject, spec: HomeRail): List<MediaItem> {
+        val array = json.optJSONArray("results") ?: return emptyList()
+        val starter = spec.id.startsWith("tmdb.top_") || spec.id.startsWith("tmdb.trending_") || spec.id.startsWith("tmdb.discover.")
+        return (0 until array.length()).mapNotNull { index ->
+            val raw = array.optJSONObject(index) ?: return@mapNotNull null
+            if (raw.optBoolean("adult")) return@mapNotNull null
+            val japanese = CatalogJson.text(raw, "original_language").equals("ja", true) &&
+                raw.optJSONArray("genre_ids")?.let { ids -> (0 until ids.length()).any { ids.optInt(it) == 16 } } == true
+            if ((starter && CatalogJson.text(raw, "original_language").startsWith("zh", true)) || (spec.excludeJapaneseAnime && japanese)) return@mapNotNull null
+            CatalogJson.item(raw, spec.type, CatalogSource.TMDB, spec.anime || japanese)
+                ?.takeIf { it.posterUrl != null || it.backdropUrl != null }
+        }.distinctBy { it.key }
+    }
+    private suspend fun fetchRail(spec: HomeRail): CatalogSection {
+        if (spec.feed != null) {
+            val entries = optional { homeAnime.fetch(spec.feed) }.orEmpty()
+            val items = entries.mapNotNull { entry -> optional { resolveAnime(entry) } }
+                .filter { item -> if (spec.id == "jikan.top_movies") item.type == MediaType.MOVIE else true }
+                .filter { item ->
+                    val start = spec.request.params["first_air_date.gte"]?.take(4)?.toIntOrNull()
+                    val end = spec.request.params["first_air_date.lte"]?.take(4)?.toIntOrNull()
+                    start == null || end == null || item.year.toIntOrNull()?.let { it in start..end } == true
+                }.distinctBy { it.key }.take(DesktopHomeCatalog.ITEM_LIMIT)
+            if (items.isNotEmpty()) return spec.section(items).copy(subtitle = if (spec.feed.jikan != null) "Jikan · MyAnimeList" else "AniList")
+        }
+        val starter = spec.id.startsWith("tmdb.top_") || spec.id.startsWith("tmdb.trending_") || spec.id.startsWith("tmdb.discover.")
+        val defaults = mapOf("include_adult" to "false") + if (starter) mapOf("region" to "PE") else emptyMap()
+        for (variant in listOf(spec.request) + spec.fallbacks) {
+            val items = optional { catalogItems(tmdb(variant.path, defaults + variant.params), spec) }.orEmpty()
+                .take(DesktopHomeCatalog.ITEM_LIMIT)
+            if (items.isNotEmpty()) return spec.section(items).copy(subtitle = if (spec.feed == null) "TMDB" else "TMDB · alternativa de anime")
+        }
+        if (spec.id in setOf("tmdb.trending_movie", "tmdb.trending_series")) {
+            val items = CatalogJson.catalog(json("$cinemeta/catalog/${cineType(spec.type)}/top.json"), spec.type, CatalogSource.CINEMETA).take(20)
+            if (items.isNotEmpty()) return spec.section(items).copy(subtitle = "Cinemeta · alternativa")
+        }
+        return spec.section()
+    }
+    private suspend fun resolveAnime(entry: AnimeCatalogEntry): MediaItem? {
+        val canonical = SeriesIdentity.item(entry.item)
+        if (canonical.source == CatalogSource.TMDB) return canonical
+        if (canonical.id != "0" && canonical.type == MediaType.SERIES) return canonical
+        val key = "${entry.item.type}:${entry.malId}:${entry.titles.joinToString("|")}:${entry.item.year}"
+        return animeMatchLock.withLock {
+            if (animeMatches.containsKey(key)) return@withLock animeMatches[key]
+            fun normalized(text: String) = Normalizer.normalize(text, Normalizer.Form.NFD).lowercase(Locale.ROOT)
+                .replace(Regex("\\p{M}+"), "").replace(Regex("[^\\p{L}\\p{N}]"), "")
+            var match: MediaItem? = null
+            outer@ for (type in listOf(entry.item.type, MediaType.MOVIE).distinct()) {
+                for (title in entry.titles.take(2)) {
+                    val params = mapOf("query" to title, "include_adult" to "false") +
+                        entry.item.year.takeIf { it.matches(Regex("[0-9]{4}")) }?.let { mapOf((if (type == MediaType.MOVIE) "year" else "first_air_date_year") to it) }.orEmpty()
+                    val data = optional { tmdb("search/${type.path}", params) } ?: continue
+                    val raw = data.optJSONArray("results") ?: continue
+                    val candidates = (0 until raw.length()).mapNotNull { raw.optJSONObject(it) }.filter {
+                        CatalogJson.text(it, "original_language") == "ja" && !it.optBoolean("adult") &&
+                            it.optJSONArray("genre_ids")?.let { ids -> (0 until ids.length()).any { i -> ids.optInt(i) == 16 } } == true
+                    }
+                    val exact = candidates.firstOrNull { candidate ->
+                        listOf("title", "name", "original_title", "original_name").any { normalized(CatalogJson.text(candidate, it)) == normalized(title) }
+                    }
+                    val chosen = exact ?: candidates.singleOrNull()?.takeIf {
+                        entry.item.year.isNotBlank() && CatalogJson.text(it, if (type == MediaType.MOVIE) "release_date" else "first_air_date").startsWith(entry.item.year)
+                    }
+                    if (chosen != null) {
+                        match = CatalogJson.item(chosen, type, CatalogSource.TMDB, true)?.copy(title = entry.item.title)
+                        if (match != null) break@outer
+                    }
+                }
+            }
+            if (animeMatches.size >= 400) animeMatches.clear()
+            animeMatches[key] = match
+            match
+        }
+    }
+
+    suspend fun browse(id: String, force: Boolean = false): List<CatalogSection> {
+        require(DesktopHomeCatalog.browseTitle(id) != null)
+        val today = day()
+        if (id.startsWith("platform:")) {
+            val platform = DesktopHomeCatalog.platforms.first { it.id == id.removePrefix("platform:") }
+            val specs = listOf(
+                DesktopHomeCatalog.platformRail(platform, MediaType.SERIES, top = true, anime = true),
+                DesktopHomeCatalog.platformRail(platform, MediaType.MOVIE), DesktopHomeCatalog.platformRail(platform, MediaType.SERIES),
+                DesktopHomeCatalog.platformRail(platform, MediaType.MOVIE, top = true), DesktopHomeCatalog.platformRail(platform, MediaType.SERIES, top = true))
+            val rows = supervisorScope { specs.map { spec -> async {
+                val cacheKey = "$today:${spec.id}"
+                val saved = cached(cacheKey).orEmpty()
+                val fresh = if (!force && saved.isNotEmpty()) saved else optional { platformItems(platform, spec) }.orEmpty()
+                val items = fresh.ifEmpty { saved }
+                remember(cacheKey, items)
+                spec.section(if (spec.anime) items.take(10) else items, error = if (items.isEmpty()) "No hay títulos disponibles para esta región. Puedes reintentar." else null)
+            } }.awaitAll() }
+            val topMovies = rows[3].copy(id = "streaming.${platform.id}.movie.top-10", title = "Top 10 Películas", items = rows[3].items.take(10), style = SectionStyle.RANKED)
+            return listOf(rows[0], rows[1], rows[2], topMovies, rows[4])
+        }
+        val cacheKey = "$today:$id"
+        if (!force) cached(cacheKey)?.let { return listOf(CatalogSection(id, DesktopHomeCatalog.browseTitle(id)!!, it)) }
+        val items = if (id.startsWith("genre:")) {
+            val genre = DesktopHomeCatalog.genres.first { it.id == id.removePrefix("genre:") }
+            supervisorScope { (1..5).map { page -> async {
+                val groups = DesktopHomeCatalog.genreRequests(genre, page).map { (type, request) -> async {
+                    optional { catalogItems(tmdb(request.path, request.params), HomeRail(id, genre.title, type, request, excludeJapaneseAnime = true)) }.orEmpty()
+                } }.awaitAll()
+                interleave(groups[0], groups[1])
+            } }.awaitAll().flatten().distinctBy { it.key } }
+        } else {
+            val genre = DesktopHomeCatalog.animeGenres.first { it.id == id.removePrefix("anime-genre:") }
+            val feed = AnimeFeed(sort = "POPULARITY_DESC", genre = genre.id,
+                jikan = HomeRequest("anime", mapOf("genres" to genre.malId.toString(), "order_by" to "members", "sort" to "desc", "sfw" to "true", "limit" to "25")))
+            optional { homeAnime.fetch(feed) }.orEmpty().mapNotNull { optional { resolveAnime(it) } }.distinctBy { it.key }
+        }
+        remember(cacheKey, items)
+        return listOf(CatalogSection(id, DesktopHomeCatalog.browseTitle(id)!!, items,
+            error = if (items.isEmpty()) "No se pudo cargar este catálogo. Puedes reintentar." else null))
+    }
+    private suspend fun platformItems(platform: StreamingPlatform, spec: HomeRail): List<MediaItem> {
+        val combined = mutableListOf<MediaItem>()
+        for (request in listOf(spec.request) + spec.fallbacks) {
+            val first = optional { tmdb(request.path, mapOf("include_adult" to "false") + request.params) } ?: continue
+            val initial = catalogItems(first, spec)
+            combined += initial
+            if (platform.id != "crunchyroll" || spec.anime) {
+                if (combined.isNotEmpty()) break
+            } else if (initial.isNotEmpty()) {
+                for (page in 2..first.optInt("total_pages", 1).coerceIn(1, 10)) {
+                    val data = optional { tmdb(request.path, mapOf("include_adult" to "false") + request.params + ("page" to page.toString())) } ?: break
+                    combined += catalogItems(data, spec)
+                }
+            }
+        }
+        val items = combined.distinctBy { it.key }
+        val sorted = if (spec.request.params["sort_by"] == "vote_average.desc") items.sortedByDescending { it.score } else items
+        return sorted.take(if (platform.id == "crunchyroll" && !spec.anime) 200 else 20)
+    }
+    private fun interleave(movies: List<MediaItem>, series: List<MediaItem>): List<MediaItem> = buildList {
+        for (index in 0 until maxOf(movies.size, series.size)) { movies.getOrNull(index)?.let(::add); series.getOrNull(index)?.let(::add) }
     }
     suspend fun heroes(items: List<MediaItem>): List<MediaItem> = supervisorScope {
         items.take(4).map { item -> async {

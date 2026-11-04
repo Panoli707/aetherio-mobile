@@ -44,7 +44,10 @@ data class CatalogSection(
     val id: String,
     val title: String,
     val items: List<MediaItem>,
-    val style: SectionStyle = SectionStyle.POSTERS
+    val style: SectionStyle = SectionStyle.POSTERS,
+    val subtitle: String = "",
+    val loading: Boolean = false,
+    val error: String? = null
 )
 
 data class CastMember(val name: String, val role: String, val imageUrl: String? = null)
@@ -85,11 +88,15 @@ data class MediaReview(val id: String, val author: String, val content: String, 
 
 data class HomeCatalog(val sections: List<CatalogSection>, val heroes: List<MediaItem>, val partial: Boolean = false)
 
+data class CatalogBrowseState(val id: String? = null, val title: String = "", val sections: List<CatalogSection> = emptyList(),
+    val loading: Boolean = false, val error: String? = null)
+
 data class AppState(
     val sections: List<CatalogSection> = emptyList(),
     val heroes: List<MediaItem> = emptyList(),
     val homeLoading: Boolean = true,
     val homeError: String? = null,
+    val browse: CatalogBrowseState = CatalogBrowseState(),
     val selectedItem: MediaItem? = null,
     val detail: MediaDetail? = null,
     val detailLoading: Boolean = false,

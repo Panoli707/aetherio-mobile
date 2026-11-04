@@ -20,7 +20,8 @@ import kotlinx.coroutines.withContext
 
 class AetherioViewModel(application: Application) : AndroidViewModel(application) {
     private val animeRepository = AnimeSeasonRepository()
-    private val repository = AetherioRepository(animeRepository = animeRepository)
+    private val repository = AetherioRepository(animeRepository = animeRepository,
+        homeCache = HomeCatalogCache(java.io.File(application.cacheDir, "desktop-home-53a9276")))
     private val library = LocalLibraryStore(application)
     private val history = WatchHistoryRepository.get(application)
     private val sourceRepository = SourceRepository()
@@ -33,6 +34,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         enabledDesktopSources = sourceSettings.enabledDesktopSources))
     val state: StateFlow<AppState> = mutableState.asStateFlow()
     private var homeJob: Job? = null
+    private var browseJob: Job? = null
     private val detailLoader = DetailLoader(viewModelScope, repository::detail, repository::seasonContent,
         { item -> WatchProgressRules.latest(history.load(), item)?.target?.season }, { state.value },
         { change -> mutableState.update(change) })
@@ -112,20 +114,44 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun loadHome() {
+    fun loadHome() = loadHome(force = false)
+    fun refreshHome() = loadHome(force = true)
+
+    private fun loadHome(force: Boolean) {
         homeJob?.cancel()
         homeJob = viewModelScope.launch {
             mutableState.update { it.copy(homeLoading = true, homeError = null) }
             try {
-                val home = repository.home()
+                val home = repository.home(force) { progress ->
+                    ensureActive()
+                    mutableState.update { it.copy(sections = progress.sections, heroes = progress.heroes) }
+                }
                 ensureActive()
                 mutableState.update { it.copy(sections = home.sections, heroes = home.heroes, homeLoading = false,
                     homeError = if (home.partial) "Algunas secciones no pudieron cargarse. Puedes reintentar sin perder el resto del catálogo." else null) }
-                val heroes = repository.heroes(home.heroes)
+                val heroes = repository.heroes(home.heroes) + home.heroes.drop(4)
                 ensureActive()
                 mutableState.update { it.copy(heroes = heroes) }
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { mutableState.update { it.copy(homeLoading = false, homeError = "No se pudo cargar el catálogo. Inténtalo de nuevo.") } }
+        }
+    }
+    fun loadBrowse(id: String, refresh: Boolean = false) {
+        val title = DesktopHomeCatalog.browseTitle(id) ?: return
+        if (!refresh && state.value.browse.id == id && (state.value.browse.loading || state.value.browse.sections.isNotEmpty())) return
+        browseJob?.cancel()
+        mutableState.update { it.copy(browse = CatalogBrowseState(id, title,
+            sections = it.browse.sections.takeIf { _ -> it.browse.id == id }.orEmpty(), loading = true)) }
+        browseJob = viewModelScope.launch {
+            try {
+                val sections = repository.browse(id, refresh)
+                ensureActive()
+                mutableState.update { current -> if (current.browse.id != id) current else current.copy(
+                    browse = current.browse.copy(sections = sections, loading = false,
+                        error = if (sections.all { it.items.isEmpty() }) "No se pudo cargar este catálogo. Puedes reintentar." else null)) }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { mutableState.update { current -> if (current.browse.id != id) current else current.copy(
+                browse = current.browse.copy(loading = false, error = "No se pudo cargar este catálogo. Puedes reintentar.")) } }
         }
     }
     fun selectMedia(selected: MediaItem) {

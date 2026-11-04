@@ -4,7 +4,7 @@
 
 La versión preliminar **0.13.0** usa `https://aetherio-provider-hub.xoolinnbeats.workers.dev` como único resolvedor **predeterminado** de streams. Esta publicación de Mobile no modifica ni despliega Workers. Los addons personalizados y las fuentes opcionales activadas expresamente siguen disponibles.
 
-El contrato actual del Hub solo ofrece `stream` para películas y series con IMDb. **Inicio, búsqueda, fichas y episodios conservan TMDB, AniList y Cinemeta integrados.** Pasar también todos los catálogos y metadatos por el Hub requiere trabajo de backend pendiente: no existen recursos `catalog` ni `meta` en este contrato. `/addons.json` es un directorio, no un proxy de streams.
+El contrato actual del Hub solo ofrece `stream` para películas y series con IMDb. **Inicio, búsqueda, fichas y episodios conservan TMDB, AniList y Cinemeta integrados; Inicio añade Jikan/MyAnimeList para anime.** Pasar también todos los catálogos y metadatos por el Hub requiere trabajo de backend pendiente: no existen recursos `catalog` ni `meta` en este contrato. `/addons.json` es un directorio, no un proxy de streams.
 
 Mobile no descarga `/scripts/`, no ejecuta `scrapers`, no consulta proveedores individuales indicados por el manifiesto y no replica la selección de hasta seis proveedores ni la reserva de Torrentio que realiza el servidor. Tampoco utiliza `/admin/*` ni necesita `ADMIN_TOKEN`. El Hub resuelve fuentes; los bytes de vídeo se solicitan a la URL de origen, no necesariamente al Worker.
 

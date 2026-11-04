@@ -39,6 +39,37 @@ internal class AnimeSeasonRepository(
     private val details = mutableMapOf<String, Pair<Long, MediaDetail>>()
     private var retryNotBeforeMs = 0L
 
+    suspend fun homeCatalog(feed: AnimeFeed): List<AnimeCatalogEntry> = bounded { mutex.withLock {
+        require(feed.sort in setOf("POPULARITY_DESC", "SCORE_DESC", "TRENDING_DESC"))
+        require(feed.genre == null || DesktopHomeCatalog.animeGenres.any { it.id == feed.genre })
+        val season = AnimeSeason.current()
+        val variables = JSONObject().put("sort", feed.sort).put("genre", feed.genre ?: JSONObject.NULL)
+        val seasonal = if (feed.airing) ",status:RELEASING,season:${season.code},seasonYear:${season.year}" else ""
+        val data = request("""query HomeAnime(${'$'}sort:[MediaSort],${'$'}genre:String){Page(page:1,perPage:25){media(type:ANIME,isAdult:false,sort:${'$'}sort,genre:${'$'}genre$seasonal){$HOME_FIELDS}}}""", variables)
+        homeEntries(data)
+    } }
+
+    suspend fun homeByMal(ids: List<Int>): List<AnimeCatalogEntry> = bounded { mutex.withLock {
+        require(ids.isNotEmpty() && ids.size <= 50 && ids.all { it > 0 })
+        homeEntries(request("""query HomeMal(${'$'}ids:[Int]){Page(page:1,perPage:50){media(type:ANIME,isAdult:false,idMal_in:${'$'}ids){$HOME_FIELDS}}}""",
+            JSONObject().put("ids", JSONArray(ids))))
+    } }
+
+    private fun homeEntries(data: JSONObject): List<AnimeCatalogEntry> {
+        val media = data.getJSONObject("Page").getJSONArray("media")
+        require(media.length() <= 50)
+        return (0 until media.length()).mapNotNull { i ->
+            val json = media.getJSONObject(i)
+            if (json.optBoolean("isAdult")) return@mapNotNull null
+            val base = AnimeSeasonProtocol.item(json) ?: return@mapNotNull null
+            val english = CatalogJson.text(json.optJSONObject("title") ?: JSONObject(), "english")
+            val year = json.optJSONObject("startDate")?.optInt("year", 0)?.takeIf { it in 1900..2200 }?.toString() ?: base.year
+            val movie = json.optString("format") == "MOVIE"
+            AnimeCatalogEntry(base.copy(title = english.ifBlank { base.title }, year = year, type = if (movie) MediaType.MOVIE else MediaType.SERIES),
+                json.optInt("idMal", 0).takeIf { it > 0 }, listOf(english, base.title).filter { it.isNotBlank() }.distinct())
+        }.distinctBy { it.item.key }
+    }
+
     suspend fun season(season: AnimeSeason, nowMs: Long = System.currentTimeMillis()): List<SeasonalAnime> = bounded { mutex.withLock {
         if (cachedSeason == season && nowMs - cachedAt in 0 until 60 * 60 * 1000L) return@withLock cachedEntries
         val entries = mutableListOf<SeasonalAnime>()
@@ -156,5 +187,6 @@ internal class AnimeSeasonRepository(
     companion object {
         // Synopses are only needed on the detail screen, not on every seasonal card.
         private const val FIELDS = "id title{romaji english} coverImage{extraLarge large} bannerImage episodes season seasonYear status isAdult averageScore genres"
+        private const val HOME_FIELDS = "$FIELDS idMal format startDate{year}"
     }
 }

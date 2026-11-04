@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
@@ -57,23 +58,20 @@ class HeroArtworkTest {
         // Coil is asynchronous. Wait for actual pixels, not only the composable placeholder.
         compose.waitUntil(15_000) {
             runCatching {
-                val pixels = compose.onNodeWithTag("heroImage").captureToImage().toPixelMap()
+                val pixels = compose.onNodeWithTag("heroImage", useUnmergedTree = true).captureToImage().toPixelMap()
                 val sample = pixels[pixels.width / 2, pixels.height / 2]
                 sample.red + sample.green + sample.blue > .8f
             }.getOrDefault(false)
         }
     }
 
-    private fun assertAllFourCornersVisible(ratio: Float) {
-        val pixels = compose.onNodeWithTag("heroImage").captureToImage().toPixelMap()
-        val height = minOf(pixels.height.toFloat(), pixels.width / ratio)
-        val width = height * ratio
-        val left = (pixels.width - width) / 2f
-        val top = (pixels.height - height) / 2f
-        val red = pixels[(left + width * .15f).toInt(), (top + height * .15f).toInt()]
-        val green = pixels[(left + width * .85f).toInt(), (top + height * .15f).toInt()]
-        val blue = pixels[(left + width * .15f).toInt(), (top + height * .85f).toInt()]
-        val yellow = pixels[(left + width * .85f).toInt(), (top + height * .85f).toInt()]
+    private fun assertArtworkFillsFrame() {
+        val pixels = compose.onNodeWithTag("heroImage", useUnmergedTree = true).captureToImage().toPixelMap()
+        // Check the actual frame edges, NOT a calculated centred image rectangle: that masked letterboxing.
+        val red = pixels[(pixels.width * .03f).toInt(), (pixels.height * .30f).toInt()]
+        val green = pixels[(pixels.width * .97f).toInt(), (pixels.height * .30f).toInt()]
+        val blue = pixels[(pixels.width * .03f).toInt(), (pixels.height * .70f).toInt()]
+        val yellow = pixels[(pixels.width * .97f).toInt(), (pixels.height * .70f).toInt()]
         assertTrue("Top left of artwork must remain visible", red.red > .45f && red.green < .2f)
         assertTrue("Top right of artwork must remain visible", green.green > .45f && green.red < .2f)
         assertTrue("Bottom left of artwork must remain visible", blue.blue > .45f && blue.red < .2f)
@@ -86,11 +84,11 @@ class HeroArtworkTest {
             Box(Modifier.width(360.dp)) { HeroArtwork(item, true, 800.dp) }
         } }
         waitForImage()
-        assertAllFourCornersVisible(2f / 3f)
+        assertArtworkFillsFrame()
         compose.onNodeWithText(item.title).assertDoesNotExist()
         compose.onNodeWithContentDescription(item.title).assertIsDisplayed()
         val bounds = compose.onNodeWithTag("heroImage").getUnclippedBoundsInRoot()
-        assertTrue((bounds.bottom - bounds.top) <= 440.dp)
+        assertEquals(heroArtworkHeight(360.dp, 800.dp, 2f / 3f).value, (bounds.bottom - bounds.top).value, 1f)
     }
 
     @Test fun bannerFallbackKeepsItsLandscapeProportionsInAPhoneHeader() {
@@ -99,7 +97,7 @@ class HeroArtworkTest {
             Box(Modifier.width(360.dp)) { HeroArtwork(item, true, 800.dp) }
         } }
         waitForImage()
-        assertAllFourCornersVisible(16f / 9f)
+        assertArtworkFillsFrame()
         val bounds = compose.onNodeWithTag("heroImage").getUnclippedBoundsInRoot()
         assertEquals(202.5f, (bounds.bottom - bounds.top).value, 1f)
         compose.onNodeWithText(item.title).assertIsDisplayed()
@@ -119,20 +117,17 @@ class HeroArtworkTest {
             compose.onAllNodesWithContentDescription("Series title").fetchSemanticsNodes().isNotEmpty()
         }
         waitForImage()
-        assertAllFourCornersVisible(2f / 3f)
+        assertArtworkFillsFrame()
         compose.onNodeWithText("Series title").assertDoesNotExist()
     }
 
-    @Test fun aTinySourceIsNotUpscaledToPretendItIsFullHd() {
+    @Test fun lastAvailableLowResolutionSourceStillFillsTheFrameWithoutBlackMargins() {
         val item = MediaItem("550", MediaType.MOVIE, "Small image", posterUrl = fixture(60, 90))
         compose.setContent { AetherioTheme {
             Box(Modifier.width(360.dp)) { HeroArtwork(item, true, 800.dp) }
         } }
         waitForImage()
-        val pixels = compose.onNodeWithTag("heroImage").captureToImage().toPixelMap()
-        // If the tiny poster was enlarged, this off-centre pixel would be red, not the dark background.
-        val corner = pixels[pixels.width / 4, pixels.height / 4]
-        assertTrue(corner.red < .15f && corner.green < .15f && corner.blue < .2f)
+        assertArtworkFillsFrame()
     }
 
     @Test fun lowResolutionPosterUsesAnAvailableSharperBannerWithoutZoomingIt() {
@@ -143,7 +138,7 @@ class HeroArtworkTest {
         } }
         compose.waitUntil(15_000) { compose.onAllNodesWithText(item.title).fetchSemanticsNodes().isNotEmpty() }
         waitForImage()
-        assertAllFourCornersVisible(16f / 9f)
+        assertArtworkFillsFrame()
         compose.onNodeWithText(item.title).assertIsDisplayed()
     }
 
@@ -165,7 +160,7 @@ class HeroArtworkTest {
         val image = compose.onNodeWithTag("heroImage").getUnclippedBoundsInRoot()
         val action = compose.onNodeWithTag("detailPrimaryPlay").getUnclippedBoundsInRoot()
         assertTrue(image.bottom < action.top)
-        assertTrue(image.bottom - image.top <= 330.dp)
+        assertEquals(heroArtworkHeight(300.dp, 600.dp, 2f / 3f).value, (image.bottom - image.top).value, 1f)
     }
 
     @Test fun landscapeHeaderPrefersTheBannerInsteadOfCroppingThePortraitPoster() {
@@ -175,7 +170,7 @@ class HeroArtworkTest {
             Box(Modifier.width(360.dp)) { HeroArtwork(item, false, 400.dp) }
         } }
         waitForImage()
-        assertAllFourCornersVisible(16f / 9f)
+        assertArtworkFillsFrame()
         compose.onNodeWithText(item.title).assertIsDisplayed()
     }
 
@@ -198,6 +193,47 @@ class HeroArtworkTest {
         compose.onNodeWithTag("detailPrimaryPlay").assertIsDisplayed()
         compose.onNodeWithText("Animación", substring = true).assertIsDisplayed()
         saveScreenshot("series-cover.png")
+    }
+
+    @Test fun anilistSizedPosterFillsThePhoneWidthInsteadOfFloatingInABlackSlot() {
+        val item = MediaItem("123", MediaType.SERIES, "AniList-sized cover", posterUrl = fixture(425, 600))
+        compose.setContent { AetherioTheme {
+            Box(Modifier.width(360.dp)) { HeroArtwork(item, true, 800.dp) }
+        } }
+        waitForImage()
+        assertArtworkFillsFrame()
+        saveScreenshot("anilist-width-fit.png")
+    }
+
+    @Test fun sampledLargeArtworkFillsFrameAtDifferentPhoneDensities() {
+        val density = mutableStateOf(1.5f)
+        val item = MediaItem("550", MediaType.MOVIE, "Sampled artwork", posterUrl = fixture(2160, 3240))
+        compose.setContent { AetherioTheme {
+            CompositionLocalProvider(LocalDensity provides Density(density.value)) {
+                Box(Modifier.width(320.dp)) { HeroArtwork(item, true, 800.dp) }
+            }
+        } }
+        waitForImage()
+        assertArtworkFillsFrame()
+        compose.runOnIdle { density.value = 3f }
+        waitForImage()
+        assertArtworkFillsFrame()
+    }
+
+    @Test fun homeArtworkAndMetadataHaveNoReservedEmptySlotBetweenThem() {
+        val item = MediaItem("550", MediaType.MOVIE, "Home artwork", posterUrl = fixture(425, 600), year = "2026")
+        compose.setContent { AetherioTheme {
+            Box(Modifier.width(360.dp)) {
+                HomeScreen(AppState(heroes = listOf(item), homeLoading = false), rememberLazyListState(),
+                    rememberPagerState { 1 }, false, {}, {}, {})
+            }
+        } }
+        waitForImage()
+        assertArtworkFillsFrame()
+        val image = compose.onNodeWithTag("heroImage", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        val metadata = compose.onNodeWithTag("homeHeroMetadata", useUnmergedTree = true).getUnclippedBoundsInRoot()
+        assertTrue(metadata.top - image.bottom < 20.dp)
+        saveScreenshot("home-width-fit.png")
     }
 
     private fun saveScreenshot(name: String) {

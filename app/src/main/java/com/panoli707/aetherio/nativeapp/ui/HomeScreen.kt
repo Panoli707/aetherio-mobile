@@ -138,10 +138,7 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
                     val item = heroes[page]
                     Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Ver ${item.title}", onClick = { onSelect(item) }),
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        val hasPosterTitle = ArtworkImages.headers(item, portrait).firstOrNull()?.containsTitle == true
-                        val footerSpace = if (hasPosterTitle) 100.dp else 196.dp
-                        HeroArtwork(item, portrait, screenHeight,
-                            maxArtworkHeight = (height - footerSpace).coerceAtLeast(100.dp))
+                        HeroArtwork(item, portrait, screenHeight, maxArtworkHeight = height)
                         Column(Modifier.widthIn(max = 600.dp).fillMaxWidth()
                             .padding(horizontal = 24.dp).padding(bottom = 18.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {

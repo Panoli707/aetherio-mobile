@@ -19,8 +19,12 @@ internal fun homeHeroHeight(width: Dp, height: Dp): Dp = if (width < 600.dp)
     (width * 1.36f).coerceIn(340.dp, 620.dp).coerceAtMost(height * .62f)
 else 400.dp.coerceAtMost(height * .70f)
 
-/** Fit the complete illustration; banners stay short and portrait covers cannot consume the screen. */
-internal fun heroArtworkHeight(width: Dp, viewportHeight: Dp, aspectRatio: Float): Dp {
+/** Fill the available width, with at most 18% vertical cropping instead of letterboxing or deep zoom. */
+internal fun heroArtworkHeight(width: Dp, viewportHeight: Dp, aspectRatio: Float,
+    maxHeight: Dp = Dp.Infinity): Dp {
     val ratio = aspectRatio.takeIf { it.isFinite() && it > 0f } ?: (16f / 9f)
-    return (width / ratio).coerceAtMost(viewportHeight * .55f).coerceAtMost(620.dp).coerceAtLeast(1.dp)
+    val naturalHeight = width / ratio
+    val preferred = naturalHeight.coerceAtMost(viewportHeight * .55f).coerceAtMost(620.dp).coerceAtMost(maxHeight)
+    // On a short window, allow scrolling rather than cropping most of a face or shrinking the poster.
+    return preferred.coerceAtLeast(naturalHeight * .82f).coerceAtLeast(1.dp)
 }

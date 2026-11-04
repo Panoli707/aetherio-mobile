@@ -31,13 +31,19 @@ class MediaLayoutTest {
             900.dp to 1280.dp).forEach { (width, height) ->
             val portrait = heroArtworkHeight(width, height, 2f / 3f)
             val landscape = heroArtworkHeight(width, height, 16f / 9f)
-            assertTrue(portrait <= height * .55f)
+            assertTrue(portrait >= (width / (2f / 3f)) * .82f)
             assertTrue(landscape <= width * (9f / 16f))
             assertTrue(landscape <= portrait)
-            assertTrue(portrait <= 620.dp)
+            assertTrue(portrait <= width / (2f / 3f))
             listOf(0f, -1f, Float.NaN, Float.POSITIVE_INFINITY).forEach { ratio ->
                 assertEquals(landscape, heroArtworkHeight(width, height, ratio))
             }
         }
+    }
+
+    @Test fun aShortHeightBudgetCannotForceDeepZoomOrASmallCentredPoster() {
+        val natural = 360.dp / (2f / 3f)
+        assertEquals((natural * .82f).value, heroArtworkHeight(360.dp, 800.dp, 2f / 3f, 180.dp).value, .01f)
+        assertEquals(202.5f, heroArtworkHeight(360.dp, 800.dp, 16f / 9f).value, .01f)
     }
 }

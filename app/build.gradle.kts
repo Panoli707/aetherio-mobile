@@ -81,8 +81,8 @@ android {
         applicationId = "com.panoli707.aetherio.nativeapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 22
-        versionName = "0.14.1"
+        versionCode = 23
+        versionName = "0.14.2"
         manifestPlaceholders["tmdbCredentialsEmbedded"] = tmdbReadAccessToken.isNotEmpty()
         testInstrumentationRunner = when {
             providers.gradleProperty("settingsReleaseSmoke").orNull == "true" ->

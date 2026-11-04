@@ -22,7 +22,7 @@ import coil.size.Scale
 import com.panoli707.aetherio.nativeapp.data.ArtworkImages
 import com.panoli707.aetherio.nativeapp.data.MediaItem
 
-/** Shared by Home and details: native proportions, bounded decoding and no crop or artificial zoom. */
+/** Shared by Home and details: full-width artwork, bounded cropping and display-sized decoding. */
 @Composable
 internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
     modifier: Modifier = Modifier, maxArtworkHeight: Dp = Dp.Infinity) {
@@ -38,26 +38,28 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
     val density = LocalDensity.current
     val inspection = LocalInspectionMode.current
     BoxWithConstraints(modifier.fillMaxWidth().background(Ink).testTag("heroArtwork")) {
-        val imageHeight = heroArtworkHeight(maxWidth, viewportHeight, loadedRatio ?: artwork?.aspectRatio ?: (16f / 9f))
-            .coerceAtMost(maxArtworkHeight)
+        val imageHeight = heroArtworkHeight(maxWidth, viewportHeight,
+            loadedRatio ?: artwork?.aspectRatio ?: (16f / 9f), maxArtworkHeight)
         val widthPx = with(density) { maxWidth.roundToPx().coerceAtLeast(1) }
         val heightPx = with(density) { imageHeight.roundToPx().coerceAtLeast(1) }
         val request = remember(artwork?.url, widthPx, heightPx, context) {
             ImageRequest.Builder(context).data(artwork?.url).size(widthPx, heightPx)
-                .precision(Precision.INEXACT).scale(Scale.FIT).build()
+                // FILL requests enough pixels for the actual drawing scale, not a smaller fit thumbnail.
+                .precision(Precision.INEXACT).scale(Scale.FILL).build()
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (artwork == null) Spacer(Modifier.height(imageHeight.coerceAtMost(160.dp)))
+            if (artwork == null) Spacer(Modifier.statusBarsPadding().height(56.dp))
             else Box(Modifier.fillMaxWidth().height(imageHeight)) {
                 if (!inspection) AsyncImage(model = request, contentDescription = if (artwork.containsTitle) item.title else null,
-                    // Inside also refuses to upscale a genuinely small source returned by a provider.
-                    contentScale = ContentScale.Inside, alignment = Alignment.Center,
+                    // Inside uses decoded bitmap pixels as a layout limit, leaving black margins after sampling.
+                    // Crop fills the screen width; heroArtworkHeight bounds how much may be trimmed vertically.
+                    contentScale = ContentScale.Crop, alignment = Alignment.Center,
                     filterQuality = FilterQuality.High, modifier = Modifier.fillMaxSize().testTag("heroImage"),
                     onSuccess = { state ->
                         val drawable = state.result.drawable
                         if (drawable.intrinsicWidth > 0 && drawable.intrinsicHeight > 0) {
-                            if (!state.result.isSampled && drawable.intrinsicWidth < 540 && index < candidates.lastIndex) {
-                                // A full-size response can still be a thumbnail; try better artwork if available.
+                            if (!state.result.isSampled && drawable.intrinsicWidth < minOf(widthPx, 540) && index < candidates.lastIndex) {
+                                // Try another source before scaling up a genuinely low-resolution original.
                                 index++
                             } else loadedRatio = drawable.intrinsicWidth.toFloat() / drawable.intrinsicHeight
                         }

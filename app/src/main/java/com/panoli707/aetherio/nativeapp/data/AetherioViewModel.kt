@@ -160,11 +160,14 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     fun selectSeason(number: Int) {
         val detail = state.value.detail ?: return
         if (detail.seasons.none { it.number == number }) return
+        val artworkBase = detail.artworkBase ?: detail.item
         seasonJob?.cancel()
         seasonJob = viewModelScope.launch {
-            mutableState.update { it.copy(detail = detail.copy(selectedSeason = number, episodes = emptyList()), episodesLoading = true, detailError = null) }
+            mutableState.update { it.copy(selectedItem = artworkBase,
+                detail = detail.copy(item = artworkBase, artworkBase = artworkBase, selectedSeason = number, episodes = emptyList()),
+                episodesLoading = true, detailError = null) }
             try {
-                val content = repository.seasonContent(detail.item, number)
+                val content = repository.seasonContent(artworkBase, number)
                 ensureActive()
                 if (state.value.detail?.item?.key != detail.item.key || state.value.detail?.selectedSeason != number) return@launch
                 mutableState.update { it.copy(selectedItem = content.item,

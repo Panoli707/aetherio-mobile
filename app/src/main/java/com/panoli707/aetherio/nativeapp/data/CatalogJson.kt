@@ -28,6 +28,8 @@ internal object CatalogJson {
         .sortedBy { when (text(it, "iso_639_1")) { "es" -> 0; "en" -> 1; "" -> 2; else -> 3 } }
         .firstNotNullOfOrNull { tmdbImage(text(it, "file_path"), "w500") }
 
+    fun seasonPoster(json: JSONObject): String? = tmdbImage(text(json, "poster_path"), "original")
+
     /** Only language-neutral posters are eligible for a separate title-logo overlay. */
     fun portraitArtwork(json: JSONObject): String? = objects(json.optJSONArray("posters"))
         .filter { text(it, "iso_639_1").isEmpty() && it.optInt("width") >= 1080 &&

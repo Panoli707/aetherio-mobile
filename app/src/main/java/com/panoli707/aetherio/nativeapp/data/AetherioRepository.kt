@@ -178,20 +178,22 @@ internal class AetherioRepository(
             val first = group.minBy { it.offset }
             val end = parts.filter { it.tmdbSeason == first.tmdbSeason && it.season != season && it.offset > first.offset }
                 .minOfOrNull { it.offset } ?: Int.MAX_VALUE
-            val json = tmdb("tv/${item.id}/season/${first.tmdbSeason}")
+            val json = tmdb("tv/${item.id}/season/${first.tmdbSeason}", mapOf("append_to_response" to "images", "include_image_language" to "es,en,null"))
             val episodes = CatalogJson.episodes(json, first.tmdbSeason).filter { it.number > first.offset && it.number <= end }
                 .map { it.copy(season = season, number = it.number - first.offset) }
             val art = optional { animeRepository.detail(MediaItem(first.animeId, MediaType.SERIES, item.title,
                 source = CatalogSource.ANILIST, isAnime = true)) }?.item
-            return SeasonContent(item.copy(posterUrl = art?.posterUrl ?: item.posterUrl,
-                backdropUrl = art?.backdropUrl ?: item.backdropUrl, seasonHint = season, animeEntryId = first.animeId), episodes)
+            val images = json.optJSONObject("images") ?: JSONObject()
+            return SeasonContent(SeasonArtwork.apply(item, season, poster = art?.posterUrl ?: CatalogJson.seasonPoster(json),
+                backdrop = art?.backdropUrl, logo = art?.logoUrl ?: CatalogJson.logo(images),
+                portrait = art?.portraitArtworkUrl ?: CatalogJson.portraitArtwork(images)).copy(animeEntryId = first.animeId), episodes)
         }
         val sourceSeason = if (item.seriesNumbering && parts.isNotEmpty() && season >= 1000) season - 1000 else season
         if (item.source == CatalogSource.TMDB) {
-            val json = tmdb("tv/${item.id}/season/$sourceSeason")
-            val poster = CatalogJson.text(json, "poster_path").takeIf { it.startsWith("/") && !it.startsWith("//") && '\\' !in it }
-                ?.let { "https://image.tmdb.org/t/p/original$it" }
-            return SeasonContent(item.copy(posterUrl = poster ?: item.posterUrl, seasonHint = season),
+            val json = tmdb("tv/${item.id}/season/$sourceSeason", mapOf("append_to_response" to "images", "include_image_language" to "es,en,null"))
+            val images = json.optJSONObject("images") ?: JSONObject()
+            return SeasonContent(SeasonArtwork.apply(item, season, poster = CatalogJson.seasonPoster(json),
+                logo = CatalogJson.logo(images), portrait = CatalogJson.portraitArtwork(images)),
                 CatalogJson.episodes(json, sourceSeason).map { it.copy(season = season) })
         }
         return SeasonContent(item, episodes(item, season))

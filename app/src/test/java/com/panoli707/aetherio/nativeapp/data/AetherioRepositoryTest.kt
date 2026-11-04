@@ -259,6 +259,27 @@ class AetherioRepositoryTest {
         }
     }
 
+    @Test fun seasonContentLoadsRealSeasonArtAndDoesNotLetTheGeneralPortraitWin() = runBlocking {
+        TlsFixture().use { fixture ->
+            val repository = fixture.repository()
+            val base = series.copy(posterUrl = "https://example.org/general.jpg", portraitArtworkUrl = "https://example.org/general-clean.jpg")
+            fixture.server.enqueue(MockResponse().setBody("""{"poster_path":"/season-two.jpg",
+                "episodes":[{"episode_number":1,"name":"Season two episode"}]}"""))
+            val content = repository.seasonContent(base, 2)
+            assertEquals("https://image.tmdb.org/t/p/original/season-two.jpg", content.item.posterUrl)
+            assertNull(content.item.portraitArtworkUrl)
+            assertEquals(content.item.posterUrl, ArtworkImages.headers(content.item, true).first().url)
+            assertEquals(2, content.episodes.single().season)
+            val request = fixture.request()
+            authenticated(request, "/3/tv/1396/season/2")
+            assertEquals("images", request.requestUrl!!.queryParameter("append_to_response"))
+            fixture.server.enqueue(MockResponse().setBody("""{"poster_path":null,"episodes":[]}"""))
+            assertEquals(base.copy(seasonHint = 3), repository.seasonContent(base, 3).item)
+            fixture.request()
+            Unit
+        }
+    }
+
     @Test fun failedTmdbSearchFallsBackToCinemetaWithoutForwardingAuthorization() = runBlocking {
         TlsFixture().use { fixture ->
             val repository = fixture.repository()

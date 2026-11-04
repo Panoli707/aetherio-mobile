@@ -92,16 +92,18 @@ class DetailDesignTest {
         val related = movie.copy(id = "551", title = "Película relacionada")
         val detail = MediaDetail(movie, trailers = listOf(trailer), related = listOf(related))
         var external: String? = null
+        var playedTrailer: MediaTrailer? = null
         var picked: MediaItem? = null
         compose.setContent { AetherioTheme {
             DetailScreen(AppState(detail = detail), movie, rememberLazyListState(), {}, {}, {}, {}, {}, { _, _, _ -> },
-                onOpenExternal = { external = it }, onSelectRelated = { picked = it })
+                onOpenExternal = { external = it }, onSelectRelated = { picked = it }, onPlayTrailer = { playedTrailer = it })
         } }
         compose.onNodeWithContentDescription("Ver tráiler").assertDoesNotExist()
         compose.onNodeWithContentDescription("Abrir fuentes").assertDoesNotExist()
         compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailTrailers"))
         compose.onNodeWithContentDescription("Abrir tráiler Tráiler de prueba").performClick()
-        compose.runOnIdle { assertEquals(trailer.url, external) }
+        compose.runOnIdle { assertEquals(trailer, playedTrailer); assertNull(external) }
+        compose.onNodeWithText("YouTube · vídeo externo").assertDoesNotExist()
         compose.onNodeWithTag("detailScroll").performScrollToNode(hasText("Película relacionada"))
         compose.onNodeWithText("Película relacionada").performClick()
         compose.runOnIdle { assertEquals(related, picked) }

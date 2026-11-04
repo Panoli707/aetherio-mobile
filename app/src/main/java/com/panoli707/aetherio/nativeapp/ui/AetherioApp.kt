@@ -26,6 +26,7 @@ import com.panoli707.aetherio.nativeapp.data.SectionStyle
 import com.panoli707.aetherio.nativeapp.data.StreamSource
 import com.panoli707.aetherio.nativeapp.data.EpisodeItem
 import com.panoli707.aetherio.nativeapp.data.WatchProgress
+import com.panoli707.aetherio.nativeapp.data.MediaTrailer
 import com.panoli707.aetherio.nativeapp.data.EpisodeWatchScope
 import com.panoli707.aetherio.nativeapp.data.SeriesIdentity
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
@@ -55,7 +56,8 @@ fun AetherioApp(
     onContinue: (WatchProgress) -> Unit = {},
     onToggleWatching: (MediaItem) -> Unit = {},
     onLoadAnimeSeason: () -> Unit = {},
-    onOpenExternal: (String) -> Unit = {}
+    onOpenExternal: (String) -> Unit = {},
+    onPlayTrailer: (MediaTrailer) -> Unit = {}
 ) {
     var startupComplete by rememberSaveable { mutableStateOf(false) }
     val startupReady = !state.homeLoading || state.sections.isNotEmpty() || state.homeError != null
@@ -128,7 +130,8 @@ fun AetherioApp(
                                  if (state.selectedItem?.key != selected.key) onSelectMedia(selected)
                              }
                              DetailScreen(state, selected, detailScroll, closeTop, onToggleSaved, onRetryDetail, onSelectSeason,
-                                   { focus.clearFocus(); linkOpen = true }, onRequestSources, onEpisodeWatchAction, onToggleWatching, onOpenExternal, select)
+                                   { focus.clearFocus(); linkOpen = true }, onRequestSources, onEpisodeWatchAction, onToggleWatching, onOpenExternal, select,
+                                   onPlayTrailer)
                         } else Column {
                             ScreenHeader("Ficha no disponible", closeTop)
                              if (state.homeLoading) LoadingRow("Recuperando ficha…")

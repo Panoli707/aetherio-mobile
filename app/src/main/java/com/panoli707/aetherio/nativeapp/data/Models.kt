@@ -67,7 +67,8 @@ data class MediaDetail(
     val reviews: List<MediaReview> = emptyList(),
     val related: List<MediaItem> = emptyList(),
     val voteCount: Int? = null,
-    val certification: String? = null
+    val certification: String? = null,
+    val artworkBase: MediaItem? = null
 )
 
 data class MediaTrailer(val id: String, val title: String, val url: String, val thumbnailUrl: String)

@@ -48,7 +48,8 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
     onToggleSaved: (MediaItem) -> Unit, onRetry: () -> Unit, onSeason: (Int) -> Unit, onLink: () -> Unit,
     onRequestSources: (MediaItem, Int?, Int?) -> Unit,
     onEpisodeWatchAction: (MediaItem, EpisodeItem, EpisodeWatchScope, Boolean) -> Unit = { _, _, _, _ -> },
-    onToggleWatching: (MediaItem) -> Unit = {}, onOpenExternal: (String) -> Unit = {}, onSelectRelated: (MediaItem) -> Unit = {}) {
+    onToggleWatching: (MediaItem) -> Unit = {}, onOpenExternal: (String) -> Unit = {}, onSelectRelated: (MediaItem) -> Unit = {},
+    onPlayTrailer: (MediaTrailer) -> Unit = {}) {
     MaterialTheme(colorScheme = MaterialTheme.colorScheme) {
         val detail = state.detail?.takeIf { it.item.key == item.key }
         val media = detail?.item ?: item
@@ -158,13 +159,13 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                     DetailFold("Tráilers", "detailTrailers") {
                         LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             items(detail.trailers, key = { it.id }) { trailer -> Column(Modifier.width(episodeWidth)
-                                .clickable(onClickLabel = "Abrir tráiler ${trailer.title}") { onOpenExternal(trailer.url) }
+                                .clickable(onClickLabel = "Abrir tráiler ${trailer.title}") { onPlayTrailer(trailer) }
                                 .semantics(mergeDescendants = true) { contentDescription = "Abrir tráiler ${trailer.title}" }) {
                                 Box(Modifier.fillMaxWidth().aspectRatio(1.78f).clip(RoundedCornerShape(18.dp))) {
                                     DetailArtwork(trailer.thumbnailUrl, Modifier.fillMaxSize())
                                 }
                                 Text(trailer.title, color = DetailText, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
-                                Text("YouTube · vídeo externo", color = DetailMuted, style = MaterialTheme.typography.bodySmall)
+                                Text("YouTube · Reproducir en Aetherio", color = DetailMuted, style = MaterialTheme.typography.bodySmall)
                             } }
                         }
                     }

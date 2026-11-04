@@ -81,10 +81,12 @@ android {
         applicationId = "com.panoli707.aetherio.nativeapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 23
-        versionName = "0.14.2"
+        versionCode = 24
+        versionName = "0.14.3"
         manifestPlaceholders["tmdbCredentialsEmbedded"] = tmdbReadAccessToken.isNotEmpty()
         testInstrumentationRunner = when {
+            providers.gradleProperty("scrollReleaseSmoke").orNull == "true" ->
+                "com.panoli707.aetherio.nativeapp.ui.ScrollPerformanceInstrumentation"
             providers.gradleProperty("settingsReleaseSmoke").orNull == "true" ->
                 "com.panoli707.aetherio.nativeapp.ui.SettingsReleaseInstrumentation"
             providers.gradleProperty("torrentReleaseSmoke").orNull == "true" ->

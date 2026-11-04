@@ -58,7 +58,7 @@ internal fun Artwork(url: String?, modifier: Modifier = Modifier, description: S
     val selected = if (failed) url else preferred
     val request = remember(context, selected) {
         // AsyncImage supplies the measured pixel size: do not decode a full original for a small card.
-        ImageRequest.Builder(context).data(selected).precision(Precision.EXACT).build()
+        ImageRequest.Builder(context).data(selected).precision(Precision.EXACT).crossfade(false).build()
     }
     if (LocalInspectionMode.current || url.isNullOrBlank()) Box(placeholder)
     else AsyncImage(model = request, contentDescription = description, contentScale = contentScale,
@@ -79,10 +79,12 @@ internal fun MediaTitle(item: MediaItem, modifier: Modifier = Modifier, centered
     var failed by remember(item.logoUrl) { mutableStateOf(false) }
     val inspection = LocalInspectionMode.current
     val logo = remember(item.logoUrl) { ArtworkImages.highResolution(item.logoUrl) }
+    val context = LocalContext.current
+    val request = remember(logo, context) { ImageRequest.Builder(context).data(logo).crossfade(false).build() }
     Box(modifier, contentAlignment = if (centered) Alignment.Center else Alignment.CenterStart) {
         if (!logo.isNullOrBlank() && !failed && !inspection) {
             AsyncImage(
-                model = logo, contentDescription = item.title,
+                model = request, contentDescription = item.title,
                 contentScale = ContentScale.Fit, filterQuality = FilterQuality.High, onError = { failed = true },
                 modifier = Modifier.fillMaxWidth().height(88.dp)
             )

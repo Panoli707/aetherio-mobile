@@ -95,6 +95,40 @@ class HomeDesignTest {
         compose.mainClock.autoAdvance = true
     }
 
+    @Test fun automaticAdvanceStopsWhenHeroIsOffScreen() {
+        lateinit var pager: PagerState
+        val sections = (1..8).map { index -> CatalogSection("fixture$index", "Sección $index", listOf(movie, second)) }
+        compose.setContent { AetherioTheme {
+            pager = rememberPagerState { 2 }
+            HomeScreen(AppState(heroes = listOf(movie, second), sections = sections, homeLoading = false),
+                rememberLazyListState(), pager, true, {}, {}, {})
+        } }
+        compose.onNodeWithTag("homeScroll").performScrollToIndex(2)
+        compose.mainClock.autoAdvance = false
+        compose.mainClock.advanceTimeBy(20_000)
+        compose.runOnIdle { assertEquals(0, pager.currentPage) }
+        compose.mainClock.autoAdvance = true
+    }
+
+    @Test fun holdingATouchPausesTheTimerWithoutConsumingTheGesture() {
+        lateinit var pager: PagerState
+        compose.setContent { AetherioTheme {
+            pager = rememberPagerState { 2 }
+            HomeScreen(AppState(heroes = listOf(movie, second), homeLoading = false),
+                rememberLazyListState(), pager, true, {}, {}, {})
+        } }
+        compose.mainClock.autoAdvance = false
+        compose.onNodeWithTag("homeHero").performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(10_000)
+        compose.runOnIdle { assertEquals(0, pager.currentPage) }
+        compose.onNodeWithTag("homeHero").performTouchInput { up() }
+        compose.mainClock.advanceTimeBy(7_000)
+        compose.runOnIdle { assertEquals(0, pager.currentPage) }
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.runOnIdle { assertEquals(1, pager.currentPage) }
+        compose.mainClock.autoAdvance = true
+    }
+
     @Test fun singleFeatureStillOffersTheProfileWithoutPageIndicators() {
         compose.setContent { AetherioTheme {
             HomeScreen(AppState(heroes = listOf(movie), homeLoading = false), rememberLazyListState(),

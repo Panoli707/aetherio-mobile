@@ -3,6 +3,7 @@ package com.panoli707.aetherio.nativeapp.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -16,6 +17,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import coil.ImageLoader
+import coil.imageLoader
 import coil.request.ImageRequest
 import coil.size.Precision
 import coil.size.Scale
@@ -25,15 +28,16 @@ import com.panoli707.aetherio.nativeapp.data.MediaItem
 /** Shared by Home and details: full-width artwork, bounded cropping and display-sized decoding. */
 @Composable
 internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
-    modifier: Modifier = Modifier, maxArtworkHeight: Dp = Dp.Infinity) {
+    modifier: Modifier = Modifier, maxArtworkHeight: Dp = Dp.Infinity,
+    imageLoader: ImageLoader = LocalContext.current.imageLoader) {
     val candidates = remember(item.posterUrl, item.backdropUrl, item.portraitArtworkUrl, portrait) {
         ArtworkImages.headers(item, portrait).flatMap { art ->
             listOf(art.copy(url = ArtworkImages.highResolution(art.url)!!), art)
         }.distinctBy { it.url }
     }
-    var index by remember(candidates) { mutableIntStateOf(0) }
+    var index by rememberSaveable(candidates) { mutableIntStateOf(0) }
     val artwork = candidates.getOrNull(index)
-    var loadedRatio by remember(artwork) { mutableStateOf<Float?>(null) }
+    var loadedRatio by rememberSaveable(artwork?.url) { mutableStateOf<Float?>(null) }
     val context = LocalContext.current
     val density = LocalDensity.current
     val inspection = LocalInspectionMode.current
@@ -41,16 +45,19 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
         val imageHeight = heroArtworkHeight(maxWidth, viewportHeight,
             loadedRatio ?: artwork?.aspectRatio ?: (16f / 9f), maxArtworkHeight)
         val widthPx = with(density) { maxWidth.roundToPx().coerceAtLeast(1) }
-        val heightPx = with(density) { imageHeight.roundToPx().coerceAtLeast(1) }
+        // Loading the real ratio may refine layout once, but must not resize/restart its own decode.
+        val requestHeight = heroArtworkHeight(maxWidth, viewportHeight, artwork?.aspectRatio ?: (16f / 9f), maxArtworkHeight)
+        val heightPx = with(density) { requestHeight.roundToPx().coerceAtLeast(1) }
         val request = remember(artwork?.url, widthPx, heightPx, context) {
             ImageRequest.Builder(context).data(artwork?.url).size(widthPx, heightPx)
                 // FILL requests enough pixels for the actual drawing scale, not a smaller fit thumbnail.
-                .precision(Precision.INEXACT).scale(Scale.FILL).build()
+                .precision(Precision.INEXACT).scale(Scale.FILL).crossfade(false).build()
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (artwork == null) Spacer(Modifier.statusBarsPadding().height(56.dp))
             else Box(Modifier.fillMaxWidth().height(imageHeight)) {
-                if (!inspection) AsyncImage(model = request, contentDescription = if (artwork.containsTitle) item.title else null,
+                if (!inspection) AsyncImage(model = request, imageLoader = imageLoader,
+                    contentDescription = if (artwork.containsTitle) item.title else null,
                     // Inside uses decoded bitmap pixels as a layout limit, leaving black margins after sampling.
                     // Crop fills the screen width; heroArtworkHeight bounds how much may be trimmed vertically.
                     contentScale = ContentScale.Crop, alignment = Alignment.Center,

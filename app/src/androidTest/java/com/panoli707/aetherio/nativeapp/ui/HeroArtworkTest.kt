@@ -11,10 +11,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
@@ -28,6 +30,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
+import coil.EventListener
+import coil.ImageLoader
+import coil.request.ImageRequest
 
 @RunWith(AndroidJUnit4::class)
 class HeroArtworkTest {
@@ -234,6 +240,42 @@ class HeroArtworkTest {
         val metadata = compose.onNodeWithTag("homeHeroMetadata", useUnmergedTree = true).getUnclippedBoundsInRoot()
         assertTrue(metadata.top - image.bottom < 20.dp)
         saveScreenshot("home-width-fit.png")
+    }
+
+    @Test fun loadingTheRealAspectRatioDoesNotStartAnotherDecodeAndSurvivesLazyDisposal() {
+        val starts = AtomicInteger()
+        val loader = ImageLoader.Builder(context).memoryCache(null).eventListener(object : EventListener {
+            override fun onStart(request: ImageRequest) { starts.incrementAndGet() }
+        }).build()
+        val visible = mutableStateOf(true)
+        val heights = mutableListOf<Int>()
+        val item = MediaItem("123", MediaType.SERIES, "Stable cover", posterUrl = fixture(425, 600))
+        try {
+            compose.setContent { AetherioTheme {
+                val pages = rememberSaveableStateHolder()
+                if (visible.value) pages.SaveableStateProvider("hero") {
+                    Box(Modifier.width(360.dp)) {
+                        HeroArtwork(item, true, 800.dp, Modifier.onSizeChanged { heights.add(it.height) }, imageLoader = loader)
+                    }
+                }
+            } }
+            waitForImage()
+            compose.mainClock.advanceTimeBy(1_000)
+            compose.waitForIdle()
+            compose.runOnIdle { assertEquals("The measured ratio must not trigger a second image request", 1, starts.get()) }
+            var settledHeight = 0
+            compose.runOnIdle { settledHeight = heights.last(); visible.value = false }
+            compose.waitForIdle()
+            compose.runOnIdle { heights.clear(); visible.value = true }
+            waitForImage()
+            compose.mainClock.advanceTimeBy(1_000)
+            compose.waitForIdle()
+            compose.runOnIdle {
+                assertEquals(2, starts.get())
+                assertTrue("Returning to a saved hero must not change its height again", heights.isNotEmpty() && heights.all { it == settledHeight })
+            }
+            assertArtworkFillsFrame()
+        } finally { loader.shutdown() }
     }
 
     private fun saveScreenshot(name: String) {

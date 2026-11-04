@@ -1,6 +1,8 @@
 package com.panoli707.aetherio.nativeapp.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -23,6 +25,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
@@ -34,8 +38,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import com.panoli707.aetherio.nativeapp.data.*
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.util.Locale
 
 @Composable
@@ -43,17 +45,25 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
     onSelect: (MediaItem) -> Unit, onCategory: (String) -> Unit, onRetry: () -> Unit,
     onContinue: (WatchProgress) -> Unit = {}, onRetryAnime: () -> Unit = {}, onProfile: () -> Unit = {}) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(lifecycle, active, pager.pageCount) {
+    var touching by remember { mutableStateOf(false) }
+    LaunchedEffect(lifecycle, active, pager, scroll, pager.pageCount) {
         if (active && pager.pageCount > 1) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
-            while (true) {
-                delay(8_000)
-                if (!pager.isScrollInProgress && pager.pageCount > 1) {
-                    launch { pager.animateScrollToPage((pager.currentPage + 1) % pager.pageCount) }
-                }
-            }
+            runHomeAutoAdvance(
+                snapshotFlow { !touching && !scroll.isScrollInProgress && scroll.firstVisibleItemIndex == 0 },
+                pagerBusy = { pager.isScrollInProgress },
+                advance = { if (pager.pageCount > 1) pager.animateScrollToPage((pager.currentPage + 1) % pager.pageCount) })
         }
     }
-    LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("homeScroll"),
+    LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("homeScroll").pointerInput(Unit) {
+        awaitEachGesture {
+            try {
+                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                touching = true
+                // Observe only: child rows and the vertical list retain ownership of the gesture.
+                do { val event = awaitPointerEvent(PointerEventPass.Initial) } while (event.changes.any { it.pressed })
+            } finally { touching = false }
+        }
+    },
         contentPadding = PaddingValues(bottom = 110.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
         if (state.heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(state.heroes, pager, onSelect, onProfile) }
         else item(key = "heading") {
@@ -109,7 +119,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
                     val bannerWidth = (maxWidth - 36.dp).coerceAtMost(520.dp)
                     val coverWidth = posterWidth(maxWidth)
                     LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        itemsIndexed(section.items, key = { _, item -> item.key }) { index, item ->
+                        itemsIndexed(section.items, key = { _, item -> item.key }, contentType = { _, _ -> section.style }) { index, item ->
                             when (section.style) {
                                 SectionStyle.FEATURED -> Featured(item, { onSelect(item) }, Modifier.width(bannerWidth))
                                 SectionStyle.POSTERS, SectionStyle.RANKED -> Poster(item, { onSelect(item) },

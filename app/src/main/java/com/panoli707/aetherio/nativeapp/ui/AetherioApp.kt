@@ -113,7 +113,8 @@ fun AetherioApp(
     AetherioTheme {
         Surface(color = Ink, modifier = Modifier.fillMaxSize()) {
             // Only the visible screen is composed: hidden text fields cannot retain IME focus.
-            Box(Modifier.fillMaxSize().background(Ink).blur(if (state.sourceQuery != null) 18.dp else 0.dp)
+            // blur(0.dp) still creates a clipped graphics layer in Compose. Do not wrap ordinary scrolling in it.
+            Box(Modifier.fillMaxSize().background(Ink).then(if (state.sourceQuery != null) Modifier.blur(18.dp) else Modifier)
                 .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))) {
                 when {
                     detailKey != null -> {

@@ -18,7 +18,7 @@ internal object ArtworkImages {
     }
     fun separateTitle(header: Header?, detail: Boolean): Boolean = if (detail)
         header?.titlePresence != ArtworkTitlePresence.EMBEDDED
-    else header == null || header.titlePresence == ArtworkTitlePresence.ABSENT || header.kind != Kind.POSTER
+    else header?.titlePresence != ArtworkTitlePresence.EMBEDDED
 
     fun logos(item: MediaItem): List<String> = (listOfNotNull(item.logoUrl) + item.logoAlternatives)
         .filter(String::isNotBlank).flatMap { listOfNotNull(highResolution(it), it) }.distinct()

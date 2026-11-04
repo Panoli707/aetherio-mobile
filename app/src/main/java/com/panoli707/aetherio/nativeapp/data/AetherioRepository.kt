@@ -128,7 +128,7 @@ internal class AetherioRepository(
         val specs = DesktopHomeCatalog.rails()
         val sections = specs.map { spec ->
             val saved = cached("$today:${spec.id}").orEmpty()
-            spec.section(saved, loading = force || saved.isEmpty()).copy(subtitle = if (saved.isEmpty()) "" else "Catálogo guardado")
+            spec.section(saved, loading = force || saved.isEmpty())
         }.toMutableList()
         val lock = Mutex()
         fun snapshot(): HomeCatalog {
@@ -178,18 +178,18 @@ internal class AetherioRepository(
                     val end = spec.request.params["first_air_date.lte"]?.take(4)?.toIntOrNull()
                     start == null || end == null || item.year.toIntOrNull()?.let { it in start..end } == true
                 }.distinctBy { it.key }.take(DesktopHomeCatalog.ITEM_LIMIT)
-            if (items.isNotEmpty()) return spec.section(items).copy(subtitle = if (spec.feed.jikan != null) "Jikan · MyAnimeList" else "AniList")
+            if (items.isNotEmpty()) return spec.section(items)
         }
         val starter = spec.id.startsWith("tmdb.top_") || spec.id.startsWith("tmdb.trending_") || spec.id.startsWith("tmdb.discover.")
         val defaults = mapOf("include_adult" to "false") + if (starter) mapOf("region" to "PE") else emptyMap()
         for (variant in listOf(spec.request) + spec.fallbacks) {
             val items = optional { catalogItems(tmdb(variant.path, defaults + variant.params), spec) }.orEmpty()
                 .take(DesktopHomeCatalog.ITEM_LIMIT)
-            if (items.isNotEmpty()) return spec.section(items).copy(subtitle = if (spec.feed == null) "TMDB" else "TMDB · alternativa de anime")
+            if (items.isNotEmpty()) return spec.section(items)
         }
         if (spec.id in setOf("tmdb.trending_movie", "tmdb.trending_series")) {
             val items = CatalogJson.catalog(json("$cinemeta/catalog/${cineType(spec.type)}/top.json"), spec.type, CatalogSource.CINEMETA).take(20)
-            if (items.isNotEmpty()) return spec.section(items).copy(subtitle = "Cinemeta · alternativa")
+            if (items.isNotEmpty()) return spec.section(items)
         }
         return spec.section()
     }
@@ -294,15 +294,22 @@ internal class AetherioRepository(
         for (index in 0 until maxOf(movies.size, series.size)) { movies.getOrNull(index)?.let(::add); series.getOrNull(index)?.let(::add) }
     }
     suspend fun heroes(items: List<MediaItem>): List<MediaItem> = supervisorScope {
-        items.take(4).map { item -> async {
-            if (item.source == CatalogSource.ANILIST) item else optional {
+        items.take(10).map { item -> async {
+            if (item.source == CatalogSource.ANILIST) optional { animeRepository.detail(item).item } ?: item else optional {
                 // Trending results omit named genres and age ratings, even when they already have a logo.
                 val data = if (item.source == CatalogSource.TMDB) tmdb("${item.type.path}/${item.id}", mapOf(
                     "append_to_response" to "images,${if (item.type == MediaType.SERIES) "content_ratings" else "release_dates"}",
                     "include_image_language" to "es,en,null"))
                 else requireNotNull(json("$cinemeta/meta/${cineType(item.type)}/${item.id}.json").optJSONObject("meta"))
                 check(CatalogJson.text(data, "id") == item.id)
-                CatalogJson.detail(item, data).item
+                val enriched = CatalogJson.detail(item, data).item
+                if (enriched.overview.isNotBlank() || item.source != CatalogSource.TMDB) enriched
+                else {
+                    // Some es-ES entries have no synopsis; request English only for the missing text.
+                    val fallback = optional { tmdb("${item.type.path}/${item.id}", mapOf("language" to "en-US")) }
+                    enriched.copy(overview = fallback?.takeIf { CatalogJson.text(it, "id") == item.id }
+                        ?.let { CatalogJson.text(it, "overview") }.orEmpty())
+                }
             } ?: item
         } }.awaitAll()
     }

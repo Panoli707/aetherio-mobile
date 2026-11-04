@@ -54,13 +54,19 @@ class ArtworkCatalogLiveTest {
             compose.waitUntil(60_000) {
                 compose.onAllNodesWithTag("heroArtworkLoading", true).fetchSemanticsNodes().isEmpty() &&
                     compose.onAllNodesWithTag("heroImage", true).fetchSemanticsNodes().size == 1 &&
-                    compose.onAllNodes(hasTestTag("detailTitle") and hasStateDescription("Título preparado"), true).fetchSemanticsNodes().size == 1
+                    compose.onAllNodes(hasTestTag("detailTitle") and hasStateDescription("Cargando logo"), true).fetchSemanticsNodes().isEmpty()
             }
             val photo = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
-            val title = compose.onNodeWithTag("detailTitle", true).getUnclippedBoundsInRoot()
+            val title = if (compose.onAllNodesWithTag("detailTitle", true).fetchSemanticsNodes().isNotEmpty())
+                compose.onNodeWithTag("detailTitle", true).getUnclippedBoundsInRoot() else null
             assertEquals(item.title, 240f, (photo.right - photo.left).value, 1f)
             assertTrue("${item.title} must not resolve to a horizontal strip", photo.bottom - photo.top > 240.dp)
-            assertTrue("${item.title} title must bridge the image and the background", title.top < photo.bottom && title.bottom > photo.bottom)
+            if (title != null) assertTrue("${item.title} title must bridge the image and the background", title.top < photo.bottom && title.bottom > photo.bottom)
+            else {
+                assertTrue("Only an embedded seasonal title may replace the overlay", ArtworkImages.headers(item, true)
+                    .any { it.titlePresence == ArtworkTitlePresence.EMBEDDED })
+                compose.onNodeWithContentDescription(item.title, true).assertExists()
+            }
             compose.onAllNodesWithTag("heroImage", true).assertCountEquals(1)
             val file = File(context.filesDir, "artwork-qa/catalog-${item.id}.png")
             file.parentFile!!.mkdirs()

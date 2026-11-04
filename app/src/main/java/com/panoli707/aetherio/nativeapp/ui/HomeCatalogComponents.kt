@@ -47,7 +47,6 @@ internal fun HomeCatalogSection(section: CatalogSection, onSelect: (MediaItem) -
         Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(section.title, style = MaterialTheme.typography.titleLarge)
-                if (section.subtitle.isNotBlank()) Text(section.subtitle, color = Muted, style = MaterialTheme.typography.bodySmall)
             }
             if (section.items.isNotEmpty()) RoundAction("Ver ${section.title}", Icons.AutoMirrored.Filled.ArrowForward,
                 { onCategory(if (section.id == "mal.airing_anime") "airing" else section.id) })

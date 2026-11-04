@@ -77,19 +77,21 @@ internal fun RoundAction(description: String, icon: ImageVector, onClick: () -> 
 
 @Composable
 internal fun MediaTitle(item: MediaItem, modifier: Modifier = Modifier, centered: Boolean = false) {
-    var failed by remember(item.logoUrl) { mutableStateOf(false) }
+    var loaded by remember(item.logoUrl) { mutableStateOf(false) }
     val inspection = LocalInspectionMode.current
     val logo = remember(item.logoUrl) { ArtworkImages.highResolution(item.logoUrl) }
     val context = LocalContext.current
     val request = remember(logo, context) { ImageRequest.Builder(context).data(logo).crossfade(false).build() }
     Box(modifier, contentAlignment = if (centered) Alignment.Center else Alignment.CenterStart) {
-        if (!logo.isNullOrBlank() && !failed && !inspection) {
+        if (!logo.isNullOrBlank() && !inspection) {
             AsyncImage(
                 model = request, contentDescription = item.title,
-                contentScale = ContentScale.Fit, filterQuality = FilterQuality.High, onError = { failed = true },
+                contentScale = ContentScale.Fit, filterQuality = FilterQuality.High,
+                onSuccess = { loaded = true }, onError = { loaded = false },
                 modifier = Modifier.fillMaxWidth().height(88.dp)
             )
-        } else {
+        }
+        if (logo.isNullOrBlank() || !loaded || inspection) {
             Text(item.title, style = MaterialTheme.typography.headlineLarge,
                 textAlign = if (centered) TextAlign.Center else TextAlign.Start,
                 maxLines = 3, overflow = TextOverflow.Ellipsis)

@@ -58,7 +58,7 @@ public final class ScrollPerformanceInstrumentation extends Instrumentation {
             if (!enabled) throw new IllegalStateException("Enable manualScrollPerformance on an emulator");
             activity = startActivitySync(new Intent(Intent.ACTION_MAIN).setClassName(getTargetContext().getPackageName(),
                 "com.panoli707.aetherio.nativeapp.MainActivity").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
-            await("Anime emitiéndose ahora");
+            await("Inicio");
             SystemClock.sleep(3_000);
             Rect screen = new Rect();
             getUiAutomation().getRootInActiveWindow().getBoundsInScreen(screen);
@@ -67,19 +67,19 @@ public final class ScrollPerformanceInstrumentation extends Instrumentation {
 
             measureVertical("home-first-pass");
             measureVertical("home-warm-pass");
-            // Bring the anime row away from the bottom bar, then exercise the horizontal gesture from Bug1.
-            AccessibilityNodeInfo row = find("Anime emitiéndose ahora");
-            if (row == null) {
-                tapAt(width * .14f, height * .91f);
-                SystemClock.sleep(1_000);
-                row = await("Anime emitiéndose ahora");
+            // The first stable catalogue row remains available after the desktop Home expansion.
+            AccessibilityNodeInfo row = find("Series populares");
+            for (int attempt = 0; row == null && attempt < 8; attempt++) {
+                swipe(.5f, .78f, .5f, .42f);
+                row = find("Series populares");
             }
+            if (row == null) throw new AssertionError("Cannot find the first catalogue row");
             Rect label = bounds(row);
             for (int attempt = 0; label.bottom > height * .35f && attempt < 3; attempt++) {
                 swipe(.5f, .76f, .5f, .52f);
-                label = bounds(await("Anime emitiéndose ahora"));
+                label = bounds(await("Series populares"));
             }
-            row = await("Anime emitiéndose ahora");
+            row = await("Series populares");
             label = bounds(row);
             float cardY = Math.min(.72f, (label.bottom + 160f) / height);
             AccessibilityNodeInfo card = cardAt(getUiAutomation().getRootInActiveWindow(), width * .22f, height * cardY);
@@ -93,7 +93,7 @@ public final class ScrollPerformanceInstrumentation extends Instrumentation {
                 swipe(.82f, cardY, .18f, cardY);
                 swipe(.18f, cardY, .82f, cardY);
             }
-            measuring = false; report("anime-horizontal");
+            measuring = false; report("catalog-horizontal");
 
             // Always open the same card, not whichever item a fling happened to stop on.
             for (int attempt = 0; findFixture(getUiAutomation().getRootInActiveWindow(), fixture) == null && attempt < 12; attempt++)

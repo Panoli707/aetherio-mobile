@@ -31,7 +31,7 @@ class ArtworkImagesTest {
             assertEquals(ArtworkTitlePresence.UNKNOWN, candidates.first().titlePresence)
             assertEquals(ArtworkTitlePresence.UNKNOWN, candidates[1].titlePresence)
             assertTrue(ArtworkImages.separateTitle(candidates[1], detail = true))
-            assertFalse(ArtworkImages.separateTitle(candidates[1], detail = false)) // Compact Home remains unchanged.
+            assertTrue(ArtworkImages.separateTitle(candidates[1], detail = false)) // Unknown posters still have an accessible title.
             assertEquals(listOf("backdrop", "clean", "poster"), ArtworkImages.headers(item, portrait = false).map { it.url })
             assertEquals("poster", ArtworkImages.headers(item.copy(portraitArtworkUrl = null), true).first().url)
             assertEquals(16f / 9f, ArtworkImages.headers(item.copy(portraitArtworkUrl = null, posterUrl = null), true).single().aspectRatio)
@@ -51,6 +51,8 @@ class ArtworkImagesTest {
             assertEquals(presence != ArtworkTitlePresence.EMBEDDED, ArtworkImages.separateTitle(header, true))
         }
         assertTrue(ArtworkImages.separateTitle(null, true))
+        assertTrue(ArtworkImages.separateTitle(ArtworkImages.headers(item, true).single(), false))
+        assertFalse(ArtworkImages.separateTitle(ArtworkImages.headers(item.copy(posterTitlePresence = ArtworkTitlePresence.EMBEDDED), true).single(), false))
     }
 
     @Test fun logoVariantsKeepProviderLanguageOrderAndNeverRewriteSignedOrForeignUrls() {

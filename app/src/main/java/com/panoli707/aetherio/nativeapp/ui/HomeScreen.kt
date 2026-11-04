@@ -138,10 +138,12 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
             BoxWithConstraints(Modifier.fillMaxWidth()) {
                 val portrait = maxWidth < 600.dp
                 val height = homeHeroHeight(maxWidth, screenHeight)
-                HorizontalPager(state = pager, key = { heroes[it].key }, verticalAlignment = Alignment.Top,
+                HorizontalPager(state = pager, key = { heroes.getOrNull(it)?.key ?: "pending:$it" }, verticalAlignment = Alignment.Top,
                     modifier = Modifier.fillMaxWidth().testTag("homeHero")) { page ->
-                    val item = heroes[page]
-                    Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Ver ${item.title}", onClick = { onSelect(item) }),
+                    // A progressive catalog refresh can shrink this list while the pager still composes
+                    // an old page. Never index the new snapshot with the previous page count.
+                    val item = heroes.getOrNull(page)
+                    if (item != null) Column(Modifier.fillMaxWidth().clickable(onClickLabel = "Ver ${item.title}", onClick = { onSelect(item) }),
                         horizontalAlignment = Alignment.CenterHorizontally) {
                         HeroArtwork(item, portrait, screenHeight, maxArtworkHeight = height)
                         Column(Modifier.widthIn(max = 600.dp).fillMaxWidth()
@@ -160,7 +162,7 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
                  Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 12.dp, end = 76.dp), enabled = !loading)
         }
         if (heroes.size > 1) Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 12.dp)
-            .semantics { contentDescription = "Destacado ${pager.currentPage + 1} de ${heroes.size}" },
+            .semantics { contentDescription = "Destacado ${pager.currentPage.coerceIn(0, heroes.lastIndex) + 1} de ${heroes.size}" },
             horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
             // A bounded indicator stays readable even when the API returns many heroes.
             val start = (pager.currentPage - 3).coerceIn(0, (heroes.size - 7).coerceAtLeast(0))

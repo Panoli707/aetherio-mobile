@@ -129,7 +129,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 ensureActive()
                 mutableState.update { it.copy(sections = home.sections, heroes = home.heroes, homeLoading = false,
                     homeError = if (home.partial) "Algunas secciones no pudieron cargarse. Puedes reintentar sin perder el resto del catálogo." else null) }
-                val heroes = repository.heroes(home.heroes) + home.heroes.drop(4)
+                val heroes = repository.heroes(home.heroes)
                 ensureActive()
                 mutableState.update { it.copy(heroes = heroes) }
             } catch (e: CancellationException) { throw e }

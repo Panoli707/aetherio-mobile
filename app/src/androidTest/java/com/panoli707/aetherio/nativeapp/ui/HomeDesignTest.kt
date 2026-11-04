@@ -46,6 +46,34 @@ class HomeDesignTest {
         compose.onNodeWithText(movie.title).assertIsDisplayed()
     }
 
+    @Test fun aNewPosterHeroShowsItsTitleBeforeAnyLogoOrDescriptionLoads() {
+        compose.setContent { AetherioTheme {
+            HomeScreen(AppState(heroes = listOf(movie.copy(posterUrl = "https://example.org/poster.jpg", overview = "", logoUrl = null)),
+                homeLoading = true), rememberLazyListState(), rememberPagerState { 1 }, false, {}, {}, {})
+        } }
+        compose.onNodeWithText(movie.title, useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    @Test fun cachedProviderSubtitlesAreNotShownUnderCatalogRowTitles() {
+        val row = CatalogSection("mal.airing_anime", "Anime en emisión", listOf(movie), subtitle = "AniList")
+        compose.setContent { AetherioTheme { HomeCatalogSection(row, {}, {}, {}) } }
+        compose.onNodeWithText("Anime en emisión").assertIsDisplayed()
+        compose.onNodeWithText("AniList").assertDoesNotExist()
+    }
+
+    @Test fun aProgressiveHeroRefreshCanShrinkPastTheCurrentPagerPage() {
+        val heroes = mutableStateOf((1..10).map { movie.copy(id = it.toString(), title = "Destacado $it") })
+        compose.setContent { AetherioTheme {
+            HomeScreen(AppState(heroes = heroes.value, homeLoading = false), rememberLazyListState(),
+                rememberPagerState(initialPage = 8) { heroes.value.size }, false, {}, {}, {})
+        } }
+        compose.onNodeWithTag("homeHero").assertExists()
+        compose.runOnIdle { heroes.value = heroes.value.take(5) }
+        compose.waitForIdle()
+        compose.onNodeWithTag("homeHero").assertExists()
+        compose.onNodeWithContentDescription("Destacado 5 de 5").assertExists()
+    }
+
     @Test fun profileDoesNotAdvanceTheCarouselOrOpenTheMovie() {
         lateinit var pager: PagerState
         var profileOpened = false

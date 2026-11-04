@@ -320,9 +320,9 @@ class AetherioRepositoryTest {
                 assertNull(request.getHeader("Authorization"))
                 assertNull(request.requestUrl!!.queryParameter("api_key"))
             }
-            repeat(4) { fixture.server.enqueue(MockResponse().setBody(HERO_DETAIL)) }
-            assertEquals(4, repository.heroes(List(5) { movie }).size)
-            repeat(4) {
+            repeat(10) { fixture.server.enqueue(MockResponse().setBody(HERO_DETAIL)) }
+            assertEquals(10, repository.heroes(List(10) { movie }).size)
+            repeat(10) {
                 val request = fixture.request()
                 assertEquals("/api/tmdb/movie/550", request.requestUrl!!.encodedPath)
                 assertNull(request.getHeader("Authorization"))
@@ -333,9 +333,24 @@ class AetherioRepositoryTest {
             val heroes = repository.heroes(listOf(cine, withLogo))
             assertEquals(listOf(cine.key, withLogo.key), heroes.map { it.key })
             assertEquals(listOf("Terror"), heroes.last().genres)
-            assertEquals(7, fixture.server.requestCount)
+            assertEquals(13, fixture.server.requestCount)
             assertEquals("v3-cinemeta.strem.io", fixture.externalRequests.single().url.host)
             assertNull(fixture.externalRequests.single().header("Authorization"))
+        }
+    }
+
+    @Test fun missingSpanishHeroSynopsisUsesEnglishWithoutReplacingItsLogo() = runBlocking {
+        TlsFixture().use { fixture ->
+            val repository = fixture.repository()
+            fixture.server.enqueue(MockResponse().setBody(HERO_DETAIL.replace("\"overview\":\"Sinopsis completa\"", "\"overview\":\"\"")))
+            fixture.server.enqueue(MockResponse().setBody("""{"id":550,"overview":"English synopsis"}"""))
+            val enriched = repository.heroes(listOf(movie)).single()
+            assertEquals("English synopsis", enriched.overview)
+            assertEquals("https://image.tmdb.org/t/p/w500/logo.png", enriched.logoUrl)
+            authenticated(fixture.request(), "/3/movie/550")
+            val fallback = fixture.request()
+            authenticated(fallback, "/3/movie/550", language = false)
+            assertEquals("en-US", fallback.requestUrl!!.queryParameter("language"))
         }
     }
 
@@ -349,7 +364,7 @@ class AetherioRepositoryTest {
             fixture.server.enqueue(MockResponse().setBody("""{"id":999,"title":"Wrong movie"}"""))
             assertEquals(existing, repository.heroes(listOf(existing)).single())
             fixture.request()
-            fixture.server.enqueue(MockResponse().setBody("""{"id":1396,"name":"Breaking Bad",
+            fixture.server.enqueue(MockResponse().setBody("""{"id":1396,"name":"Breaking Bad","overview":"Una serie",
                 "genres":[{"name":"Drama"}],"content_ratings":{"results":[{"iso_3166_1":"US","rating":"TV-MA"}]}}"""))
             assertEquals("TV-MA (US)", repository.heroes(listOf(series)).single().certification)
             val request = fixture.request()
@@ -507,7 +522,7 @@ class AetherioRepositoryTest {
         const val CATALOG = """{"results":[{"id":550,"media_type":"movie","title":"Fight Club","name":"Fight Club","poster_path":"/poster.jpg","backdrop_path":"/background.jpg"}]}"""
         const val DETAIL = """{"id":550,"title":"Fight Club","external_ids":{"imdb_id":"tt0137523"}}"""
         const val EPISODES = """{"episodes":[{"episode_number":1,"name":"Pilot","air_date":"2008-01-20"}]}"""
-        const val HERO_DETAIL = """{"id":550,"title":"Fight Club","release_date":"2026-01-02",
+        const val HERO_DETAIL = """{"id":550,"title":"Fight Club","release_date":"2026-01-02","overview":"Sinopsis completa",
             "vote_average":6.4,"vote_count":58,"genres":[{"id":27,"name":"Terror"}],
             "images":{"logos":[{"iso_639_1":"es","file_path":"/logo.png"}]},
             "release_dates":{"results":[{"iso_3166_1":"ES","release_dates":[{"certification":"16"}]}]}}"""

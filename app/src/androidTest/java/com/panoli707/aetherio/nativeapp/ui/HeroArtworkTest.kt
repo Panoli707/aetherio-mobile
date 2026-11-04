@@ -85,7 +85,8 @@ class HeroArtworkTest {
     }
 
     @Test fun portraitPosterShowsEveryCornerAndDoesNotRepeatItsEmbeddedTitle() {
-        val item = MediaItem("550", MediaType.MOVIE, "Embedded title", posterUrl = fixture(1200, 1800))
+        val item = MediaItem("550", MediaType.MOVIE, "Embedded title", posterUrl = fixture(1200, 1800),
+            posterTitlePresence = ArtworkTitlePresence.EMBEDDED)
         compose.setContent { AetherioTheme {
             Box(Modifier.width(360.dp)) { HeroArtwork(item, true, 800.dp) }
         } }
@@ -119,12 +120,10 @@ class HeroArtworkTest {
         waitForImage()
         compose.onNodeWithText("Series title").assertIsDisplayed()
         compose.runOnIdle { item.value = item.value.copy(portraitArtworkUrl = "file:///does-not-exist-hero.png") }
-        compose.waitUntil(15_000) {
-            compose.onAllNodesWithContentDescription("Series title").fetchSemanticsNodes().isNotEmpty()
-        }
+        compose.waitUntil(15_000) { compose.onAllNodesWithTag("heroArtworkLoading", true).fetchSemanticsNodes().isEmpty() }
         waitForImage()
         assertArtworkFillsFrame()
-        compose.onNodeWithText("Series title").assertDoesNotExist()
+        compose.onNodeWithText("Series title").assertIsDisplayed()
     }
 
     @Test fun lastAvailableLowResolutionSourceStillFillsTheFrameWithoutBlackMargins() {
@@ -238,7 +237,8 @@ class HeroArtworkTest {
         assertArtworkFillsFrame()
         val image = compose.onNodeWithTag("heroImage", useUnmergedTree = true).getUnclippedBoundsInRoot()
         val metadata = compose.onNodeWithTag("homeHeroMetadata", useUnmergedTree = true).getUnclippedBoundsInRoot()
-        assertTrue(metadata.top - image.bottom < 20.dp)
+        assertTrue(metadata.top - image.bottom < 100.dp) // The new fallback title occupies the space.
+        compose.onNodeWithText("Home artwork").assertIsDisplayed()
         saveScreenshot("home-width-fit.png")
     }
 

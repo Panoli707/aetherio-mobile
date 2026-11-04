@@ -7,9 +7,11 @@ internal object SeasonArtwork {
         poster: String?, logo: String?, portrait: String?, logos: List<String> = emptyList()): MediaItem {
         val hasEntryArt = entry != null && listOf(entry.posterUrl, entry.portraitArtworkUrl).any { !it.isNullOrBlank() }
         return when {
-            hasEntryArt -> apply(base, season, entry?.posterUrl, entry?.backdropUrl, entry?.logoUrl,
+            hasEntryArt -> apply(base, season, entry?.posterUrl, entry?.backdropUrl,
+                entry?.logoUrl ?: logo?.takeUnless { sharedTmdbSeason },
                 entry?.portraitArtworkUrl ?: portrait?.takeUnless { sharedTmdbSeason },
-                entry?.logoAlternatives.orEmpty(), entry?.posterTitlePresence ?: ArtworkTitlePresence.UNKNOWN,
+                entry?.logoAlternatives.orEmpty() + if (sharedTmdbSeason) emptyList() else logos,
+                entry?.posterTitlePresence ?: ArtworkTitlePresence.UNKNOWN,
                 entry?.portraitTitlePresence?.takeIf { entry.portraitArtworkUrl != null } ?: ArtworkTitlePresence.UNKNOWN,
                 entry?.backdropTitlePresence ?: ArtworkTitlePresence.UNKNOWN)
             sharedTmdbSeason -> apply(base, season, backdrop = entry?.backdropUrl)
@@ -26,10 +28,13 @@ internal object SeasonArtwork {
         val hasSeasonPortrait = listOf(poster, portrait).any { !it.isNullOrBlank() }
         return base.copy(posterUrl = if (hasSeasonPortrait) poster else base.posterUrl,
             backdropUrl = backdrop, portraitArtworkUrl = if (hasSeasonPortrait) portrait else base.portraitArtworkUrl,
-            logoUrl = logo?.takeIf(String::isNotBlank) ?: base.logoUrl, seasonHint = season,
-            posterTitlePresence = if (hasSeasonPortrait) posterTitle else base.posterTitlePresence,
-            portraitTitlePresence = if (hasSeasonPortrait) portraitTitle else base.portraitTitlePresence, backdropTitlePresence = backdropTitle,
-            logoAlternatives = (logos + listOfNotNull(base.logoUrl) + base.logoAlternatives)
+            logoUrl = logo?.takeIf(String::isNotBlank) ?: base.logoUrl.takeUnless { hasSeasonPortrait && season != 1 }, seasonHint = season,
+            // A seasonal poster is a complete printed cover. Do not put a series-wide title on top.
+            posterTitlePresence = if (poster != null) posterTitle.takeUnless { it == ArtworkTitlePresence.UNKNOWN }
+                ?: ArtworkTitlePresence.EMBEDDED else if (hasSeasonPortrait) posterTitle else base.posterTitlePresence,
+            portraitTitlePresence = if (hasSeasonPortrait) portraitTitle else base.portraitTitlePresence,
+            backdropTitlePresence = backdropTitle,
+            logoAlternatives = (logos + if (hasSeasonPortrait && season != 1) emptyList() else listOfNotNull(base.logoUrl) + base.logoAlternatives)
                 .filter { it.isNotBlank() && it != (logo?.takeIf(String::isNotBlank) ?: base.logoUrl) }.distinct().take(8))
     }
 }

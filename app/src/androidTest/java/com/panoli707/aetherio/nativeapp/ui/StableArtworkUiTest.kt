@@ -160,7 +160,7 @@ class StableArtworkUiTest {
         expectColor(0)
         compose.runOnIdle { item.value = item.value.copy(id = "2", title = "Second") }
         expectColor(0)
-        compose.onNodeWithContentDescription("Second").assertExists()
+        compose.onNodeWithText("Second").assertExists()
     }
 
     @Test fun nativeAnilistCoverKeepsItsPortraitSizeEvenWhenAWiderBannerIsAvailable() {

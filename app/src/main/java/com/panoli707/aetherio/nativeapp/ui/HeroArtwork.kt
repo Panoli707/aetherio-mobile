@@ -75,7 +75,7 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
                 // portrait must not turn into a short landscape strip just to meet a 540 px heuristic.
                 // Still try every sharper portrait variant, and retain the banner fallback for tiny/missing covers.
                 if (portrait && candidate.aspectRatio >= 1f && chosen != null &&
-                    chosen.artwork.aspectRatio < 1f && chosen.bitmap.width >= minOf(widthPx, 320)) break
+                    chosen.ratio < 1f && (fullImage || chosen.bitmap.width >= minOf(widthPx, 320))) break
                 val requestHeight = if (fullImage) detailArtworkHeight(width, candidate.aspectRatio)
                     else heroArtworkHeight(width, viewportHeight, candidate.aspectRatio, maxArtworkHeight)
                 val heightPx = with(density) { requestHeight.roundToPx().coerceAtLeast(1) }
@@ -88,8 +88,16 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
                 if (drawable.intrinsicWidth <= 0 || drawable.intrinsicHeight <= 0) continue
                 val next = ResolvedHero(candidate, withContext(Dispatchers.Default) { drawable.toBitmap().asImageBitmap() },
                     drawable.intrinsicWidth.toFloat() / drawable.intrinsicHeight, item, candidateIndex)
-                if (chosen == null || next.bitmap.width > chosen.bitmap.width) chosen = next
-                if (result.isSampled || drawable.intrinsicWidth >= minOf(widthPx, 540)) { chosen = next; break }
+                val preferPortrait = fullImage && portrait && next.ratio < 1f && chosen?.ratio?.let { it >= 1f } == true
+                if (chosen == null || preferPortrait ||
+                    (!(fullImage && portrait && chosen.ratio < 1f && next.ratio >= 1f) && next.bitmap.width > chosen.bitmap.width)) chosen = next
+                // The URL's field name is not proof of orientation: a landscape file cannot win
+                // the portrait search early just because it was supplied as posterUrl.
+                if ((!fullImage || !portrait || next.ratio < 1f || candidateIndex == candidates.lastIndex) &&
+                    (result.isSampled || drawable.intrinsicWidth >= minOf(widthPx, 540))) {
+                    if (!(fullImage && portrait && chosen?.ratio?.let { it < 1f } == true && next.ratio >= 1f)) chosen = next
+                    break
+                }
             }
             ensureActive()
             resolved = chosen ?: resolved?.takeIf { it.artwork.url == candidates.getOrNull(start)?.url }
@@ -103,6 +111,18 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
             else heroArtworkHeight(maxWidth, viewportHeight, ratio, maxArtworkHeight)
         val separateTitle = ArtworkImages.separateTitle(artwork, detail = fullImage)
         val titleItem = if (resolved?.artwork?.url in imageKey) item else resolved?.item ?: item
+        if (fullImage) {
+            Box {
+                IntegratedDetailHero(titleItem, imageHeight, separateTitle, imageLoader) {
+                    resolved?.let { ready -> Image(painter = BitmapPainter(ready.bitmap, filterQuality = FilterQuality.High),
+                        contentDescription = if (!separateTitle) item.title else null,
+                        contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().testTag("heroImage")) }
+                }
+                if (loading && !inspection) androidx.compose.material3.CircularProgressIndicator(
+                    Modifier.align(Alignment.Center).size(28.dp).testTag("heroArtworkLoading"), color = Accent)
+            }
+            return@BoxWithConstraints
+        }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             if (artwork == null) Spacer(Modifier.statusBarsPadding().height(56.dp))
             else Box(Modifier.fillMaxWidth().height(imageHeight)) {
@@ -121,8 +141,7 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Ink))))
             }
             if (separateTitle) Box(Modifier.widthIn(max = 300.dp).fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)) {
-                if (fullImage) DetailTitle(titleItem, Modifier.fillMaxWidth(), imageLoader)
-                else MediaTitle(titleItem, Modifier.fillMaxWidth(), centered = true)
+                MediaTitle(titleItem, Modifier.fillMaxWidth(), centered = true)
             }
         }
     }

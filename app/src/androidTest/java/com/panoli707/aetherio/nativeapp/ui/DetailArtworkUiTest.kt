@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.CompositionLocalProvider
@@ -60,13 +61,14 @@ class DetailArtworkUiTest {
 
     private fun waitFor(tag: String) { compose.waitUntil(15_000) { compose.onAllNodesWithTag(tag, true).fetchSemanticsNodes().size == 1 } }
 
-    private fun assertAllEdges(tag: String, sourceRatio: Float) {
+    private fun assertAllEdges(tag: String, sourceRatio: Float, faded: Boolean = false) {
         val pixels = compose.onNodeWithTag(tag, true).captureToImage().toPixelMap()
         val w = minOf(pixels.width.toFloat(), pixels.height * sourceRatio)
         val h = w / sourceRatio
         val left = (pixels.width - w) / 2f
         val top = (pixels.height - h) / 2f
-        val samples = listOf(.015f to .015f, .985f to .015f, .015f to .985f, .985f to .985f).map { (x, y) ->
+        val bottom = if (faded) .64f else .985f
+        val samples = listOf(.015f to .015f, .985f to .015f, .015f to bottom, .985f to bottom).map { (x, y) ->
             pixels[(left + w * x).toInt().coerceIn(0, pixels.width - 1), (top + h * y).toInt().coerceIn(0, pixels.height - 1)]
         }
         assertTrue("Top-left edge must not be cropped or darkened", samples[0].red > .9f && samples[0].green < .1f)
@@ -87,21 +89,22 @@ class DetailArtworkUiTest {
         compose.onNodeWithTag("detailTitle").assertDoesNotExist()
     }
 
-    @Test fun unknownPosterGetsACompleteIndependentLogoBelowTheImage() {
+    @Test fun unknownPosterAndCompleteLogoShareOneFadedHeader() {
         val item = MediaItem("1", MediaType.SERIES, "Title", posterUrl = image(1200, 1800), logoUrl = image(1200, 240))
         compose.setContent { AetherioTheme { Box(Modifier.width(240.dp)) { HeroArtwork(item, true, 400.dp, fullImage = true) } } }
         waitFor("heroImage"); waitFor("detailLogo")
-        assertAllEdges("heroImage", 2f / 3f); assertAllEdges("detailLogo", 5f)
+        assertAllEdges("heroImage", 2f / 3f, faded = true); assertAllEdges("detailLogo", 5f)
         val picture = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
         val logo = compose.onNodeWithTag("detailLogo", true).getUnclippedBoundsInRoot()
-        assertTrue("The logo must never overlap the cover", logo.top >= picture.bottom)
+        assertTrue("The title area must bridge the image and the page", logo.top < picture.bottom && logo.bottom > picture.bottom)
+        compose.onNodeWithTag("detailHeroFade").assertExists()
     }
 
     @Test fun aWideBannerAlsoKeepsItsEdgesInsteadOfBeingZoomedIntoAPortrait() {
         val item = MediaItem("1", MediaType.SERIES, "Banner", backdropUrl = image(1920, 480))
         compose.setContent { AetherioTheme { Box(Modifier.width(240.dp)) { HeroArtwork(item, true, 400.dp, fullImage = true) } } }
         waitFor("heroImage")
-        assertAllEdges("heroImage", 4f)
+        assertAllEdges("heroImage", 4f, faded = true)
         assertEquals(60f, compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot().let { (it.bottom - it.top).value }, 1f)
         compose.onNodeWithText("Banner").assertExists()
     }
@@ -150,7 +153,7 @@ class DetailArtworkUiTest {
         compose.runOnIdle { item.value = item.value.copy(logoUrl = "file:///other-missing-logo.png", logoAlternatives = listOf(logo), score = 8.0) }
         waitFor("detailLogo")
         assertEquals(1, covers.get())
-        assertAllEdges("heroImage", 2f / 3f)
+        assertAllEdges("heroImage", 2f / 3f, faded = true)
     }
 
     @Test fun everyLogoFailureStillLeavesTheWrittenTitleVisible() {
@@ -171,5 +174,48 @@ class DetailArtworkUiTest {
         val frame = compose.onNodeWithTag("detailTitle").getUnclippedBoundsInRoot()
         assertEquals(112f, (frame.bottom - frame.top).value, 1f)
         assertAllEdges("detailLogo", 5f)
+    }
+
+    @Test fun aLandscapeFileMislabelledAsAPosterCannotHideAnAvailableVerticalImage() {
+        val item = MediaItem("1", MediaType.SERIES, "Orientation", portraitArtworkUrl = image(1600, 400, Color.RED),
+            posterUrl = image(1200, 1800, Color.BLUE), backdropUrl = image(1920, 1080, Color.GREEN))
+        compose.setContent { AetherioTheme { Box(Modifier.width(240.dp)) { HeroArtwork(item, true, 400.dp, fullImage = true) } } }
+        waitFor("heroImage")
+        compose.waitUntil(15_000) { compose.onAllNodesWithTag("heroArtworkLoading", true).fetchSemanticsNodes().isEmpty() }
+        val bounds = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
+        assertEquals(360f, (bounds.bottom - bounds.top).value, 1f)
+        val pixels = compose.onNodeWithTag("heroImage", true).captureToImage().toPixelMap()
+        assertTrue(pixels[pixels.width / 2, pixels.height / 2].blue > .9f)
+    }
+
+    @Test fun theFadeHasNoHardBoundaryAtThePhotographEndAndDoesNotDarkenItsUpperPart() {
+        val item = MediaItem("1", MediaType.SERIES, "Blend", posterUrl = image(1200, 1800, Color.WHITE),
+            logoUrl = image(600, 200, Color.GREEN))
+        compose.setContent { AetherioTheme { Box(Modifier.width(240.dp)) { HeroArtwork(item, true, 400.dp, fullImage = true) } } }
+        waitFor("heroImage"); waitFor("detailLogo")
+        val pixels = compose.onNodeWithTag("heroArtwork", true).captureToImage().toPixelMap()
+        val imageHeight = (pixels.width * 1.5f).toInt()
+        val x = 2 // Outside the title ink, compare the fade itself.
+        assertTrue(pixels[x, imageHeight / 2].red > .95f)
+        assertTrue(pixels[x, (imageHeight * .90f).toInt()].red < .6f)
+        assertTrue(kotlin.math.abs(pixels[x, imageHeight - 2].red - pixels[x, imageHeight + 2].red) < .05f)
+        val frame = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
+        assertEquals(360f, (frame.bottom - frame.top).value, 1f)
+    }
+
+    @Test fun aDarkLogoGetsAnAlphaShapedContrastOutlineNotARectangularPanel() {
+        val bitmap = Bitmap.createBitmap(600, 200, Bitmap.Config.ARGB_8888)
+        Canvas(bitmap).drawRect(120f, 60f, 480f, 140f, Paint().apply { color = Color.BLACK })
+        val file = File.createTempFile("dark-logo-", ".png", context.cacheDir).also(files::add)
+        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
+        val item = MediaItem("1", MediaType.SERIES, "Dark logo", logoUrl = file.toURI().toString())
+        compose.setContent { AetherioTheme { Box(Modifier.width(240.dp).background(Ink)) { DetailTitle(item) } } }
+        waitFor("detailLogo")
+        val pixels = compose.onNodeWithTag("detailLogo", true).captureToImage().toPixelMap()
+        val bright = (0 until pixels.width).count { pixels[it, pixels.height / 2].red > .6f }
+        assertTrue("Dark logo edges must remain legible", bright > 0)
+        assertTrue("The outline must not become a panel", bright < pixels.width / 10)
+        assertTrue(pixels[pixels.width / 2, pixels.height / 2].red < .1f)
     }
 }

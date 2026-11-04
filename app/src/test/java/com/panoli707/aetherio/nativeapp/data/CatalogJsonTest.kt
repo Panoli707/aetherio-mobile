@@ -88,6 +88,17 @@ class CatalogJsonTest {
         assertEquals(ArtworkTitlePresence.UNKNOWN, item.posterTitlePresence)
     }
 
+    @Test fun missingDefaultPostersUseTheVerticalImageListWithoutRequiringATextless1080PixelOriginal() {
+        val json = JSONObject("""{"id":550,"title":"Title","poster_path":null,"images":{"posters":[
+            {"file_path":"/landscape.jpg","aspect_ratio":4.7,"width":2500},
+            {"file_path":"/en.jpg","iso_639_1":"en","aspect_ratio":0.667,"width":1800},
+            {"file_path":"/es.jpg","iso_639_1":"es","aspect_ratio":0.667,"width":900}]}}""")
+        assertEquals("https://image.tmdb.org/t/p/original/es.jpg", CatalogJson.seasonPoster(json))
+        assertEquals("https://image.tmdb.org/t/p/original/es.jpg", CatalogJson.item(json, MediaType.MOVIE, CatalogSource.TMDB)!!.posterUrl)
+        val dimensions = JSONObject("""{"images":{"posters":[{"file_path":"/cover.jpg","width":425,"height":600}]}}""")
+        assertEquals("https://image.tmdb.org/t/p/original/cover.jpg", CatalogJson.seasonPoster(dimensions))
+    }
+
     @Test fun tmdbSearchKeepsNamespacesAndIgnoresPeopleAndMalformedEntries() {
         val items = CatalogJson.search(JSONObject("""{"results":[
             {"id":550,"media_type":"movie","title":"Fight Club","release_date":"1999-10-15","poster_path":"/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg","vote_average":8.4},

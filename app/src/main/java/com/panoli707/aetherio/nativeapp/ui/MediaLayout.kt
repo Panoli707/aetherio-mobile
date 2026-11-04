@@ -34,3 +34,7 @@ internal fun detailArtworkHeight(width: Dp, aspectRatio: Float): Dp {
     val ratio = aspectRatio.takeIf { it.isFinite() && it > 0f } ?: (2f / 3f)
     return (width / ratio).coerceAtLeast(1.dp)
 }
+
+/** Overlap only the title, never crop/resize the underlying photograph to make room for it. */
+internal fun detailTitleOverlap(imageHeightPx: Int, titleHeightPx: Int): Int =
+    minOf((imageHeightPx * .24f).toInt(), (titleHeightPx * .55f).toInt()).coerceAtLeast(0)

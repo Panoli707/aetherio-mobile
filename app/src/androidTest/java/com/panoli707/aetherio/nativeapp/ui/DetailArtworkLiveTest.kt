@@ -25,7 +25,7 @@ import java.io.File
 class DetailArtworkLiveTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun reportedSeriesHaveASeparateVisibleTitleAndCompleteCoverAtTheTopOfTheDetail() {
+    @Test fun reportedSeriesHavePortraitCoversAndAnIntegratedFadedTitle() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("manualLogoArtwork") == "true")
         assumeTrue(Build.MODEL.contains("sdk", true))
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -57,7 +57,8 @@ class DetailArtworkLiveTest {
             val photo = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
             val title = compose.onNodeWithTag("detailTitle", true).getUnclippedBoundsInRoot()
             assertEquals(240f, (photo.right - photo.left).value, 1f)
-            assertTrue("Title and artwork must not overlap", title.top >= photo.bottom)
+            assertTrue("The reported anime needs a real portrait, not a horizontal strip", photo.bottom - photo.top > 240.dp)
+            assertTrue("The title must be integrated into the end of the artwork", title.top < photo.bottom && title.bottom > photo.bottom)
             if (compose.onAllNodesWithTag("detailLogo", true).fetchSemanticsNodes().isNotEmpty())
                 assertEquals("A decoded logo must keep a compact title area", 112f, (title.bottom - title.top).value, 1f)
             assertTrue("The title must never be suppressed by an unclassified poster",

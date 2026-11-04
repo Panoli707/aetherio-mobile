@@ -7,6 +7,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -78,8 +83,24 @@ internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
         }
         Box(Modifier.fillMaxWidth().height(frameHeight), contentAlignment = Alignment.Center) {
             val ready = logo
-            if (ready != null) Image(BitmapPainter(ready, filterQuality = FilterQuality.High), item.title,
-                Modifier.fillMaxSize().testTag("detailLogo"), contentScale = ContentScale.Fit)
+            if (ready != null) {
+                val painter = remember(ready) { BitmapPainter(ready, filterQuality = FilterQuality.High) }
+                Image(painter, item.title, Modifier.fillMaxSize().testTag("detailLogo").drawWithContent {
+                    // A fine alpha-shaped outline keeps dark logos readable over the fade without
+                    // introducing a rectangular panel or changing the logo's colours/proportions.
+                    val scale = minOf(size.width / ready.width, size.height / ready.height)
+                    val fitted = Size(ready.width * scale, ready.height * scale)
+                    val x = (size.width - fitted.width) / 2f
+                    val y = (size.height - fitted.height) / 2f
+                    val radius = 1.dp.toPx()
+                    for ((dx, dy) in listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f)) {
+                        translate(x + dx * radius, y + dy * radius) {
+                            with(painter) { draw(fitted, colorFilter = ColorFilter.tint(Color.White.copy(alpha = .85f))) }
+                        }
+                    }
+                    drawContent()
+                }, contentScale = ContentScale.Fit)
+            }
             else Text(item.title, Modifier.fillMaxWidth().testTag("detailTitleText"), style = style,
                 maxLines = if (loading) 3 else Int.MAX_VALUE, overflow = if (loading) TextOverflow.Ellipsis else TextOverflow.Clip)
         }

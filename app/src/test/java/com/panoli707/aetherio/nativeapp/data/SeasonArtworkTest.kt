@@ -61,4 +61,27 @@ class SeasonArtworkTest {
             true, null, null, null)
         assertEquals(ArtworkTitlePresence.ABSENT, mapped.posterTitlePresence)
     }
+
+    @Test fun aSeasonBannerCannotDiscardTheGeneralVerticalCover() {
+        val season = SeasonArtwork.apply(base, 2, backdrop = "season-banner")
+        assertEquals("general-clean", ArtworkImages.headers(season, true).first().url)
+        assertEquals("season-banner", season.backdropUrl)
+        assertEquals(base.posterUrl, season.posterUrl)
+    }
+
+    @Test fun mappedBannerOnlyEntriesPreferATmdbSeasonPosterOrTheGeneralPortrait() {
+        val entry = MediaItem("1", MediaType.SERIES, "Entry", backdropUrl = "entry-banner")
+        val shared = SeasonArtwork.mapped(base, 2, entry, true, "shared-poster", null, "shared-clean")
+        assertEquals("general-clean", ArtworkImages.headers(shared, true).first().url)
+        val unique = SeasonArtwork.mapped(base, 2, entry, false, "real-season-poster", null, null)
+        assertEquals("real-season-poster", ArtworkImages.headers(unique, true).first().url)
+    }
+
+    @Test fun aHighResolutionSeasonPortraitIsEligibleOnlyWhenItsTmdbSeasonIsNotShared() {
+        val entry = MediaItem("1", MediaType.SERIES, "Entry", posterUrl = "native-cover")
+        val own = SeasonArtwork.mapped(base, 2, entry, false, null, null, "high-resolution-own-season")
+        assertEquals("high-resolution-own-season", ArtworkImages.headers(own, true).first().url)
+        val shared = SeasonArtwork.mapped(base, 2, entry, true, null, null, "shared-portrait")
+        assertEquals("native-cover", ArtworkImages.headers(shared, true).first().url)
+    }
 }

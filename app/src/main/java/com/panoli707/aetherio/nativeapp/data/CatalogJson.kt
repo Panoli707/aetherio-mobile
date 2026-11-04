@@ -30,7 +30,19 @@ internal object CatalogJson {
         .mapNotNull { tmdbImage(text(it, "file_path"), "w500") }.distinct().take(8)
     fun logo(json: JSONObject): String? = logos(json).firstOrNull()
 
+    /** A missing default poster does not mean that images.posters has no usable vertical artwork. */
+    fun posterFromImages(images: JSONObject): String? = objects(images.optJSONArray("posters"))
+        .filter { image ->
+            val ratio = image.optDouble("aspect_ratio", 0.0).takeIf { it > 0 }
+                ?: (image.optDouble("width", 0.0) / image.optDouble("height", 1.0))
+            ratio in 0.35..0.95
+        }
+        .sortedWith(compareBy<JSONObject> { when (text(it, "iso_639_1")) { "es" -> 0; "en" -> 1; "" -> 2; else -> 3 } }
+            .thenByDescending { it.optInt("width", 0) }.thenByDescending { it.optDouble("vote_average", 0.0) })
+        .firstNotNullOfOrNull { tmdbImage(text(it, "file_path"), "original") }
+
     fun seasonPoster(json: JSONObject): String? = tmdbImage(text(json, "poster_path"), "original")
+        ?: posterFromImages(json.optJSONObject("images") ?: JSONObject())
 
     /** Language-neutral portrait candidates; the language tag does NOT prove that text is absent. */
     fun portraitArtwork(json: JSONObject): String? = objects(json.optJSONArray("posters"))
@@ -51,7 +63,8 @@ internal object CatalogJson {
             else text(json, "year").ifEmpty { text(json, "releaseInfo").ifEmpty { text(json, "released") } }
         val score = text(json, if (tmdb) "vote_average" else "imdbRating").toDoubleOrNull()?.takeIf { it.isFinite() } ?: 0.0
         return MediaItem(id, type, title, source,
-            if (tmdb) tmdbImage(text(json, "poster_path"), "w500") else image(text(json, "poster")),
+            if (tmdb) tmdbImage(text(json, "poster_path"), "w500")
+                ?: posterFromImages(json.optJSONObject("images") ?: JSONObject()) else image(text(json, "poster")),
             if (tmdb) tmdbImage(text(json, "backdrop_path"), "w1280") else image(text(json, "background")),
             if (tmdb) logo(json.optJSONObject("images") ?: JSONObject()) else image(text(json, "logo")),
             text(json, if (tmdb) "overview" else "description"), Regex("[0-9]{4}").find(date)?.value.orEmpty(), score,

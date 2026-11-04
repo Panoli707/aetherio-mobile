@@ -5,13 +5,15 @@ internal object SeasonArtwork {
     /** A mapped AniList entry is one coherent artwork scope, not a poster below a shared TMDB portrait. */
     fun mapped(base: MediaItem, season: Int, entry: MediaItem?, sharedTmdbSeason: Boolean,
         poster: String?, logo: String?, portrait: String?, logos: List<String> = emptyList()): MediaItem {
-        val hasEntryArt = entry != null && listOf(entry.posterUrl, entry.backdropUrl, entry.portraitArtworkUrl).any { !it.isNullOrBlank() }
+        val hasEntryArt = entry != null && listOf(entry.posterUrl, entry.portraitArtworkUrl).any { !it.isNullOrBlank() }
         return when {
-            hasEntryArt -> apply(base, season, entry?.posterUrl, entry?.backdropUrl, entry?.logoUrl, entry?.portraitArtworkUrl,
+            hasEntryArt -> apply(base, season, entry?.posterUrl, entry?.backdropUrl, entry?.logoUrl,
+                entry?.portraitArtworkUrl ?: portrait?.takeUnless { sharedTmdbSeason },
                 entry?.logoAlternatives.orEmpty(), entry?.posterTitlePresence ?: ArtworkTitlePresence.UNKNOWN,
-                entry?.portraitTitlePresence ?: ArtworkTitlePresence.UNKNOWN, entry?.backdropTitlePresence ?: ArtworkTitlePresence.UNKNOWN)
-            sharedTmdbSeason -> apply(base, season)
-            else -> apply(base, season, poster = poster, logo = logo, portrait = portrait, logos = logos)
+                entry?.portraitTitlePresence?.takeIf { entry.portraitArtworkUrl != null } ?: ArtworkTitlePresence.UNKNOWN,
+                entry?.backdropTitlePresence ?: ArtworkTitlePresence.UNKNOWN)
+            sharedTmdbSeason -> apply(base, season, backdrop = entry?.backdropUrl)
+            else -> apply(base, season, poster = poster, logo = logo, portrait = portrait, logos = logos, backdrop = entry?.backdropUrl)
         }
     }
 
@@ -21,9 +23,12 @@ internal object SeasonArtwork {
         portraitTitle: ArtworkTitlePresence = ArtworkTitlePresence.UNKNOWN,
         backdropTitle: ArtworkTitlePresence = ArtworkTitlePresence.UNKNOWN): MediaItem {
         if (listOf(poster, backdrop, portrait).all { it.isNullOrBlank() }) return base.copy(seasonHint = season)
-        return base.copy(posterUrl = poster, backdropUrl = backdrop, portraitArtworkUrl = portrait,
+        val hasSeasonPortrait = listOf(poster, portrait).any { !it.isNullOrBlank() }
+        return base.copy(posterUrl = if (hasSeasonPortrait) poster else base.posterUrl,
+            backdropUrl = backdrop, portraitArtworkUrl = if (hasSeasonPortrait) portrait else base.portraitArtworkUrl,
             logoUrl = logo?.takeIf(String::isNotBlank) ?: base.logoUrl, seasonHint = season,
-            posterTitlePresence = posterTitle, portraitTitlePresence = portraitTitle, backdropTitlePresence = backdropTitle,
+            posterTitlePresence = if (hasSeasonPortrait) posterTitle else base.posterTitlePresence,
+            portraitTitlePresence = if (hasSeasonPortrait) portraitTitle else base.portraitTitlePresence, backdropTitlePresence = backdropTitle,
             logoAlternatives = (logos + listOfNotNull(base.logoUrl) + base.logoAlternatives)
                 .filter { it.isNotBlank() && it != (logo?.takeIf(String::isNotBlank) ?: base.logoUrl) }.distinct().take(8))
     }

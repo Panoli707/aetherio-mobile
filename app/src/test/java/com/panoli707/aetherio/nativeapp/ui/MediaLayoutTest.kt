@@ -56,4 +56,10 @@ class MediaLayoutTest {
             assertEquals(540.dp, detailArtworkHeight(360.dp, it))
         }
     }
+
+    @Test fun theTitleBridgesThePhotoAndThePageWithoutShrinkingOrCoveringMostOfThePhoto() {
+        assertEquals(61, detailTitleOverlap(540, 112))
+        assertEquals(48, detailTitleOverlap(200, 400))
+        assertEquals(0, detailTitleOverlap(540, 0))
+    }
 }

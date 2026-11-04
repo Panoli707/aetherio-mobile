@@ -30,6 +30,7 @@ import com.panoli707.aetherio.nativeapp.data.MediaTrailer
 import com.panoli707.aetherio.nativeapp.data.EpisodeWatchScope
 import com.panoli707.aetherio.nativeapp.data.SeriesIdentity
 import com.panoli707.aetherio.nativeapp.data.DesktopHomeCatalog
+import com.panoli707.aetherio.nativeapp.data.HomePreferences
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import kotlinx.coroutines.launch
 
@@ -59,7 +60,8 @@ fun AetherioApp(
     onLoadAnimeSeason: () -> Unit = {},
     onOpenExternal: (String) -> Unit = {},
     onPlayTrailer: (MediaTrailer) -> Unit = {},
-    onBrowse: (String, Boolean) -> Unit = { _, _ -> }
+    onBrowse: (String, Boolean) -> Unit = { _, _ -> },
+    onHomePreferencesChange: (HomePreferences) -> Unit = {}
 ) {
     var startupComplete by rememberSaveable { mutableStateOf(false) }
     val startupReady = !state.homeLoading || state.sections.isNotEmpty() || state.homeError != null
@@ -174,7 +176,7 @@ fun AetherioApp(
                                 "anime" -> AnimeScreen(state, animeScroll, select, onContinue, { categoryId = "airing" })
                                 "library" -> LibraryScreen(state, libraryScroll, libraryFilter, { libraryFilter = it }, select, openSearch)
                                 "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon, onDesktopSourceToggle,
-                                    updates, onUpdateAction, onAutomaticUpdatesChange)
+                                    updates, onUpdateAction, onAutomaticUpdatesChange, onHomePreferencesChange)
                                 else -> HomeScreen(state, homeScroll, pager, !linkOpen && state.sourceQuery == null && !updates.noticeVisible,
                                      select, { parentCategoryId = null; categoryId = it }, onRetryHome, onContinue, onLoadAnimeSeason,
                                     onProfile = { focus.clearFocus(); tab = "settings" })

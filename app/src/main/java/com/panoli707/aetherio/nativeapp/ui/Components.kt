@@ -137,6 +137,23 @@ internal fun Poster(item: MediaItem, onClick: () -> Unit, modifier: Modifier = M
 }
 
 @Composable
+internal fun HorizontalPoster(item: MediaItem, onClick: () -> Unit, modifier: Modifier = Modifier, rank: Int? = null) {
+    Column(modifier.clickable(onClickLabel = "Ver ${item.title}", onClick = onClick)
+        .semantics(mergeDescendants = true) { }) {
+        Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp))) {
+            Artwork(item.backdropUrl ?: item.posterUrl, Modifier.fillMaxSize(),
+                contentScale = if (item.backdropUrl.isNullOrBlank()) ContentScale.Fit else ContentScale.Crop)
+            if (rank != null) Text("$rank", color = Cream, fontSize = 30.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.TopStart).background(Ink.copy(alpha = .8f), RoundedCornerShape(8.dp))
+                    .padding(6.dp).semantics { contentDescription = "Puesto $rank" })
+        }
+        Text(item.title, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 7.dp))
+        if (item.year.isNotBlank()) Text(item.year, color = Muted, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
 internal fun Featured(item: MediaItem, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Box(modifier.aspectRatio(1.78f).clip(RoundedCornerShape(16.dp))
         .clickable(onClickLabel = "Ver ${item.title}", onClick = onClick)

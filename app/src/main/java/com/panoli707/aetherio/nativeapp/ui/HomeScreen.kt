@@ -66,7 +66,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
         }
     },
         contentPadding = PaddingValues(bottom = 110.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
-        if (state.heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(state.heroes, pager, onSelect, onProfile, onRetry, state.homeLoading) }
+        if (state.heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(state.homePreferences.visibleHeroes(state.heroes), pager, onSelect, onProfile, onRetry, state.homeLoading) }
         else item(key = "heading") {
             Box(Modifier.fillMaxWidth()) {
                 ScreenHeader("Aetherio")
@@ -112,11 +112,13 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
         if (!state.homeLoading && state.homeError == null && state.sections.all { it.items.isEmpty() } && state.heroes.isEmpty()) {
             item(key = "empty") { StatusMessage("El catálogo está vacío", "No hay títulos disponibles en este momento.", "Reintentar", onRetry) }
         }
-        if (state.sections.none { it.id == "mal.airing_anime" }) item(key = "animeSeasonLink") {
+        if (state.sections.none { it.id == "mal.airing_anime" } && "mal.airing_anime" !in state.homePreferences.hiddenCatalogIds) item(key = "animeSeasonLink") {
             AiringAnimeSection(state.animeSeason, onSelect, { onCategory("airing") }, onRetryAnime)
         }
-        for (section in state.sections.filter { it.items.isNotEmpty() || it.loading || it.error != null }) {
-            item(key = "section:${section.id}") { HomeCatalogSection(section, onSelect, onCategory, onRetry, state.animeSeason) }
+        val displayed = state.homePreferences.ordered(state.sections)
+        for (section in displayed.filter { it.items.isNotEmpty() || it.loading || it.error != null }) {
+            item(key = "section:${section.id}") { HomeCatalogSection(section, onSelect, onCategory, onRetry, state.animeSeason,
+                state.homePreferences.horizontalPosters) }
             if (section.id == "tmdb.top_movie") item(key = "movie-series-genres") {
                 CatalogNavigationRow("Explorar géneros - Series y películas", "movieSeriesGenres",
                     DesktopHomeCatalog.genres.map { "genre:${it.id}" to it.title }, onCategory)
@@ -125,6 +127,17 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
                 CatalogNavigationRow("Explorar géneros - Anime", "animeGenres",
                     DesktopHomeCatalog.animeGenres.map { "anime-genre:${it.id}" to it.title }, onCategory)
             }
+        }
+        if (displayed.none { it.id == "tmdb.top_movie" && (it.items.isNotEmpty() || it.loading || it.error != null) }) item(key = "movie-series-genres") {
+            CatalogNavigationRow("Explorar géneros - Series y películas", "movieSeriesGenres",
+                DesktopHomeCatalog.genres.map { "genre:${it.id}" to it.title }, onCategory)
+        }
+        if (displayed.none { it.id == "jikan.recommendations" && (it.items.isNotEmpty() || it.loading || it.error != null) }) item(key = "anime-genres") {
+            CatalogNavigationRow("Explorar géneros - Anime", "animeGenres",
+                DesktopHomeCatalog.animeGenres.map { "anime-genre:${it.id}" to it.title }, onCategory)
+        }
+        if (state.sections.isNotEmpty() && displayed.isEmpty() && !state.homeLoading) item(key = "hiddenCatalogs") {
+            StatusMessage("Catálogos ocultos", "Puedes volver a mostrarlos en Ajustes > Diseño. La búsqueda y la biblioteca siguen disponibles.")
         }
     }
 }

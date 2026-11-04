@@ -38,6 +38,7 @@ import java.util.Locale
 // Only destinations backed by existing Aetherio features; no placeholder account or integration screens.
 private enum class SettingsSection(val title: String, val summary: String, val icon: ImageVector, val keywords: String) {
     PROFILE("Perfil local", "Tu nombre y espacio en este dispositivo", Icons.Default.Person, "nombre usuario biblioteca"),
+    DESIGN("Diseño", "Preferencias de Inicio, pósteres y catálogos", Icons.Default.Palette, "inicio anime películas series orden ocultar pósteres"),
     SOURCES("Fuentes y contenido", "Provider Hub, fuentes adicionales y proveedores propios", Icons.Default.Explore, "addons animeav1 manifest catálogo"),
     PLAYBACK("Reproducción", "Reproductor integrado y vídeo por enlace", Icons.Default.PlayArrow, "audio subtítulos velocidad torrent https vídeo"),
     UPDATES("Actualizaciones", "Buscar versiones y gestionar las descargas", Icons.Default.SystemUpdate, "versión descargar instalar automáticas"),
@@ -47,7 +48,8 @@ private enum class SettingsSection(val title: String, val summary: String, val i
 @Composable
 internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink: () -> Unit,
     onAddAddon: (String) -> Unit, onRemoveAddon: (String) -> Unit, onDesktopSourceToggle: (String, Boolean) -> Unit,
-    updates: UpdateState, onUpdateAction: (UpdateAction) -> Unit, onAutomaticUpdatesChange: (Boolean) -> Unit) {
+    updates: UpdateState, onUpdateAction: (UpdateAction) -> Unit, onAutomaticUpdatesChange: (Boolean) -> Unit,
+    onHomePreferencesChange: (HomePreferences) -> Unit = {}) {
     var destination by rememberSaveable { mutableStateOf<String?>(null) }
     var search by rememberSaveable { mutableStateOf("") }
     val pages = rememberSaveableStateHolder()
@@ -81,7 +83,7 @@ internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink:
                 }
                 val query = search.normalizedSetting()
                 val sections = SettingsSection.entries.filter { "${it.title} ${it.summary} ${it.keywords}".normalizedSetting().contains(query) }
-                val groups = listOf("Tu espacio" to listOf(SettingsSection.PROFILE),
+                val groups = listOf("Tu espacio" to listOf(SettingsSection.PROFILE, SettingsSection.DESIGN),
                     "Contenido y reproducción" to listOf(SettingsSection.SOURCES, SettingsSection.PLAYBACK),
                     "Aplicación" to listOf(SettingsSection.UPDATES, SettingsSection.ABOUT))
                 groups.forEach { (groupTitle, group) ->
@@ -100,13 +102,14 @@ internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink:
                         }
                     }
                 }
-                if (sections.isEmpty()) StatusMessage("Sin ajustes coincidentes", "Prueba con perfil, fuentes, reproducción o actualizaciones.")
+                if (sections.isEmpty()) StatusMessage("Sin ajustes coincidentes", "Prueba con diseño, perfil, fuentes, reproducción o actualizaciones.")
                 SettingsBrand()
             } else {
                 ScreenHeader(selected.title, back)
                 Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     when (selected) {
                         SettingsSection.PROFILE -> ProfileSettings(state.profileName, onRename)
+                        SettingsSection.DESIGN -> HomeDesignSettings(state, onHomePreferencesChange)
                         SettingsSection.SOURCES -> AddonsSettings(state, onAddAddon, onRemoveAddon, onDesktopSourceToggle)
                         SettingsSection.PLAYBACK -> {
                             SettingsInfo(Icons.Default.PlayCircle, "Reproductor integrado",

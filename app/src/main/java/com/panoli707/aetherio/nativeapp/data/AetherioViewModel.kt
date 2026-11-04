@@ -23,6 +23,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val repository = AetherioRepository(animeRepository = animeRepository,
         homeCache = HomeCatalogCache(java.io.File(application.cacheDir, "desktop-home-53a9276")))
     private val library = LocalLibraryStore(application)
+    private val homePreferencesStore = HomePreferencesStore(application)
     private val history = WatchHistoryRepository.get(application)
     private val sourceRepository = SourceRepository()
     private val hubRepository = SourceRepository(requestTimeoutMs = 45_000, attempts = 2)
@@ -31,6 +32,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val sourceSettings = SourceSettingsStore(application)
     private val addonStore = AddonStore(application)
     private val mutableState = MutableStateFlow(AppState(savedItems = SeriesIdentity.items(library.savedItems), profileName = library.profileName,
+        homePreferences = homePreferencesStore.load(),
         enabledDesktopSources = sourceSettings.enabledDesktopSources))
     val state: StateFlow<AppState> = mutableState.asStateFlow()
     private var homeJob: Job? = null
@@ -116,6 +118,17 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
 
     fun loadHome() = loadHome(force = false)
     fun refreshHome() = loadHome(force = true)
+
+    fun setHomePreferences(value: HomePreferences) {
+        if (state.value.homePreferencesSaving) return
+        mutableState.update { it.copy(homePreferencesSaving = true, homePreferencesError = null) }
+        viewModelScope.launch {
+            val saved = withContext(Dispatchers.IO) { homePreferencesStore.save(value) }
+            mutableState.update { it.copy(homePreferences = if (saved) value else it.homePreferences,
+                homePreferencesSaving = false,
+                homePreferencesError = if (saved) null else "No se pudo guardar el diseño. Tu configuración anterior se conserva; vuelve a intentarlo.") }
+        }
+    }
 
     private fun loadHome(force: Boolean) {
         homeJob?.cancel()

@@ -16,11 +16,13 @@ import android.view.accessibility.AccessibilityNodeInfo;
 /** Opt-in smoke test for real touch navigation in the minified release, on an emulator only. */
 public final class SettingsReleaseInstrumentation extends Instrumentation {
     private boolean enabled;
+    private boolean designOnly;
 
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
         enabled = arguments != null && "true".equals(arguments.getString("manualSettingsNavigation")) &&
             Build.MODEL.toLowerCase(java.util.Locale.ROOT).contains("sdk");
+        designOnly = arguments != null && "true".equals(arguments.getString("designOnly"));
         start();
     }
 
@@ -40,6 +42,7 @@ public final class SettingsReleaseInstrumentation extends Instrumentation {
             tap("Ajustes");
             // Start with the reported case, before any other navigation can mask a stale destination.
             String[][] pages = {
+                {"Diseño", "Contenido principal"},
                 {"Fuentes y contenido", "Aetherio Provider Hub"},
                 {"Perfil local", "Este perfil se guarda en el dispositivo. No necesitas una cuenta."},
                 {"Reproducción", "Audio y subtítulos"},
@@ -47,8 +50,17 @@ public final class SettingsReleaseInstrumentation extends Instrumentation {
                 {"Acerca de", "Películas, series y anime en una aplicación nativa para Android."}
             };
             for (String[] page : pages) {
+                if (designOnly && !"Diseño".equals(page[0])) continue;
                 tap(page[0]);
                 await(page[1]);
+                if ("Diseño".equals(page[0])) {
+                    android.graphics.Bitmap screenshot = getUiAutomation().takeScreenshot();
+                    java.io.File file = new java.io.File(getTargetContext().getExternalFilesDir(null), "home-design-release.png");
+                    try (java.io.FileOutputStream output = new java.io.FileOutputStream(file)) {
+                        screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output);
+                    }
+                    screenshot.recycle();
+                }
                 if (find("Configuración") != null) throw new AssertionError("Overview still visible after opening " + page[0]);
                 // A tab change must preserve an already visible destination, never be required to open it.
                 tap("Biblioteca");
@@ -59,7 +71,9 @@ public final class SettingsReleaseInstrumentation extends Instrumentation {
                 // The overview restores its scroll offset, so its heading may be off screen.
                 await("Provider Hub, fuentes adicionales y proveedores propios");
             }
-            result.putString("stream", "OK: all 5 settings pages open on first touch, survive tab changes and return with Back\n");
+            result.putString("stream", designOnly
+                ? "OK: Design opens on first touch, survives tab changes and returns with Back\n"
+                : "OK: all 6 settings pages open on first touch, survive tab changes and return with Back\n");
             finish(Activity.RESULT_OK, result);
         } catch (Throwable error) {
             try {

@@ -129,6 +129,7 @@ class MainActivity : ComponentActivity() {
                 onToggleWatching = model::toggleWatching,
                 onLoadAnimeSeason = model::loadAnimeSeason,
                 onBrowse = model::loadBrowse,
+                onHomePreferencesChange = model::setHomePreferences,
                 onOpenExternal = { url ->
                     val validated = DetailLinks.validate(url)
                     if (validated != null) try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(validated))) }

@@ -41,7 +41,7 @@ class SettingsNavigationTest {
 
     @Test fun everySectionOpensOnItsFirstTouchWithoutLeavingSettings() {
         showApp()
-        val pages = listOf("PROFILE" to "Nombre del perfil", "SOURCES" to "Aetherio Provider Hub",
+        val pages = listOf("PROFILE" to "Nombre del perfil", "DESIGN" to "Contenido principal", "SOURCES" to "Aetherio Provider Hub",
             "PLAYBACK" to "Reproductor integrado", "UPDATES" to "Buscar actualizaciones", "ABOUT" to "Licencias y avisos de terceros")
         pages.forEach { (section, content) ->
             open(section)

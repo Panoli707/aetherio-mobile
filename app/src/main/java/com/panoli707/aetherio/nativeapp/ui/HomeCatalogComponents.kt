@@ -42,7 +42,7 @@ internal fun CatalogNavigationRow(title: String, tag: String, entries: List<Pair
 
 @Composable
 internal fun HomeCatalogSection(section: CatalogSection, onSelect: (MediaItem) -> Unit, onCategory: (String) -> Unit,
-    onRetry: () -> Unit, airing: AnimeSeasonState? = null) {
+    onRetry: () -> Unit, airing: AnimeSeasonState? = null, horizontalPosters: Boolean = false) {
     Column(Modifier.fillMaxWidth().padding(top = 20.dp).testTag("homeSection:${section.id}")) {
         Row(Modifier.fillMaxWidth().padding(start = 18.dp, end = 12.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
@@ -58,11 +58,14 @@ internal fun HomeCatalogSection(section: CatalogSection, onSelect: (MediaItem) -
             val coverWidth = posterWidth(maxWidth)
             LazyRow(modifier = Modifier.testTag("catalogItems:${section.id}"), contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 itemsIndexed(section.items, key = { _, item -> item.key }, contentType = { _, _ -> section.style }) { index, item ->
-                    val width = Modifier.width(coverWidth).testTag("homePoster:${section.id}:${item.key}")
+                    val width = Modifier.width(if (horizontalPosters) bannerWidth else coverWidth)
+                        .testTag("homePoster:${section.id}:${item.key}")
                     val episode = if (section.id == "mal.airing_anime") airing?.entries?.firstOrNull { SeriesIdentity.item(it.item).key == SeriesIdentity.item(item).key } else null
                     when {
                         section.style == SectionStyle.FEATURED -> Featured(item, { onSelect(item) }, Modifier.width(bannerWidth))
                         episode != null -> AiringAnimeCard(episode.copy(item = item), { onSelect(item) }, width)
+                        horizontalPosters -> HorizontalPoster(item, { onSelect(item) }, width,
+                            rank = if (section.style == SectionStyle.RANKED) index + 1 else null)
                         else -> Poster(item, { onSelect(item) }, width, rank = if (section.style == SectionStyle.RANKED) index + 1 else null)
                     }
                 }

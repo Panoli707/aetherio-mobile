@@ -93,6 +93,9 @@ data class CatalogBrowseState(val id: String? = null, val title: String = "", va
 
 data class AppState(
     val sections: List<CatalogSection> = emptyList(),
+    val homePreferences: HomePreferences = HomePreferences(),
+    val homePreferencesSaving: Boolean = false,
+    val homePreferencesError: String? = null,
     val heroes: List<MediaItem> = emptyList(),
     val homeLoading: Boolean = true,
     val homeError: String? = null,

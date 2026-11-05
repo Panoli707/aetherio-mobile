@@ -2,7 +2,16 @@ package com.panoli707.aetherio.nativeapp.ui
 
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.test.platform.app.InstrumentationRegistry
+import android.graphics.Bitmap
+import java.io.File
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.panoli707.aetherio.nativeapp.data.*
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
@@ -121,6 +130,25 @@ class ProviderHubUiTest {
         compose.runOnIdle { assertEquals(source to VideoFormat.HLS, chosen) }
     }
 
+    @Test fun partialProviderFailuresDoNotInterruptPlayableResultsOrReturnWhenFiltering() {
+        val source = StreamSource("available", "fixture", "Fixture", "Fuente disponible", "", "https://cdn.example/video.mp4")
+        val message = "Provider Hub o un proveedor opcional no respondió."
+        val state = mutableStateOf(AppState(addonsLoading = false, sourcesLoading = true, sourceError = message))
+        compose.setContent { AetherioTheme {
+            SourceSheet(state.value, query, {}, { _, _ -> }, {})
+        } }
+        compose.onNodeWithText(message).assertDoesNotExist()
+        compose.runOnIdle { state.value = state.value.copy(sourcesLoading = false, sources = listOf(source)) }
+        compose.onNodeWithText(message).assertDoesNotExist()
+        compose.onNodeWithContentDescription("Fixture, 1 fuente").performClick()
+        compose.onNodeWithText(message).assertDoesNotExist()
+        compose.onNodeWithTag("source:fixture:available").assertIsDisplayed().assertIsEnabled()
+        compose.runOnIdle { state.value = state.value.copy(sources = emptyList()) }
+        compose.onNodeWithTag("sourceFailure").assertIsDisplayed()
+        compose.onNodeWithText(message).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Actualizar fuentes").assertIsEnabled()
+    }
+
     @Test fun sourceCardWithNoPlayableTargetStaysDisabled() {
         val source = StreamSource("unavailable", "fixture", "Fixture", "Sin destino", "Conservado para diagnóstico")
         var selected = false
@@ -130,5 +158,29 @@ class ProviderHubUiTest {
         compose.onNodeWithTag("source:fixture:unavailable").assertIsNotEnabled().performClick()
         compose.onNodeWithText("Fuente no compatible", useUnmergedTree = true).assertExists()
         compose.runOnIdle { assertFalse(selected) }
+    }
+
+    @Test fun glassKeepsMetadataAndFiltersOverArtwork() {
+        val sources = listOf(
+            StreamSource("one", "alpha", "AnimeAV1", "AnimeAV1 · Episodio 5", "Duración: 24 min · Sub: Castellano",
+                "https://cdn.example/one.m3u8", format = VideoFormat.HLS),
+            StreamSource("two", "torrent", "Torrentio", "1080p · Episodio 5", "Tamaño: 1.37 GB · 47 seeders",
+                infoHash = "0123456789abcdef0123456789abcdef01234567")
+        )
+        compose.setContent { AetherioTheme {
+            Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color(0xFF436C80), Color(0xFFAE6587), Color(0xFF718B52)))))
+            SourceSheet(AppState(addonsLoading = false, sources = sources, sourceError = "Proveedor opcional no respondió"),
+                query, {}, { _, _ -> }, {})
+        } }
+        compose.onNodeWithText("Presentado por AnimeAV1", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription("Todas las fuentes, 2").assertIsDisplayed()
+        compose.onNodeWithTag("sourceFailure").assertDoesNotExist()
+        if (InstrumentationRegistry.getArguments().getString("capturePlayer") == "true") {
+            compose.waitForIdle()
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val image = instrumentation.uiAutomation.takeScreenshot()
+            File(instrumentation.targetContext.getExternalFilesDir(null), "source-glass.png")
+                .outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
     }
 }

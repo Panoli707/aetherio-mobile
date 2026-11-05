@@ -143,13 +143,14 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
     val closeThen: (() -> Unit) -> Unit = { action -> scope.launch { sheet.hide(); if (!sheet.isVisible) action() } }
     val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     // The app behind this dialog is blurred on API 31+; older Android keeps a darker translucent tint.
-    val panelAlpha = if (android.os.Build.VERSION.SDK_INT >= 31) GlassPanelAlpha else .96f
+    // Source glass is deliberately lighter than opaque settings panels. Cards provide text contrast.
+    val panelAlpha = if (android.os.Build.VERSION.SDK_INT >= 31) .38f else .72f
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = Color.Transparent,
-        contentColor = Cream, tonalElevation = 0.dp, scrimColor = Color.Black.copy(alpha = .24f),
+        contentColor = Cream, tonalElevation = 0.dp, scrimColor = Color.Black.copy(alpha = .16f),
         dragHandle = null, shape = shape, sheetMaxWidth = 720.dp) {
         SourceSystemBars()
         Column(Modifier.fillMaxWidth().fillMaxHeight(.94f).clip(shape)
-            .background(Brush.verticalGradient(listOf(Panel.copy(alpha = panelAlpha), Ink.copy(alpha = (panelAlpha + .04f).coerceAtMost(1f)))))
+            .background(Brush.verticalGradient(listOf(Panel.copy(alpha = panelAlpha), Ink.copy(alpha = panelAlpha + .12f))))
             .border(1.dp, Cream.copy(alpha = .16f), shape).testTag("sourceGlassPanel")) {
             Box(Modifier.align(Alignment.CenterHorizontally).padding(top = 10.dp, bottom = 6.dp)
                 .size(width = 32.dp, height = 4.dp).background(Cream.copy(alpha = .35f), CircleShape))
@@ -197,17 +198,18 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                         "Ir a Ajustes", { closeThen(onSettings) })
                 }
                 if (state.sourcesLoading) item(key = "loading") { LoadingRow("Buscando fuentes…") }
-                if (state.sourceError != null) item(key = "error") {
+                if (!state.sourcesLoading && state.sourceError != null && state.sources.none { it.playable }) item(key = "error") {
                     val message = state.sourceError
-                    Text(message, color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.semantics { error(message); liveRegion = LiveRegionMode.Polite })
+                    Text(message, color = Cream.copy(alpha = .85f),
+                        modifier = Modifier.padding(vertical = 12.dp).testTag("sourceFailure")
+                            .semantics { liveRegion = LiveRegionMode.Polite })
                 }
                 if (!state.sourcesLoading && !state.addonsLoading && hasProviders && state.sourceError == null && state.sources.isEmpty()) item(key = "empty") {
                     StatusMessage("Sin resultados", "No hay fuentes para este título o episodio. Usa el botón de actualizar para volver a intentarlo.")
                 }
                 items(visibleSources, key = { "${it.addonId}:${it.id}" }) { source ->
                     Surface(onClick = { onPlay(source, if (source.isTorrent) VideoFormat.AUTO else source.format) },
-                        enabled = source.playable, color = Ink.copy(alpha = .62f), shape = RoundedCornerShape(20.dp),
+                        enabled = source.playable, color = Ink.copy(alpha = .60f), shape = RoundedCornerShape(20.dp),
                         border = BorderStroke(1.dp, Cream.copy(alpha = .12f)),
                         modifier = Modifier.fillMaxWidth().testTag("source:${source.addonId}:${source.id}").semantics {
                             contentDescription = "Seleccionar fuente ${source.name}, proveedor ${source.addonName}"
@@ -249,8 +251,8 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
 }
 
 @Composable
-private fun sourceFilterColors() = FilterChipDefaults.filterChipColors(containerColor = Cream.copy(alpha = .045f),
-    labelColor = Cream, selectedContainerColor = AccentContainer, selectedLabelColor = OnAccentContainer)
+private fun sourceFilterColors() = FilterChipDefaults.filterChipColors(containerColor = Cream.copy(alpha = .06f),
+    labelColor = Cream, selectedContainerColor = Accent.copy(alpha = .20f), selectedLabelColor = Cream)
 
 @Composable
 private fun SourceSystemBars() {

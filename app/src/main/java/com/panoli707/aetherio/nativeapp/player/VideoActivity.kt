@@ -186,6 +186,7 @@ class VideoActivity : ComponentActivity() {
                             setShutterBackgroundColor(Color.BLACK)
                             setBackgroundColor(Color.BLACK)
                             setArtworkDisplayMode(PlayerView.ARTWORK_DISPLAY_MODE_OFF)
+                            subtitleView?.let(PlayerSubtitleStyle::applyTo)
                         } },
                         modifier = Modifier.fillMaxSize(), onReset = null,
                         onRelease = { it.player = null },

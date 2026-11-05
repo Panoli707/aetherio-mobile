@@ -108,6 +108,14 @@ class PlayerScreenTest {
         assertTrue(spacing.all { kotlin.math.abs(it - spacing.first()) < 2 })
         val footer = compose.onNodeWithTag("playerFooter").fetchSemanticsNode().boundsInRoot
         assertTrue(play.bottom <= footer.top)
+        val timeline = compose.onNodeWithContentDescription("Posición de reproducción").fetchSemanticsNode().boundsInRoot
+        assertTrue("Timeline must stay below tools", timeline.center.y > toolbar.first().bottom)
+        assertTrue("Lower controls must not leave the safe area", timeline.bottom <= safe.bottom)
+        if (safe.width > safe.height) {
+            val info = compose.onNodeWithContentDescription("Información").fetchSemanticsNode().boundsInRoot
+            assertTrue("Landscape Info must share the timeline row", kotlin.math.abs(info.center.y - timeline.center.y) < 2)
+            compose.onNodeWithTag("playerInfo").assertDoesNotExist()
+        }
         assertTrue(toolbar.all { it.left >= safe.left && it.right <= safe.right && it.bottom <= safe.bottom })
         val close = compose.onNodeWithContentDescription("Volver").fetchSemanticsNode().boundsInRoot
         val volume = compose.onNodeWithContentDescription("Volumen").fetchSemanticsNode().boundsInRoot

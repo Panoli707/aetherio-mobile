@@ -149,7 +149,7 @@ fun PlayerScreen(
             val errorMaxHeight = (maxHeight - 80.dp).coerceAtLeast(48.dp)
             val gutter = if (wide) 24.dp else 12.dp
             val centerSize = if (compact) 72.dp else 80.dp
-            val bottomSpace = if (compact && wide) 112.dp else if (wide) 164.dp else 216.dp
+            val bottomSpace = if (wide) 124.dp else 216.dp
             Box(Modifier.fillMaxSize().padding(horizontal = gutter, vertical = 8.dp).testTag("playerSafeArea")) {
                 if (chrome) {
                     Row(Modifier.align(Alignment.TopStart), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -196,7 +196,10 @@ fun PlayerScreen(
                         PlayerButton(Icons.Rounded.Forward10, "Avanzar 10 segundos", enabled = canSeek,
                             size = 56.dp, iconSize = 30.dp, glass = true) { act(VideoAction.FORWARD) }
                     }
-                    Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().testTag("playerFooter")) {
+                    // In landscape, put Info beside the timeline instead of reserving a whole extra row.
+                    // This lowers title/tools/progress by 36dp without moving transport or clipping controls.
+                    Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .padding(bottom = if (wide && !compact) 12.dp else 0.dp).testTag("playerFooter")) {
                         val tools: @Composable () -> Unit = {
                             Row(Modifier.glass(videoOverlay = true).padding(horizontal = 4.dp).testTag("playerTools"),
                                 verticalAlignment = Alignment.CenterVertically) {
@@ -277,9 +280,9 @@ fun PlayerScreen(
                                 }, canSeek, "Posición de reproducción", Modifier.weight(1f))
                             Text(if (state.live) "EN DIRECTO" else playerTime(duration), color = Color.White,
                                 fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                            if (compact && wide) PlayerButton(Icons.Rounded.Info, "Información") { menu = "info"; interaction++ }
+                            if (wide) PlayerButton(Icons.Rounded.Info, "Información") { menu = "info"; interaction++ }
                         }
-                        if (!compact || !wide) TextButton(onClick = { menu = "info"; interaction++ },
+                        if (!wide) TextButton(onClick = { menu = "info"; interaction++ },
                             modifier = Modifier.height(48.dp).testTag("playerInfo"), contentPadding = PaddingValues(horizontal = 0.dp)) {
                             Text("Info", color = Color.White, fontSize = 14.sp,
                                 modifier = Modifier.semantics { contentDescription = "Información" })

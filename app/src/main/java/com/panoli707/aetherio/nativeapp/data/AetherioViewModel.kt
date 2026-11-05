@@ -159,17 +159,32 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         homeJob?.cancel()
         homeJob = viewModelScope.launch {
             mutableState.update { it.copy(homeLoading = true, homeError = null) }
+            val requestedHeroes = mutableSetOf<String>()
+            val enrichedHeroes = mutableMapOf<String, MediaItem>()
             try {
                 val home = repository.home(force) { progress ->
                     ensureActive()
-                    mutableState.update { it.copy(sections = progress.sections, heroes = progress.heroes) }
+                    mutableState.update { it.copy(sections = progress.sections,
+                        heroes = progress.heroes.map { hero -> enrichedHeroes[hero.key] ?: hero }) }
+                    // Enrich as soon as the starter rows exist; a slow editorial row must not
+                    // hold every logo/synopsis hostage. Each result is published independently.
+                    if (progress.sections.take(6).none { it.loading }) {
+                        val pending = progress.heroes.filter { requestedHeroes.add(it.key) }
+                        if (pending.isNotEmpty()) launch {
+                            repository.heroes(pending) { hero ->
+                                ensureActive()
+                                enrichedHeroes[hero.key] = hero
+                                mutableState.update { current -> current.copy(heroes = current.heroes.map {
+                                    if (it.key == hero.key) hero else it
+                                }) }
+                            }
+                        }
+                    }
                 }
                 ensureActive()
-                mutableState.update { it.copy(sections = home.sections, heroes = home.heroes, homeLoading = false,
+                mutableState.update { it.copy(sections = home.sections,
+                    heroes = home.heroes.map { hero -> enrichedHeroes[hero.key] ?: hero }, homeLoading = false,
                     homeError = if (home.partial) "Algunas secciones no pudieron cargarse. Puedes reintentar sin perder el resto del catálogo." else null) }
-                val heroes = repository.heroes(home.heroes)
-                ensureActive()
-                mutableState.update { it.copy(heroes = heroes) }
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { mutableState.update { it.copy(homeLoading = false, homeError = "No se pudo cargar el catálogo. Inténtalo de nuevo.") } }
         }

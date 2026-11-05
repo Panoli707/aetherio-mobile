@@ -80,7 +80,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                 item(key = "hero") {
                     Column(Modifier.fillMaxWidth().background(DetailNight).testTag("detailHero"),
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        if (detail == null && (state.detailLoading || state.detailError != null)) {
+                        if (detail == null && media.posterUrl == null && media.portraitArtworkUrl == null && media.backdropUrl == null) {
                             Box(Modifier.fillMaxWidth().height(detailArtworkHeight(artworkWidth, 2f / 3f))
                                 .testTag("detailArtworkPlaceholder"), contentAlignment = Alignment.Center) {
                                 if (state.detailLoading) CircularProgressIndicator(color = Accent)
@@ -172,7 +172,8 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                                     DetailArtwork(trailer.thumbnailUrl, Modifier.fillMaxSize())
                                 }
                                 Text(trailer.title, color = DetailText, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
-                                Text("YouTube · Reproducir en Aetherio", color = DetailMuted, style = MaterialTheme.typography.bodySmall)
+                                Text(if (trailer.kind == TrailerKind.DIRECT) "Reproductor de Aetherio" else "YouTube · Reproductor oficial integrado",
+                                    color = DetailMuted, style = MaterialTheme.typography.bodySmall)
                             } }
                         }
                     }

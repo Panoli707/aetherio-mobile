@@ -20,6 +20,18 @@ class HomeDesignTest {
         overview = "Una aventura en el bosque.", year = "2026", score = 6.7)
     private val second = movie.copy(id = "900000002", title = "Segunda película")
 
+    @Test fun aSlowBackgroundRowDoesNotKeepTheWholeCatalogLoadingMessage() {
+        compose.setContent { AetherioTheme {
+            HomeScreen(AppState(homeLoading = true, sections = listOf(
+                CatalogSection("tmdb.top_series", "Series populares", listOf(movie)),
+                CatalogSection("later", "Otra fila", emptyList(), loading = true))),
+                rememberLazyListState(), rememberPagerState { 0 }, false, {}, {}, {})
+        } }
+        compose.onNodeWithTag("homeScroll").performScrollToNode(hasText("Series populares"))
+        compose.onNodeWithText("Series populares").assertIsDisplayed()
+        compose.onNodeWithText("Cargando catálogo…").assertDoesNotExist()
+    }
+
     @Test fun featuredMetadataShowsRatingVotesYearGenreAndAgeRatingUnderTheTitle() {
         compose.setContent { AetherioTheme {
             HomeScreen(AppState(heroes = listOf(movie.copy(voteCount = 58, genres = listOf("Terror"),

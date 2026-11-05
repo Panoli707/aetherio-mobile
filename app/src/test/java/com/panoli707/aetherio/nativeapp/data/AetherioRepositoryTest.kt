@@ -184,6 +184,48 @@ class AetherioRepositoryTest {
         }
     }
 
+    @Test fun starterAndCarouselAnimeRowsAreScheduledBeforeEditorialRowsWithoutChangingOrder() = runBlocking {
+        TlsFixture().use { fixture ->
+            fixture.server.dispatcher = object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest) = MockResponse().setBody(CATALOG)
+            }
+            val feeds = mutableListOf<AnimeFeed>()
+            val repository = AetherioRepository(TOKEN, fixture.client, fixture.server.url("/3"),
+                homeAnimeSource = HomeAnimeSource { synchronized(feeds) { feeds += it }; emptyList() })
+            val result = repository.home()
+            val specs = DesktopHomeCatalog.rails()
+            assertEquals(specs.map { it.id }, result.sections.map { it.id })
+            assertEquals(listOfNotNull(specs.first { it.id == "mal.airing_anime" }.feed,
+                specs.first { it.id == "mal.top_anime" }.feed), synchronized(feeds) { feeds.take(2) })
+            val firstRequests = List(4) { fixture.request().requestUrl!!.encodedPath }
+            assertTrue(firstRequests.all { it in specs.take(6).map { spec -> "/3/${spec.request.path}" } })
+        }
+    }
+
+    @Test fun oneSlowHeroDoesNotHoldTheOtherEnrichedHeroesUntilTheBatchCompletes() = runBlocking {
+        TlsFixture().use { fixture ->
+            fixture.server.dispatcher = object : Dispatcher() {
+                override fun dispatch(request: RecordedRequest): MockResponse {
+                    val id = request.requestUrl!!.pathSegments.last()
+                    return MockResponse().setBody("""{"id":$id,"title":"Fixture","overview":"Ready"}""")
+                        .apply { if (id == "551") setBodyDelay(2, TimeUnit.SECONDS) }
+                }
+            }
+            val first = kotlinx.coroutines.CompletableDeferred<MediaItem>()
+            val ready = mutableListOf<MediaItem>()
+            val job = launch { fixture.repository().heroes(listOf(movie, movie.copy(id = "551"))) {
+                ready += it
+                first.complete(it)
+            } }
+            try {
+                assertEquals("550", withTimeout(5_000) { first.await() }.id)
+                assertTrue("The slow metadata request should still be running", job.isActive)
+                job.join()
+                assertEquals(listOf("550", "551"), ready.map { it.id })
+            } finally { job.cancelAndJoin() }
+        }
+    }
+
     @Test fun failedRefreshKeepsCachedRowsAndTheirExactIdentities() = runBlocking {
         TlsFixture().use { fixture ->
             val saved = DesktopHomeCatalog.rails().associate { spec ->

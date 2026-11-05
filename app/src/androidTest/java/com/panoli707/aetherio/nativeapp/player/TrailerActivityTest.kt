@@ -44,6 +44,18 @@ class TrailerActivityTest {
             web.loadDataWithBaseURL(TrailerEmbed.BASE_URL, html, "text/html", "UTF-8", TrailerEmbed.BASE_URL)
         }
         compose.waitUntil(10_000) { var ready = false; scenario.onActivity { ready = it.ready }; ready }
+        // onReady and onError are separate WebView console callbacks. Waiting for ready alone
+        // can race the error assertion even though the next frame contains the correct message.
+        if (error != null) compose.waitUntil(10_000) {
+            var shown = false
+            scenario.onActivity { activity ->
+                fun contains(view: View): Boolean =
+                    (view is android.widget.TextView && view.visibility == View.VISIBLE && view.text.toString() == TrailerEmbed.error(error)) ||
+                        (view is android.view.ViewGroup && (0 until view.childCount).any { contains(view.getChildAt(it)) })
+                shown = contains(activity.window.decorView)
+            }
+            shown
+        }
     }
 
     private fun javascript(scenario: ActivityScenario<TrailerActivity>, script: String): String {

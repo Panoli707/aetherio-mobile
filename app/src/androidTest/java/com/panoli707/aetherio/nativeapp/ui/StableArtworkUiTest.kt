@@ -71,7 +71,7 @@ class StableArtworkUiTest {
             })
         }.build().also { loaders.add(it); gates.add(gate) }
 
-    @Test fun initialDetailNeverShowsCatalogOrGeneralArtworkWhileTheSelectedSeasonLoads() {
+    @Test fun initialDetailShowsAvailableArtworkWhileTheSelectedSeasonLoads() {
         val catalog = MediaItem("220542", MediaType.SERIES, "Los diarios de la boticaria", posterUrl = image(Color.RED))
         val general = catalog.copy(portraitArtworkUrl = image(Color.GREEN))
         val selected = SeasonArtwork.apply(general, 2, poster = image(Color.BLUE))
@@ -83,14 +83,16 @@ class StableArtworkUiTest {
         compose.setContent { AetherioTheme {
             Box(Modifier.width(360.dp)) { DetailScreen(state.value, catalog, rememberLazyListState(), {}, {}, {}, {}, {}, { _, _, _ -> }) }
         } }
-        compose.onNodeWithTag("detailArtworkPlaceholder").assertExists()
-        compose.onAllNodesWithTag("heroImage", true).assertCountEquals(0)
+        compose.onNodeWithTag("detailArtworkPlaceholder").assertDoesNotExist()
+        expectColor(1)
+        assertTrue(state.value.episodesLoading)
+        assertTrue(state.value.detail!!.episodes.isEmpty())
         pending.complete(SeasonContent(selected, listOf(EpisodeItem(1, 2, "Episode"))))
         expectColor(2)
         compose.onNodeWithTag("detailArtworkPlaceholder").assertDoesNotExist()
     }
 
-    @Test fun lowResolutionCandidateIsNotPaintedBeforeItsSharperAlternativeIsValidated() {
+    @Test fun lowResolutionCandidateIsVisibleWhileItsSharperAlternativeIsPending() {
         val red = image(Color.RED, 60, 90)
         val blue = image(Color.BLUE, 1920, 1080)
         val gate = CompletableDeferred<Unit>()
@@ -99,12 +101,30 @@ class StableArtworkUiTest {
         val item = MediaItem("1", MediaType.SERIES, "Quality", posterUrl = red, backdropUrl = blue)
         compose.setContent { AetherioTheme { Box(Modifier.width(360.dp)) { HeroArtwork(item, true, 800.dp, imageLoader = loader) } } }
         compose.waitUntil(15_000) { starts.get() == 2 }
-        compose.onAllNodesWithTag("heroImage", true).assertCountEquals(0)
+        expectColor(0)
+        compose.onNodeWithTag("heroArtworkLoading").assertDoesNotExist()
         gate.complete(Unit)
-        expectColor(2)
-        val bounds = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
-        assertEquals(360f, (bounds.right - bounds.left).value, 1f)
-        assertEquals(202.5f, (bounds.bottom - bounds.top).value, 1f)
+        compose.waitForIdle()
+        // A slow refinement may exhaust its budget; the usable cover must never vanish.
+        compose.onAllNodesWithTag("heroImage", true).assertCountEquals(1)
+    }
+
+    @Test fun ocrCannotHoldTheFirstBitmapOrItsLoadingIndicator() {
+        val gate = CompletableDeferred<Unit>().also(gates::add)
+        val started = AtomicBoolean(false)
+        val item = MediaItem("1", MediaType.SERIES, "OCR does not gate pixels", posterUrl = image(Color.RED),
+            portraitAlternatives = listOf(image(Color.BLUE)))
+        compose.setContent { AetherioTheme { Box(Modifier.width(360.dp)) {
+            HeroArtwork(item, true, 800.dp, analyzeText = { _, _ ->
+                started.set(true); gate.await(); ArtworkTitlePresence.TOP
+            })
+        } } }
+        compose.waitUntil(15_000) { started.get() }
+        expectColor(0)
+        compose.onNodeWithTag("heroArtworkLoading").assertDoesNotExist()
+        assertFalse(gate.isCompleted)
+        gate.complete(Unit)
+        expectColor(0)
     }
 
     @Test fun delayedReplacementKeepsOnlyTheOldCoverAndLateResultsCannotOverwriteTheNewSelection() {

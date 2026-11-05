@@ -81,7 +81,9 @@ data class MediaDetail(
     val artworkBase: MediaItem? = null
 )
 
-data class MediaTrailer(val id: String, val title: String, val url: String, val thumbnailUrl: String)
+enum class TrailerKind { YOUTUBE, DIRECT }
+data class MediaTrailer(val id: String, val title: String, val url: String, val thumbnailUrl: String,
+    val kind: TrailerKind = TrailerKind.YOUTUBE)
 data class DetailFact(val label: String, val value: String)
 data class WatchPlatform(val id: Int, val name: String, val logoUrl: String?, val offer: String)
 data class WatchRegion(val country: String, val link: String?, val platforms: List<WatchPlatform>)

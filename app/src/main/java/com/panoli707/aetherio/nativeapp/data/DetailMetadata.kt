@@ -11,6 +11,18 @@ internal object DetailLinks {
     fun trailer(id: String, title: String): MediaTrailer? = id.takeIf(youtubeId::matches)?.let {
         MediaTrailer(it, title.ifBlank { "Tráiler" }.take(200), "https://www.youtube.com/watch?v=$it", "https://i.ytimg.com/vi/$it/hqdefault.jpg")
     }
+    /** Only explicit direct media from catalogue metadata; never resolve/extract a YouTube page. */
+    fun directTrailer(url: String, title: String, thumbnail: String = ""): MediaTrailer? = runCatching {
+        val safe = com.panoli707.aetherio.nativeapp.player.MediaUrlPolicy.validate(url)
+        val uri = URI(safe)
+        require(uri.rawFragment == null && uri.path.substringAfterLast('.').lowercase(Locale.ROOT) in
+            setOf("mp4", "m4v", "webm", "mov", "m3u8", "mpd"))
+        require(uri.host.lowercase(Locale.ROOT) !in setOf("youtube.com", "www.youtube.com", "youtu.be", "www.youtube-nocookie.com"))
+        val id = java.security.MessageDigest.getInstance("SHA-256").digest(safe.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it.toInt() and 255) }
+        MediaTrailer(id, title.ifBlank { "Tráiler" }.take(200), safe,
+            CatalogJson.image(thumbnail).orEmpty(), TrailerKind.DIRECT)
+    }.getOrNull()
     fun validate(raw: String?): String? = runCatching {
         if (raw == null || raw.length > 2048 || raw.any(Char::isISOControl)) return null
         val uri = URI(raw)
@@ -30,6 +42,12 @@ internal object DetailMetadata {
     private fun text(json: JSONObject, key: String) = CatalogJson.text(json, key)
     private fun image(path: String) = path.takeIf { it.startsWith("/") && !it.startsWith("//") && '\\' !in it }
         ?.let { "https://image.tmdb.org/t/p/w185$it" }
+    fun cinemetaTrailers(json: JSONObject): List<MediaTrailer> =
+        objects(json.optJSONArray("trailerStreams")).take(24).mapNotNull { value ->
+            val title = text(value, "title").ifBlank { "Tráiler" }
+            DetailLinks.directTrailer(text(value, "url"), title, text(value, "thumbnail"))
+                ?: DetailLinks.trailer(text(value, "ytId"), title)
+        }.distinctBy { it.id }.take(12)
     fun plain(value: String): String = value.replace(Regex("<[^>]*>"), " ").replace("&amp;", "&").replace("&#039;", "'").trim()
     fun date(value: String): String = value.take(10).takeIf { it.matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}")) }.orEmpty()
     fun status(value: String): String = when (value) {

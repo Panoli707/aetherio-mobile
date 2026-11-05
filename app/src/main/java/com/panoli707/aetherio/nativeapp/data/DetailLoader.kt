@@ -6,7 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
-/** Publishes a resolved initial cover, then changes artwork only for an explicit season selection. */
+/** Metadata is usable before episodes; season artwork and episode numbering still commit together. */
 internal class DetailLoader(
     private val scope: CoroutineScope,
     private val fetchDetail: suspend (MediaItem) -> MediaDetail,
@@ -27,17 +27,36 @@ internal class DetailLoader(
             episodesLoading = false, pendingSeason = null) }
         job = scope.launch {
             try {
-                val fetched = fetchDetail(item)
+                val usable = LoadTiming.start(LoadTiming.Stage.DETAIL_USABLE)
+                val fetched = LoadTiming.measure(LoadTiming.Stage.DETAIL_METADATA) { fetchDetail(item) }
                 val preferred = item.seasonHint ?: recentSeason(item)
                 val selected = preferred?.takeIf { number -> fetched.seasons.any { it.number == number } } ?: fetched.selectedSeason
                 val base = fetched.artworkBase ?: fetched.item
-                val content = if (selected != null && (base.source == CatalogSource.TMDB || selected != fetched.selectedSeason))
-                    fetchSeason(base, selected) else SeasonContent(base, fetched.episodes)
+                val needsSeason = selected != null && (base.source == CatalogSource.TMDB || selected != fetched.selectedSeason)
+                ensureActive()
+                if (generation != request) return@launch
+                val provisional = fetched.copy(artworkBase = base, selectedSeason = selected,
+                    episodes = if (needsSeason) emptyList() else fetched.episodes)
+                update { it.copy(selectedItem = base, detail = provisional, detailLoading = false,
+                    episodesLoading = needsSeason, pendingSeason = selected.takeIf { needsSeason }) }
+                usable.finish()
+                val content = if (needsSeason) try {
+                    LoadTiming.measure(LoadTiming.Stage.SEASON) { fetchSeason(base, requireNotNull(selected)) }
+                } catch (error: CancellationException) { throw error }
+                catch (_: Exception) {
+                    if (generation == request) {
+                        failedSeason = selected
+                        update { it.copy(episodesLoading = false, pendingSeason = null,
+                            detailError = "No se pudo cargar la temporada. La ficha sigue disponible; puedes reintentar.") }
+                    }
+                    return@launch
+                } else SeasonContent(base, fetched.episodes)
                 ensureActive()
                 if (generation != request) return@launch
                 if (selected != null) seasons[selected] = content
                 val detail = fetched.copy(item = content.item, artworkBase = base, selectedSeason = selected, episodes = content.episodes)
-                update { it.copy(selectedItem = content.item, detail = detail, detailLoading = false) }
+                update { it.copy(selectedItem = content.item, detail = detail, detailLoading = false,
+                    episodesLoading = false, pendingSeason = null) }
             } catch (error: CancellationException) { throw error }
             catch (_: Exception) {
                 if (generation == request) update { it.copy(detailLoading = false,
@@ -59,7 +78,9 @@ internal class DetailLoader(
         update { it.copy(episodesLoading = true, pendingSeason = number, detailError = null) }
         job = scope.launch {
             try {
-                val content = if (retry) fetchSeason(base, number) else seasons[number] ?: fetchSeason(base, number)
+                val content = LoadTiming.measure(LoadTiming.Stage.SEASON) {
+                    if (retry) fetchSeason(base, number) else seasons[number] ?: fetchSeason(base, number)
+                }
                 ensureActive()
                 if (generation != request) return@launch
                 if (seasons.size >= 8) seasons.remove(seasons.keys.first())

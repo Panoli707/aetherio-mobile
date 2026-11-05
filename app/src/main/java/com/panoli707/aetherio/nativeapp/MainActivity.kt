@@ -30,7 +30,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import com.panoli707.aetherio.nativeapp.player.MediaUrlPolicy
 import com.panoli707.aetherio.nativeapp.player.VideoActivity
-import com.panoli707.aetherio.nativeapp.player.TrailerActivity
+import com.panoli707.aetherio.nativeapp.player.TrailerPlayback
 import com.panoli707.aetherio.nativeapp.ui.AetherioApp
 
 class MainActivity : ComponentActivity() {
@@ -123,7 +123,7 @@ class MainActivity : ComponentActivity() {
                     catch (_: Exception) { Toast.makeText(this, "No se pudo abrir el enlace externo.", Toast.LENGTH_LONG).show() }
                 },
                 onPlayTrailer = { trailer ->
-                    try { startActivity(TrailerActivity.intent(this, trailer)) }
+                    try { startActivity(TrailerPlayback.intent(this, trailer)) }
                     catch (_: Exception) { Toast.makeText(this, "No se pudo abrir el tráiler integrado.", Toast.LENGTH_LONG).show() }
                 },
                 onContinue = model::resume,

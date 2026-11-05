@@ -25,7 +25,7 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 internal class AnimeSeasonRepository(
-    client: OkHttpClient = OkHttpClient(),
+    client: OkHttpClient = metadataHttpClient(),
     private val policy: AnimeRequestPolicy = AnimeRequestPolicy(),
     private val clockMs: () -> Long = System::currentTimeMillis
 ) {

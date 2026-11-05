@@ -7,6 +7,23 @@ import org.junit.Test
 class DetailMetadataTest {
     private val series = MediaItem("105248", MediaType.SERIES, "Serie de prueba")
 
+    @Test fun onlyExplicitDirectMediaIsEligibleForTheNativeTrailerPlayer() {
+        val json = JSONObject("""{"trailerStreams":[
+            {"url":"https://cdn.example/trailer.mp4?signature=fixture","title":"Directo"},
+            {"url":"https://cdn.example/trailer.m3u8","title":"HLS"},
+            {"ytId":"abcDE123_-x","title":"YouTube"},
+            {"url":"https://www.youtube.com/watch?v=abcDE123_-x"},
+            {"url":"http://cdn.example/trailer.mp4"},
+            {"url":"https://cdn.example/embed/123"},
+            {"url":"javascript:alert(1)"}]}""")
+        val trailers = DetailMetadata.cinemetaTrailers(json)
+        assertEquals(listOf(TrailerKind.DIRECT, TrailerKind.DIRECT, TrailerKind.YOUTUBE), trailers.map { it.kind })
+        assertTrue(trailers.first().url.endsWith("?signature=fixture"))
+        assertNull(DetailLinks.directTrailer("https://user:password@cdn.example/trailer.mp4", "Unsafe"))
+        assertNull(DetailLinks.directTrailer("https://cdn.example/trailer.mp4\n", "Unsafe"))
+        assertNull(DetailLinks.directTrailer("https://cdn.example/trailer.mp4#fragment", "Unsafe"))
+    }
+
     @Test fun trailersOnlyUseRealYoutubeKeysAndDoNotTurnEmbedsIntoPlayableMedia() {
         val json = JSONObject("""{"videos":{"results":[
           {"site":"YouTube","type":"Trailer","key":"abcDE123_-x","name":"Tráiler oficial","official":true,"iso_639_1":"es"},

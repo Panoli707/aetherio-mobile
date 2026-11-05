@@ -7,7 +7,7 @@
 
 ## Descargar e instalar
 
-1. Descarga [**Aetherio.apk desde GitHub**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.17.0-preview.1/Aetherio.apk), versión preliminar **0.17.0**. Comprueba que corresponde al repositorio `Panoli707/aetherio-mobile`.
+1. Descarga [**Aetherio.apk desde GitHub**](https://github.com/Panoli707/aetherio-mobile/releases/download/v0.19.0-preview.1/Aetherio.apk), versión preliminar **0.19.0**. Comprueba que corresponde al repositorio `Panoli707/aetherio-mobile`.
 2. Abre **Descargas** en el navegador o gestor de archivos del dispositivo y toca `Aetherio.apk`.
 3. Si Android lo solicita, permite **Instalar aplicaciones desconocidas** únicamente para el navegador o gestor de archivos que está abriendo el APK. El nombre de la opción puede variar según el dispositivo.
 4. Regresa al archivo y pulsa **Instalar**. Cuando termine, pulsa **Abrir**.

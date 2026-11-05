@@ -109,7 +109,9 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
         if (state.homeError != null) item(key = "error") {
             StatusMessage(if (state.sections.isEmpty()) "No se pudo cargar el catálogo" else "Faltan algunas secciones",
                 state.homeError, "Reintentar", onRetry)
-        } else if (state.homeLoading) item(key = "loading") { LoadingRow("Cargando catálogo…") }
+        } else if (state.homeLoading && state.sections.none { it.items.isNotEmpty() }) item(key = "loading") {
+            LoadingRow("Cargando catálogo…")
+        }
         if (!state.homeLoading && state.homeError == null && state.sections.all { it.items.isEmpty() } && state.heroes.isEmpty()) {
             item(key = "empty") { StatusMessage("El catálogo está vacío", "No hay títulos disponibles en este momento.", "Reintentar", onRetry) }
         }

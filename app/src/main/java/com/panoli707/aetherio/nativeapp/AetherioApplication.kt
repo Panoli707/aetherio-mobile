@@ -6,6 +6,13 @@ import coil.ImageLoaderFactory
 import coil.decode.SvgDecoder
 
 class AetherioApplication : Application(), ImageLoaderFactory {
+    override fun onCreate() {
+        super.onCreate()
+        // Debug-only, on-device diagnostics. Release builds never install a logging observer.
+        if (BuildConfig.DEBUG) com.panoli707.aetherio.nativeapp.data.LoadTiming.observer = { sample ->
+            android.util.Log.d("AetherioLoad", "stage=${sample.stage} origin=${sample.origin} elapsedMs=${sample.elapsedMs} success=${sample.success}")
+        }
+    }
     internal var torrentSessionsOverride: com.panoli707.aetherio.nativeapp.player.torrent.TorrentSessionManager? = null
     val torrentSessions get() = torrentSessionsOverride ?: defaultTorrentSessions
     private val defaultTorrentSessions by lazy {
@@ -16,6 +23,8 @@ class AetherioApplication : Application(), ImageLoaderFactory {
     }
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
         .components { add(SvgDecoder.Factory()) }
+        .okHttpClient(com.panoli707.aetherio.nativeapp.data.metadataHttpClient())
+        .eventListenerFactory { com.panoli707.aetherio.nativeapp.data.LoadImageTiming() }
         .crossfade(true)
         .build()
 }

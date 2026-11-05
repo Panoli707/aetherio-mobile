@@ -6,6 +6,8 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.test.advanceTimeBy
 import org.junit.Assert.*
 import org.junit.Test
 
@@ -16,18 +18,53 @@ class DetailLoaderTest {
     private fun season(number: Int) = SeasonContent(SeasonArtwork.apply(base, number, poster = "season-$number"),
         listOf(EpisodeItem(1, number, "Episodio")))
 
-    @Test fun initialCoverIsPublishedOnlyAfterTheHistorySeasonIsResolved() = runTest {
+    @Test fun metadataIsPublishedBeforeTheHistorySeasonWithoutEnablingOldEpisodes() = runTest {
         var state = AppState()
         val seen = mutableListOf<AppState>()
         val pending = CompletableDeferred<SeasonContent>()
         val loader = DetailLoader(this, { detail }, { _, number -> assertEquals(2, number); pending.await() }, { 2 },
             { state }, { state = it(state); seen.add(state) })
         loader.open(base.copy(posterUrl = "catalog")); runCurrent()
-        assertTrue(state.detailLoading); assertNull(state.detail)
+        assertFalse(state.detailLoading); assertNotNull(state.detail)
+        assertTrue(state.episodesLoading); assertEquals(2, state.pendingSeason)
+        assertTrue(state.detail!!.episodes.isEmpty())
         pending.complete(season(2)); runCurrent()
-        assertEquals(listOf("season-2"), seen.mapNotNull { it.detail?.item?.posterUrl }.distinct())
+        assertEquals(listOf("general", "season-2"), seen.mapNotNull { it.detail?.item?.posterUrl }.distinct())
         assertEquals(2, state.detail!!.selectedSeason); assertEquals(base, state.detail!!.artworkBase)
         assertFalse(state.detailLoading)
+    }
+
+    @Test fun controlledLatencyRemovesFiveSecondsOfSeasonWaitFromTimeToUsableMetadata() = runTest {
+        var state = AppState()
+        var usableAt: Long? = null
+        var episodesAt: Long? = null
+        val loader = DetailLoader(this, { delay(100); detail }, { _, n -> delay(5_000); season(n) }, { null },
+            { state }, { state = it(state)
+                if (state.detail != null && usableAt == null) usableAt = testScheduler.currentTime
+                if (state.detail?.episodes?.isNotEmpty() == true) episodesAt = testScheduler.currentTime
+            })
+        loader.open(base)
+        advanceTimeBy(101); runCurrent()
+        assertEquals(100L, usableAt)
+        assertTrue(state.episodesLoading)
+        assertNull(episodesAt)
+        advanceTimeBy(5_000); runCurrent()
+        assertEquals(5_100L, episodesAt)
+        println("CONTROLLED_LOAD metadata_ready_ms=$usableAt season_ready_ms=$episodesAt previous_sequential_gate_ms=5100")
+    }
+
+    @Test fun failingInitialSeasonDoesNotDiscardMetadataAndRetryOnlyReloadsSeason() = runTest {
+        var state = AppState()
+        var detailCalls = 0
+        var fail = true
+        val loader = DetailLoader(this, { detailCalls++; detail }, { _, n -> if (fail) error("offline") else season(n) },
+            { 2 }, { state }, { state = it(state) })
+        loader.open(base); runCurrent()
+        assertNotNull(state.detail); assertFalse(state.detailLoading); assertFalse(state.episodesLoading)
+        assertTrue(state.detail!!.episodes.isEmpty()); assertNotNull(state.detailError)
+        fail = false; loader.retry(); runCurrent()
+        assertEquals(1, detailCalls)
+        assertEquals(2, state.detail!!.selectedSeason); assertNull(state.detailError)
     }
 
     @Test fun explicitSeasonHintWinsOverHistoryAndInvalidHintsUseTheAvailableSeason() = runTest {

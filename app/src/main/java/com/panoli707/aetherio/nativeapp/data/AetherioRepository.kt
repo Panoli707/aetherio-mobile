@@ -31,7 +31,7 @@ import kotlin.coroutines.resumeWithException
 
 internal class AetherioRepository(
     private val readAccessToken: String = EmbeddedTmdbToken.value,
-    client: OkHttpClient = OkHttpClient(),
+    client: OkHttpClient = metadataHttpClient(),
     private val tmdbBase: HttpUrl = (if (readAccessToken.isNotBlank()) "https://api.themoviedb.org/3"
         else "https://trkll.aetherio.workers.dev/api/tmdb").toHttpUrl(),
     private val animeRepository: AnimeSeasonRepository = AnimeSeasonRepository(client),
@@ -100,7 +100,8 @@ internal class AetherioRepository(
                                 val source = body.source()
                                 source.request(limit + 1)
                                 check(source.buffer.size <= limit)
-                                JSONObject(source.readUtf8())
+                                val parse = LoadTiming.start(LoadTiming.Stage.JSON_PARSE)
+                                JSONObject(source.readUtf8()).also { parse.finish() }
                             }
                         }
                         if (continuation.isActive) result.fold({ continuation.resume(it) }, { continuation.resumeWithException(IOException("No se pudo consultar el catalogo")) })
@@ -112,8 +113,13 @@ internal class AetherioRepository(
     }
     private suspend fun <T> optional(block: suspend () -> T): T? = try { block() }
         catch (e: CancellationException) { throw e } catch (_: Exception) { null }
-    private suspend fun tmdb(path: String, params: Map<String, String> = emptyMap()): JSONObject =
-        tmdbSlots.withPermit { json("$tmdb/$path", mapOf("language" to "es-ES", "page" to "1") + params) }
+    private suspend fun tmdb(path: String, params: Map<String, String> = emptyMap()): JSONObject {
+        val queue = LoadTiming.start(LoadTiming.Stage.CATALOG_QUEUE)
+        return tmdbSlots.withPermit {
+            queue.finish()
+            json("$tmdb/$path", mapOf("language" to "es-ES", "page" to "1") + params)
+        }
+    }
     private fun cineType(type: MediaType) = if (type == MediaType.MOVIE) "movie" else "series"
     private suspend fun trending(type: MediaType): List<MediaItem> = optional {
         CatalogJson.catalog(tmdb("trending/${type.path}/day"), type, CatalogSource.TMDB).also { check(it.isNotEmpty()) }
@@ -123,6 +129,9 @@ internal class AetherioRepository(
     private suspend fun remember(key: String, items: List<MediaItem>) = withContext(Dispatchers.IO) { optional { homeCache?.write(key, items) }; Unit }
 
     suspend fun home(force: Boolean = false, onUpdate: suspend (HomeCatalog) -> Unit = {}): HomeCatalog = supervisorScope {
+        val first = LoadTiming.start(LoadTiming.Stage.HOME_FIRST_CONTENT)
+        val complete = LoadTiming.start(LoadTiming.Stage.HOME_COMPLETE)
+        var firstPublished = false
         val homeContext = coroutineContext
         val today = day()
         val specs = DesktopHomeCatalog.rails()
@@ -135,8 +144,20 @@ internal class AetherioRepository(
             val ready = DesktopHomeCatalog.dedupeAnime(sections.toList())
             return HomeCatalog(ready, DesktopHomeCatalog.heroes(ready, today), partial = ready.any { it.error != null })
         }
-        onUpdate(snapshot())
-        specs.mapIndexed { index, spec -> async {
+        suspend fun publish() {
+            val value = snapshot()
+            onUpdate(value)
+            if (!firstPublished && value.sections.any { it.items.isNotEmpty() }) { first.finish(); firstPublished = true }
+        }
+        publish()
+        // Visible starter rows first, then the anime rows that seed the carousel, then editorial rows.
+        // This reorders work only: catalogue order, results and the four-request cap are unchanged.
+        specs.indices.sortedBy { index -> when {
+            index < 6 -> 0
+            specs[index].id in setOf("mal.airing_anime", "mal.top_anime") -> 1
+            else -> 2
+        } }.map { index -> async {
+            val spec = specs[index]
             if (!sections[index].loading) return@async
             val fetched = homeSlots.withPermit {
                 // A cancelled sibling can release a permit before cancellation reaches every queued child.
@@ -149,10 +170,10 @@ internal class AetherioRepository(
                 sections[index] = if (fetched != null && fetched.items.isNotEmpty()) fetched
                     else old.copy(loading = false, error = if (old.items.isEmpty()) "No se pudo cargar esta fila. Reintenta la actualización." else "No se pudo actualizar; se conserva el catálogo guardado.")
                 if (fetched != null && fetched.items.isNotEmpty()) remember("$today:${spec.id}", fetched.items)
-                onUpdate(snapshot())
+                publish()
             }
         } }.awaitAll()
-        snapshot()
+        snapshot().also { complete.finish(!it.partial) }
     }
 
     private fun catalogItems(json: JSONObject, spec: HomeRail): List<MediaItem> {
@@ -293,9 +314,9 @@ internal class AetherioRepository(
     private fun interleave(movies: List<MediaItem>, series: List<MediaItem>): List<MediaItem> = buildList {
         for (index in 0 until maxOf(movies.size, series.size)) { movies.getOrNull(index)?.let(::add); series.getOrNull(index)?.let(::add) }
     }
-    suspend fun heroes(items: List<MediaItem>): List<MediaItem> = supervisorScope {
+    suspend fun heroes(items: List<MediaItem>, onReady: (MediaItem) -> Unit = {}): List<MediaItem> = supervisorScope {
         items.take(10).map { item -> async {
-            if (item.source == CatalogSource.ANILIST) optional { animeRepository.detail(item).item } ?: item else optional {
+            val resolved = if (item.source == CatalogSource.ANILIST) optional { animeRepository.detail(item).item } ?: item else optional {
                 // Trending results omit named genres and age ratings, even when they already have a logo.
                 val data = if (item.source == CatalogSource.TMDB) tmdb("${item.type.path}/${item.id}", mapOf(
                     "append_to_response" to "images,${if (item.type == MediaType.SERIES) "content_ratings" else "release_dates"}",
@@ -311,6 +332,7 @@ internal class AetherioRepository(
                         ?.let { CatalogJson.text(it, "overview") }.orEmpty())
                 }
             } ?: item
+            resolved.also(onReady)
         } }.awaitAll()
     }
     suspend fun detail(item: MediaItem): MediaDetail {

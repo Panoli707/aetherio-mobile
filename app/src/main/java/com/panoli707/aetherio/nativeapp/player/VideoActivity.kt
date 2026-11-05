@@ -74,6 +74,8 @@ class VideoActivity : ComponentActivity() {
     private var lastTorrentProgress = 0L
     private var lastTorrentProgressAt = 0L
     private var watchTarget: WatchTarget? = null
+    private val isTrailer get() = intent.getBooleanExtra(EXTRA_TRAILER, false)
+    private val hasSources get() = !isTrailer && intent.getBooleanExtra(EXTRA_HAS_SOURCES, false)
     private val history by lazy { WatchHistoryRepository.get(application) }
     private var progressInitialized = false
     private var restoredSession = false
@@ -141,7 +143,7 @@ class VideoActivity : ComponentActivity() {
         resumePosition = if (mediaIsLive) C.TIME_UNSET else savedInstanceState?.getLong(STATE_POSITION, C.TIME_UNSET) ?: C.TIME_UNSET
         resumePlayWhenReady = savedInstanceState?.getBoolean(STATE_PLAY_WHEN_READY, true) ?: true
         restoredSession = savedInstanceState != null
-        watchTarget = WatchProgressCodec.decodeTarget(intent.getStringExtra(EXTRA_WATCH_TARGET))?.let(SeriesIdentity.index::target)
+        watchTarget = if (isTrailer) null else WatchProgressCodec.decodeTarget(intent.getStringExtra(EXTRA_WATCH_TARGET))?.let(SeriesIdentity.index::target)
         title = cleanLabel(intent.getStringExtra(EXTRA_TITLE)) ?: "Reproductor"
         screen = VideoUiState(title = watchTarget?.episodeTitle?.takeIf { it.isNotBlank() }
             ?: watchTarget?.item?.title ?: title.toString(), subtitle = cleanLabel(intent.getStringExtra(EXTRA_PROVIDER)).orEmpty(),
@@ -155,6 +157,8 @@ class VideoActivity : ComponentActivity() {
             screen = screen.copy(opening = segments?.opening, ending = segments?.ending)
         } }
         mediaUrl = try {
+            if (isTrailer) require(!intent.hasExtra(EXTRA_TORRENT_REQUEST) &&
+                com.panoli707.aetherio.nativeapp.data.DetailLinks.directTrailer(intent.getStringExtra(EXTRA_URL).orEmpty(), "Tráiler") != null)
             if (intent.hasExtra(EXTRA_TORRENT_REQUEST)) {
                 require(!intent.hasExtra(EXTRA_URL))
                 torrentRequest = TorrentRequest.decode(requireNotNull(intent.getStringExtra(EXTRA_TORRENT_REQUEST)))
@@ -172,7 +176,7 @@ class VideoActivity : ComponentActivity() {
         }
         setContent {
             AetherioTheme {
-                PlayerScreen(screen, intent.getBooleanExtra(EXTRA_HAS_SOURCES, false), ::onAction,
+                PlayerScreen(screen, hasSources, ::onAction,
                     onSeek = { player?.takeIf { it.isCurrentMediaItemSeekable }?.seekTo(it) },
                     onSpeed = { player?.setPlaybackSpeed(it) }, onTrack = ::selectTrack,
                     onVolume = { value ->
@@ -360,7 +364,7 @@ class VideoActivity : ComponentActivity() {
         when (action) {
             VideoAction.CLOSE -> { saveProgress(force = true); releasePlayer(); closeTorrent(); finish() }
             VideoAction.FIND_SOURCES -> {
-                if (intent.getBooleanExtra(EXTRA_HAS_SOURCES, false)) {
+                if (hasSources) {
                     saveProgress(force = true)
                     releasePlayer()
                     closeTorrent()
@@ -469,6 +473,7 @@ class VideoActivity : ComponentActivity() {
     }
 
     companion object {
+        const val EXTRA_TRAILER = "com.panoli707.aetherio.nativeapp.player.TRAILER"
         const val EXTRA_URL = "com.panoli707.aetherio.nativeapp.player.URL"
         const val EXTRA_TORRENT_REQUEST = "com.panoli707.aetherio.nativeapp.player.TORRENT_REQUEST"
         const val EXTRA_TITLE = "com.panoli707.aetherio.nativeapp.player.TITLE"

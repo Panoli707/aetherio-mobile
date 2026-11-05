@@ -138,7 +138,7 @@ internal object CatalogJson {
             else Regex("[0-9]+").find(text(json, "runtime"))?.value?.toIntOrNull()?.takeIf { it > 0 }
         val detail = MediaDetail(merged(base, json), runtime, cast.take(12), ordered,
              if (!tmdb && selected != null) episodes(json, selected, true) else emptyList(), selected)
-        return if (tmdb) DetailMetadata.enrich(detail, json) else detail
+        return if (tmdb) DetailMetadata.enrich(detail, json) else detail.copy(trailers = DetailMetadata.cinemetaTrailers(json))
     }
     fun encode(items: List<MediaItem>): String = JSONArray().apply {
         items.forEach { item -> put(JSONObject().apply {

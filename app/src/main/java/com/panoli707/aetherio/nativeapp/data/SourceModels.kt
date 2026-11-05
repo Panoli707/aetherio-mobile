@@ -8,7 +8,11 @@ data class AddonConfig(
     val name: String,
     val manifestUrl: String,
     val types: Set<MediaType>,
-    val idPrefixes: List<String> = emptyList()
+    val idPrefixes: List<String> = emptyList(),
+    val logoUrl: String? = null,
+    // Runtime provenance, never restored from a user addon or its manifest.
+    val hubManaged: Boolean = false,
+    val payloadAttribution: Boolean = false
 )
 
 data class SourceQuery(val item: MediaItem, val season: Int? = null, val episode: Int? = null) {
@@ -30,11 +34,29 @@ data class StreamSource(
     val sources: List<String> = emptyList(),
     val subtitles: List<StreamSubtitle> = emptyList(),
     val behaviorHints: String = "{}",
-    val rawStream: String = "{}"
+    val rawStream: String = "{}",
+    val display: SourceDisplay = SourceDisplay(),
+    val allowProviderHeaders: Boolean = false
 ) {
     val isTorrent: Boolean get() = infoHash != null || url.startsWith("magnet:", true)
     val playable: Boolean get() = isTorrent || url.isNotEmpty()
+    val providerKey: String get() = display.providerKey ?: addonId
+    val providerName: String get() = display.providerName ?: addonName
 }
+
+/** Presentation only: never used to choose playback transport, headers or identifiers. */
+data class SourceDisplay(
+    val providerKey: String? = null,
+    val providerName: String? = null,
+    val logoUrl: String? = null,
+    val title: String? = null,
+    val size: String? = null,
+    val indexer: String? = null,
+    val durationMinutes: Int? = null,
+    val seeders: Int? = null,
+    val languages: List<String> = emptyList(),
+    val badges: List<String> = emptyList()
+)
 
 data class StreamSubtitle(val id: String, val url: String, val lang: String, val mimeType: String? = null)
 

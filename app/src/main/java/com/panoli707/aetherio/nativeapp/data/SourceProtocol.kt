@@ -60,7 +60,7 @@ internal object SourceProtocol {
 
     fun addonId(url: HttpUrl): String = hash(url.toString())
 
-    private fun root(raw: String, limit: Int): JSONObject {
+    internal fun root(raw: String, limit: Int, collectionLimit: Int = LIST_LIMIT): JSONObject {
         if (raw.length > limit || raw.toByteArray(Charsets.UTF_8).size > limit) invalid()
         // Bound nesting and every collection before org.json allocates its object tree.
         val separators = IntArray(32)
@@ -80,7 +80,7 @@ internal object SourceProtocol {
                     separators[depth++] = 0
                 }
                 '}', ']' -> { if (depth == 0) invalid(); depth-- }
-                ',' -> if (depth > 0 && ++separators[depth - 1] >= LIST_LIMIT) invalid()
+                ',' -> if (depth > 0 && ++separators[depth - 1] >= collectionLimit) invalid()
             }
         }
         if (quoted || depth != 0) invalid()
@@ -190,7 +190,8 @@ internal object SourceProtocol {
         // The public config is a cross-product of types and prefixes. Never widen resource restrictions.
         var common = available.values.first()
         available.values.drop(1).forEach { common = intersect(common, it) ?: invalid() }
-        AddonConfig(addonId(canonical), manifestId, name, canonical.toString(), available.keys.toSet(), common)
+        AddonConfig(addonId(canonical), manifestId, name, canonical.toString(), available.keys.toSet(), common,
+            SourceMetadata.safeLogo(json.opt("logo")))
     }
 
     fun endpoint(config: AddonConfig, query: SourceQuery): HttpUrl? = checked {
@@ -274,8 +275,12 @@ internal object SourceProtocol {
     fun streams(raw: String, config: AddonConfig): SourceResult = checked {
         val addon = validated(config)
         val hub = ProviderHub.isHub(addon)
-        val desktopTransport = hub || DesktopSources.providers.any { it.manifestUrl == addon.manifestUrl }
-        val values = array(root(raw, STREAM_LIMIT), "streams", required = hub)
+        val managed = hub || addon.hubManaged
+        val desktopTransport = managed || DesktopSources.providers.any { it.manifestUrl == addon.manifestUrl }
+        // Aggregators regularly exceed 200 results. Keep byte/nesting limits and bounded child lists.
+        val json = root(raw, STREAM_LIMIT, if (managed) 2000 else LIST_LIMIT)
+        val values = if (managed) json.optJSONArray("streams")?.takeIf { it.length() <= 2000 } ?: invalid()
+            else array(json, "streams")
         val sources = linkedMapOf<String, StreamSource>()
         var unsupported = 0
         for (index in 0 until values.length()) {
@@ -284,7 +289,7 @@ internal object SourceProtocol {
                 if (listOf("externalUrl", "ytId").any { stream.has(it) && !stream.isNull(it) }) invalid()
                 val hints = optionalObject(stream, "behaviorHints") ?: JSONObject()
                 if (requiresDrm(stream) || requiresDrm(hints)) invalid()
-                val headers = playbackHeaders(stream, hints, hub)
+                val headers = playbackHeaders(stream, hints, managed)
                 val infoHash = if (!stream.has("infoHash") || stream.isNull("infoHash")) null else
                     (stream.opt("infoHash") as? String)?.let(com.panoli707.aetherio.nativeapp.player.torrent.TorrentRequestParser::canonicalHash) ?: invalid()
                 val fileIdx = if (!stream.has("fileIdx") || stream.isNull("fileIdx")) null else {
@@ -303,16 +308,21 @@ internal object SourceProtocol {
                 val name = text(stream.opt("name"), 120).ifEmpty { addon.name }
                 val description = text(stream.opt("description"), 600).ifEmpty { text(stream.opt("title"), 600) }
                 val trackers = strings(array(stream, "sources"), URL_LIMIT)
-                val subtitles = (0 until array(stream, "subtitles").length()).map { i ->
-                    val sub = stream.getJSONArray("subtitles").optJSONObject(i) ?: invalid()
-                    val subUrl = httpsUrl(sub.opt("url") as? String ?: invalid()).toString()
-                    StreamSubtitle(text(sub.opt("id"), 256), subUrl, text(sub.opt("lang"), 80),
-                        text(sub.opt("mimeType"), 120).ifEmpty {
-                            when (URI(subUrl).path.substringAfterLast('.').lowercase(Locale.ROOT)) {
-                                "vtt" -> "text/vtt"; "srt" -> "application/x-subrip"; "ass", "ssa" -> "text/x-ssa"
-                                "ttml" -> "application/ttml+xml"; else -> ""
-                            }
-                        }.takeIf { it.isNotEmpty() })
+                val subtitleValues = if (managed) (stream.optJSONArray("subtitles") ?: JSONArray()).also {
+                    if (it.length() > LIST_LIMIT) invalid()
+                } else array(stream, "subtitles")
+                val subtitles = (0 until subtitleValues.length()).mapNotNull { i ->
+                    try {
+                        val sub = subtitleValues.optJSONObject(i) ?: invalid()
+                        val subUrl = httpsUrl(sub.opt("url") as? String ?: invalid()).toString()
+                        StreamSubtitle(text(sub.opt("id"), 256), subUrl, text(sub.opt("lang") ?: sub.opt("language"), 80),
+                            text(sub.opt("mimeType"), 120).ifEmpty {
+                                when (URI(subUrl).path.substringAfterLast('.').lowercase(Locale.ROOT)) {
+                                    "vtt" -> "text/vtt"; "srt" -> "application/x-subrip"; "ass", "ssa" -> "text/x-ssa"
+                                    "ttml" -> "application/ttml+xml"; else -> ""
+                                }
+                            }.takeIf { it.isNotEmpty() })
+                    } catch (error: Exception) { if (managed) null else throw error }
                 }
                 val target = if (magnet) rawUrl else url?.toString().orEmpty()
                 val identity = listOf(addon.id, target, name, description) +
@@ -321,7 +331,8 @@ internal object SourceProtocol {
                     listOf(infoHash.orEmpty(), fileIdx?.toString().orEmpty()) + trackers + subtitles.map { it.toString() } else emptyList()
                 StreamSource(hash(*(identity + extended).toTypedArray()), addon.id, addon.name,
                     name, description, target, if (url != null) format(stream, hints, url) else VideoFormat.AUTO, headers, desktopTransport,
-                    infoHash, fileIdx, trackers, subtitles, hints.toString(), stream.toString())
+                    infoHash, fileIdx, trackers, subtitles, hints.toString(), stream.toString(),
+                    runCatching { SourceMetadata.parse(stream, hints, addon) }.getOrDefault(SourceDisplay(logoUrl = addon.logoUrl)), managed)
             } catch (_: Exception) {
                 unsupported++
                 continue
@@ -358,7 +369,7 @@ internal object SourceProtocol {
             values.put(JSONObject().put("id", config.id).put("manifestId", config.manifestId)
                 .put("name", config.name).put("manifestUrl", config.manifestUrl)
                 .put("types", JSONArray(config.types.map { it.name }.sorted()))
-                .put("idPrefixes", JSONArray(config.idPrefixes)))
+                .put("idPrefixes", JSONArray(config.idPrefixes)).put("logoUrl", config.logoUrl))
         }
         JSONObject().put("version", 1).put("addons", values).toString().also {
             if (it.toByteArray(Charsets.UTF_8).size > STORE_LIMIT) invalid()
@@ -384,7 +395,7 @@ internal object SourceProtocol {
                 value.opt("manifestId") as? String ?: invalid(),
                 value.opt("name") as? String ?: invalid(),
                 value.opt("manifestUrl") as? String ?: invalid(),
-                storedTypes, strings(array(value, "idPrefixes"), 14)
+                storedTypes, strings(array(value, "idPrefixes"), 14), SourceMetadata.safeLogo(value.opt("logoUrl"))
             ))
         }.distinctBy { it.id }
     }

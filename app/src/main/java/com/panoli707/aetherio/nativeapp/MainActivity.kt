@@ -31,7 +31,6 @@ import com.panoli707.aetherio.nativeapp.data.AetherioViewModel
 import com.panoli707.aetherio.nativeapp.data.UpdateViewModel
 import com.panoli707.aetherio.nativeapp.data.WatchProgressCodec
 import com.panoli707.aetherio.nativeapp.data.DetailLinks
-import com.panoli707.aetherio.nativeapp.data.ProviderHub
 import com.panoli707.aetherio.nativeapp.data.SourcePlayback
 import org.json.JSONArray
 import org.json.JSONObject
@@ -93,7 +92,7 @@ class MainActivity : ComponentActivity() {
                     val target = Intent(this, VideoActivity::class.java)
                         .putExtra(VideoActivity.EXTRA_TITLE, title)
                         .putExtra(VideoActivity.EXTRA_OVERVIEW, query?.item?.overview?.take(4000))
-                        .putExtra(VideoActivity.EXTRA_PROVIDER, source.addonName)
+                        .putExtra(VideoActivity.EXTRA_PROVIDER, source.providerName)
                         .putExtra(VideoActivity.EXTRA_HAS_SOURCES, query != null)
                         .putExtra(VideoActivity.EXTRA_WATCH_TARGET, watchTarget?.let(WatchProgressCodec::encodeTarget))
                         .putExtra(VideoActivity.EXTRA_SUBTITLES, JSONArray().apply {
@@ -104,7 +103,7 @@ class MainActivity : ComponentActivity() {
                     else target.putExtra(VideoActivity.EXTRA_URL, validated)
                         .putExtra(VideoActivity.EXTRA_MIME, format.mimeType)
                         .putExtra(VideoActivity.EXTRA_DESKTOP_HTTP, source.allowDesktopHttp)
-                        .putExtra(VideoActivity.EXTRA_PROVIDER_HEADERS, source.addonId == ProviderHub.config.id)
+                        .putExtra(VideoActivity.EXTRA_PROVIDER_HEADERS, source.allowProviderHeaders)
                         .putExtra(VideoActivity.EXTRA_HEADERS, Bundle().apply {
                             source.headers.forEach { (name, value) -> putString(name, value) }
                         })

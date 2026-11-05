@@ -43,6 +43,10 @@ internal class SourceRepository(client: OkHttpClient = DEFAULT, requestTimeoutMs
         fetch(url, SourceProtocol.STREAM_LIMIT) { SourceProtocol.streams(it, config) }
     }
 
+    suspend fun document(url: String): String = withContext(Dispatchers.IO) {
+        fetch(SourceProtocol.httpsUrl(url), SourceProtocol.MANIFEST_LIMIT) { it }
+    }
+
     private suspend fun <T> fetch(url: HttpUrl, limit: Int, parse: (String) -> T): T {
         repeat(attempts) { attempt ->
             try { return fetchOnce(url, limit, parse) }

@@ -183,4 +183,47 @@ class ProviderHubUiTest {
                 .outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
         }
     }
+
+    @Test fun newHubProviderUsesItsOwnFilterWithoutChangingPlaybackIdentity() {
+        val transport = ProviderHub.config.id
+        val sources = listOf(
+            StreamSource("first", transport, "Aetherio Provider Hub", "First", "", "https://cdn.example/first.mp4",
+                display = SourceDisplay(providerKey = "new", providerName = "Proveedor recién añadido")),
+            StreamSource("second", transport, "Aetherio Provider Hub", "Second", "", "https://cdn.example/second.mp4",
+                display = SourceDisplay(providerKey = "other", providerName = "Otro proveedor"))
+        )
+        var played: StreamSource? = null
+        compose.setContent { AetherioTheme {
+            SourceSheet(AppState(addonsLoading = false, sources = sources), query, {}, { source, _ -> played = source }, {})
+        } }
+        compose.onNodeWithContentDescription("Proveedor recién añadido, 1 fuente").performClick()
+        compose.onNodeWithText("First").assertExists()
+        compose.onNodeWithText("Second").assertDoesNotExist()
+        compose.onNodeWithTag("source:$transport:first").performClick()
+        compose.runOnIdle { assertEquals(transport, played!!.addonId); assertEquals("Proveedor recién añadido", played!!.providerName) }
+    }
+
+    @Test fun desktopStyleCardShowsStructuredFactsSeedersLanguagesAndBadges() {
+        val source = StreamSource("rich", "torrent", "Torrentio", "Torrentio 1080p", "", infoHash = "0123456789abcdef0123456789abcdef01234567",
+            display = SourceDisplay(title = "Black Clover - Episodio 1", size = "1.37 GB", indexer = "NyaaSi", durationMinutes = 24,
+                seeders = 47, languages = listOf("Latino", "Inglés"), badges = listOf("FHD", "AVC", "AAC")))
+        compose.setContent { AetherioTheme {
+            SourceSheet(AppState(addonsLoading = false, sources = listOf(source)), query, {}, { _, _ -> }, {})
+        } }
+        compose.onNodeWithText("Black Clover - Episodio 1").assertIsDisplayed()
+        compose.onNodeWithText("Presentado por Torrentio", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("Tamaño: 1.37 GB | Fuente: NyaaSi | Duración: 24 min", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("47 seeders", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithText("Idiomas: Latino, Inglés", useUnmergedTree = true).assertIsDisplayed()
+        compose.onNodeWithContentDescription("FHD", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("AVC", useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("AAC", useUnmergedTree = true).assertExists()
+        if (InstrumentationRegistry.getArguments().getString("capturePlayer") == "true") {
+            compose.waitForIdle()
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val image = instrumentation.uiAutomation.takeScreenshot()
+            File(instrumentation.targetContext.getExternalFilesDir(null), "source-metadata.png")
+                .outputStream().use { image.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        }
+    }
 }

@@ -71,7 +71,39 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
         }
     }
     Text("Aetherio Provider Hub", style = MaterialTheme.typography.titleLarge)
-    Text("Resolvedor predeterminado integrado. No necesitas añadir addons: el Hub agrega las fuentes en el servidor. Catálogos y fichas siguen integrados en Mobile.", color = Muted)
+    Text("No necesitas añadir addons: los proveedores administrados se sincronizan con el Hub al abrir la app y al buscar o actualizar fuentes, sin actualizar el APK. Catálogos y fichas siguen integrados en Mobile.", color = Muted)
+    if (state.hubDirectoryLoading) LoadingRow("Sincronizando proveedores del Hub…")
+    if (state.hubDirectoryStale) Text("No se pudo actualizar el directorio. Se conserva la última lista válida; vuelve a buscar fuentes para reintentar.", color = Muted)
+    state.hubProviders.filterNot { it.hidden }.forEach { provider ->
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ProviderIcon(provider.name, provider.logoUrl, Modifier.size(30.dp))
+            Column(Modifier.weight(1f)) {
+                Text(provider.name, style = MaterialTheme.typography.titleMedium)
+                Text(when {
+                    provider.config == null -> "Requiere tipos o identificadores aún no compatibles en Mobile"
+                    !provider.enabled -> "Desactivado en el Hub"
+                    else -> "Administrado por el Hub"
+                }, color = Muted, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+    var showRuntimeProviders by rememberSaveable { mutableStateOf(false) }
+    if (state.hubRuntimeProviders.isNotEmpty()) {
+        TextButton(onClick = { showRuntimeProviders = !showRuntimeProviders }) {
+            Text("${if (showRuntimeProviders) "Ocultar" else "Ver"} proveedores del resolvedor (${state.hubRuntimeProviders.size})")
+        }
+        if (showRuntimeProviders) {
+            Text("El servidor consulta estos proveedores. Que estén habilitados no garantiza resultados para todos los títulos.", color = Muted,
+                style = MaterialTheme.typography.bodySmall)
+            state.hubRuntimeProviders.forEach { provider ->
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ProviderIcon(provider.name, provider.logoUrl, Modifier.size(28.dp))
+                    Text(provider.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                    Text(if (provider.enabled) "Habilitado" else "Desactivado", color = Muted, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
     Text("Fuentes adicionales (opcionales)", style = MaterialTheme.typography.titleLarge)
     Text("Desactivadas por defecto para no duplicar las consultas del Hub. Las selecciones antiguas se conservan sin borrarlas; activa aquí solo las fuentes adicionales que quieras consultar directamente. AnimeAV1 sigue siendo nativo e independiente de AnimES.",
         color = Muted)
@@ -132,12 +164,12 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
     var selectedProvider by rememberSaveable(query.key) { mutableStateOf<String?>(null) }
-    val providers = remember(state.sources) { state.sources.distinctBy { it.addonId }.map { it.addonId to it.addonName } }
+    val providers = remember(state.sources) { state.sources.distinctBy { it.providerKey } }
     LaunchedEffect(state.sources, selectedProvider, state.sourcesLoading) {
-        if (!state.sourcesLoading && selectedProvider != null && state.sources.none { it.addonId == selectedProvider }) selectedProvider = null
+        if (!state.sourcesLoading && selectedProvider != null && state.sources.none { it.providerKey == selectedProvider }) selectedProvider = null
     }
     val visibleSources = remember(state.sources, selectedProvider) {
-        if (selectedProvider == null) state.sources else state.sources.filter { it.addonId == selectedProvider }
+        if (selectedProvider == null) state.sources else state.sources.filter { it.providerKey == selectedProvider }
     }
     // Finish the sheet animation before changing the underlying destination.
     val closeThen: (() -> Unit) -> Unit = { action -> scope.launch { sheet.hide(); if (!sheet.isVisible) action() } }
@@ -177,12 +209,15 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                             contentDescription = "Todas las fuentes, ${state.sources.size}"
                         })
                 }
-                providers.forEach { (providerId, providerName) ->
-                    val count = state.sources.count { it.addonId == providerId }
+                providers.forEach { provider ->
+                    val providerId = provider.providerKey
+                    val providerName = provider.providerName
+                    val count = state.sources.count { it.providerKey == providerId }
                     item(key = "provider:$providerId") {
                         FilterChip(selected = selectedProvider == providerId, onClick = { selectedProvider = providerId },
                             colors = sourceFilterColors(), border = BorderStroke(1.dp, if (selectedProvider == providerId) Accent else Outline),
-                            label = { Text("$providerName $count", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                             label = { Text("$providerName $count", maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                             leadingIcon = { ProviderIcon(providerName, provider.display.logoUrl, Modifier.size(20.dp)) },
                             modifier = Modifier.semantics {
                                 contentDescription = "$providerName, $count ${if (count == 1) "fuente" else "fuentes"}"
                             })
@@ -208,42 +243,7 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                     StatusMessage("Sin resultados", "No hay fuentes para este título o episodio. Usa el botón de actualizar para volver a intentarlo.")
                 }
                 items(visibleSources, key = { "${it.addonId}:${it.id}" }) { source ->
-                    Surface(onClick = { onPlay(source, if (source.isTorrent) VideoFormat.AUTO else source.format) },
-                        enabled = source.playable, color = Ink.copy(alpha = .60f), shape = RoundedCornerShape(20.dp),
-                        border = BorderStroke(1.dp, Cream.copy(alpha = .12f)),
-                        modifier = Modifier.fillMaxWidth().testTag("source:${source.addonId}:${source.id}").semantics {
-                            contentDescription = "Seleccionar fuente ${source.name}, proveedor ${source.addonName}"
-                        }) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                            Text(source.name.ifBlank { "Fuente de vídeo" }, style = MaterialTheme.typography.titleMedium,
-                                maxLines = 3, overflow = TextOverflow.Ellipsis)
-                            Text("Presentado por ${source.addonName}", color = Muted, style = MaterialTheme.typography.labelLarge,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            if (source.description.isNotBlank()) Text(source.description, color = Muted, style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 5, overflow = TextOverflow.Ellipsis)
-                            val badges = buildList {
-                                source.format.takeIf { it != VideoFormat.AUTO }?.label?.let(::add)
-                                source.subtitles.map { it.lang.trim() }.filter(String::isNotEmpty).distinct().forEach { add("Sub: $it") }
-                            }
-                            if (badges.isNotEmpty()) {
-                                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    items(badges, key = { it }) { badge ->
-                                        Surface(color = Cream.copy(alpha = .06f), shape = RoundedCornerShape(12.dp),
-                                            border = BorderStroke(1.dp, Cream.copy(alpha = .12f))) {
-                                            Text(badge, modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-                                                style = MaterialTheme.typography.labelLarge, color = Cream)
-                                        }
-                                    }
-                                }
-                            }
-                            if (source.url.startsWith("http://", true)) Text("Esta fuente usa vídeo HTTP sin cifrar en un dominio permitido.",
-                                color = Muted, style = MaterialTheme.typography.bodySmall)
-                            if (source.isTorrent) Text("Torrent P2P · Requiere participantes disponibles y puede consumir muchos datos y almacenamiento.",
-                                color = Muted, style = MaterialTheme.typography.bodySmall)
-                            if (!source.playable) Text("Fuente no compatible", color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
+                    SourceResultCard(source, state, query, onPlay)
                 }
             }
         }

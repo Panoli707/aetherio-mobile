@@ -81,6 +81,23 @@ class AddonsSettingsTest {
         }
     }
 
+    @Test fun managedDirectoryIsListedSeparatelyAndDoesNotExposeConfiguredUrls() {
+        val config = SourceProtocol.manifest("""{"id":"new.provider","name":"Nuevo del Hub","types":["movie"],"resources":["stream"]}""",
+            SourceProtocol.manifestUrl(privateUrl))
+        val state = AppState(addonsLoading = false, hubDirectoryStale = true,
+            hubProviders = listOf(com.panoli707.aetherio.nativeapp.data.HubProvider("new.provider", "Nuevo del Hub", null, config, true, false),
+                com.panoli707.aetherio.nativeapp.data.HubProvider("hidden", "Agregador oculto", null, config, true, true)))
+        compose.setContent { AetherioTheme {
+            Column(Modifier.verticalScroll(rememberScrollState())) { AddonsSettings(state, {}, {}, { _, _ -> }) }
+        } }
+        compose.onNodeWithText("Nuevo del Hub").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Administrado por el Hub").assertExists()
+        compose.onNodeWithText("Agregador oculto").assertDoesNotExist()
+        compose.onNodeWithText("Se conserva la última lista válida", substring = true).assertExists()
+        compose.onNodeWithText(privateUrl, substring = true, useUnmergedTree = true).assertDoesNotExist()
+        compose.onAllNodes(isToggleable()).assertCountEquals(5)
+    }
+
     @Test fun instantReaddWithSameIdsClearsUrlAndRestoresControls() {
         submitInstantly()
 

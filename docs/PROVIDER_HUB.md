@@ -2,11 +2,28 @@
 
 ## Alcance
 
-La versión preliminar **0.13.0** usa `https://aetherio-provider-hub.xoolinnbeats.workers.dev` como único resolvedor **predeterminado** de streams. Esta publicación de Mobile no modifica ni despliega Workers. Los addons personalizados y las fuentes opcionales activadas expresamente siguen disponibles.
+Desde la versión preliminar **0.17.0**, Mobile combina el resolvedor `https://aetherio-provider-hub.xoolinnbeats.workers.dev/stream/...` con el directorio público `/addons.json`, igual que la sincronización de addons de PC. Los proveedores administrados compatibles se incorporan al abrir la app y al buscar o actualizar fuentes, sin recompilar el APK. Esta publicación no modifica ni despliega Workers. Los addons personalizados y las fuentes opcionales activadas expresamente siguen disponibles.
 
-El contrato actual del Hub solo ofrece `stream` para películas y series con IMDb. **Inicio, búsqueda, fichas y episodios conservan TMDB, AniList y Cinemeta integrados; Inicio añade Jikan/MyAnimeList para anime.** Pasar también todos los catálogos y metadatos por el Hub requiere trabajo de backend pendiente: no existen recursos `catalog` ni `meta` en este contrato. `/addons.json` es un directorio, no un proxy de streams.
+El resolvedor del Hub ofrece `stream` para películas y series con IMDb. `/addons.json` es un directorio, no un proxy: Mobile consulta el recurso `stream` de los addons habilitados y compatibles que anuncia. **Inicio, búsqueda, fichas y episodios conservan TMDB, AniList y Cinemeta integrados; Inicio añade Jikan/MyAnimeList para anime.** No se importan los catálogos de los addons. Las entradas que solo admiten deportes u otros identificadores se indican como incompatibles en Ajustes, sin inventar correspondencias.
 
-Mobile no descarga `/scripts/`, no ejecuta `scrapers`, no consulta proveedores individuales indicados por el manifiesto y no replica la selección de hasta seis proveedores ni la reserva de Torrentio que realiza el servidor. Tampoco utiliza `/admin/*` ni necesita `ADMIN_TOKEN`. El Hub resuelve fuentes; los bytes de vídeo se solicitan a la URL de origen, no necesariamente al Worker.
+Mobile no descarga `/scripts/`, no ejecuta `scrapers` ni utiliza `/admin/*` o `ADMIN_TOKEN`. El servidor sigue ejecutando los proveedores de su manifiesto; Mobile lee sus nombres e iconos para atribuir resultados y mostrar el inventario desplegable en Ajustes. Los bytes de vídeo se solicitan a la URL de origen, no necesariamente al Worker. Que un proveedor figure habilitado no garantiza resultados ni reproducción para todos los títulos.
+
+## Sincronización del directorio
+
+- `ProviderHubDirectory.kt` valida `/addons.json` y utiliza `manifestFallback` como contrato público de streams. Los nombres, logos, activación predeterminada, límites de consulta y filtros por prefijo de nombre proceden del directorio, no de una lista compilada.
+- Las rutas relativas de addons se resuelven contra `https://trkll.aetherio.workers.dev`, como en PC; no contra el origen del Hub. Los destinos de manifiesto y los logos deben ser HTTPS.
+- `hiddenInUi` no desactiva consultas: los agregadores siguen aportando resultados, agrupados por el proveedor indicado en su payload.
+- Los últimos directorio y manifiesto públicos válidos se guardan en preferencias independientes. Un fallo de red o un documento parcial/malformado conserva la lista anterior. Una lista vacía válida sí retira los proveedores administrados. No se guardan respuestas de streams.
+- Los addons propios tienen prioridad cuando coinciden por identidad de manifiesto; no se reescriben ni se borran. Las fuentes opcionales explícitas siguen separadas. Se deduplican destinos HTTP con las mismas cabeceras y torrents con el mismo hash/archivo, conservando las variantes de cabeceras o archivo.
+- Los proveedores administrados usan por defecto 55 segundos y un intento. Se respetan los límites declarados por el directorio, acotados a 1–60 segundos y 1–2 intentos; los reintentos siguen limitados a fallos transitorios. La descarga del directorio y del manifiesto tiene un límite de 12 segundos por petición.
+
+## Datos del selector
+
+`SourceMetadata.kt` separa presentación y transporte. Las pestañas y tarjetas muestran nombre e icono del proveedor real, título/archivo, tamaño, indexer, duración, seeders e idiomas cuando esos datos existen. La duración puede proceder de la ficha o del episodio seleccionado. Las etiquetas de resolución, vídeo, audio e idiomas se obtienen de campos explícitos o de marcadores reconocibles del nombre/archivo; no se supone una calidad a partir de HLS ni se interpreta «AnimeAV1» como prueba del codec AV1.
+
+Los 28 gráficos de etiquetas en `app/src/main/assets/stream-tags/` proceden de los recursos del proyecto PC aportado. Los gráficos y marcas pertenecen a sus respectivos titulares. Un fallo al cargar un logo o gráfico mantiene una alternativa escrita. Las etiquetas usan filas adaptables al ancho del móvil. Se conservan panel, fondo, navegación y controles del selector.
+
+La identidad del addon de transporte no se sustituye por el nombre visible: cabeceras, selección de archivo torrent y subtítulos mantienen su ruta de reproducción. Los metadatos visuales incorrectos no descartan un destino válido; los subtítulos malformados de un proveedor administrado se omiten sin pasar URLs inválidas al reproductor. Los agregadores administrados admiten hasta 2.000 resultados bajo el límite de 2 MB y 32 niveles de anidación; las colecciones auxiliares siguen acotadas a 200.
 
 ## Inicialización y migración
 
@@ -16,7 +33,7 @@ Mobile no descarga `/scripts/`, no ejecuta `scrapers`, no consulta proveedores i
 - Los cinco adaptadores antiguos estaban incorporados en código y se activaban sin procedencia individual. Se conserva intacta la preferencia antigua `aetherio_source_settings/desktop`, pero no se consulta automáticamente. Las nuevas activaciones explícitas usan `hub_optional_sources_v1`, vacío por defecto. No se borran addons que coincidan con una fuente antigua: el almacén existente contiene configuraciones añadidas expresamente por el usuario.
 - AnimeAV1 continúa siendo un adaptador nativo independiente y opcional; no se sustituye por AnimES. Activar fuentes adicionales puede duplicar parte del trabajo del Hub y no es necesario para la instalación predeterminada.
 
-Una caída del Hub deja un error con reintento. No borra su registro, no reinstala addons ni activa otros proveedores. Los addons personalizados existentes se mantienen como fuentes explícitas, no como sustitutos silenciosos activados al fallar el Hub.
+Una caída del resolvedor no borra su registro ni activa fuentes opcionales. Los addons administrados del último directorio válido y los proveedores propios se consultan de forma independiente; sus resultados pueden seguir disponibles aunque falle el resolvedor.
 
 ## Resolución y reproducción
 
@@ -26,7 +43,7 @@ Se reutilizan `SourceProtocol`, `SourceRepository`, el selector de fuentes y Med
 
 - HTTP: solo URLs que superan la validación: HTTPS y la excepción HTTP preexistente para `shegu.net` y subdominios. Una cadena cifrada, sin esquema o malformada se rechaza, sin anteponer `https://`. Los indicadores `verified`, `isReal` o `notWebReady` no garantizan reproducción.
 - Torrents: se retienen hashes v1 y magnets válidos, incluso sin `url`, con índice de archivo y trackers. Desde **0.13.0**, el motor integrado los convierte en una ruta HTTP local ligada a la sesión. `SourcePlayback` sigue impidiendo pasar magnets al datasource HTTP. La disponibilidad de participantes y la compatibilidad del dispositivo determinan si se puede reproducir. Consulta [el motor y sus límites](TORRENT_ENGINE.md).
-- Cabeceras: se combinan las cabeceras del stream y `behaviorHints.proxyHeaders.request`, rechazando conflictos, controles e inyección. Para el Hub se admiten también `Accept`, `Accept-Language`, `Authorization`, `Cookie` y `X-Requested-With`; las cabeceras de transporte como `Host` no se aceptan. Son valores devueltos por el proveedor, nunca el token local TMDB. Las credenciales de reproducción se eliminan al cambiar de origen o usar HTTP. Los campos de respuesta del proxy se conservan como metadatos; Mobile no es un proxy HTTP.
+- Cabeceras: se combinan las cabeceras del stream y `behaviorHints.proxyHeaders.request`, rechazando conflictos, controles e inyección. Para el Hub y los addons procedentes de su directorio se admiten también `Accept`, `Accept-Language`, `Authorization`, `Cookie` y `X-Requested-With`; las cabeceras de transporte como `Host` no se aceptan. La procedencia administrada no se restaura desde manifiestos ni desde el almacén de addons del usuario. Son valores devueltos por el proveedor, nunca el token local TMDB. Las credenciales de reproducción se eliminan al cambiar de origen o usar HTTP. Los campos de respuesta del proxy se conservan como metadatos; Mobile no es un proxy HTTP.
 - Subtítulos: se conservan URL, ID, idioma y MIME. Media3 recibe los formatos identificados VTT, SRT, SSA/ASS y TTML; no se promete compatibilidad con todos los formatos o codecs.
 - El Hub usa un timeout total de 45 segundos por intento y como máximo dos intentos; solo se repiten fallos transitorios de transporte o HTTP 408/502/503/504. JSON inválido, errores de contrato y listas vacías no disparan reintentos automáticos. La cancelación cancela OkHttp, incluso durante la lectura del cuerpo. Los cuerpos y colecciones tienen límites de tamaño.
 
@@ -46,7 +63,7 @@ $env:AETHERIO_HUB_LIVE_TESTS = 'true'
 Remove-Item Env:AETHERIO_HUB_LIVE_TESTS
 ```
 
-El test consulta el manifiesto y los ejemplos `tt5311514` y `tt2560140:1:1`. Informa de resultados retenidos, torrents, HTTP válidos y entradas rechazadas; **no fija cantidades**, que dependen del servidor. No prueba reproducción en un dispositivo.
+El test consulta manifiesto, directorio, addons públicos compatibles (incluidos los agregadores ocultos) y los ejemplos `tt5311514` y `tt2560140:1:1`. Informa de resultados retenidos, torrents, HTTP válidos y entradas rechazadas; **no fija cantidades**, que dependen del servidor. No descarga vídeo ni prueba reproducción en un dispositivo.
 
 Para ejecutar las pruebas Android focalizadas, sustituye el serial por el de tu emulador de pruebas:
 

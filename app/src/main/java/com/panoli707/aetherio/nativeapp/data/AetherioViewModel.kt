@@ -27,6 +27,12 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val history = WatchHistoryRepository.get(application)
     private val sourceRepository = SourceRepository()
     private val hubRepository = SourceRepository(requestTimeoutMs = 45_000, attempts = 2)
+    private val hubDirectoryPreferences = application.getSharedPreferences("aetherio_hub_directory", 0)
+    private val hubDirectory = ProviderHubDirectoryRepository(
+        readCache = { hubDirectoryPreferences.getString("public_directory_v1", null) },
+        writeCache = { hubDirectoryPreferences.edit().putString("public_directory_v1", it).apply() },
+        readBrandingCache = { hubDirectoryPreferences.getString("public_manifest_v1", null) },
+        writeBrandingCache = { hubDirectoryPreferences.edit().putString("public_manifest_v1", it).apply() })
     private val providerDefaults = ProviderDefaultsStore(application)
     private val desktopSourceRepository = DesktopSourceRepository(sourceRepository)
     private val sourceSettings = SourceSettingsStore(application)
@@ -116,7 +122,17 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 addonRestoreFailed = true
                 mutableState.update { it.copy(addonsLoading = false, addonError = "No se pudieron abrir los proveedores guardados. Se conservan sin sobrescribir; reinicia la app para reintentar. Provider Hub sigue integrado.") }
             }
+            refreshHubDirectory()
         }
+    }
+
+    private suspend fun refreshHubDirectory(): HubDirectoryResult {
+        mutableState.update { it.copy(hubDirectoryLoading = true) }
+        try {
+            val result = withContext(Dispatchers.IO) { hubDirectory.refresh() }
+            mutableState.update { it.copy(hubProviders = result.providers, hubRuntimeProviders = result.branding, hubDirectoryStale = result.stale) }
+            return result
+        } finally { mutableState.update { it.copy(hubDirectoryLoading = false) } }
     }
 
     fun loadHome() = loadHome(force = false)
@@ -258,8 +274,14 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
             try {
                 addonRestoreJob?.join()
                 ensureActive()
+                val directory = refreshHubDirectory()
                 val desktop = DesktopSources.providers.filter { it.id in state.value.enabledDesktopSources }
                 val addons = state.value.addons.filter { item.type in it.types && desktop.none { provider -> provider.manifestUrl == it.manifestUrl } }
+                val managed = directory.providers.filter { provider ->
+                    provider.enabled && provider.config?.types?.contains(item.type) == true &&
+                        addons.none { !ProviderHub.isHub(it) && it.manifestId == provider.id } &&
+                        desktop.none { it.manifestUrl == provider.config.manifestUrl }
+                }
                 if (addons.isEmpty() && desktop.isEmpty()) {
                     mutableState.update { it.copy(sourcesLoading = false, sourceError = "No hay proveedores compatibles configurados para este título.") }
                     return@launch
@@ -285,12 +307,15 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 }
                 val resolved = query.copy(item = media)
                 mutableState.update { it.copy(sourceQuery = resolved) }
-                var failures = 0
+                var failures = if (directory.stale) 1 else 0
                 var unsupported = 0
                 val lookups = addons.filter { hasImdb }.map { addon -> null to suspend {
                     (if (ProviderHub.isHub(addon)) hubRepository else sourceRepository).sources(addon, repository.providerQuery(resolved, false)) } } +
                     compatibleDesktop.map { provider -> provider.id to suspend {
-                        desktopSourceRepository.sources(provider.id, repository.providerQuery(resolved, provider.id == "animeav1")) } }
+                        desktopSourceRepository.sources(provider.id, repository.providerQuery(resolved, provider.id == "animeav1")) } } +
+                    managed.filter { hasImdb }.map { provider -> null to suspend {
+                        ProviderHubDirectory.filter(provider, SourceRepository(requestTimeoutMs = provider.timeoutMs, attempts = provider.attempts)
+                            .sources(requireNotNull(provider.config), repository.providerQuery(resolved, false))) } }
                 supervisorScope {
                     lookups.forEach { (desktopId, lookup) -> launch {
                         try {
@@ -299,7 +324,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                             unsupported += result.unsupportedCount
                             mutableState.update { current ->
                                 if (current.sourceQuery?.key != resolved.key) current else current.copy(
-                                    sources = (current.sources + result.sources).distinctBy { "${it.addonId}:${it.id}" }
+                                    sources = SourceMetadata.merge(current.sources, directory.decorate(result.sources))
                                 )
                             }
                         } catch (e: CancellationException) { throw e }

@@ -31,6 +31,7 @@ import com.panoli707.aetherio.nativeapp.data.EpisodeWatchScope
 import com.panoli707.aetherio.nativeapp.data.SeriesIdentity
 import com.panoli707.aetherio.nativeapp.data.DesktopHomeCatalog
 import com.panoli707.aetherio.nativeapp.data.HomePreferences
+import com.panoli707.aetherio.nativeapp.data.SourcePreferences
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import kotlinx.coroutines.launch
 import androidx.lifecycle.repeatOnLifecycle
@@ -62,7 +63,8 @@ fun AetherioApp(
     onOpenExternal: (String) -> Unit = {},
     onPlayTrailer: (MediaTrailer) -> Unit = {},
     onBrowse: (String, Boolean) -> Unit = { _, _ -> },
-    onHomePreferencesChange: (HomePreferences) -> Unit = {}
+    onHomePreferencesChange: (HomePreferences) -> Unit = {},
+    onSourcePreferencesChange: (SourcePreferences) -> Unit = {}
 ) {
     var startupComplete by rememberSaveable { mutableStateOf(false) }
     val startupReady = !state.homeLoading || state.sections.isNotEmpty() || state.homeError != null
@@ -202,6 +204,7 @@ fun AetherioApp(
             state.sourceQuery?.let { query ->
                 key(query.key) {
                     SourceSheet(state, query, onDismissSources, onPlaySource,
+                        onPreferencesChange = onSourcePreferencesChange,
                         onRetry = { onRequestSources(query.item, query.season, query.episode) }, onSettings = {
                         focus.clearFocus()
                         onDismissSources()

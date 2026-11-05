@@ -55,7 +55,8 @@ data class SourceDisplay(
     val durationMinutes: Int? = null,
     val seeders: Int? = null,
     val languages: List<String> = emptyList(),
-    val badges: List<String> = emptyList()
+    val badges: List<String> = emptyList(),
+    val resolutionHeight: Int? = null
 )
 
 data class StreamSubtitle(val id: String, val url: String, val lang: String, val mimeType: String? = null)

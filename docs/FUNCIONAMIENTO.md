@@ -84,9 +84,13 @@ Abre una película y pulsa **Reproducir**. Para una serie, elige la temporada y 
 
 **Seleccionar fuente** es un panel translúcido, con fondo desenfocado en Android 12 o posterior. Puedes filtrar por proveedor y tocar la tarjeta completa de una fuente para elegirla; no hay un botón Reproducir dentro de cada tarjeta ni un selector de formato. Se respeta el formato detectado. El botón **Actualizar fuentes**, arriba a la derecha, repite la consulta y permanece visible al desplazar los resultados; se desactiva mientras carga.
 
+Junto a actualizar está **Preferencias de fuentes**. Tócalo para priorizar idioma y calidad, incluida 4K; mantenlo pulsado para abrir el menú contextual y gestionar favoritos. La estrella de cada tarjeta guarda esa fuente sin reproducirla. Puedes marcar también un proveedor para priorizar sus resultados en otros títulos. El orden es favoritos, idioma y calidad exacta elegida, sin ocultar fuentes ni alterar los recuentos. Las preferencias se conservan localmente. Los enlaces firmados pueden cambiar; para una preferencia entre títulos, marca el proveedor. Restablecer las preferencias de orden no elimina favoritos.
+
+El semáforo de seeders sigue los umbrales de PC: 0 en rojo, 1–9 en amarillo y desde 10 en verde. Si faltan datos, se indica «Seeders sin reportar». El número procede del proveedor y no garantiza que un torrent sea reproducible.
+
 AnimeAV1 busca por el título exacto de la entrega sin exigir IMDb. En las fichas unificadas se usa la entrega y el episodio que indica la tabla de equivalencias, no un desplazamiento calculado por el nombre. Admite enlaces directos y los servidores públicos Zilla, MP4Upload y YourUpload cuando puede resolverlos sin ejecutar JavaScript ni iniciar una sesión. Si ya habías guardado tu selección de fuentes antes de añadir AnimeAV1, activa su interruptor en Ajustes.
 
-El motor integrado permite intentar reproducir las fuentes torrent compatibles, conservando índice de archivo y trackers; nunca se envían magnets a Media3 como si fueran MP4. Los scrapers y ejecutores de proveedores JavaScript de PC no están incluidos. Que el Hub devuelva una fuente no garantiza que su URL, formato o codec funcione en el dispositivo. Consulta [las restricciones y el aviso P2P](TORRENT_ENGINE.md).
+El motor integrado permite intentar reproducir las fuentes torrent compatibles directamente, sin un diálogo P2P previo, conservando índice de archivo y trackers; nunca se envían magnets a Media3 como si fueran MP4. Los scrapers y ejecutores de proveedores JavaScript de PC no están incluidos. Que el Hub devuelva una fuente no garantiza que su URL, formato o codec funcione en el dispositivo. Consulta [las restricciones y la privacidad P2P](TORRENT_ENGINE.md).
 
 Para añadir un proveedor propio:
 

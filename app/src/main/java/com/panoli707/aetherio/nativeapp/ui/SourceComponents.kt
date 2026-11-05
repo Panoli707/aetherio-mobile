@@ -159,7 +159,8 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> Unit,
-    onPlay: (StreamSource, VideoFormat) -> Unit, onSettings: () -> Unit, onRetry: () -> Unit = {}) {
+    onPlay: (StreamSource, VideoFormat) -> Unit, onSettings: () -> Unit, onRetry: () -> Unit = {},
+    onPreferencesChange: (SourcePreferences) -> Unit = {}) {
     val hasProviders = state.addons.isNotEmpty() || state.enabledDesktopSources.isNotEmpty()
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -168,8 +169,9 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
     LaunchedEffect(state.sources, selectedProvider, state.sourcesLoading) {
         if (!state.sourcesLoading && selectedProvider != null && state.sources.none { it.providerKey == selectedProvider }) selectedProvider = null
     }
-    val visibleSources = remember(state.sources, selectedProvider) {
-        if (selectedProvider == null) state.sources else state.sources.filter { it.providerKey == selectedProvider }
+    val visibleSources = remember(state.sources, selectedProvider, state.sourcePreferences) {
+        SourcePreferenceRules.order(if (selectedProvider == null) state.sources else
+            state.sources.filter { it.providerKey == selectedProvider }, state.sourcePreferences)
     }
     // Finish the sheet animation before changing the underlying destination.
     val closeThen: (() -> Unit) -> Unit = { action -> scope.launch { sheet.hide(); if (!sheet.isVisible) action() } }
@@ -196,6 +198,7 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                     Text(if (query.season != null && query.episode != null) "Temporada ${query.season} · Episodio ${query.episode}"
                         else "Fuentes de reproducción", color = Muted, style = MaterialTheme.typography.bodySmall)
                 }
+                SourcePreferenceButton(state.sourcePreferences, state.sources, selectedProvider, onPreferencesChange)
                 SourceToolbarAction("Actualizar fuentes", Icons.Default.Refresh, onRetry,
                     enabled = !state.sourcesLoading && !state.addonsLoading, loading = state.sourcesLoading)
             }
@@ -243,7 +246,7 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                     StatusMessage("Sin resultados", "No hay fuentes para este título o episodio. Usa el botón de actualizar para volver a intentarlo.")
                 }
                 items(visibleSources, key = { "${it.addonId}:${it.id}" }) { source ->
-                    SourceResultCard(source, state, query, onPlay)
+                    SourceResultCard(source, state, query, onPlay, onPreferencesChange)
                 }
             }
         }

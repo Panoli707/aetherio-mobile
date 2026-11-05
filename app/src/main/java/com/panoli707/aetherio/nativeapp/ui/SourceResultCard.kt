@@ -5,10 +5,13 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
@@ -32,7 +35,7 @@ internal fun ProviderIcon(name: String, logo: String?, modifier: Modifier = Modi
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun SourceResultCard(source: StreamSource, state: AppState, query: SourceQuery,
-    onPlay: (StreamSource, VideoFormat) -> Unit) {
+    onPlay: (StreamSource, VideoFormat) -> Unit, onPreferencesChange: (SourcePreferences) -> Unit = {}) {
     val metadata = source.display
     val duration = metadata.durationMinutes ?: state.detail?.takeIf { it.item.key == query.item.key }?.let { detail ->
         if (query.episode == null) detail.runtimeMinutes else detail.episodes.firstOrNull {
@@ -54,15 +57,24 @@ internal fun SourceResultCard(source: StreamSource, state: AppState, query: Sour
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 3, overflow = TextOverflow.Ellipsis)
                 Text("Presentado por ${source.providerName}", color = Cream, style = MaterialTheme.typography.labelLarge,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                     maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (SourcePreferenceRules.providerKey(source) in state.sourcePreferences.favoriteProviders)
+                    Text("Proveedor favorito", color = Accent, style = MaterialTheme.typography.labelSmall)
                 val facts = listOfNotNull(metadata.size?.let { "Tamaño: $it" }, metadata.indexer?.let { "Fuente: $it" },
                     duration?.let { "Duración: $it min" })
                 if (facts.isNotEmpty()) Text(facts.joinToString(" | "), color = Muted, style = MaterialTheme.typography.bodySmall)
                 if (source.isTorrent) Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                    if (metadata.seeders != null) {
-                        Icon(Icons.Default.People, null, Modifier.size(15.dp), tint = Accent)
-                        Text("${metadata.seeders} seeders", color = Accent, style = MaterialTheme.typography.labelMedium)
+                    val level = SeederLevel.of(metadata.seeders)
+                    val color = when (level) {
+                        SeederLevel.LOW -> Color(0xFFFCA5A5)
+                        SeederLevel.MEDIUM -> Color(0xFFFCD34D)
+                        SeederLevel.HIGH -> Color(0xFF6EE7B7)
+                        SeederLevel.UNKNOWN -> Muted
                     }
+                    Icon(Icons.Default.People, null, Modifier.size(15.dp), tint = color)
+                    Text(if (level == SeederLevel.UNKNOWN) "Seeders sin reportar" else "${metadata.seeders} seeders",
+                        color = color, style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.semantics { stateDescription = level.description })
                     Text("Torrent", color = Cream, style = MaterialTheme.typography.labelMedium)
                 }
                 if (languages.isNotEmpty()) Text("Idiomas: ${languages.joinToString(", ")}", color = Cream,
@@ -82,10 +94,16 @@ internal fun SourceResultCard(source: StreamSource, state: AppState, query: Sour
                 }
                 if (source.url.startsWith("http://", true)) Text("Vídeo HTTP sin cifrar en un dominio permitido.",
                     color = Muted, style = MaterialTheme.typography.bodySmall)
-                if (source.isTorrent) Text("P2P · Requiere participantes y puede consumir datos y almacenamiento.",
-                    color = Muted, style = MaterialTheme.typography.bodySmall)
                 if (!source.playable) Text("Fuente no compatible", color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall)
+            }
+            val favorite = SourcePreferenceRules.sourceKey(source) in state.sourcePreferences.favoriteSources
+            IconToggleButton(checked = favorite, onCheckedChange = {
+                onPreferencesChange(SourcePreferenceRules.toggleSource(source, state.sourcePreferences))
+            }, modifier = Modifier.size(48.dp).testTag("favorite:${source.addonId}:${source.id}").semantics {
+                contentDescription = if (favorite) "Quitar fuente de favoritos" else "Marcar fuente favorita"
+            }) {
+                Icon(if (favorite) Icons.Default.Star else Icons.Outlined.StarBorder, null, tint = if (favorite) Accent else Muted)
             }
         }
     }

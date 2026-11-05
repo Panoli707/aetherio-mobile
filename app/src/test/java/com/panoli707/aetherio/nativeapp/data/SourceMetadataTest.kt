@@ -38,6 +38,16 @@ class SourceMetadataTest {
         assertFalse(stream.display.badges.contains("AV1"))
         assertFalse(stream.display.badges.contains("FHD"))
         assertEquals("HLS", stream.format.label)
+        assertTrue(stream.display.languages.isEmpty())
+    }
+
+    @Test fun intermediateAnd4kResolutionsAreNormalizedWithoutAffectingPlayback() {
+        listOf("2160p" to 2160, "4K" to 2160, "UHD" to 2160, "1440p" to 1440, "1080p" to 1080,
+            "720p" to 720, "480p" to 480, "360p" to 360).forEach { (label, height) ->
+            val stream = source("""{"url":"https://cdn.example/video.mp4","quality":"$label"}""")
+            assertEquals(height, stream.display.resolutionHeight)
+            assertEquals("https://cdn.example/video.mp4", stream.url)
+        }
     }
 
     @Test fun badOptionalSubtitlesAreOmittedWithoutDroppingValidManagedVideo() {

@@ -16,12 +16,6 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import com.panoli707.aetherio.nativeapp.data.StreamSource
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import com.panoli707.aetherio.nativeapp.player.torrent.TorrentRequestParser
@@ -55,7 +49,6 @@ class MainActivity : ComponentActivity() {
             val state by model.state.collectAsStateWithLifecycle()
             val updates by updateModel.state.collectAsStateWithLifecycle()
             val activityState by lifecycle.currentStateFlow.collectAsStateWithLifecycle()
-            var pendingTorrent by remember { mutableStateOf<StreamSource?>(null) }
             val videoLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
                 if (result.resultCode == RESULT_OK && result.data?.getBooleanExtra(VideoActivity.EXTRA_FIND_SOURCES, false) == true) {
                     model.reopenPlaybackSources()
@@ -113,12 +106,6 @@ class MainActivity : ComponentActivity() {
                     Toast.makeText(this, "No se pudo abrir esta fuente. Prueba otra opción.", Toast.LENGTH_LONG).show()
                 }
             }
-            pendingTorrent?.let { source ->
-                AlertDialog(onDismissRequest = { pendingTorrent = null }, title = { Text("Reproducción torrent P2P") },
-                    text = { Text("Tu dirección IP puede ser visible para otros participantes. Esta fuente puede consumir muchos datos y almacenamiento. La subida de contenido está desactivada. Usa contenido que tengas permiso para reproducir.") },
-                    confirmButton = { TextButton(onClick = { pendingTorrent = null; launchSource(source, VideoFormat.AUTO) }) { Text("Continuar") } },
-                    dismissButton = { TextButton(onClick = { pendingTorrent = null }) { Text("Cancelar") } })
-            }
             AetherioApp(
                 state = state,
                 updates = updates,
@@ -129,6 +116,7 @@ class MainActivity : ComponentActivity() {
                 onLoadAnimeSeason = model::loadAnimeSeason,
                 onBrowse = model::loadBrowse,
                 onHomePreferencesChange = model::setHomePreferences,
+                onSourcePreferencesChange = model::setSourcePreferences,
                 onOpenExternal = { url ->
                     val validated = DetailLinks.validate(url)
                     if (validated != null) try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(validated))) }
@@ -151,10 +139,7 @@ class MainActivity : ComponentActivity() {
                 onDismissSources = model::dismissSources,
                 onUpdateAction = updateModel::onAction,
                 onAutomaticUpdatesChange = updateModel::setAutomatic,
-                onPlaySource = { source, format ->
-                    if (source.isTorrent) { if (pendingTorrent == null) pendingTorrent = source }
-                    else launchSource(source, format)
-                },
+                onPlaySource = launchSource,
                 onOpenVideo = { url, format ->
                     try {
                         val validated = MediaUrlPolicy.validate(url)

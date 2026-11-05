@@ -63,8 +63,11 @@ internal object SourceMetadata {
             stream.opt(key)?.takeUnless { it == JSONObject.NULL } ?: hints.opt(key)?.takeUnless { it == JSONObject.NULL }
         }
         val explicitLanguages = list(value("languages", "language")).map(::language)
+        val languageText = rawText.lineSequence().filterNot {
+            Regex("(?i)^\\s*(?:sub(?:s|titles|títulos)?|subtitulado)\\s*:").containsMatchIn(it)
+        }.joinToString("\n")
         val languages = (if (explicitLanguages.isNotEmpty()) explicitLanguages else languagePatterns.mapIndexedNotNull { i, regex ->
-            languageNames[i].first.takeIf { regex.containsMatchIn(rawText) }
+            languageNames[i].first.takeIf { regex.containsMatchIn(languageText) }
         }).distinct().take(20)
         val bytes = number(value("size", "videoSize"))?.takeIf { it > 0 && it < 1e16 }
         val size = bytes?.let {
@@ -84,13 +87,17 @@ internal object SourceMetadata {
             "audioCodec", "audio_codec", "audioProfile", "dynamicRange", "bitDepth", "audioChannels")
             .mapNotNull { key -> text(value(key)) ?: text(technical.opt(key)) ?: (value(key) as? Number)?.toString()
                 ?: (technical.opt(key) as? Number)?.toString() }.joinToString(" ") + " " + rawText
+        val resolution = Regex("(?<!\\d)(2160|1440|1080|720|480|360)(?:p|px)?(?!\\d)", RegexOption.IGNORE_CASE)
+            .find(techText)?.groupValues?.get(1)?.toIntOrNull()
+            ?: 2160.takeIf { Regex("\\b(?:4k|uhd)\\b", RegexOption.IGNORE_CASE).containsMatchIn(techText) }
         val badges = buildList {
-            val resolution = Regex("(?<!\\d)(2160|1080|720|480)(?:p|px)?(?!\\d)", RegexOption.IGNORE_CASE).find(techText)?.groupValues?.get(1)
             when {
-                resolution == "2160" || Regex("\\b4k\\b", RegexOption.IGNORE_CASE).containsMatchIn(techText) -> add("4K")
-                resolution == "1080" -> add("FHD")
-                resolution == "720" -> add("HD")
-                resolution == "480" -> add("SD")
+                resolution == 2160 -> add("4K")
+                resolution == 1440 -> add("1440p")
+                resolution == 1080 -> add("FHD")
+                resolution == 720 -> add("HD")
+                resolution == 480 -> add("SD")
+                resolution == 360 -> add("360p")
             }
             listOf("HEVC" to "hevc|[hx][ ._-]?265", "AVC" to "avc|[hx][ ._-]?264", "AV1" to "av1",
                 "AAC" to "aac", "FLAC" to "flac", "OPUS" to "opus", "DTS" to "dts", "DD+" to "e-?ac-?3|ddp",
@@ -117,7 +124,7 @@ internal object SourceMetadata {
                     !Regex("(?:💾|👤|👥)|(?i)\\b\\d+(?:[.,]\\d+)?\\s*[KMGT]i?B\\b").containsMatchIn(line)
             }
         return SourceDisplay(provider?.let { "${addon.id}:$it" }, provider, addon.logoUrl,
-            title, size, indexer, duration, seeders, languages, badges)
+            title, size, indexer, duration, seeders, languages, badges, resolution)
     }
 
     /** Deduplicate real playback targets, without conflating distinct headers or torrent file selections. */

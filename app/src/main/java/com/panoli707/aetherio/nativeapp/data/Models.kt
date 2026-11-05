@@ -129,6 +129,7 @@ data class AppState(
     val addonOperation: Long = 0,
     val addonError: String? = null,
     val sourceQuery: SourceQuery? = null,
+    val sourcePreferences: SourcePreferences = SourcePreferences(),
     val sourcesLoading: Boolean = false,
     val sources: List<StreamSource> = emptyList(),
     val sourceError: String? = null

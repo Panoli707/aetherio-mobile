@@ -39,6 +39,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val addonStore = AddonStore(application)
     private val mutableState = MutableStateFlow(AppState(savedItems = SeriesIdentity.items(library.savedItems), profileName = library.profileName,
         homePreferences = homePreferencesStore.load(),
+        sourcePreferences = sourceSettings.loadPreferences(),
         enabledDesktopSources = sourceSettings.enabledDesktopSources))
     val state: StateFlow<AppState> = mutableState.asStateFlow()
     private var homeJob: Job? = null
@@ -63,6 +64,11 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
 
     fun reopenPlaybackSources() {
         playbackQuery?.let { requestSources(it.item, it.season, it.episode) }
+    }
+
+    fun setSourcePreferences(value: SourcePreferences) {
+        sourceSettings.savePreferences(value)
+        mutableState.update { it.copy(sourcePreferences = value) }
     }
 
     fun resume(progress: WatchProgress) {

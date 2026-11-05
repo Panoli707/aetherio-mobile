@@ -3,7 +3,7 @@
 ## Reproducir una fuente
 
 1. Abre una ficha y busca sus fuentes.
-2. Toca la tarjeta de una fuente torrent. Confirma el aviso P2P solo si tienes permiso para reproducir ese contenido.
+2. Toca la tarjeta de una fuente torrent para abrir directamente el reproductor, sin un aviso P2P intermedio. Usa contenido que tengas permiso para reproducir.
 3. Espera los metadatos. Si el proveedor no identifica un archivo y el torrent contiene varios vídeos, selecciona el episodio/archivo.
 4. Usa los controles habituales. **Cambiar fuente** vuelve a la búsqueda; **Reintentar** crea una sesión nueva.
 

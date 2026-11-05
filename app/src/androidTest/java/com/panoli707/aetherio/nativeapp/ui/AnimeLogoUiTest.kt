@@ -42,7 +42,7 @@ class AnimeLogoUiTest {
             file.parentFile!!.mkdirs()
             file.outputStream().use { compose.onNodeWithTag("detailTitle").captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
         }
-        compose.runOnIdle { item.value = item.value.copy(id = "1", title = "Sin logo", source = CatalogSource.ANILIST) }
+        compose.runOnIdle { item.value = item.value.copy(id = "999999999", title = "Sin logo", source = CatalogSource.ANILIST) }
         compose.onNodeWithText("Sin logo").assertIsDisplayed()
         compose.onNodeWithTag("detailLogo").assertDoesNotExist()
     }

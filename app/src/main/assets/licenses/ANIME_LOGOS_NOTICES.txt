@@ -11,3 +11,11 @@ https://www.crunchyroll.com/series/GT00383999/firefly-wedding
 
 Se conservaron colores y transparencia. Solo se recortaron márgenes transparentes.
 La procedencia y los identificadores se documentan en third_party/anime-logos/README.md.
+
+Catálogo adicional de logos transparentes consultados en TMDB:
+https://www.themoviedb.org/
+Las imágenes y marcas pertenecen a sus respectivos titulares; no son obras propias
+de Aetherio ni están cubiertas por la licencia del código. No se implica afiliación.
+IDs, URLs originales y hashes SHA-256 por recurso: anime-logo-catalog.json, incluido
+en los recursos del APK y en app/src/main/resources/ del código fuente.
+La auditoría, sus límites y los casos pendientes se documentan en docs/artwork/.

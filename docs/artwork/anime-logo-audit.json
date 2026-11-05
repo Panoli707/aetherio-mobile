@@ -1,0 +1,3757 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-05T12:47:45.467350+00:00",
+  "scope": [
+    "home:POPULARITY_DESC",
+    "home:TRENDING_DESC",
+    "home:SCORE_DESC",
+    "season:FALL:2026",
+    "recent:30-JST-days",
+    "home-equivalent:anilist:favorites",
+    "home-equivalent:anilist:upcoming",
+    "home-equivalent:anilist:movies",
+    "home-equivalent:anilist:decade:1990",
+    "home-equivalent:anilist:decade:2000",
+    "home-equivalent:anilist:decade:2010"
+  ],
+  "unavailableScopes": [
+    "home:jikan:recommendations/anime",
+    "home:jikan:top/anime?filter=favorite",
+    "home:jikan:top/anime?filter=bypopularity",
+    "home:jikan:seasons/upcoming?sfw=true",
+    "home:jikan:top/anime?type=movie&filter=bypopularity",
+    "home:jikan:anime?start_date=1990-01-01&end_date=1999-12-31&order_by=score&sort=desc&min_score=7&sfw=true&limit=25",
+    "home:jikan:anime?start_date=2000-01-01&end_date=2009-12-31&order_by=score&sort=desc&min_score=7&sfw=true&limit=25",
+    "home:jikan:anime?start_date=2010-01-01&end_date=2019-12-31&order_by=score&sort=desc&min_score=7&sfw=true&limit=25"
+  ],
+  "scopeLimit": "Current home first pages, full current releasing season and 30 Japanese days of recent broadcasts; not the entire historical anime catalog.",
+  "total": 284,
+  "summary": {
+    "added": 144,
+    "already-bundled": 4,
+    "identity-not-verified": 69,
+    "lookup-failed": 9,
+    "no-valid-transparent-logo": 56,
+    "rejected-after-visual-review": 2
+  },
+  "entries": [
+    {
+      "aniListId": "1",
+      "title": "Cowboy Bebop",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:favorites",
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "30991",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/30991/images",
+      "status": "added",
+      "asset": "anilist_1.png",
+      "source": "https://image.tmdb.org/t/p/original/qE3UTBT2g7DG0BVj9u2YY6XoiUu.png"
+    },
+    {
+      "aniListId": "5",
+      "title": "Cowboy Bebop: The Movie - Knockin' on Heaven's Door",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "11299",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/11299/images",
+      "status": "added",
+      "asset": "anilist_5.png",
+      "source": "https://image.tmdb.org/t/p/original/kxRkMWA9D8YAfjNgPh7iPcOK0UT.png"
+    },
+    {
+      "aniListId": "6",
+      "title": "Trigun",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "26453",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/26453/images",
+      "status": "added",
+      "asset": "anilist_6.png",
+      "source": "https://image.tmdb.org/t/p/original/vy1vLGekIIV3fw97jtMDXAeMc1o.png"
+    },
+    {
+      "aniListId": "19",
+      "title": "Monster",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "30981",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/30981/images",
+      "status": "added",
+      "asset": "anilist_19.png",
+      "source": "https://image.tmdb.org/t/p/original/lB3wpetb1ojeu8OUbioSxI7kdXT.png"
+    },
+    {
+      "aniListId": "20",
+      "title": "Naruto",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home:TRENDING_DESC",
+        "home-equivalent:anilist:favorites"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "21",
+      "title": "ONE PIECE",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home:TRENDING_DESC",
+        "home-equivalent:anilist:favorites",
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "30",
+      "title": "Neon Genesis Evangelion",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:favorites",
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "890",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/890/images",
+      "status": "added",
+      "asset": "anilist_30.png",
+      "source": "https://image.tmdb.org/t/p/original/jNIXy1QNfYKzHCarH043bjOjBOD.png"
+    },
+    {
+      "aniListId": "32",
+      "title": "Neon Genesis Evangelion: The End of Evangelion",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies",
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "18491",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/18491/images",
+      "status": "added",
+      "asset": "anilist_32.png",
+      "source": "https://image.tmdb.org/t/p/original/3k5d1Spei5C4vx6zbs5ZfwTRNno.png"
+    },
+    {
+      "aniListId": "33",
+      "title": "Berserk",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "35935",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/35935/images",
+      "status": "added",
+      "asset": "anilist_33.png",
+      "source": "https://image.tmdb.org/t/p/original/e1yog5vpUISdd3NDqllfNX3ckuf.png"
+    },
+    {
+      "aniListId": "43",
+      "title": "Ghost in the Shell",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "9323",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/9323/images",
+      "status": "added",
+      "asset": "anilist_43.png",
+      "source": "https://image.tmdb.org/t/p/original/nAmJsTDt4QKhmrHgYA4syIzwcLl.png"
+    },
+    {
+      "aniListId": "44",
+      "title": "Rurouni Kenshin OVA: Trust & Betrayal (Tsuioku-hen)",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "317885",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/317885/images",
+      "status": "added",
+      "asset": "anilist_44.png",
+      "source": "https://image.tmdb.org/t/p/original/wJiZg3mV3WawimMkdF4pZ2sXXAH.png"
+    },
+    {
+      "aniListId": "47",
+      "title": "Akira",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "149",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/149/images",
+      "status": "lookup-failed",
+      "errorType": "UnidentifiedImageError"
+    },
+    {
+      "aniListId": "95",
+      "title": "Turn A Gundam",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "37546",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/37546/images",
+      "status": "added",
+      "asset": "anilist_95.png",
+      "source": "https://image.tmdb.org/t/p/original/bM3QlpNbmSCnHLuqRy9TAMGLGsC.png"
+    },
+    {
+      "aniListId": "136",
+      "title": "Hunter x Hunter",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "45952",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/45952/images",
+      "status": "added",
+      "asset": "anilist_136.png",
+      "source": "https://image.tmdb.org/t/p/original/qDSB90QFXHQayEOgtN5kqFzbOlw.png"
+    },
+    {
+      "aniListId": "164",
+      "title": "Princess Mononoke",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies",
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "128",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/128/images",
+      "status": "added",
+      "asset": "anilist_164.png",
+      "source": "https://image.tmdb.org/t/p/original/llPoqIFtseYRY3eAwD5pPBPFSDw.png"
+    },
+    {
+      "aniListId": "170",
+      "title": "Slam Dunk",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "185",
+      "title": "Initial D 1st Stage",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "40424",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/40424/images",
+      "status": "added",
+      "asset": "anilist_185.png",
+      "source": "https://image.tmdb.org/t/p/original/tkaFoGYZugttnc6A2W1DUK8oRFK.png"
+    },
+    {
+      "aniListId": "186",
+      "title": "Initial D 2nd Stage",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "40424",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/40424/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "199",
+      "title": "Spirited Away",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies",
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "129",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/129/images",
+      "status": "added",
+      "asset": "anilist_199.png",
+      "source": "https://image.tmdb.org/t/p/original/6n7pU5eBm3lIKM70PIojvEWAD2O.png"
+    },
+    {
+      "aniListId": "205",
+      "title": "Samurai Champloo",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "1063",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/1063/images",
+      "status": "added",
+      "asset": "anilist_205.png",
+      "source": "https://image.tmdb.org/t/p/original/x9It99iyb9PJifywXtWfDB6FYmX.png"
+    },
+    {
+      "aniListId": "232",
+      "title": "Cardcaptor Sakura",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "35790",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/35790/images",
+      "status": "added",
+      "asset": "anilist_232.png",
+      "source": "https://image.tmdb.org/t/p/original/c28DkuL1JbFPkQUjWq3oCVr8ata.png"
+    },
+    {
+      "aniListId": "235",
+      "title": "Detective Conan",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days",
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "30983",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/30983/images",
+      "status": "added",
+      "asset": "anilist_235.png",
+      "source": "https://image.tmdb.org/t/p/original/mliYec9AVYK8Mv1R9c5vldVJSdO.png"
+    },
+    {
+      "aniListId": "245",
+      "title": "GTO: Great Teacher Onizuka",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "43017",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/43017/images",
+      "status": "added",
+      "asset": "anilist_245.png",
+      "source": "https://image.tmdb.org/t/p/original/5EsSjcltlc6ibiU3FpoylCuItNr.png"
+    },
+    {
+      "aniListId": "263",
+      "title": "Hajime no Ippo: The Fighting!",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "42705",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/42705/images",
+      "status": "added",
+      "asset": "anilist_263.png",
+      "source": "https://image.tmdb.org/t/p/original/qlJ4cCqnHNs8cPEZDlM67RwZIFQ.png"
+    },
+    {
+      "aniListId": "269",
+      "title": "Bleach",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "home-equivalent:anilist:favorites"
+      ],
+      "tmdbId": "30984",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/30984/images",
+      "status": "added",
+      "asset": "anilist_269.png",
+      "source": "https://image.tmdb.org/t/p/original/o70efegfXs54CWmstnk1MXnFJ8I.png",
+      "visualReview": "Revisión visual: usar el logo clásico de Bleach, no el subtítulo de Thousand-Year Blood War."
+    },
+    {
+      "aniListId": "339",
+      "title": "Serial Experiments Lain",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "1087",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/1087/images",
+      "status": "added",
+      "asset": "anilist_339.png",
+      "source": "https://image.tmdb.org/t/p/original/x60va4fY0QKyE5WbKo0l4frl4XM.png"
+    },
+    {
+      "aniListId": "392",
+      "title": "Yu Yu Hakusho: Ghostfiles",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "30669",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/30669/images",
+      "status": "added",
+      "asset": "anilist_392.png",
+      "source": "https://image.tmdb.org/t/p/original/axNJ1lZM6Pk8y9iVDAYQeN6FkF8.png"
+    },
+    {
+      "aniListId": "431",
+      "title": "Howl‘s Moving Castle",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies",
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "4935",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/4935/images",
+      "status": "added",
+      "asset": "anilist_431.png",
+      "source": "https://image.tmdb.org/t/p/original/t1RgdiMy3vvwYTWrpqWPHOKeoEJ.png"
+    },
+    {
+      "aniListId": "437",
+      "title": "Perfect Blue",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies",
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "10494",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/10494/images",
+      "status": "added",
+      "asset": "anilist_437.png",
+      "source": "https://image.tmdb.org/t/p/original/nWComdcOnjU8PyPG9viNugMalnF.png"
+    },
+    {
+      "aniListId": "440",
+      "title": "Revolutionary Girl Utena",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "1042",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/1042/images",
+      "status": "added",
+      "asset": "anilist_440.png",
+      "source": "https://image.tmdb.org/t/p/original/2Pd5rCKKAd1DvDaA6iNbXUGf7b2.png"
+    },
+    {
+      "aniListId": "441",
+      "title": "Revolutionary Girl Utena: The Adolescence of Utena",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "19738",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/19738/images",
+      "status": "added",
+      "asset": "anilist_441.png",
+      "source": "https://image.tmdb.org/t/p/original/6g85AnIbY626deMGngOPsBMaBrD.png"
+    },
+    {
+      "aniListId": "457",
+      "title": "MUSHI-SHI",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "26867",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/26867/images",
+      "status": "added",
+      "asset": "anilist_457.png",
+      "source": "https://image.tmdb.org/t/p/original/xFiCp8wraCYN2l2aYJPI4hLxniT.png"
+    },
+    {
+      "aniListId": "467",
+      "title": "Ghost in the Shell: Stand Alone Complex",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "1095",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/1095/images",
+      "status": "added",
+      "asset": "anilist_467.png",
+      "source": "https://image.tmdb.org/t/p/original/1JPbD26yX4nUA0oZegyqnlI0ahc.png"
+    },
+    {
+      "aniListId": "523",
+      "title": "My Neighbor Totoro",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "8392",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/8392/images",
+      "status": "added",
+      "asset": "anilist_523.png",
+      "source": "https://image.tmdb.org/t/p/original/9EZz40J9JOWJnWK1cGG7uCNEW8s.png"
+    },
+    {
+      "aniListId": "578",
+      "title": "Grave of the Fireflies",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "12477",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/12477/images",
+      "status": "added",
+      "asset": "anilist_578.png",
+      "source": "https://image.tmdb.org/t/p/original/xnPwJ03UcrGL13eR1mYAVGDmA1N.png"
+    },
+    {
+      "aniListId": "585",
+      "title": "Whisper of the Heart",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "37797",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/37797/images",
+      "status": "added",
+      "asset": "anilist_585.png",
+      "source": "https://image.tmdb.org/t/p/original/8gm9b0OKGnDLXGGABifXosBrzd.png"
+    },
+    {
+      "aniListId": "801",
+      "title": "Ghost in the Shell: Stand Alone Complex 2nd GIG",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "1095",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/1095/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "820",
+      "title": "Legend of the Galactic Heroes",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC"
+      ],
+      "tmdbId": "27660",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/27660/images",
+      "status": "added",
+      "asset": "anilist_820.png",
+      "source": "https://image.tmdb.org/t/p/original/7brhNxFjohzRaHv05F8KTGrC80l.png"
+    },
+    {
+      "aniListId": "877",
+      "title": "NANA",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "56568",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/56568/images",
+      "status": "added",
+      "asset": "anilist_877.png",
+      "source": "https://image.tmdb.org/t/p/original/tAxaq8MCv4VBbIUzul91E4xdRQY.png"
+    },
+    {
+      "aniListId": "918",
+      "title": "Gintama",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "57041",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/57041/images",
+      "status": "added",
+      "asset": "anilist_918.png",
+      "source": "https://image.tmdb.org/t/p/original/2GFz7E2Z1UWiWqOv2YGIbIaAWrH.png"
+    },
+    {
+      "aniListId": "966",
+      "title": "Shin Chan",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 3
+    },
+    {
+      "aniListId": "1096",
+      "title": "Mobile Police Patlabor 2: The Movie",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "14572",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/14572/images",
+      "status": "added",
+      "asset": "anilist_1096.png",
+      "source": "https://image.tmdb.org/t/p/original/bLtRZlCXruzJqP5YeiF3p3ck55b.png"
+    },
+    {
+      "aniListId": "1535",
+      "title": "Death Note",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home-equivalent:anilist:favorites",
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "13916",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/13916/images",
+      "status": "added",
+      "asset": "anilist_1535.png",
+      "source": "https://image.tmdb.org/t/p/original/8UX1i5i49GN7cXKkIvCGmaxfqJm.png"
+    },
+    {
+      "aniListId": "1575",
+      "title": "Code Geass: Lelouch of the Rebellion",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:favorites",
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "31724",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/31724/images",
+      "status": "added",
+      "asset": "anilist_1575.png",
+      "source": "https://image.tmdb.org/t/p/original/12khsOKQkyZHEXloNkwhxUxl9tQ.png"
+    },
+    {
+      "aniListId": "1689",
+      "title": "5 Centimeters per Second",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "38142",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/38142/images",
+      "status": "added",
+      "asset": "anilist_1689.png",
+      "source": "https://image.tmdb.org/t/p/original/43Nv47NyaO2ELIX3G3AiTBwKJli.png"
+    },
+    {
+      "aniListId": "1735",
+      "title": "Naruto: Shippuden",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "home-equivalent:anilist:favorites",
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "2001",
+      "title": "Gurren Lagann",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "21729",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/21729/images",
+      "status": "added",
+      "asset": "anilist_2001.png",
+      "source": "https://image.tmdb.org/t/p/original/xfQbQg7wYf82DKBAMaDZKu6tglU.png"
+    },
+    {
+      "aniListId": "2406",
+      "title": "Sazae-san",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "153485",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/153485/images",
+      "status": "lookup-failed",
+      "errorType": "UnidentifiedImageError"
+    },
+    {
+      "aniListId": "2559",
+      "title": "Romeo's Blue Skies",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:1990"
+      ],
+      "tmdbId": "35832",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/35832/images",
+      "status": "added",
+      "asset": "anilist_2559.png",
+      "source": "https://image.tmdb.org/t/p/original/aFgdaITdHgNnD6P2jvMw6w5YeKy.png"
+    },
+    {
+      "aniListId": "2904",
+      "title": "Code Geass: Lelouch of the Rebellion R2",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "31724",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/31724/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "2921",
+      "title": "Tomorrow's Joe 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC"
+      ],
+      "tmdbId": "25117",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/25117/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "3297",
+      "title": "ARIA The ORIGINATION",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "53787",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/53787/season/3/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "4181",
+      "title": "Clannad: After Story",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "24835",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/24835/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "4282",
+      "title": "the Garden of sinners Chapter 5: Paradox Paradigm",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "4565",
+      "title": "Gurren Lagann The Movie: The Lights in the Sky are Stars",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "5028",
+      "title": "Major S5",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "29602",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/29602/season/5/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "5081",
+      "title": "Bakemonogatari",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "46195",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/46195/images",
+      "status": "added",
+      "asset": "anilist_5081.png",
+      "source": "https://image.tmdb.org/t/p/original/kMhCjhfnCFYtMbwU5sY0kqXJ9Wg.png"
+    },
+    {
+      "aniListId": "5114",
+      "title": "Fullmetal Alchemist: Brotherhood",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:favorites",
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "31911",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/31911/images",
+      "status": "added",
+      "asset": "anilist_5114.png",
+      "source": "https://image.tmdb.org/t/p/original/1uxD6336yvySlaNqAuCl5XuGt3U.png"
+    },
+    {
+      "aniListId": "5258",
+      "title": "Hajime no Ippo: The Fighting! New Challenger",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "42705",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/42705/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "5300",
+      "title": "Natsume's Book of Friends Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2000"
+      ],
+      "tmdbId": "69500",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/69500/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "7311",
+      "title": "The Disappearance of Haruhi Suzumiya",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "36865",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/36865/images",
+      "status": "added",
+      "asset": "anilist_7311.png",
+      "source": "https://image.tmdb.org/t/p/original/qlljFWhukyavy4myGro8YEQndpi.png"
+    },
+    {
+      "aniListId": "8687",
+      "title": "Doraemon (2005)",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "9253",
+      "title": "Steins;Gate",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:favorites",
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "42509",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/42509/images",
+      "status": "added",
+      "asset": "anilist_9253.png",
+      "source": "https://image.tmdb.org/t/p/original/7GEZnpbAgtPr7MeZ04i7HtiLvl3.png"
+    },
+    {
+      "aniListId": "9969",
+      "title": "Gintama Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "57041",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/57041/season/5/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "11061",
+      "title": "Hunter x Hunter (2011)",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home:TRENDING_DESC",
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:favorites",
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "11757",
+      "title": "Sword Art Online",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC"
+      ],
+      "tmdbId": "45782",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/45782/images",
+      "status": "added",
+      "asset": "anilist_11757.png",
+      "source": "https://image.tmdb.org/t/p/original/2PNKn2G0W2JJ5gZcP5XLL0BnRno.png"
+    },
+    {
+      "aniListId": "15335",
+      "title": "Gintama: The Final Chapter - Be Forever Yorozuya",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "245917",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/245917/images",
+      "status": "added",
+      "asset": "anilist_15335.png",
+      "source": "https://image.tmdb.org/t/p/original/sZxtClwUxlu1vZiuMlxXgPuaPx1.png"
+    },
+    {
+      "aniListId": "15417",
+      "title": "Gintama Season 2 Part 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "57041",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/57041/season/6/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "16498",
+      "title": "Attack on Titan",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home-equivalent:anilist:favorites"
+      ],
+      "tmdbId": "1429",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/1429/images",
+      "status": "added",
+      "asset": "anilist_16498.png",
+      "source": "https://image.tmdb.org/t/p/original/emwRAEjT5Tfxpm93pKincoVG8UO.png"
+    },
+    {
+      "aniListId": "16782",
+      "title": "The Garden of Words",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "198375",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/198375/images",
+      "status": "added",
+      "asset": "anilist_16782.png",
+      "source": "https://image.tmdb.org/t/p/original/gObL6SMBJDgJXw128qdf6RZbp2c.png"
+    },
+    {
+      "aniListId": "17074",
+      "title": "Monogatari Series Second Season",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "46195",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/46195/season/3/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "20464",
+      "title": "HAIKYU!!",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:favorites"
+      ],
+      "tmdbId": "60863",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/60863/images",
+      "status": "added",
+      "asset": "anilist_20464.png",
+      "source": "https://image.tmdb.org/t/p/original/wyL5cbJw5hosM9D7c7z5cWAeThC.png"
+    },
+    {
+      "aniListId": "20595",
+      "title": "MUSHI-SHI The Next Passage",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "26867",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/26867/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "20605",
+      "title": "Tokyo Ghoul",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC"
+      ],
+      "tmdbId": "61374",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/61374/images",
+      "status": "added",
+      "asset": "anilist_20605.png",
+      "source": "https://image.tmdb.org/t/p/original/pcIQ5S2CZFkq00cuJ87PARKPnkK.png",
+      "visualReview": "Revisión visual: usar Tokyo Ghoul, no Tokyo Ghoul:re."
+    },
+    {
+      "aniListId": "20607",
+      "title": "Ping Pong the Animation",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "60811",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/60811/images",
+      "status": "added",
+      "asset": "anilist_20607.png",
+      "source": "https://image.tmdb.org/t/p/original/8mB4MkZKTxsAOWiREBb1ILUthVy.png"
+    },
+    {
+      "aniListId": "20665",
+      "title": "Your lie in April",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home-equivalent:anilist:favorites"
+      ],
+      "tmdbId": "61663",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/61663/images",
+      "status": "added",
+      "asset": "anilist_20665.png",
+      "source": "https://image.tmdb.org/t/p/original/eLddWxFE6B7t4DuHXkvXHK2oAOE.png"
+    },
+    {
+      "aniListId": "20751",
+      "title": "MUSHI-SHI The Next Passage 2",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "26867",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/26867/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "20755",
+      "title": "Assassination Classroom",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC"
+      ],
+      "tmdbId": "62110",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/62110/images",
+      "status": "added",
+      "asset": "anilist_20755.png",
+      "source": "https://image.tmdb.org/t/p/original/qbhofHzHg4zzxmgspIay0jXIJNx.png"
+    },
+    {
+      "aniListId": "20954",
+      "title": "A Silent Voice",
+      "type": "MOVIE",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home-equivalent:anilist:favorites",
+        "home-equivalent:anilist:movies",
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "20958",
+      "title": "Attack on Titan Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC"
+      ],
+      "tmdbId": "1429",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/1429/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "20992",
+      "title": "HAIKYU!! 2nd Season",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "60863",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/60863/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "20996",
+      "title": "Gintama Season 3",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "57041",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/57041/season/7/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "21087",
+      "title": "One-Punch Man",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC"
+      ],
+      "tmdbId": "63926",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/63926/images",
+      "status": "added",
+      "asset": "anilist_21087.png",
+      "source": "https://image.tmdb.org/t/p/original/gGuticLgobih3ZNMko7cZDipsYW.png"
+    },
+    {
+      "aniListId": "21355",
+      "title": "Re:ZERO -Starting Life in Another World-",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home-equivalent:anilist:favorites"
+      ],
+      "tmdbId": "65942",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/65942/images",
+      "status": "added",
+      "asset": "anilist_21355.png",
+      "source": "https://image.tmdb.org/t/p/original/5cfRiR2U7m3DuCTRRwB7LeJYte8.png"
+    },
+    {
+      "aniListId": "21400",
+      "title": "Kizumonogatari Part 3: Reiketsu",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "362585",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/362585/images",
+      "status": "added",
+      "asset": "anilist_21400.png",
+      "source": "https://image.tmdb.org/t/p/original/khtS2tNfmXmhlLowHFSx9man670.png"
+    },
+    {
+      "aniListId": "21403",
+      "title": "Sword Art Online the Movie: Ordinal Scale",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "21459",
+      "title": "My Hero Academia",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC"
+      ],
+      "tmdbId": "65930",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/65930/images",
+      "status": "added",
+      "asset": "anilist_21459.png",
+      "source": "https://image.tmdb.org/t/p/original/nLMgG3o3ov0cv15LPbFgv4NVRmZ.png"
+    },
+    {
+      "aniListId": "21507",
+      "title": "Mob Psycho 100",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home-equivalent:anilist:favorites"
+      ],
+      "tmdbId": "67075",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/67075/images",
+      "status": "added",
+      "asset": "anilist_21507.png",
+      "source": "https://image.tmdb.org/t/p/original/nH2KsyLFAj9hB0VZYVhpPkFeKPD.png"
+    },
+    {
+      "aniListId": "21519",
+      "title": "Your Name.",
+      "type": "MOVIE",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home-equivalent:anilist:favorites",
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "372058",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/372058/images",
+      "status": "added",
+      "asset": "anilist_21519.png",
+      "source": "https://image.tmdb.org/t/p/original/j3cPRV8oivK8RGuv6qYKRc7CXTG.png"
+    },
+    {
+      "aniListId": "21698",
+      "title": "HAIKYU!! 3rd Season",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "60863",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/60863/season/3/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "21733",
+      "title": "Descending Stories: Showa Genroku Rakugo Shinju",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "66862",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/66862/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "21745",
+      "title": "Owarimonogatari Second Season",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "21827",
+      "title": "Violet Evergarden",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:favorites"
+      ],
+      "tmdbId": "75214",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/75214/images",
+      "status": "added",
+      "asset": "anilist_21827.png",
+      "source": "https://image.tmdb.org/t/p/original/3mxodaw8QDT2uzno1UdTjLi1GFs.png"
+    },
+    {
+      "aniListId": "21856",
+      "title": "My Hero Academia Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC"
+      ],
+      "tmdbId": "65930",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/65930/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "21875",
+      "title": "No Game, No Life Zero",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "445030",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/445030/images",
+      "status": "added",
+      "asset": "anilist_21875.png",
+      "source": "https://image.tmdb.org/t/p/original/2Xcx4LDPwzMbL0lzDKYDnyW17Sj.png"
+    },
+    {
+      "aniListId": "97889",
+      "title": "Gintama Season 4",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "57041",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/57041/season/8/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "97940",
+      "title": "Black Clover",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC"
+      ],
+      "tmdbId": "73223",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/73223/images",
+      "status": "added",
+      "asset": "anilist_97940.png",
+      "source": "https://image.tmdb.org/t/p/original/j9ZZ7WV5pwLLXbbebyGdMUxbqrc.png"
+    },
+    {
+      "aniListId": "98478",
+      "title": "March comes in like a lion Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "65336",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/65336/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "99147",
+      "title": "Attack on Titan Season 3",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "1429",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/1429/season/3/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "99750",
+      "title": "I Want to Eat Your Pancreas",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "504253",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/504253/images",
+      "status": "added",
+      "asset": "anilist_99750.png",
+      "source": "https://image.tmdb.org/t/p/original/iOGhQzUidBzOj6pxKp7pBZkw2ta.png"
+    },
+    {
+      "aniListId": "100723",
+      "title": "My Hero Academia: Two Heroes",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "505262",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/505262/images",
+      "status": "added",
+      "asset": "anilist_100723.png",
+      "source": "https://image.tmdb.org/t/p/original/nX7S7Fz3D6LTKui7sypulFs3CDZ.png"
+    },
+    {
+      "aniListId": "100784",
+      "title": "Gintama.: Silver Soul Arc",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "101338",
+      "title": "Mob Psycho 100 II",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "67075",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/67075/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "101348",
+      "title": "Vinland Saga",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:favorites",
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "88803",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/88803/images",
+      "status": "added",
+      "asset": "anilist_101348.png",
+      "source": "https://image.tmdb.org/t/p/original/3gRatXdgLfzYU9q9WRwuQaIvpGQ.png"
+    },
+    {
+      "aniListId": "101759",
+      "title": "The Promised Neverland",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC"
+      ],
+      "tmdbId": "83097",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/83097/images",
+      "status": "added",
+      "asset": "anilist_101759.png",
+      "source": "https://image.tmdb.org/t/p/original/o4dhM6xk4Ux7Z3FqtSiZdyeRsyC.png"
+    },
+    {
+      "aniListId": "101922",
+      "title": "Demon Slayer: Kimetsu no Yaiba",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home-equivalent:anilist:favorites"
+      ],
+      "tmdbId": "85937",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/85937/images",
+      "status": "added",
+      "asset": "anilist_101922.png",
+      "source": "https://image.tmdb.org/t/p/original/qK491HcLxQgFunfdplCQ9MncbpT.png"
+    },
+    {
+      "aniListId": "101925",
+      "title": "Gintama.: Silver Soul Arc - Second Half War",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "57041",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/57041/season/10/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "102976",
+      "title": "KONOSUBA -God's blessing on this wonderful world!- Legend of Crimson",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "103047",
+      "title": "Violet Evergarden: the Movie",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "533514",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/533514/images",
+      "status": "added",
+      "asset": "anilist_103047.png",
+      "source": "https://image.tmdb.org/t/p/original/LJFJlKELMjEn5zB4DkNd85QRhG.png"
+    },
+    {
+      "aniListId": "104157",
+      "title": "Rascal Does Not Dream of a Dreaming Girl",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "572154",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/572154/images",
+      "status": "added",
+      "asset": "anilist_104157.png",
+      "source": "https://image.tmdb.org/t/p/original/9LchMyd0MnkVSmv6OSOFwgxK5W3.png"
+    },
+    {
+      "aniListId": "104578",
+      "title": "Attack on Titan Season 3 Part 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:decade:2010"
+      ],
+      "tmdbId": "1429",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/1429/season/3/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "106286",
+      "title": "Weathering With You",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "568160",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/568160/images",
+      "status": "added",
+      "asset": "anilist_106286.png",
+      "source": "https://image.tmdb.org/t/p/original/hcN3uAVVPsIEZwbNy5nfAfs7zZH.png"
+    },
+    {
+      "aniListId": "110277",
+      "title": "Attack on Titan Final Season",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC"
+      ],
+      "tmdbId": "1429",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/1429/season/4/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "112151",
+      "title": "Demon Slayer -Kimetsu no Yaiba- The Movie: Mugen Train",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "113415",
+      "title": "JUJUTSU KAISEN",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home-equivalent:anilist:favorites"
+      ],
+      "tmdbId": "95479",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/95479/images",
+      "status": "lookup-failed",
+      "errorType": "UnidentifiedImageError"
+    },
+    {
+      "aniListId": "114129",
+      "title": "Gintama: THE VERY FINAL",
+      "type": "MOVIE",
+      "scopes": [
+        "home:SCORE_DESC"
+      ],
+      "tmdbId": "732203",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/732203/images",
+      "status": "added",
+      "asset": "anilist_114129.png",
+      "source": "https://image.tmdb.org/t/p/original/959B1jpwIaicDxPklh7O56OK8ml.png"
+    },
+    {
+      "aniListId": "116674",
+      "title": "BLEACH: Thousand-Year Blood War",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC"
+      ],
+      "tmdbId": "30984",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/30984/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "118123",
+      "title": "Holo no Graffiti",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "122522",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/122522/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "120377",
+      "title": "Cyberpunk: Edgerunners",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:favorites"
+      ],
+      "tmdbId": "105248",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/105248/images",
+      "status": "added",
+      "asset": "anilist_120377.png",
+      "source": "https://image.tmdb.org/t/p/original/tQlieIwGequNvf80XYFiL9CMWnh.png"
+    },
+    {
+      "aniListId": "124194",
+      "title": "Fruits Basket The Final Season",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC"
+      ],
+      "tmdbId": "85991",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/85991/season/3/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "125367",
+      "title": "Kaguya-sama: Love is War -Ultra Romantic-",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC"
+      ],
+      "tmdbId": "83121",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/83121/season/3/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "127230",
+      "title": "Chainsaw Man",
+      "type": "SERIES",
+      "scopes": [
+        "home:POPULARITY_DESC",
+        "home-equivalent:anilist:favorites"
+      ],
+      "tmdbId": "114410",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/114410/images",
+      "status": "added",
+      "asset": "anilist_127230.png",
+      "source": "https://image.tmdb.org/t/p/original/gtQhIaKELg1gL06d6GHFoRZfuXb.png"
+    },
+    {
+      "aniListId": "131573",
+      "title": "JUJUTSU KAISEN 0",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "136430",
+      "title": "Vinland Saga Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC"
+      ],
+      "tmdbId": "88803",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/88803/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "137653",
+      "title": "Renegade Immortal",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "223911",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/223911/images",
+      "status": "added",
+      "asset": "anilist_137653.png",
+      "source": "https://image.tmdb.org/t/p/original/l82gwot5FHybdOU1RwGoj5GXBWK.png"
+    },
+    {
+      "aniListId": "137683",
+      "title": "Soul Land 2: The Peerless Tang Clan",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "142770",
+      "title": "Suzume",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "916224",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/916224/images",
+      "status": "added",
+      "asset": "anilist_142770.png",
+      "source": "https://image.tmdb.org/t/p/original/d8ZH4zgvxJWtBPFpqtTgQUuTaDY.png"
+    },
+    {
+      "aniListId": "143103",
+      "title": "Witch on the Holy Night",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "tmdbId": "920167",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/920167/images",
+      "status": "added",
+      "asset": "anilist_143103.png",
+      "source": "https://image.tmdb.org/t/p/original/dB3aLebYhosLHTtx648z16SzzCq.png"
+    },
+    {
+      "aniListId": "146004",
+      "title": "Watame Did Borderline Nothing Wrong",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "152677",
+      "title": "The Detective Is Already Dead Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "117061",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/117061/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "154587",
+      "title": "Frieren: Beyond Journey’s End",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:favorites"
+      ],
+      "tmdbId": "209867",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/209867/images",
+      "status": "added",
+      "asset": "anilist_154587.png",
+      "source": "https://image.tmdb.org/t/p/original/aGO49hn32NLo1ECdnHbfQvvm2VB.png"
+    },
+    {
+      "aniListId": "155723",
+      "title": "Wushen Zhuzai: Da Wei Pian",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "158871",
+      "title": "Pokémon Horizons: The Series",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "220150",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/220150/images",
+      "status": "added",
+      "asset": "anilist_158871.png",
+      "source": "https://image.tmdb.org/t/p/original/p9D5HAq90bV1wVMRt1FoBEhMia7.png"
+    },
+    {
+      "aniListId": "159042",
+      "title": "Reincarnated as a Sword Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "134667",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/134667/season/2/images",
+      "status": "added",
+      "source": "https://tenken-anime.com/assets/top/logo.webp",
+      "asset": "anilist_159042.png",
+      "visualReview": "Logo transparente original de Reincarnated as a Sword II en su sitio oficial, explícitamente identificado como segunda temporada."
+    },
+    {
+      "aniListId": "160275",
+      "title": "Made in Abyss: Mezameru Shinpi",
+      "type": "MOVIE",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "1526917",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/1526917/images",
+      "status": "added",
+      "asset": "anilist_160275.png",
+      "source": "https://image.tmdb.org/t/p/original/fymy57JWURX14MyJ40d2kffwpq3.png"
+    },
+    {
+      "aniListId": "160803",
+      "title": "MAGICAL GIRL RAISING PROJECT restart",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "337277",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/337277/images",
+      "status": "added",
+      "asset": "anilist_160803.png",
+      "source": "https://image.tmdb.org/t/p/original/oPcuaK02bY2Gcs6qViDHn7mB98k.png"
+    },
+    {
+      "aniListId": "165159",
+      "title": "BEYBLADE X",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "226688",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/226688/images",
+      "status": "added",
+      "asset": "anilist_165159.png",
+      "source": "https://image.tmdb.org/t/p/original/sC8VGgUi1KSJpx9TjAWj8Z3Ee1A.png"
+    },
+    {
+      "aniListId": "168085",
+      "title": "Dali Si Rizhi 3",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "169579",
+      "title": "Sekai Saikou no Ansatsusha, Isekai Kizoku ni Tensei suru 2nd Season",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "169581",
+      "title": "Magical Explorer",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "335194",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/335194/images",
+      "status": "added",
+      "asset": "anilist_169581.png",
+      "source": "https://image.tmdb.org/t/p/original/yjtn1dgaIsIQmLFo1Jm0fvocbBL.png"
+    },
+    {
+      "aniListId": "171627",
+      "title": "Chainsaw Man – The Movie: Reze Arc",
+      "type": "MOVIE",
+      "scopes": [
+        "home:SCORE_DESC",
+        "home-equivalent:anilist:movies"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "171630",
+      "title": "THE ONE PIECE",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "171952",
+      "title": "Kage no Jitsuryokusha ni Naritakute!: Zankyou-hen",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "172192",
+      "title": "A Returner's Magic Should be Special Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "230050",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/230050/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "176301",
+      "title": "The Apothecary Diaries Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC"
+      ],
+      "tmdbId": "220542",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/220542/images",
+      "status": "added",
+      "asset": "anilist_176301.png",
+      "source": "https://image.tmdb.org/t/p/original/oJKTo78TqipTWZEhqNPbB3KlbWG.png"
+    },
+    {
+      "aniListId": "176314",
+      "title": "Sasaki and Peeps Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "206630",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/206630/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "177704",
+      "title": "MASHLE: MAGIC AND MUSCLES The Tri-Magicathlon Divine Visionary Final Exam Arc",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "tmdbId": "204832",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/204832/season/3/images",
+      "status": "lookup-failed",
+      "errorType": "HTTPError"
+    },
+    {
+      "aniListId": "178031",
+      "title": "Delicious in Dungeon Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "tmdbId": "207784",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/207784/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "178083",
+      "title": "Tokyo Revengers: War of the Three Titans Arc",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "105009",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/105009/images",
+      "status": "added",
+      "asset": "anilist_178083.png",
+      "source": "https://image.tmdb.org/t/p/original/vaqar9j5QMcQBJSdJCuvPC697U0.png"
+    },
+    {
+      "aniListId": "178467",
+      "title": "Tsuki ga Michibiku Isekai Douchuu 3rd Season",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "178788",
+      "title": "Demon Slayer: Kimetsu no Yaiba Infinity Castle",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:movies"
+      ],
+      "tmdbId": "1311031",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/1311031/images",
+      "status": "added",
+      "asset": "anilist_178788.png",
+      "source": "https://image.tmdb.org/t/p/original/rZaf0GKY7hrMQ0Ka9Kc8lakQrQ9.png"
+    },
+    {
+      "aniListId": "178868",
+      "title": "Magic Knight Rayearth (2026)",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "303272",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/303272/images",
+      "status": "added",
+      "asset": "anilist_178868.png",
+      "source": "https://image.tmdb.org/t/p/original/lFNhd3XrhA90XawdnocusI9zwsS.png"
+    },
+    {
+      "aniListId": "179068",
+      "title": "Omniscient Reader",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "179876",
+      "title": "DARK MACHINE THE ANIMATION",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "already-bundled"
+    },
+    {
+      "aniListId": "180136",
+      "title": "The Exiled Heavy Knight Knows How to Game the System",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "270603",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/270603/images",
+      "status": "added",
+      "asset": "anilist_180136.png",
+      "source": "https://image.tmdb.org/t/p/original/cViYa926pHMY1d1u5jkJkgmMugH.png"
+    },
+    {
+      "aniListId": "180894",
+      "title": "Romelia War Chronicle",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "305313",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/305313/images",
+      "status": "added",
+      "asset": "anilist_180894.png",
+      "source": "https://image.tmdb.org/t/p/original/hXWCx0n6cYBMcjngZ8M2iZXLwmZ.png"
+    },
+    {
+      "aniListId": "181641",
+      "title": "Tokidoki Bosotto Rossiya-go de Dereru Tonari no Alya-san Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "tmdbId": "235758",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/235758/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "182469",
+      "title": "ONE PIECE FAN LETTER",
+      "type": "SERIES",
+      "scopes": [
+        "home:SCORE_DESC"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "183231",
+      "title": "RILAKKUMA",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "299144",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/299144/images",
+      "status": "added",
+      "asset": "anilist_183231.png",
+      "source": "https://image.tmdb.org/t/p/original/pFfXK7C1wU3v9RCSGN6tEy5ptPh.png"
+    },
+    {
+      "aniListId": "185646",
+      "title": "Koupen-chan",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "285797",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/285797/images",
+      "status": "added",
+      "asset": "anilist_185646.png",
+      "source": "https://image.tmdb.org/t/p/original/tWrcIgo29Wpg43qp7AfEqJukiVD.png"
+    },
+    {
+      "aniListId": "185756",
+      "title": "As a Reincarnated Aristocrat, I'll Use My Appraisal Skill to Rise in the World Season 3",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "237150",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/237150/images",
+      "status": "added",
+      "asset": "anilist_185756.png",
+      "source": "https://image.tmdb.org/t/p/original/5v0SYLgb6vgh9zqYz04Uy1ohDbP.png"
+    },
+    {
+      "aniListId": "185874",
+      "title": "BLEACH: Thousand-Year Blood War - The Calamity",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "home:SCORE_DESC",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "30984",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/30984/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "186541",
+      "title": "Reborn as a Space Mercenary: I Woke Up Piloting the Strongest Starship!",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "283692",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/283692/images",
+      "status": "added",
+      "asset": "anilist_186541.png",
+      "source": "https://image.tmdb.org/t/p/original/2n7hXr6wbzFwwJ0rWLiEkQHZByy.png"
+    },
+    {
+      "aniListId": "186712",
+      "title": "Bocchi the Rock! 2nd Season",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "186742",
+      "title": "A Certain Dark Item",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "284580",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/284580/images",
+      "status": "added",
+      "asset": "anilist_186742.png",
+      "source": "https://image.tmdb.org/t/p/original/zh985WBkorXUcM1CXS03e2AkUx1.png"
+    },
+    {
+      "aniListId": "186822",
+      "title": "The Guy She Was Interested In Wasn't a Guy At All",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "tmdbId": "284751",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/284751/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "187316",
+      "title": "Gensou Suikoden",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "285710",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/285710/images",
+      "status": "added",
+      "asset": "anilist_187316.png",
+      "source": "https://image.tmdb.org/t/p/original/a6TJwS7hr59jbFtkRmj0apq9SZy.png"
+    },
+    {
+      "aniListId": "187402",
+      "title": "A Tale of the Secret Saint",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "285899",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/285899/images",
+      "status": "added",
+      "asset": "anilist_187402.png",
+      "source": "https://image.tmdb.org/t/p/original/uAhOxnSEwued04UICWHncQW1DcZ.png"
+    },
+    {
+      "aniListId": "187990",
+      "title": "Battle Spirits [Re] Zekkai No Ku",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "316551",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/316551/images",
+      "status": "added",
+      "asset": "anilist_187990.png",
+      "source": "https://image.tmdb.org/t/p/original/aJTV6IPzES9zpDMeklnLTXcb3CD.png"
+    },
+    {
+      "aniListId": "188034",
+      "title": "Girls und Panzer: Motto Love Love Sakusen desu!",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "339014",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/339014/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "188753",
+      "title": "Gekkan! Nanmono Anime",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "289728",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/289728/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "189046",
+      "title": "Re:ZERO -Starting Life in Another World- Season 4",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "home:SCORE_DESC"
+      ],
+      "tmdbId": "65942",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/65942/images",
+      "status": "added",
+      "asset": "anilist_189046.png",
+      "source": "https://image.tmdb.org/t/p/original/5cfRiR2U7m3DuCTRRwB7LeJYte8.png"
+    },
+    {
+      "aniListId": "189123",
+      "title": "Blue Box Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "207347",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/207347/season/2/images",
+      "status": "lookup-failed",
+      "errorType": "HTTPError"
+    },
+    {
+      "aniListId": "189323",
+      "title": "Shangri-La Frontier Season 3",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "190054",
+      "title": "My Happy Marriage Special Episodes",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "191656",
+      "title": "Even the Student Council Has Its Holes!",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "283938",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/283938/images",
+      "status": "added",
+      "asset": "anilist_191656.png",
+      "source": "https://image.tmdb.org/t/p/original/bKvyj38ZrE7KWWh5iwQfc8jvm3k.png"
+    },
+    {
+      "aniListId": "191788",
+      "title": "Aoashi Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "126437",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/126437/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "191832",
+      "title": "Link Click Season 3 Part 1",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "123542",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/123542/season/4/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "194207",
+      "title": "Pan Dorobou",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "309202",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/309202/images",
+      "status": "added",
+      "asset": "anilist_194207.png",
+      "source": "https://image.tmdb.org/t/p/original/xN0OdZc2vqCggdXx3Ofyrqj4SjA.png"
+    },
+    {
+      "aniListId": "195200",
+      "title": "Demon Slayer: Kimetsu no Yaiba Infinity Castle Part 2",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "195516",
+      "title": "The Apothecary Diaries Season 3",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "220542",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/220542/images",
+      "status": "added",
+      "asset": "anilist_195516.png",
+      "source": "https://image.tmdb.org/t/p/original/oJKTo78TqipTWZEhqNPbB3KlbWG.png"
+    },
+    {
+      "aniListId": "195539",
+      "title": "Cyberpunk: Edgerunners 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "105248",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/105248/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "195571",
+      "title": "The Vermilion Mask",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "295420",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/295420/images",
+      "status": "added",
+      "asset": "anilist_195571.png",
+      "source": "https://image.tmdb.org/t/p/original/mzzv48m0o3nvgMyNpbi8J4Ri6IC.png"
+    },
+    {
+      "aniListId": "195604",
+      "title": "Black Clover Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "73223",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/73223/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "196613",
+      "title": "Dou Po Cangqiong: Nian Fan 4",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "197474",
+      "title": "Gintama the Movie 2026: Yoshiwara in Flames",
+      "type": "MOVIE",
+      "scopes": [
+        "home:SCORE_DESC"
+      ],
+      "tmdbId": "1530941",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/1530941/images",
+      "status": "added",
+      "asset": "anilist_197474.png",
+      "source": "https://image.tmdb.org/t/p/original/zFDyPWBNx1h41PDMIblEApVyhBt.png"
+    },
+    {
+      "aniListId": "197543",
+      "title": "BanG Dream! Ave Mujica: prima aurora",
+      "type": "MOVIE",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "1614539",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/1614539/images",
+      "status": "added",
+      "asset": "anilist_197543.png",
+      "source": "https://image.tmdb.org/t/p/original/ny0qAE8EkayWq2ahPrWNnIWRgMR.png"
+    },
+    {
+      "aniListId": "198727",
+      "title": "Chitose Is in the Ramune Bottle 2nd Cour",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "261343",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/261343/images",
+      "status": "added",
+      "asset": "anilist_198727.png",
+      "source": "https://image.tmdb.org/t/p/original/ukWiOIWceHNGiS81CurwkfOSwWc.png"
+    },
+    {
+      "aniListId": "198966",
+      "title": "Dandadan 3rd Season",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "199007",
+      "title": "#I'm Looking For a Zombie",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "301139",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/301139/images",
+      "status": "added",
+      "asset": "anilist_199007.png",
+      "source": "https://image.tmdb.org/t/p/original/1SMygZPB6m392uOgvixy0OyijUJ.png"
+    },
+    {
+      "aniListId": "199068",
+      "title": "The Prince of Tennis II U-17 WORLD CUP: Final Member Selection Match",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "205493",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/205493/season/3/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "199340",
+      "title": "Rascal Does Not Dream of a Dear Friend",
+      "type": "MOVIE",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "1553200",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/1553200/images",
+      "status": "added",
+      "asset": "anilist_199340.png",
+      "source": "https://image.tmdb.org/t/p/original/qK2KaZ7dhOkQ3jfDHWDxVLAktEm.png"
+    },
+    {
+      "aniListId": "199353",
+      "title": "Dawang Raoming 3",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "199409",
+      "title": "Yi Nian Yongheng 4",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "199426",
+      "title": "HOTEL INHUMANS Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "276288",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/276288/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "199594",
+      "title": "TETSURYO! Meet With Tetsudou Musume",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "302020",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/302020/images",
+      "status": "added",
+      "asset": "anilist_199594.png",
+      "source": "https://image.tmdb.org/t/p/original/yi9tqIr0fhIAcqygZCLfpzKRq6n.png"
+    },
+    {
+      "aniListId": "200294",
+      "title": "Super Psychic Policeman Chojo",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "already-bundled"
+    },
+    {
+      "aniListId": "200455",
+      "title": "Even Though I'm a Super Timid Noble Girl, I Accepted the Bet From My Cunning Fiancé",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "303060",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/303060/images",
+      "status": "added",
+      "asset": "anilist_200455.png",
+      "source": "https://image.tmdb.org/t/p/original/vuetBPAN3TGi4XsRSsgiM6GV2F8.png"
+    },
+    {
+      "aniListId": "200929",
+      "title": "The Apothecary Diaries: The Late Lady’s Treasure",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "202079",
+      "title": "Uncle's Obsession with Cute Things",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "330505",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/330505/images",
+      "status": "added",
+      "asset": "anilist_202079.png",
+      "source": "https://image.tmdb.org/t/p/original/mJFNofhp5Khsi35VuWrEho4IhrT.png"
+    },
+    {
+      "aniListId": "202250",
+      "title": "Magic Repo Man: Dumped by My Party, I’ll Cash In With a Cute Support Fairy to Become the Strongest!",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "333622",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/333622/images",
+      "status": "added",
+      "asset": "anilist_202250.png",
+      "source": "https://image.tmdb.org/t/p/original/v8S7tFMqpiAYn65Xfu0kH9rCvYL.png"
+    },
+    {
+      "aniListId": "202390",
+      "title": "Girls und Panzer: Saishuushou 5",
+      "type": "MOVIE",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "1592548",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/1592548/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "202957",
+      "title": "Star Detective Precure!",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "306721",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/306721/images",
+      "status": "added",
+      "asset": "anilist_202957.png",
+      "source": "https://image.tmdb.org/t/p/original/j0QGp7ZpB1Fpwrz24JVtJ8H73Tc.png"
+    },
+    {
+      "aniListId": "203473",
+      "title": "HORROR COLLECTOR",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "307903",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/307903/images",
+      "status": "added",
+      "asset": "anilist_203473.png",
+      "source": "https://image.tmdb.org/t/p/original/9E27D5LzvBvI1onM1iWSKABR4na.png"
+    },
+    {
+      "aniListId": "203490",
+      "title": "Please Excuse My Younger Brothers",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "307585",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/307585/images",
+      "status": "added",
+      "asset": "anilist_203490.png",
+      "source": "https://image.tmdb.org/t/p/original/oyuJyrVM7HGf2MGy7rRC7gJqBQw.png"
+    },
+    {
+      "aniListId": "204011",
+      "title": "PSYREN",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "297903",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/297903/images",
+      "status": "added",
+      "asset": "anilist_204011.png",
+      "source": "https://image.tmdb.org/t/p/original/4p8RNcI2CpZ4xHRWD8EFxViHcMd.png"
+    },
+    {
+      "aniListId": "204269",
+      "title": "Little Shark's Day Out Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "204363",
+      "title": "SAKAMOTO DAYS Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "204389",
+      "title": "A Wild Last Boss Appeared! Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "280042",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/280042/season/2/images",
+      "status": "lookup-failed",
+      "errorType": "HTTPError"
+    },
+    {
+      "aniListId": "204429",
+      "title": "Chainsaw Man: Shikaku-hen",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "204436",
+      "title": "Gachiakuta Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "204650",
+      "title": "TOUGEN ANKI: Nikko Kegon Falls Arc",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "253811",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/253811/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "204656",
+      "title": "mofusand",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "205896",
+      "title": "Full Clearing Another World under a Goddess with Zero Believers",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "288588",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/288588/images",
+      "status": "added",
+      "asset": "anilist_205896.png",
+      "source": "https://image.tmdb.org/t/p/original/yymlUm5q4wSGtvtqy9GJktFdfzm.png"
+    },
+    {
+      "aniListId": "205909",
+      "title": "Firefly Wedding",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "already-bundled"
+    },
+    {
+      "aniListId": "206244",
+      "title": "Luo Xiaohei Zhan Ji: Xue Qian Pian",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "206401",
+      "title": "FX Fighter Kurumi-chan",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "311842",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/311842/images",
+      "status": "added",
+      "asset": "anilist_206401.png",
+      "source": "https://image.tmdb.org/t/p/original/8Obg1bImnamzDmhSaUATI4eKN80.png"
+    },
+    {
+      "aniListId": "206523",
+      "title": "Onegai AiPri",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "312123",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/312123/images",
+      "status": "added",
+      "asset": "anilist_206523.png",
+      "source": "https://image.tmdb.org/t/p/original/zYDeMOP1xH2l7TuuX6tnBfwJoJg.png"
+    },
+    {
+      "aniListId": "206774",
+      "title": "Now That I Can Control Reality With A Mouse Cursor, I'm Gonna Click Away On The Girls!",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "334779",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/334779/images",
+      "status": "added",
+      "asset": "anilist_206774.png",
+      "source": "https://image.tmdb.org/t/p/original/r2wnCfd9u89VhooHyISvKtO6Gmq.png"
+    },
+    {
+      "aniListId": "206814",
+      "title": "Dragon Ball Super: Beerus",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "312359",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/312359/images",
+      "status": "added",
+      "asset": "anilist_206814.png",
+      "source": "https://image.tmdb.org/t/p/original/naD7iHNC4eFxcnpNnD0x43IYDmg.png"
+    },
+    {
+      "aniListId": "206949",
+      "title": "Nia Liston: The Merciless Maiden",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "312850",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/312850/images",
+      "status": "added",
+      "asset": "anilist_206949.png",
+      "source": "https://image.tmdb.org/t/p/original/9wDZQwpm2qd4THRz9CRtvBEpp8p.png"
+    },
+    {
+      "aniListId": "207084",
+      "title": "Playing Sister",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "312822",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/312822/images",
+      "status": "rejected-after-visual-review",
+      "source": "https://image.tmdb.org/t/p/original/pm0U7iyLZuHjm5pUl6DtGiYsrX2.png",
+      "visualReview": "Recurso promocional con fecha de estreno superpuesta a un trazo del logo; no es un logo limpio."
+    },
+    {
+      "aniListId": "207191",
+      "title": "Hello, I am a Witch and my Crush Wants me to Make a Love Potion!",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "313068",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/313068/images",
+      "status": "added",
+      "asset": "anilist_207191.png",
+      "source": "https://image.tmdb.org/t/p/original/5D9kwwmONWYhWiAAL0jMZ83Skgz.png"
+    },
+    {
+      "aniListId": "207217",
+      "title": "Delivery Kitten Unyan (2026)",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "207327",
+      "title": "To You in the Beyond",
+      "type": "MOVIE",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "1632015",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/movie/1632015/images",
+      "status": "rejected-after-visual-review",
+      "source": "https://image.tmdb.org/t/p/original/fdtlnGvaTB83OOLis9LOJ25MhCu.png",
+      "visualReview": "Recurso de título ilegible/desenfocado en la revisión visual."
+    },
+    {
+      "aniListId": "207329",
+      "title": "The Laid-Off Cheat-Granting Mage Enjoys a Second Lease on Life",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "313346",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/313346/images",
+      "status": "added",
+      "asset": "anilist_207329.png",
+      "source": "https://image.tmdb.org/t/p/original/icq6GuO0cxICLRiL6RYlen7h3UW.png"
+    },
+    {
+      "aniListId": "207809",
+      "title": "Red River",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "314054",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/314054/images",
+      "status": "added",
+      "asset": "anilist_207809.png",
+      "source": "https://image.tmdb.org/t/p/original/r7OojaSpdEB8hYVzMwuAC7TaxJl.png"
+    },
+    {
+      "aniListId": "208025",
+      "title": "I'm Dating a Dark Summoner",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "335790",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/335790/images",
+      "status": "added",
+      "asset": "anilist_208025.png",
+      "source": "https://image.tmdb.org/t/p/original/1lW0lhq7v53uqPDXRhY5R0NY1Uc.png"
+    },
+    {
+      "aniListId": "208367",
+      "title": "Duel Masters LOST: Danzai no Shounen",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "209032",
+      "title": "Magical Sisters LuluttoLilly Part 2",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "209219",
+      "title": "So What's Wrong with Getting Reborn as a Goblin?",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "316694",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/316694/images",
+      "status": "added",
+      "asset": "anilist_209219.png",
+      "source": "https://image.tmdb.org/t/p/original/rrfcUelVro1vO4vR9ZjE2vrUKNe.png"
+    },
+    {
+      "aniListId": "209463",
+      "title": "From Far Away",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "329096",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/329096/images",
+      "status": "added",
+      "asset": "anilist_209463.png",
+      "source": "https://image.tmdb.org/t/p/original/8RPHKrYd9RFCGjNfblPw8coR9IT.png"
+    },
+    {
+      "aniListId": "209499",
+      "title": "TANK CHAIR",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "320377",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/320377/images",
+      "status": "added",
+      "asset": "anilist_209499.png",
+      "source": "https://image.tmdb.org/t/p/original/oHz8T71b97iUyxHWntULhXRPXh8.png"
+    },
+    {
+      "aniListId": "209502",
+      "title": "The Cold Sato-san is Only Sweet to Me",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "316891",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/316891/images",
+      "status": "added",
+      "asset": "anilist_209502.png",
+      "source": "https://image.tmdb.org/t/p/original/x7SnoIng0q5GyAO9AN8QhX6JPEi.png"
+    },
+    {
+      "aniListId": "209562",
+      "title": "VERTEX FORCE",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "317259",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/317259/images",
+      "status": "added",
+      "asset": "anilist_209562.png",
+      "source": "https://image.tmdb.org/t/p/original/iSjwz1HozhoefU5EdRgURcDSUOG.png"
+    },
+    {
+      "aniListId": "209709",
+      "title": "Sirotan",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "337195",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/337195/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "209827",
+      "title": "[Oshi no Ko] Final Season",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "tmdbId": "203737",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/203737/images",
+      "status": "added",
+      "asset": "anilist_209827.png",
+      "source": "https://image.tmdb.org/t/p/original/cUqgUMdxtQxBMM2pSqm36OuCSw9.png"
+    },
+    {
+      "aniListId": "209872",
+      "title": "Ranma1/2 (2024) Season 3",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "259140",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/259140/images",
+      "status": "added",
+      "asset": "anilist_209872.png",
+      "source": "https://image.tmdb.org/t/p/original/xmZFFDdBpqK96NnjbfXboJMPbvt.png"
+    },
+    {
+      "aniListId": "209895",
+      "title": "Jujutsu Kaisen: Shimetsu Kaiyuu - Kouhen",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "tmdbId": "95479",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/95479/images",
+      "status": "lookup-failed",
+      "errorType": "UnidentifiedImageError"
+    },
+    {
+      "aniListId": "209939",
+      "title": "Sousou no Frieren 3rd Season",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "tmdbId": "209867",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/209867/images",
+      "status": "added",
+      "asset": "anilist_209939.png",
+      "source": "https://image.tmdb.org/t/p/original/aGO49hn32NLo1ECdnHbfQvvm2VB.png"
+    },
+    {
+      "aniListId": "210482",
+      "title": "STEEL BALL RUN JoJo's Bizarre Adventure 2nd - 3rd STAGE",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "211181",
+      "title": "Mu Shen Ji 4",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "211496",
+      "title": "Kagurabachi",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "tmdbId": "320905",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/320905/images",
+      "status": "lookup-failed",
+      "errorType": "UnidentifiedImageError"
+    },
+    {
+      "aniListId": "211778",
+      "title": "The World's Strongest Witch",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "321518",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/321518/images",
+      "status": "added",
+      "asset": "anilist_211778.png",
+      "source": "https://image.tmdb.org/t/p/original/dJV02YybQWx1RhhEwZdTLOPy1FB.png"
+    },
+    {
+      "aniListId": "211877",
+      "title": "My Girlfriend's Friend",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "336654",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/336654/images",
+      "status": "added",
+      "asset": "anilist_211877.png",
+      "source": "https://image.tmdb.org/t/p/original/ahTvU66XHCRhjgBOTIp5Bl1vjcl.png"
+    },
+    {
+      "aniListId": "212144",
+      "title": "With Vengeance, Sincerely, Your Broken Saintess Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "212308",
+      "title": "Pan no Akachan (TV)",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "327228",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/327228/images",
+      "status": "added",
+      "asset": "anilist_212308.png",
+      "source": "https://image.tmdb.org/t/p/original/tr9xaV8x3UluqsLcRMBStKF10OO.png"
+    },
+    {
+      "aniListId": "212503",
+      "title": "The Iceblade Sorcerer Shall Rule the World II",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "200777",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/200777/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "212799",
+      "title": "The Seven Knights of the Marronnier Kingdom",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "324326",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/324326/images",
+      "status": "added",
+      "asset": "anilist_212799.png",
+      "source": "https://image.tmdb.org/t/p/original/cLFFuhNSapcDtEwsgunpRNFehvC.png"
+    },
+    {
+      "aniListId": "212888",
+      "title": "Overgeared",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC",
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "324502",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/324502/images",
+      "status": "added",
+      "asset": "anilist_212888.png",
+      "source": "https://image.tmdb.org/t/p/original/ki2DwqPbI2LcWeOQrq7dtaDIHFB.png"
+    },
+    {
+      "aniListId": "213068",
+      "title": "Dandivine",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "already-bundled"
+    },
+    {
+      "aniListId": "213188",
+      "title": "Jueshi Zhan Hun 2",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "213298",
+      "title": "Yuruyuru Zukan",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "337299",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/337299/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "213356",
+      "title": "Beyond Time's Gaze 2",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "213486",
+      "title": "Fabulous Beasts 6",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "213657",
+      "title": "Mission: Yozakura Family Season 2 Part 2",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "216467",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/216467/season/2/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "213658",
+      "title": "Ace of the Diamond act II -Second Season-",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "60761",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/60761/season/4/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "213702",
+      "title": "Witch Hat Atelier Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "213805",
+      "title": "The Ramparts of Ice Season 2",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "283428",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/283428/season/2/images",
+      "status": "lookup-failed",
+      "errorType": "HTTPError"
+    },
+    {
+      "aniListId": "213846",
+      "title": "Solo Leveling: Beyond the System",
+      "type": "MOVIE",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "214260",
+      "title": "A Good Day to Ascend",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "326695",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/326695/images",
+      "status": "added",
+      "asset": "anilist_214260.png",
+      "source": "https://image.tmdb.org/t/p/original/eexWYPjoPRWhEaZq3IJg5MXknL7.png"
+    },
+    {
+      "aniListId": "214593",
+      "title": "YU-SANCHi! from YU-HACHi",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "337456",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/337456/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "214703",
+      "title": "Ghost Meets Gal!",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "334103",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/334103/images",
+      "status": "added",
+      "asset": "anilist_214703.png",
+      "source": "https://image.tmdb.org/t/p/original/2tOo2AGDUzIxuoJB9xZ4NjUy85W.png"
+    },
+    {
+      "aniListId": "214968",
+      "title": "Nezumi-kun no Chokki (TV) 2nd Season",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "214974",
+      "title": "Da Xia Shou Mu Ren",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "297924",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/297924/images",
+      "status": "added",
+      "asset": "anilist_214974.png",
+      "source": "https://image.tmdb.org/t/p/original/rk4tkOuhKIMh2Ecjwnv5EgwiiPM.png"
+    },
+    {
+      "aniListId": "215835",
+      "title": "Umayuru: Full Gate!",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "216557",
+      "title": "KERORO☆",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "308977",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/308977/images",
+      "status": "added",
+      "asset": "anilist_216557.png",
+      "source": "https://image.tmdb.org/t/p/original/hrisHdxVN8QRnx7Pl5df9xtE5wy.png"
+    },
+    {
+      "aniListId": "216860",
+      "title": "Punirunes Puni 4",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "216895",
+      "title": "Welsh & Shedar",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "217282",
+      "title": "GelPiyo 2",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "217434",
+      "title": "Mushoku Tensei III: Isekai Ittara Honki Dasu Part 2",
+      "type": "SERIES",
+      "scopes": [
+        "home-equivalent:anilist:upcoming"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "217577",
+      "title": "Mazenchu",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "339181",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/339181/images",
+      "status": "added",
+      "asset": "anilist_217577.png",
+      "source": "https://image.tmdb.org/t/p/original/dknJTjJDexTNcsmZOoC658z8XhL.png"
+    },
+    {
+      "aniListId": "217624",
+      "title": "PetitCure: Precure Fairies Season 4",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "217782",
+      "title": "My Girlfriend's Friend Mini Anime",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "217787",
+      "title": "Pop Pap Polters",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "315682",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/315682/images",
+      "status": "added",
+      "asset": "anilist_217787.png",
+      "source": "https://image.tmdb.org/t/p/original/e6lQoMnu4NqXQSDNgQGW7uvYOqI.png"
+    },
+    {
+      "aniListId": "218008",
+      "title": "Chibi Godzilla Raids Again Season 4",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "218011",
+      "title": "Raccoon Dog & Fox",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "tmdbId": "337290",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "imageEndpoint": "https://api.themoviedb.org/3/tv/337290/images",
+      "status": "no-valid-transparent-logo"
+    },
+    {
+      "aniListId": "218217",
+      "title": "JK Dark Summoner to Deki......Dei Nai!?",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "218493",
+      "title": "Wan Sheng Jie Specials: Gubao de Mimi",
+      "type": "SERIES",
+      "scopes": [
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "218532",
+      "title": "Maomao no Hitorigoto 3rd Season",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "218938",
+      "title": "Hotaru no Yomeiri: Choitashi",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "218942",
+      "title": "Sylvanian Families: Freya no Colorful Everyday",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "219507",
+      "title": "Ocha-ken: Chobitto Monogatari",
+      "type": "SERIES",
+      "scopes": [
+        "season:FALL:2026",
+        "recent:30-JST-days"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    },
+    {
+      "aniListId": "219548",
+      "title": "Spirit Circle",
+      "type": "SERIES",
+      "scopes": [
+        "home:TRENDING_DESC"
+      ],
+      "status": "identity-not-verified",
+      "matchingCandidates": 0
+    }
+  ]
+}

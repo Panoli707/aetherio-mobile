@@ -57,9 +57,15 @@ class MediaLayoutTest {
         }
     }
 
-    @Test fun theTitleBridgesThePhotoAndThePageWithoutShrinkingOrCoveringMostOfThePhoto() {
-        assertEquals(61, detailTitleOverlap(540, 112))
-        assertEquals(48, detailTitleOverlap(200, 400))
-        assertEquals(0, detailTitleOverlap(540, 0))
+    @Test fun theWholeTitleIsInsideThePhotoAboveTheStartOfTheFade() {
+        for (height in listOf(60, 200, 360, 540, 1200)) {
+            val start = artworkFadeStart(height)
+            val titleHeight = minOf(112, (start - 8).coerceAtLeast(0))
+            val top = artworkTitleTop(height, titleHeight, 8)
+            assertTrue(top >= 0)
+            assertTrue(top + titleHeight <= start - 8)
+            assertTrue(start < height)
+        }
+        assertEquals(0, artworkTitleTop(0, 400, 8))
     }
 }

@@ -139,7 +139,7 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
         val titleItem = if (resolved?.artwork?.url in imageKey) item else resolved?.item ?: item
         if (fullImage) {
             Box {
-                IntegratedDetailHero(titleItem, imageHeight, separateTitle, imageLoader, overlayTitle = ArtworkImages.overlayTitle(artwork)) {
+                IntegratedDetailHero(titleItem, imageHeight, separateTitle, imageLoader) {
                     resolved?.let { ready -> Image(painter = BitmapPainter(ready.bitmap, filterQuality = FilterQuality.High),
                         contentDescription = if (!separateTitle) item.title else null,
                         contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().testTag("heroImage")) }
@@ -149,26 +149,20 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
             }
             return@BoxWithConstraints
         }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (artwork == null) Spacer(Modifier.statusBarsPadding().height(56.dp))
-            else Box(Modifier.fillMaxWidth().height(imageHeight)) {
+        Box {
+            IntegratedDetailHero(titleItem, if (artwork == null) 180.dp else imageHeight, separateTitle, imageLoader, compact = true) {
                 resolved?.let { ready -> Image(painter = BitmapPainter(ready.bitmap, filterQuality = FilterQuality.High),
                     contentDescription = if (!separateTitle) item.title else null,
                     // Inside uses decoded bitmap pixels as a layout limit, leaving black margins after sampling.
                     // Crop fills the screen width; heroArtworkHeight bounds how much may be trimmed vertically.
                     contentScale = if (fullImage) ContentScale.Fit else ContentScale.Crop, alignment = Alignment.Center,
                     modifier = Modifier.fillMaxSize().testTag("heroImage")) }
-                if (loading && !inspection) androidx.compose.material3.CircularProgressIndicator(
-                    Modifier.align(Alignment.Center).size(28.dp).testTag("heroArtworkLoading"), color = Accent)
                 // Keep artwork readable: only fade its edges, never blur it or darken the whole image.
-                if (!fullImage) Box(Modifier.fillMaxWidth().height(56.dp).align(Alignment.TopCenter)
+                Box(Modifier.fillMaxWidth().height(56.dp)
                     .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .35f), Color.Transparent))))
-                if (!fullImage) Box(Modifier.fillMaxWidth().height(48.dp).align(Alignment.BottomCenter)
-                    .background(Brush.verticalGradient(listOf(Color.Transparent, Ink))))
             }
-            if (separateTitle) Box(Modifier.widthIn(max = 300.dp).fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)) {
-                DetailTitle(titleItem, Modifier.fillMaxWidth(), imageLoader, compact = true)
-            }
+            if (loading && !inspection) androidx.compose.material3.CircularProgressIndicator(
+                Modifier.align(Alignment.Center).size(28.dp).testTag("heroArtworkLoading"), color = Accent)
         }
     }
 }

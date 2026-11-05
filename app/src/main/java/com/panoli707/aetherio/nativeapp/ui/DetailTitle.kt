@@ -42,10 +42,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
-/** A separate, stable title area. A failed/missing logo never leaves a detail page unnamed. */
+/** Stable logo frame with a written fallback, optionally bounded inside artwork. */
 @Composable
 internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
-    imageLoader: ImageLoader = LocalContext.current.imageLoader, compact: Boolean = false) {
+    imageLoader: ImageLoader = LocalContext.current.imageLoader, compact: Boolean = false, insideArtwork: Boolean = false) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val inspection = LocalInspectionMode.current
@@ -53,7 +53,8 @@ internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
     var logo by remember(item.key, candidates) { mutableStateOf<ImageBitmap?>(null) }
     var loading by remember(item.key, candidates) { mutableStateOf(candidates.isNotEmpty()) }
     val measurer = rememberTextMeasurer()
-    val style = MaterialTheme.typography.headlineLarge.copy(textAlign = TextAlign.Center)
+    val style = MaterialTheme.typography.headlineLarge.copy(textAlign = TextAlign.Center,
+        shadow = if (insideArtwork) androidx.compose.ui.graphics.Shadow(Color.Black, blurRadius = 6f) else null)
     BoxWithConstraints(modifier.testTag("detailTitle").semantics {
         stateDescription = if (loading && !inspection) "Cargando logo" else "Título preparado"
     }, contentAlignment = Alignment.Center) {
@@ -61,7 +62,7 @@ internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
         val textSize = measurer.measure(AnnotatedString(item.title), style, constraints = Constraints(maxWidth = widthPx)).size
         // A valid logo must not inherit hundreds of dp of blank space from a novel-length title.
         // Only the final written fallback expands; the loading/decoded-logo frame stays fixed.
-        val logoHeight = if (compact) 72.dp else 112.dp
+        val logoHeight = (if (compact) 72.dp else 112.dp).coerceAtMost(maxHeight)
         val frameHeight = if (!loading && logo == null) maxOf(if (compact) 0.dp else logoHeight, with(density) { textSize.height.toDp() }) else logoHeight
         // A text fallback changing height must not restart the failed logo request.
         val heightPx = with(density) { logoHeight.roundToPx().coerceAtLeast(1) }
@@ -82,7 +83,7 @@ internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
             logo = decoded
             loading = false
         }
-        Box(Modifier.fillMaxWidth().height(frameHeight), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxWidth().height(frameHeight.coerceAtMost(maxHeight)), contentAlignment = Alignment.Center) {
             val ready = logo
             if (ready != null) {
                 val painter = remember(ready) { BitmapPainter(ready, filterQuality = FilterQuality.High) }
@@ -103,7 +104,8 @@ internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
                 }, contentScale = ContentScale.Fit)
             }
             else Text(item.title, Modifier.fillMaxWidth().testTag("detailTitleText"), style = style,
-                maxLines = if (loading) 3 else Int.MAX_VALUE, overflow = if (loading) TextOverflow.Ellipsis else TextOverflow.Clip)
+                maxLines = if (loading || insideArtwork) 3 else Int.MAX_VALUE,
+                overflow = if (loading || insideArtwork) TextOverflow.Ellipsis else TextOverflow.Clip)
         }
     }
 }

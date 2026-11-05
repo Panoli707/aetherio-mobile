@@ -1,0 +1,1449 @@
+{
+  "schemaVersion": 1,
+  "logos": [
+    {
+      "aniListId": "1",
+      "tmdbId": "30991",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_1.png",
+      "source": "https://image.tmdb.org/t/p/original/qE3UTBT2g7DG0BVj9u2YY6XoiUu.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "87fd09c2cee26196a53b108a9b4a4ab15072887561d124c38d2d25cbc0837d72"
+    },
+    {
+      "aniListId": "5",
+      "tmdbId": "11299",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_5.png",
+      "source": "https://image.tmdb.org/t/p/original/kxRkMWA9D8YAfjNgPh7iPcOK0UT.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "0f0cc2c2f6690ca23cb86c30cfa5844c2826ecfac9155be643d2fddb8cacd46d"
+    },
+    {
+      "aniListId": "6",
+      "tmdbId": "26453",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_6.png",
+      "source": "https://image.tmdb.org/t/p/original/vy1vLGekIIV3fw97jtMDXAeMc1o.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "483741d482733c507f21de76f97ad247044c9b92d5654f8d630361ec08d30915"
+    },
+    {
+      "aniListId": "19",
+      "tmdbId": "30981",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_19.png",
+      "source": "https://image.tmdb.org/t/p/original/lB3wpetb1ojeu8OUbioSxI7kdXT.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "a33c0787a6cee0b908f3490f59e47afa3e993a1c0e219acf27461715f46b9e97"
+    },
+    {
+      "aniListId": "30",
+      "tmdbId": "890",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_30.png",
+      "source": "https://image.tmdb.org/t/p/original/jNIXy1QNfYKzHCarH043bjOjBOD.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "86cf0cc02299c2021a4756e15e0f8bc1540baf909fadf48a03595a825e3aa657"
+    },
+    {
+      "aniListId": "32",
+      "tmdbId": "18491",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_32.png",
+      "source": "https://image.tmdb.org/t/p/original/3k5d1Spei5C4vx6zbs5ZfwTRNno.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "9084e841dfb312345a360a5f85c41defd0b0c685d5c1da6f32b98aa31f914264"
+    },
+    {
+      "aniListId": "33",
+      "tmdbId": "35935",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_33.png",
+      "source": "https://image.tmdb.org/t/p/original/e1yog5vpUISdd3NDqllfNX3ckuf.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "30391118fb63e4516927f4d68d2c3742b7259922605712964e79f7838b996164"
+    },
+    {
+      "aniListId": "43",
+      "tmdbId": "9323",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_43.png",
+      "source": "https://image.tmdb.org/t/p/original/nAmJsTDt4QKhmrHgYA4syIzwcLl.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "3e08092b64a9a136f079dbcc840c3accea09d44a33f0fbc81747ce89939f5e07"
+    },
+    {
+      "aniListId": "44",
+      "tmdbId": "317885",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_44.png",
+      "source": "https://image.tmdb.org/t/p/original/wJiZg3mV3WawimMkdF4pZ2sXXAH.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "a17cd224ed659d4d41d3aa7440141310fb30e47d632f0db80bba876f466ab12c"
+    },
+    {
+      "aniListId": "95",
+      "tmdbId": "37546",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_95.png",
+      "source": "https://image.tmdb.org/t/p/original/bM3QlpNbmSCnHLuqRy9TAMGLGsC.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "982ca383d84f584e897109b66b1508f0cbecbc28cd09cf44c5b00893b172141a"
+    },
+    {
+      "aniListId": "136",
+      "tmdbId": "45952",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_136.png",
+      "source": "https://image.tmdb.org/t/p/original/qDSB90QFXHQayEOgtN5kqFzbOlw.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "887fd53d04a309167ca1b0786f3666a6fd18b6ed2b81d7ea0ae3d0e21f36ca77"
+    },
+    {
+      "aniListId": "164",
+      "tmdbId": "128",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_164.png",
+      "source": "https://image.tmdb.org/t/p/original/llPoqIFtseYRY3eAwD5pPBPFSDw.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "9e055bb8578f3e3fa327cf4edefe76481f5a73f7f5e3cca315a3bf70a1add1d4"
+    },
+    {
+      "aniListId": "185",
+      "tmdbId": "40424",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_185.png",
+      "source": "https://image.tmdb.org/t/p/original/tkaFoGYZugttnc6A2W1DUK8oRFK.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "4b73258ac469fde47e099d2e6e6243f5f8f336bce65ac592b3b31110e5e9ab72"
+    },
+    {
+      "aniListId": "199",
+      "tmdbId": "129",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_199.png",
+      "source": "https://image.tmdb.org/t/p/original/6n7pU5eBm3lIKM70PIojvEWAD2O.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "d011e5a6a5b136259bca92eabc1d0463c2c4c3db9c903f92d9c0d9970a800bb7"
+    },
+    {
+      "aniListId": "205",
+      "tmdbId": "1063",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_205.png",
+      "source": "https://image.tmdb.org/t/p/original/x9It99iyb9PJifywXtWfDB6FYmX.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "cfcaff0130426e94652f90663492d2fef5971df36045a779a98449ad94dab886"
+    },
+    {
+      "aniListId": "232",
+      "tmdbId": "35790",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_232.png",
+      "source": "https://image.tmdb.org/t/p/original/c28DkuL1JbFPkQUjWq3oCVr8ata.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "cfbafc5126da93f8b5d63eb6ded99d4c06655ff6f7ccd03cbc63a405372bf6aa"
+    },
+    {
+      "aniListId": "235",
+      "tmdbId": "30983",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_235.png",
+      "source": "https://image.tmdb.org/t/p/original/mliYec9AVYK8Mv1R9c5vldVJSdO.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "50c3ee93e78d1f2ade99b0f7d153bc4f109122d7e6c87c6f5c476cbdfd64f2ff"
+    },
+    {
+      "aniListId": "245",
+      "tmdbId": "43017",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_245.png",
+      "source": "https://image.tmdb.org/t/p/original/5EsSjcltlc6ibiU3FpoylCuItNr.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "9b771050d10b5aad65a7936fed5476023127f3d015e86465b85e1ed1eb6cf683"
+    },
+    {
+      "aniListId": "263",
+      "tmdbId": "42705",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_263.png",
+      "source": "https://image.tmdb.org/t/p/original/qlJ4cCqnHNs8cPEZDlM67RwZIFQ.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "128eea3e6673bc7f2fd06373ef950a021e26eb9298eb71ed5c83772d65c493cb"
+    },
+    {
+      "aniListId": "269",
+      "tmdbId": "30984",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_269.png",
+      "source": "https://image.tmdb.org/t/p/original/o70efegfXs54CWmstnk1MXnFJ8I.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "6deca2cb1060293b5f573f13aaeb1733136e2ddd2b20c6f3ae16cb736348f8e7",
+      "visualReview": "Revisión visual: usar el logo clásico de Bleach, no el subtítulo de Thousand-Year Blood War."
+    },
+    {
+      "aniListId": "339",
+      "tmdbId": "1087",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_339.png",
+      "source": "https://image.tmdb.org/t/p/original/x60va4fY0QKyE5WbKo0l4frl4XM.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "0ff34eb269e01fe4c16c5ea74390ccc11c4f14202ff0b3e1eec279194812dab9"
+    },
+    {
+      "aniListId": "392",
+      "tmdbId": "30669",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_392.png",
+      "source": "https://image.tmdb.org/t/p/original/axNJ1lZM6Pk8y9iVDAYQeN6FkF8.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "22d1133653daf8f3b749c73bb22a84e7402212e318ee7cce6d0e07cf166727d8"
+    },
+    {
+      "aniListId": "431",
+      "tmdbId": "4935",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_431.png",
+      "source": "https://image.tmdb.org/t/p/original/t1RgdiMy3vvwYTWrpqWPHOKeoEJ.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "00b7a894f8eacbba16e4afc0bd143cc49a282c37e9d0f6b29d974008561a5ebb"
+    },
+    {
+      "aniListId": "437",
+      "tmdbId": "10494",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_437.png",
+      "source": "https://image.tmdb.org/t/p/original/nWComdcOnjU8PyPG9viNugMalnF.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "96a1fc3d9dd264ea43c80e5ac618e719c6459fc72584268d2cb4bcc927337723"
+    },
+    {
+      "aniListId": "440",
+      "tmdbId": "1042",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_440.png",
+      "source": "https://image.tmdb.org/t/p/original/2Pd5rCKKAd1DvDaA6iNbXUGf7b2.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "61ac3944c1c124ead3c54650a840b1c57dd74ea5c2195890e0149648d4f04aed"
+    },
+    {
+      "aniListId": "441",
+      "tmdbId": "19738",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_441.png",
+      "source": "https://image.tmdb.org/t/p/original/6g85AnIbY626deMGngOPsBMaBrD.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "f0763209503accb060ff6deadd9b6aec4841e8a36d5264792168f9917d63074b"
+    },
+    {
+      "aniListId": "457",
+      "tmdbId": "26867",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_457.png",
+      "source": "https://image.tmdb.org/t/p/original/xFiCp8wraCYN2l2aYJPI4hLxniT.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "a9b75c47a4773fc2283fdf9964cd19dbab21eecdb4e9700719a79d74e8dfd7bc"
+    },
+    {
+      "aniListId": "467",
+      "tmdbId": "1095",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_467.png",
+      "source": "https://image.tmdb.org/t/p/original/1JPbD26yX4nUA0oZegyqnlI0ahc.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "b1aa50346346bbf516a0ce33e0412ed33bbfc175f35b4b9801aa73148e0d65be"
+    },
+    {
+      "aniListId": "523",
+      "tmdbId": "8392",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_523.png",
+      "source": "https://image.tmdb.org/t/p/original/9EZz40J9JOWJnWK1cGG7uCNEW8s.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "2e946201b6fee30367a4b6d33a59fbb576344f163fdb547dcb23b7e8e1474649"
+    },
+    {
+      "aniListId": "578",
+      "tmdbId": "12477",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_578.png",
+      "source": "https://image.tmdb.org/t/p/original/xnPwJ03UcrGL13eR1mYAVGDmA1N.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "c899ebb30ef98b0507824e1e1dee3b51c5e3f3aabb6cc9c4943f2d1b9df064f9"
+    },
+    {
+      "aniListId": "585",
+      "tmdbId": "37797",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_585.png",
+      "source": "https://image.tmdb.org/t/p/original/8gm9b0OKGnDLXGGABifXosBrzd.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "0a9a1b283d1f60554a98b4334b990b0945bf4772985f94db5c6ded69914093ae"
+    },
+    {
+      "aniListId": "820",
+      "tmdbId": "27660",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_820.png",
+      "source": "https://image.tmdb.org/t/p/original/7brhNxFjohzRaHv05F8KTGrC80l.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "2b2337e783568e9fe8c22af641835381d2794d2484e6154622d901eb8f40a34d"
+    },
+    {
+      "aniListId": "877",
+      "tmdbId": "56568",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_877.png",
+      "source": "https://image.tmdb.org/t/p/original/tAxaq8MCv4VBbIUzul91E4xdRQY.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "0747b2a84cf404dbfd6113b5528d2d893c43cdca54b3917ed07bad9fd891bc03"
+    },
+    {
+      "aniListId": "918",
+      "tmdbId": "57041",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_918.png",
+      "source": "https://image.tmdb.org/t/p/original/2GFz7E2Z1UWiWqOv2YGIbIaAWrH.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "84581e87d90d0f00dab3df6521b08142b6dd7b95c23a4b502295f035a2c3aa57"
+    },
+    {
+      "aniListId": "1096",
+      "tmdbId": "14572",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_1096.png",
+      "source": "https://image.tmdb.org/t/p/original/bLtRZlCXruzJqP5YeiF3p3ck55b.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "6ef3bfda69bc70f62eb4478899c804d17e2cfbab46c907c0e9d6efa4af77d266"
+    },
+    {
+      "aniListId": "1535",
+      "tmdbId": "13916",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_1535.png",
+      "source": "https://image.tmdb.org/t/p/original/8UX1i5i49GN7cXKkIvCGmaxfqJm.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "3ca2493b41f16da071cb96d582190747e525d2576bf9724ad2897fae002e7dac"
+    },
+    {
+      "aniListId": "1575",
+      "tmdbId": "31724",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_1575.png",
+      "source": "https://image.tmdb.org/t/p/original/12khsOKQkyZHEXloNkwhxUxl9tQ.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "6c60abd442fd94aadefb07363ebf1cfba6d54998378d0afd64b64b31ebd33800"
+    },
+    {
+      "aniListId": "1689",
+      "tmdbId": "38142",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_1689.png",
+      "source": "https://image.tmdb.org/t/p/original/43Nv47NyaO2ELIX3G3AiTBwKJli.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "6fb9f4df783daf1b79cb432c4fe16e5aae162eeeadcb1c43bfd794335b37d8c7"
+    },
+    {
+      "aniListId": "2001",
+      "tmdbId": "21729",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_2001.png",
+      "source": "https://image.tmdb.org/t/p/original/xfQbQg7wYf82DKBAMaDZKu6tglU.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "98470d115ac2a5949e9a92d4e57af46f1ea089765a7bbeb461bd2108fcde410e"
+    },
+    {
+      "aniListId": "2559",
+      "tmdbId": "35832",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_2559.png",
+      "source": "https://image.tmdb.org/t/p/original/aFgdaITdHgNnD6P2jvMw6w5YeKy.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "0b99828fe47f3236b17a81831dc7e327ba986a12ed93a70397e627324d3ac4e2"
+    },
+    {
+      "aniListId": "5081",
+      "tmdbId": "46195",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_5081.png",
+      "source": "https://image.tmdb.org/t/p/original/kMhCjhfnCFYtMbwU5sY0kqXJ9Wg.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "dfbdf3ce6dfa344e6d27cb3400b0a531ce8286b6dfcbc3ad4514189f7d537ed5"
+    },
+    {
+      "aniListId": "5114",
+      "tmdbId": "31911",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_5114.png",
+      "source": "https://image.tmdb.org/t/p/original/1uxD6336yvySlaNqAuCl5XuGt3U.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "ae9a80c7449bbda7b2bac6e26e26264a87257bdd5778e67527f6aad3953da639"
+    },
+    {
+      "aniListId": "7311",
+      "tmdbId": "36865",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_7311.png",
+      "source": "https://image.tmdb.org/t/p/original/qlljFWhukyavy4myGro8YEQndpi.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "a079fc1bed0eb38ee79562f30e5c54c14b9d2be567a40c4aca3fccf1a69ef632"
+    },
+    {
+      "aniListId": "9253",
+      "tmdbId": "42509",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_9253.png",
+      "source": "https://image.tmdb.org/t/p/original/7GEZnpbAgtPr7MeZ04i7HtiLvl3.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "39e4c999474fab4d4b33422ac4b0ed26fadba0eded8317a573d75206fdd23319"
+    },
+    {
+      "aniListId": "11757",
+      "tmdbId": "45782",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_11757.png",
+      "source": "https://image.tmdb.org/t/p/original/2PNKn2G0W2JJ5gZcP5XLL0BnRno.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "463bb30b9542f990583efd7aee6686c849c7b9b7d36661d82e89ac2e2ba3e617"
+    },
+    {
+      "aniListId": "15335",
+      "tmdbId": "245917",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_15335.png",
+      "source": "https://image.tmdb.org/t/p/original/sZxtClwUxlu1vZiuMlxXgPuaPx1.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "542a567bad0422f891bff9678a8288293858465165f46be558dcced4ef2954bc"
+    },
+    {
+      "aniListId": "16498",
+      "tmdbId": "1429",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_16498.png",
+      "source": "https://image.tmdb.org/t/p/original/emwRAEjT5Tfxpm93pKincoVG8UO.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "230a27a8fe2296969f3160d0012546a83eeda5b335bb7f49c8fea4dce586e698"
+    },
+    {
+      "aniListId": "16782",
+      "tmdbId": "198375",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_16782.png",
+      "source": "https://image.tmdb.org/t/p/original/gObL6SMBJDgJXw128qdf6RZbp2c.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "9360c92eaf52f2a7eb060f593ccf2fed14e77378206a2e9ba29e88b0e91c9ca3"
+    },
+    {
+      "aniListId": "20464",
+      "tmdbId": "60863",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_20464.png",
+      "source": "https://image.tmdb.org/t/p/original/wyL5cbJw5hosM9D7c7z5cWAeThC.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "d38f33351ce8ec0e1840374ecccb03b4632d5c611ce0e3366746f95486d23b78"
+    },
+    {
+      "aniListId": "20605",
+      "tmdbId": "61374",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_20605.png",
+      "source": "https://image.tmdb.org/t/p/original/pcIQ5S2CZFkq00cuJ87PARKPnkK.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "4d570890d0783e3795996bb246c38d10540286412d7812c5f3c7fe3e24beefaa",
+      "visualReview": "Revisión visual: usar Tokyo Ghoul, no Tokyo Ghoul:re."
+    },
+    {
+      "aniListId": "20607",
+      "tmdbId": "60811",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_20607.png",
+      "source": "https://image.tmdb.org/t/p/original/8mB4MkZKTxsAOWiREBb1ILUthVy.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "734d1b69983d04478bfc1faf4e93eaffe9c8c7548c3d1ef26eb7b3d1da075299"
+    },
+    {
+      "aniListId": "20665",
+      "tmdbId": "61663",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_20665.png",
+      "source": "https://image.tmdb.org/t/p/original/eLddWxFE6B7t4DuHXkvXHK2oAOE.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "5aee17767379f03fe454b64522d44240af73e8b4b1689fd822952c33d4367c28"
+    },
+    {
+      "aniListId": "20755",
+      "tmdbId": "62110",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_20755.png",
+      "source": "https://image.tmdb.org/t/p/original/qbhofHzHg4zzxmgspIay0jXIJNx.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "211669d68eff7e7396392e030aa9c5cfceff013abff9abe766fcb19ac546a445"
+    },
+    {
+      "aniListId": "21087",
+      "tmdbId": "63926",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_21087.png",
+      "source": "https://image.tmdb.org/t/p/original/gGuticLgobih3ZNMko7cZDipsYW.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "ef40f33c3d2cea92469a1f9f9666c3417585ea5449ad36d23342ea0df1989ef6"
+    },
+    {
+      "aniListId": "21355",
+      "tmdbId": "65942",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_21355.png",
+      "source": "https://image.tmdb.org/t/p/original/5cfRiR2U7m3DuCTRRwB7LeJYte8.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "3eed3028072f2dc450369b251a02fef21a800435d158b40759f154b94922293f"
+    },
+    {
+      "aniListId": "21400",
+      "tmdbId": "362585",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_21400.png",
+      "source": "https://image.tmdb.org/t/p/original/khtS2tNfmXmhlLowHFSx9man670.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "554dc8ba8ee864101a752b610e9d63c5c24fcc38a7269ce145623d26bff33afe"
+    },
+    {
+      "aniListId": "21459",
+      "tmdbId": "65930",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_21459.png",
+      "source": "https://image.tmdb.org/t/p/original/nLMgG3o3ov0cv15LPbFgv4NVRmZ.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "106cadf5a2a6aad2783faf495c47c8633911424a0e64147301983e615f7d7068"
+    },
+    {
+      "aniListId": "21507",
+      "tmdbId": "67075",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_21507.png",
+      "source": "https://image.tmdb.org/t/p/original/nH2KsyLFAj9hB0VZYVhpPkFeKPD.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "02a8f987ded2433590ed9c36b10a24d85f0e8d9e59a046dbaafe49233add9a95"
+    },
+    {
+      "aniListId": "21519",
+      "tmdbId": "372058",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_21519.png",
+      "source": "https://image.tmdb.org/t/p/original/j3cPRV8oivK8RGuv6qYKRc7CXTG.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "cbc4e0a545197253fdcd370061fae259d534cab24dd086288ead43ffc56ebf72"
+    },
+    {
+      "aniListId": "21827",
+      "tmdbId": "75214",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_21827.png",
+      "source": "https://image.tmdb.org/t/p/original/3mxodaw8QDT2uzno1UdTjLi1GFs.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "33fb2965b2ff0b85f1cf6f3d0370281dbbd78720bcead86d140c1c0848a98c4e"
+    },
+    {
+      "aniListId": "21875",
+      "tmdbId": "445030",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_21875.png",
+      "source": "https://image.tmdb.org/t/p/original/2Xcx4LDPwzMbL0lzDKYDnyW17Sj.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "18c533b8e4c43ea64a20917526b79799afe21923b4dd51c61ed2702a6cd905c5"
+    },
+    {
+      "aniListId": "97940",
+      "tmdbId": "73223",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_97940.png",
+      "source": "https://image.tmdb.org/t/p/original/j9ZZ7WV5pwLLXbbebyGdMUxbqrc.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "1a83357a56583fef557a5ac7166a6cc7ae3ae2df3bd8d581d2e53ebb59f41d5d"
+    },
+    {
+      "aniListId": "99750",
+      "tmdbId": "504253",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_99750.png",
+      "source": "https://image.tmdb.org/t/p/original/iOGhQzUidBzOj6pxKp7pBZkw2ta.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "dc93763bdd3394d4377658abede04148afc568c40d7cf55c165972cf8f87509f"
+    },
+    {
+      "aniListId": "100723",
+      "tmdbId": "505262",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_100723.png",
+      "source": "https://image.tmdb.org/t/p/original/nX7S7Fz3D6LTKui7sypulFs3CDZ.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "1b0fb2be1e0d2165bf3172ae38cb6f7c10238b5789a5d547b56864254f657653"
+    },
+    {
+      "aniListId": "101348",
+      "tmdbId": "88803",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_101348.png",
+      "source": "https://image.tmdb.org/t/p/original/3gRatXdgLfzYU9q9WRwuQaIvpGQ.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "9651ba43b1114f528580e7d7816db2e9ae09188175012f8d716ef871b7bbf5d5"
+    },
+    {
+      "aniListId": "101759",
+      "tmdbId": "83097",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_101759.png",
+      "source": "https://image.tmdb.org/t/p/original/o4dhM6xk4Ux7Z3FqtSiZdyeRsyC.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "6b945b64f62da8fa12eaa93352fc3c26ac7d4e90ec272edc0ec02c55a027801b"
+    },
+    {
+      "aniListId": "101922",
+      "tmdbId": "85937",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_101922.png",
+      "source": "https://image.tmdb.org/t/p/original/qK491HcLxQgFunfdplCQ9MncbpT.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "1dfeae120d0338c62904a9b6d893c5cbcba858d2931f81e011984480cd422000"
+    },
+    {
+      "aniListId": "103047",
+      "tmdbId": "533514",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_103047.png",
+      "source": "https://image.tmdb.org/t/p/original/LJFJlKELMjEn5zB4DkNd85QRhG.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "afd421ebce8edab1bd304a4e836cb1a7af85e1f0e22eb5a57fdf39470cbc4dbc"
+    },
+    {
+      "aniListId": "104157",
+      "tmdbId": "572154",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_104157.png",
+      "source": "https://image.tmdb.org/t/p/original/9LchMyd0MnkVSmv6OSOFwgxK5W3.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "905e29d4710034c8d4ed64c492af1149dbef84fb4d1cebcdf882e2cf69a466d4"
+    },
+    {
+      "aniListId": "106286",
+      "tmdbId": "568160",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_106286.png",
+      "source": "https://image.tmdb.org/t/p/original/hcN3uAVVPsIEZwbNy5nfAfs7zZH.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "dc5f64f45d73afe9c1889bab779e1d764df32a8548fbe77d91a63a8e911b1478"
+    },
+    {
+      "aniListId": "114129",
+      "tmdbId": "732203",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_114129.png",
+      "source": "https://image.tmdb.org/t/p/original/959B1jpwIaicDxPklh7O56OK8ml.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "4001172912bdad110541dd7ab38f105a00f7c1826a5d48bf6221eec95534ae04"
+    },
+    {
+      "aniListId": "120377",
+      "tmdbId": "105248",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_120377.png",
+      "source": "https://image.tmdb.org/t/p/original/tQlieIwGequNvf80XYFiL9CMWnh.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "4cf51c50ff42ac4a00767dfcb032efefff2a107a18183f965dae3b7d100a99d0"
+    },
+    {
+      "aniListId": "127230",
+      "tmdbId": "114410",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_127230.png",
+      "source": "https://image.tmdb.org/t/p/original/gtQhIaKELg1gL06d6GHFoRZfuXb.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "af5a39992c5c396dfa41f1405fd8434779068418b2cb14f86158f51436882e5c"
+    },
+    {
+      "aniListId": "137653",
+      "tmdbId": "223911",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_137653.png",
+      "source": "https://image.tmdb.org/t/p/original/l82gwot5FHybdOU1RwGoj5GXBWK.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "a5bc334bda4c0a901d015290b954741a8a372b55faa10cd9aa84802b04d9071c"
+    },
+    {
+      "aniListId": "142770",
+      "tmdbId": "916224",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_142770.png",
+      "source": "https://image.tmdb.org/t/p/original/d8ZH4zgvxJWtBPFpqtTgQUuTaDY.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "35f28077b7ef85524f3cb2c1410c93338bb553df8a7ca3536f789da16ddea390"
+    },
+    {
+      "aniListId": "143103",
+      "tmdbId": "920167",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_143103.png",
+      "source": "https://image.tmdb.org/t/p/original/dB3aLebYhosLHTtx648z16SzzCq.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "cda24428db73c13d71808fbae5a12350106fb4538bbb7d8b22edcd15c47d2831"
+    },
+    {
+      "aniListId": "154587",
+      "tmdbId": "209867",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_154587.png",
+      "source": "https://image.tmdb.org/t/p/original/aGO49hn32NLo1ECdnHbfQvvm2VB.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "87d2226e0d5f240ab8c781227b7f78847ea560b8c4619e0302d31e48509c59f7"
+    },
+    {
+      "aniListId": "158871",
+      "tmdbId": "220150",
+      "type": "SERIES",
+      "season": 20,
+      "asset": "anilist_158871.png",
+      "source": "https://image.tmdb.org/t/p/original/p9D5HAq90bV1wVMRt1FoBEhMia7.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "e100551b32fca51f772e3b10ac2728fd30154f4490839df7c83efc79eac25a76"
+    },
+    {
+      "aniListId": "159042",
+      "tmdbId": "134667",
+      "type": "SERIES",
+      "season": 2,
+      "asset": "anilist_159042.png",
+      "identityEvidence": "official-second-season-site-and-existing-ID-mapping",
+      "source": "https://tenken-anime.com/assets/top/logo.webp",
+      "sha256": "630b82c31670bc25c8eff713d36a9e24d3169954e29507efffbc1dc1ff1c48a2",
+      "visualReview": "Logo transparente original de Reincarnated as a Sword II en su sitio oficial, explícitamente identificado como segunda temporada.",
+      "sourcePage": "https://tenken-anime.com/"
+    },
+    {
+      "aniListId": "160275",
+      "tmdbId": "1526917",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_160275.png",
+      "source": "https://image.tmdb.org/t/p/original/fymy57JWURX14MyJ40d2kffwpq3.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "2b443502d198ebdda0bc92a8702fde118db721f4d80eea89da17e9acd2670935"
+    },
+    {
+      "aniListId": "160803",
+      "tmdbId": "337277",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_160803.png",
+      "source": "https://image.tmdb.org/t/p/original/oPcuaK02bY2Gcs6qViDHn7mB98k.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "bf4a598f175b00a69a03408e01a9c289accaaf4aa0937e940a4d7e279c9a0630"
+    },
+    {
+      "aniListId": "165159",
+      "tmdbId": "226688",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_165159.png",
+      "source": "https://image.tmdb.org/t/p/original/sC8VGgUi1KSJpx9TjAWj8Z3Ee1A.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "9fce167f862616e32ca0fcdf24f2dc8a92d25aa5a660e37fe85b6e71729ea1fa"
+    },
+    {
+      "aniListId": "169581",
+      "tmdbId": "335194",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_169581.png",
+      "source": "https://image.tmdb.org/t/p/original/yjtn1dgaIsIQmLFo1Jm0fvocbBL.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "fd60d3a2b1a378a3feba750c74180714a865170dd027663dd52f87f70a2a2a49"
+    },
+    {
+      "aniListId": "176301",
+      "tmdbId": "220542",
+      "type": "SERIES",
+      "season": 2,
+      "asset": "anilist_176301.png",
+      "source": "https://image.tmdb.org/t/p/original/oJKTo78TqipTWZEhqNPbB3KlbWG.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "a66674d07411a8e2c127a2f467acbe3e4b222833fc7ff8cac64b586cec5cf04c"
+    },
+    {
+      "aniListId": "178083",
+      "tmdbId": "105009",
+      "type": "SERIES",
+      "season": 4,
+      "asset": "anilist_178083.png",
+      "source": "https://image.tmdb.org/t/p/original/vaqar9j5QMcQBJSdJCuvPC697U0.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "de3c57ba6ebd9f594ddbd7cbf4e9eb0721b3fa8be2205d674818c081c2286765"
+    },
+    {
+      "aniListId": "178788",
+      "tmdbId": "1311031",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_178788.png",
+      "source": "https://image.tmdb.org/t/p/original/rZaf0GKY7hrMQ0Ka9Kc8lakQrQ9.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "5210673d8b697d6ce83e09092d09449c599463c4e5e3d2b89b3fc52214071436"
+    },
+    {
+      "aniListId": "178868",
+      "tmdbId": "303272",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_178868.png",
+      "source": "https://image.tmdb.org/t/p/original/lFNhd3XrhA90XawdnocusI9zwsS.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "ae2e0d4c503c2b9c30b2c3d6c717734d34f65deb74e56ba633e8286d6a28a474"
+    },
+    {
+      "aniListId": "180136",
+      "tmdbId": "270603",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_180136.png",
+      "source": "https://image.tmdb.org/t/p/original/cViYa926pHMY1d1u5jkJkgmMugH.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "54593dad6adb3d61d2e1e8fe9a9deb907146609447f066d3cadc761bdce5af22"
+    },
+    {
+      "aniListId": "180894",
+      "tmdbId": "305313",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_180894.png",
+      "source": "https://image.tmdb.org/t/p/original/hXWCx0n6cYBMcjngZ8M2iZXLwmZ.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "d42f5923210338780d8d98ee93f0952251283e0a3fd9970a0a3f7026adcd86bf"
+    },
+    {
+      "aniListId": "183231",
+      "tmdbId": "299144",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_183231.png",
+      "source": "https://image.tmdb.org/t/p/original/pFfXK7C1wU3v9RCSGN6tEy5ptPh.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "822e9117bd847da9c51ec53bd1f6d7df41f351f0a2aa8a3f634408f2bb21c244"
+    },
+    {
+      "aniListId": "185646",
+      "tmdbId": "285797",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_185646.png",
+      "source": "https://image.tmdb.org/t/p/original/tWrcIgo29Wpg43qp7AfEqJukiVD.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "07dd8d3464b763e1599be1d92710803ea6690c5bf4f436c788bed52168d865a2"
+    },
+    {
+      "aniListId": "185756",
+      "tmdbId": "237150",
+      "type": "SERIES",
+      "season": 3,
+      "asset": "anilist_185756.png",
+      "source": "https://image.tmdb.org/t/p/original/5v0SYLgb6vgh9zqYz04Uy1ohDbP.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "edae8a8ad6c42dddb873b67ad021ad57a3df1e531209e09af9419364cbb71e95"
+    },
+    {
+      "aniListId": "186541",
+      "tmdbId": "283692",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_186541.png",
+      "source": "https://image.tmdb.org/t/p/original/2n7hXr6wbzFwwJ0rWLiEkQHZByy.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "77ef4b11e09e15a77b5f981f90d7b5ddb99d2301707f70f7fe89b8064c057697"
+    },
+    {
+      "aniListId": "186742",
+      "tmdbId": "284580",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_186742.png",
+      "source": "https://image.tmdb.org/t/p/original/zh985WBkorXUcM1CXS03e2AkUx1.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "475ded22e40cdd453a0851435b11cacbc98647e09af3fb18c3044301780b106e"
+    },
+    {
+      "aniListId": "187316",
+      "tmdbId": "285710",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_187316.png",
+      "source": "https://image.tmdb.org/t/p/original/a6TJwS7hr59jbFtkRmj0apq9SZy.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "857108806941c96aba0c277665f2a6ebbe99d771cfd1c7635cb32c315be359d9"
+    },
+    {
+      "aniListId": "187402",
+      "tmdbId": "285899",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_187402.png",
+      "source": "https://image.tmdb.org/t/p/original/uAhOxnSEwued04UICWHncQW1DcZ.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "aff1feadf67164056599779d62db23e968b2aad96371187c1d0f0be8d0cffb5a"
+    },
+    {
+      "aniListId": "187990",
+      "tmdbId": "316551",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_187990.png",
+      "source": "https://image.tmdb.org/t/p/original/aJTV6IPzES9zpDMeklnLTXcb3CD.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "25768c767fe0de1bd78faf005b8c500cfaed246d34df2e6b0fa926fb660bf0aa"
+    },
+    {
+      "aniListId": "189046",
+      "tmdbId": "65942",
+      "type": "SERIES",
+      "season": 4,
+      "asset": "anilist_189046.png",
+      "source": "https://image.tmdb.org/t/p/original/5cfRiR2U7m3DuCTRRwB7LeJYte8.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "3eed3028072f2dc450369b251a02fef21a800435d158b40759f154b94922293f"
+    },
+    {
+      "aniListId": "191656",
+      "tmdbId": "283938",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_191656.png",
+      "source": "https://image.tmdb.org/t/p/original/bKvyj38ZrE7KWWh5iwQfc8jvm3k.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "1312b47410026adb468368c4ab1bd97cea251ed2957618522e127eb76f2f22f7"
+    },
+    {
+      "aniListId": "194207",
+      "tmdbId": "309202",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_194207.png",
+      "source": "https://image.tmdb.org/t/p/original/xN0OdZc2vqCggdXx3Ofyrqj4SjA.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "e13cf326523813b2cbec13a1c1869118c92e3aed76334e0140ef972c8947cf7f"
+    },
+    {
+      "aniListId": "195516",
+      "tmdbId": "220542",
+      "type": "SERIES",
+      "season": 3,
+      "asset": "anilist_195516.png",
+      "source": "https://image.tmdb.org/t/p/original/oJKTo78TqipTWZEhqNPbB3KlbWG.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "a66674d07411a8e2c127a2f467acbe3e4b222833fc7ff8cac64b586cec5cf04c"
+    },
+    {
+      "aniListId": "195571",
+      "tmdbId": "295420",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_195571.png",
+      "source": "https://image.tmdb.org/t/p/original/mzzv48m0o3nvgMyNpbi8J4Ri6IC.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "16e158d6d6f8d65d92bc241346be24b0e57acafed4da7fc9c238aae5ea09f31b"
+    },
+    {
+      "aniListId": "197474",
+      "tmdbId": "1530941",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_197474.png",
+      "source": "https://image.tmdb.org/t/p/original/zFDyPWBNx1h41PDMIblEApVyhBt.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "9c599e1cc80978a67ea0131f746b2c7b991823eb772348f667a8310c18e52ce3"
+    },
+    {
+      "aniListId": "197543",
+      "tmdbId": "1614539",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_197543.png",
+      "source": "https://image.tmdb.org/t/p/original/ny0qAE8EkayWq2ahPrWNnIWRgMR.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "6011b22575ef00ca348024a1e0030ce7cfa4d6f836d9d8d9e8aebe24e3216bbf"
+    },
+    {
+      "aniListId": "198727",
+      "tmdbId": "261343",
+      "type": "SERIES",
+      "season": 2,
+      "asset": "anilist_198727.png",
+      "source": "https://image.tmdb.org/t/p/original/ukWiOIWceHNGiS81CurwkfOSwWc.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "103eaf096dfa26a998d1c1768c8675cf9631af3b264b5fb3e6fb680ec8678f92"
+    },
+    {
+      "aniListId": "199007",
+      "tmdbId": "301139",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_199007.png",
+      "source": "https://image.tmdb.org/t/p/original/1SMygZPB6m392uOgvixy0OyijUJ.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "041e257f4a230fd43391b1c10fdcd2441bcc9e23a7ab3d806fc5c92e3f1f7a4d"
+    },
+    {
+      "aniListId": "199340",
+      "tmdbId": "1553200",
+      "type": "MOVIE",
+      "season": null,
+      "asset": "anilist_199340.png",
+      "source": "https://image.tmdb.org/t/p/original/qK2KaZ7dhOkQ3jfDHWDxVLAktEm.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "db5b923a0ff072b4ef0e29497b702df6cc13d772f44bcd0e6a7f20bec8d9875c"
+    },
+    {
+      "aniListId": "199594",
+      "tmdbId": "302020",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_199594.png",
+      "source": "https://image.tmdb.org/t/p/original/yi9tqIr0fhIAcqygZCLfpzKRq6n.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "3d0a37f751d7f518fef33ebef6cc466c1112b68a558b0fefe82c5cae0dc9fa8b"
+    },
+    {
+      "aniListId": "200455",
+      "tmdbId": "303060",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_200455.png",
+      "source": "https://image.tmdb.org/t/p/original/vuetBPAN3TGi4XsRSsgiM6GV2F8.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "0502b838375fbd5a0bf3af5c9795f1e855fe733c56db5ac8ac3a066ad4bb2bba"
+    },
+    {
+      "aniListId": "202079",
+      "tmdbId": "330505",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_202079.png",
+      "source": "https://image.tmdb.org/t/p/original/mJFNofhp5Khsi35VuWrEho4IhrT.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "9e5bace58453fa0bcbc8d22c35df3be179c409fe06020edf451dc382a81e4773"
+    },
+    {
+      "aniListId": "202250",
+      "tmdbId": "333622",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_202250.png",
+      "source": "https://image.tmdb.org/t/p/original/v8S7tFMqpiAYn65Xfu0kH9rCvYL.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "b3b17f5ef8c1b2b91078fe0491c97301ec9ac0432cdfc88468d7c0e1cdc112be"
+    },
+    {
+      "aniListId": "202957",
+      "tmdbId": "306721",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_202957.png",
+      "source": "https://image.tmdb.org/t/p/original/j0QGp7ZpB1Fpwrz24JVtJ8H73Tc.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "3c28a5765697597dce0aa888424d0c6feb39c6091865ad9fec1108f07f5697f9"
+    },
+    {
+      "aniListId": "203473",
+      "tmdbId": "307903",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_203473.png",
+      "source": "https://image.tmdb.org/t/p/original/9E27D5LzvBvI1onM1iWSKABR4na.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "97ce127a3e84a28a61082f3a13af733b6e86fd62fa24351cc77fe6dd60423037"
+    },
+    {
+      "aniListId": "203490",
+      "tmdbId": "307585",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_203490.png",
+      "source": "https://image.tmdb.org/t/p/original/oyuJyrVM7HGf2MGy7rRC7gJqBQw.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "b3459683b93c67298dcfe4e724d8ad85b220495258bb0489b0d43cf1c86f9b30"
+    },
+    {
+      "aniListId": "204011",
+      "tmdbId": "297903",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_204011.png",
+      "source": "https://image.tmdb.org/t/p/original/4p8RNcI2CpZ4xHRWD8EFxViHcMd.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "1cbac89e64b2f23f727a47534d952986c7b8a5360dd22fae952b3a242cf988ed"
+    },
+    {
+      "aniListId": "205896",
+      "tmdbId": "288588",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_205896.png",
+      "source": "https://image.tmdb.org/t/p/original/yymlUm5q4wSGtvtqy9GJktFdfzm.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "d6ff09561e8bb96b0b54179b574770544ae5e229887cf38c40fc8c9ce8db162d"
+    },
+    {
+      "aniListId": "206401",
+      "tmdbId": "311842",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_206401.png",
+      "source": "https://image.tmdb.org/t/p/original/8Obg1bImnamzDmhSaUATI4eKN80.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "9b1d260f8cbe42032d7b373aad1a547eaafa7c13b57ae0f21aedb2d04307cf82"
+    },
+    {
+      "aniListId": "206523",
+      "tmdbId": "312123",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_206523.png",
+      "source": "https://image.tmdb.org/t/p/original/zYDeMOP1xH2l7TuuX6tnBfwJoJg.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "5d987bbb7139341caba478e128c6ba6f9fa0201849d6f6f7b43bbebcca488ae6"
+    },
+    {
+      "aniListId": "206774",
+      "tmdbId": "334779",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_206774.png",
+      "source": "https://image.tmdb.org/t/p/original/r2wnCfd9u89VhooHyISvKtO6Gmq.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "fdfee6c68b5c320f4f71d5bfdcbee439cc514243d939b1c06951509e19368614"
+    },
+    {
+      "aniListId": "206814",
+      "tmdbId": "312359",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_206814.png",
+      "source": "https://image.tmdb.org/t/p/original/naD7iHNC4eFxcnpNnD0x43IYDmg.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "7ee71f4ae412cc30d862c5664d651012a5729353b82ef8a29a5ffbfe7549543f"
+    },
+    {
+      "aniListId": "206949",
+      "tmdbId": "312850",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_206949.png",
+      "source": "https://image.tmdb.org/t/p/original/9wDZQwpm2qd4THRz9CRtvBEpp8p.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "d610edb5bd4ea4a6112365256746a6bc4245d7515ada912d67bdd6c34b3a6455"
+    },
+    {
+      "aniListId": "207191",
+      "tmdbId": "313068",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_207191.png",
+      "source": "https://image.tmdb.org/t/p/original/5D9kwwmONWYhWiAAL0jMZ83Skgz.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "9050edf38953a33eaa46e5b8ccbd3e518091b96b2291228ee761a54b2df60f90"
+    },
+    {
+      "aniListId": "207329",
+      "tmdbId": "313346",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_207329.png",
+      "source": "https://image.tmdb.org/t/p/original/icq6GuO0cxICLRiL6RYlen7h3UW.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "8ec686cdf47e5f9436fa31d62ace8e0ff1867e3005e787c9ca40e5e2dade636f"
+    },
+    {
+      "aniListId": "207809",
+      "tmdbId": "314054",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_207809.png",
+      "source": "https://image.tmdb.org/t/p/original/r7OojaSpdEB8hYVzMwuAC7TaxJl.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "08e9861e33c94c34ced87968656f2bc7171602c75f6014e85ac6541c4c2ea996"
+    },
+    {
+      "aniListId": "208025",
+      "tmdbId": "335790",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_208025.png",
+      "source": "https://image.tmdb.org/t/p/original/1lW0lhq7v53uqPDXRhY5R0NY1Uc.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "c944366769c819d43ff15d7c601891887be63dd63a8fb2cddc3bed4d270a5b03"
+    },
+    {
+      "aniListId": "209219",
+      "tmdbId": "316694",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_209219.png",
+      "source": "https://image.tmdb.org/t/p/original/rrfcUelVro1vO4vR9ZjE2vrUKNe.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "5ee1fd68785cf555c971396bc0e83c60bf0ff15e5f5f6f7499bf523aacbe9f89"
+    },
+    {
+      "aniListId": "209463",
+      "tmdbId": "329096",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_209463.png",
+      "source": "https://image.tmdb.org/t/p/original/8RPHKrYd9RFCGjNfblPw8coR9IT.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "9a962074e5c3a68e9b498612f8743d3bab4e4f20390334d75280ce3e60ea6ddf"
+    },
+    {
+      "aniListId": "209499",
+      "tmdbId": "320377",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_209499.png",
+      "source": "https://image.tmdb.org/t/p/original/oHz8T71b97iUyxHWntULhXRPXh8.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "a6bd1cf36906429b6f25a8ba78d878bc1ed292ef8a123c652416d8a2ef16f660"
+    },
+    {
+      "aniListId": "209502",
+      "tmdbId": "316891",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_209502.png",
+      "source": "https://image.tmdb.org/t/p/original/x7SnoIng0q5GyAO9AN8QhX6JPEi.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "fd2ce1f5c8fd25a911deee1002e28c50a9c99ac50d4803c85dcbea9716b6c67e"
+    },
+    {
+      "aniListId": "209562",
+      "tmdbId": "317259",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_209562.png",
+      "source": "https://image.tmdb.org/t/p/original/iSjwz1HozhoefU5EdRgURcDSUOG.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "10d8f24830ab686207b203f48e4f36e1b0ef32a2a6168fcb9236cb0140b5e016"
+    },
+    {
+      "aniListId": "209827",
+      "tmdbId": "203737",
+      "type": "SERIES",
+      "season": 4,
+      "asset": "anilist_209827.png",
+      "source": "https://image.tmdb.org/t/p/original/cUqgUMdxtQxBMM2pSqm36OuCSw9.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "675ac6b940dee3e48bcbae74d3f3fec584336f5d787d14f6881195f65295a507"
+    },
+    {
+      "aniListId": "209872",
+      "tmdbId": "259140",
+      "type": "SERIES",
+      "season": 3,
+      "asset": "anilist_209872.png",
+      "source": "https://image.tmdb.org/t/p/original/xmZFFDdBpqK96NnjbfXboJMPbvt.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "0d304831fb21f981818920215cb136c7f3405126d95677cae4927b268a94f29f"
+    },
+    {
+      "aniListId": "209939",
+      "tmdbId": "209867",
+      "type": "SERIES",
+      "season": 3,
+      "asset": "anilist_209939.png",
+      "source": "https://image.tmdb.org/t/p/original/aGO49hn32NLo1ECdnHbfQvvm2VB.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "87d2226e0d5f240ab8c781227b7f78847ea560b8c4619e0302d31e48509c59f7"
+    },
+    {
+      "aniListId": "211778",
+      "tmdbId": "321518",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_211778.png",
+      "source": "https://image.tmdb.org/t/p/original/dJV02YybQWx1RhhEwZdTLOPy1FB.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "a3ed0764e3ea9a7f541bdf358740d43f1468a397b58e75121d7c6c11038520e2"
+    },
+    {
+      "aniListId": "211877",
+      "tmdbId": "336654",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_211877.png",
+      "source": "https://image.tmdb.org/t/p/original/ahTvU66XHCRhjgBOTIp5Bl1vjcl.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "f9d3224570b07eaefe2e51c4c34209500e0bd17ef92fa54e4f54b92ff4a16581"
+    },
+    {
+      "aniListId": "212308",
+      "tmdbId": "327228",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_212308.png",
+      "source": "https://image.tmdb.org/t/p/original/tr9xaV8x3UluqsLcRMBStKF10OO.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "416b4e97d1bed19f61f9115dd3cdd7df4b85bfee655d5a73c4c0e0eba3421036"
+    },
+    {
+      "aniListId": "212799",
+      "tmdbId": "324326",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_212799.png",
+      "source": "https://image.tmdb.org/t/p/original/cLFFuhNSapcDtEwsgunpRNFehvC.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "829d250523c53a3966a8813cea3bb8722e06615a19db7562e38aad82a34d9efd"
+    },
+    {
+      "aniListId": "212888",
+      "tmdbId": "324502",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_212888.png",
+      "source": "https://image.tmdb.org/t/p/original/ki2DwqPbI2LcWeOQrq7dtaDIHFB.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "d8a6106dc9c29b6c120756ced3e810f498db609d78e8b4daf49c1bb7e6116e51"
+    },
+    {
+      "aniListId": "214260",
+      "tmdbId": "326695",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_214260.png",
+      "source": "https://image.tmdb.org/t/p/original/eexWYPjoPRWhEaZq3IJg5MXknL7.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "f64bb5cec7e68d0b4570cf0e2f9d48d7680e5940ae08cd9d88bc24ce7c2d429e"
+    },
+    {
+      "aniListId": "214703",
+      "tmdbId": "334103",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_214703.png",
+      "source": "https://image.tmdb.org/t/p/original/2tOo2AGDUzIxuoJB9xZ4NjUy85W.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "2ce90689feee2f58b9b1b8a414f14285ed597eabecaa63317ff23aeb15f91acf"
+    },
+    {
+      "aniListId": "214974",
+      "tmdbId": "297924",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_214974.png",
+      "source": "https://image.tmdb.org/t/p/original/rk4tkOuhKIMh2Ecjwnv5EgwiiPM.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "15ae98601b5543d2b832e91ab4ded0ca9478bf50d532efe30057e26112230371"
+    },
+    {
+      "aniListId": "216557",
+      "tmdbId": "308977",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_216557.png",
+      "source": "https://image.tmdb.org/t/p/original/hrisHdxVN8QRnx7Pl5df9xtE5wy.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "8d079b171ced7f29a0da02033e2753de1c73b71605a264552c4472c5647ae8cb"
+    },
+    {
+      "aniListId": "217577",
+      "tmdbId": "339181",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_217577.png",
+      "source": "https://image.tmdb.org/t/p/original/dknJTjJDexTNcsmZOoC658z8XhL.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "2ebf91843323a3a985aa4f0c19024b82a4722fc5133545380467cdaf03782582"
+    },
+    {
+      "aniListId": "217787",
+      "tmdbId": "315682",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_217787.png",
+      "source": "https://image.tmdb.org/t/p/original/e6lQoMnu4NqXQSDNgQGW7uvYOqI.png",
+      "identityEvidence": "exact-original-title-year-animation-and-language",
+      "sha256": "61393f1a6e3428f338a87e3ce858f0747876b1041e74f4ee7fae0beaaa3ea0e0"
+    }
+  ]
+}

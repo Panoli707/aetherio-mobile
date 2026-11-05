@@ -35,6 +35,8 @@ internal fun detailArtworkHeight(width: Dp, aspectRatio: Float): Dp {
     return (width / ratio).coerceAtLeast(1.dp)
 }
 
-/** Overlap only the title, never crop/resize the underlying photograph to make room for it. */
-internal fun detailTitleOverlap(imageHeightPx: Int, titleHeightPx: Int): Int =
-    minOf((imageHeightPx * .24f).toInt(), (titleHeightPx * .55f).toInt()).coerceAtLeast(0)
+/** Only the bottom 14% fades; no part of a logo/title is placed in that region. */
+internal fun artworkFadeStart(imageHeightPx: Int): Int = (imageHeightPx.coerceAtLeast(0) * .86f).toInt()
+
+internal fun artworkTitleTop(imageHeightPx: Int, titleHeightPx: Int, gapPx: Int): Int =
+    (artworkFadeStart(imageHeightPx) - gapPx.coerceAtLeast(0) - titleHeightPx.coerceAtLeast(0)).coerceAtLeast(0)

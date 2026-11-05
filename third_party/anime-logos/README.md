@@ -1,5 +1,11 @@
 # Logos de cuatro animes
 
+La ampliación del catálogo de logos se documenta en `docs/artwork/README.md`. Su
+registro por recurso, fuente e identidad está en
+`app/src/main/resources/anime-logo-catalog.json`; el inventario y los pendientes,
+en `docs/artwork/anime-logo-audit.json`. Este apartado conserva la procedencia
+original de los cuatro overrides de Crunchyroll.
+
 Recursos gráficos originales de Crunchyroll, seleccionados a petición del usuario como en sus cuatro capturas. No son obras propias ni están cubiertos por la licencia del código de Aetherio. Los derechos y marcas pertenecen a sus respectivos titulares; la inclusión no implica afiliación.
 
 Se conservaron los colores y la transparencia; solo se recortaron márgenes transparentes y se añadieron cuatro píxeles de margen, sin extraer personajes o controles de las capturas. No se sustituyen portadas ni fondos.

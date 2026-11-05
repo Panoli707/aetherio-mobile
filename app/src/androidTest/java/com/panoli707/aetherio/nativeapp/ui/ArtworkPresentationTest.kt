@@ -80,7 +80,8 @@ class ArtworkPresentationTest {
         ready()
         val photo = compose.onNodeWithTag("heroImage").getUnclippedBoundsInRoot()
         val title = compose.onNodeWithTag("detailTitle").getUnclippedBoundsInRoot()
-        assertTrue(title.top >= photo.bottom)
+        val fade = compose.onNodeWithTag("detailHeroFade").getUnclippedBoundsInRoot()
+        assertTrue(title.top >= photo.top && title.bottom < fade.top && fade.bottom == photo.bottom)
         compose.onNodeWithText(item.title).assertExists()
         compose.onNodeWithTag("detailHeroFade").assertExists()
     }

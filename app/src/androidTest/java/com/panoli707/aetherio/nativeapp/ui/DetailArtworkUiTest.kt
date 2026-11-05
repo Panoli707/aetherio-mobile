@@ -96,7 +96,8 @@ class DetailArtworkUiTest {
         assertAllEdges("heroImage", 2f / 3f, faded = true); assertAllEdges("detailLogo", 5f)
         val picture = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
         val logo = compose.onNodeWithTag("detailLogo", true).getUnclippedBoundsInRoot()
-        assertTrue("The title area must bridge the image and the page", logo.top < picture.bottom && logo.bottom > picture.bottom)
+        val fade = compose.onNodeWithTag("detailHeroFade", true).getUnclippedBoundsInRoot()
+        assertTrue("The whole logo must be inside the picture above the fade", logo.top >= picture.top && logo.bottom < fade.top && fade.bottom == picture.bottom)
         compose.onNodeWithTag("detailHeroFade").assertExists()
     }
 
@@ -197,8 +198,9 @@ class DetailArtworkUiTest {
         val imageHeight = (pixels.width * 1.5f).toInt()
         val x = 2 // Outside the title ink, compare the fade itself.
         assertTrue(pixels[x, imageHeight / 2].red > .95f)
-        assertTrue(pixels[x, (imageHeight * .90f).toInt()].red < .6f)
-        assertTrue(kotlin.math.abs(pixels[x, imageHeight - 2].red - pixels[x, imageHeight + 2].red) < .05f)
+        assertTrue(pixels[x, (imageHeight * .97f).toInt()].red < .4f)
+        assertTrue(pixels[x, imageHeight - 2].red < .1f)
+        assertEquals(imageHeight, pixels.height)
         val frame = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
         assertEquals(360f, (frame.bottom - frame.top).value, 1f)
     }

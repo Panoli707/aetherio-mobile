@@ -29,6 +29,7 @@ import coil.size.Precision
 import coil.size.Scale
 import com.panoli707.aetherio.nativeapp.data.ArtworkImages
 import com.panoli707.aetherio.nativeapp.data.MediaItem
+import com.panoli707.aetherio.nativeapp.data.ArtworkTitlePresence
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -40,9 +41,10 @@ private data class ResolvedHero(val artwork: ArtworkImages.Header, val bitmap: I
 @Composable
 internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
     modifier: Modifier = Modifier, maxArtworkHeight: Dp = Dp.Infinity,
-    imageLoader: ImageLoader = LocalContext.current.imageLoader, fullImage: Boolean = false) {
+    imageLoader: ImageLoader = LocalContext.current.imageLoader, fullImage: Boolean = false,
+    analyzeText: (suspend (String, ImageBitmap) -> ArtworkTitlePresence)? = null) {
     val candidates = remember(item.posterUrl, item.backdropUrl, item.portraitArtworkUrl, portrait,
-        item.posterTitlePresence, item.portraitTitlePresence, item.backdropTitlePresence) {
+        item.posterTitlePresence, item.portraitTitlePresence, item.backdropTitlePresence, item.portraitAlternatives) {
         ArtworkImages.headers(item, portrait).flatMap { art ->
             listOf(art.copy(url = ArtworkImages.highResolution(art.url)!!), art)
         }.distinctBy { it.url }
@@ -80,7 +82,7 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
                     else heroArtworkHeight(width, viewportHeight, candidate.aspectRatio, maxArtworkHeight)
                 val heightPx = with(density) { requestHeight.roundToPx().coerceAtLeast(1) }
                 val request = ImageRequest.Builder(context).data(candidate.url).size(widthPx, heightPx)
-                    .precision(Precision.INEXACT).scale(Scale.FILL).crossfade(false).build()
+                    .precision(Precision.INEXACT).scale(Scale.FILL).allowHardware(false).crossfade(false).build()
                 val result = imageLoader.execute(request)
                 ensureActive()
                 if (result !is SuccessResult) continue
@@ -99,12 +101,36 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
                     break
                 }
             }
+            // Inspect once after decoding, never during drawing or scrolling. Printed text at the
+            // top is compatible with the bottom logo; bottom/central text triggers same-scope alternatives.
+            suspend fun inspected(value: ResolvedHero): ResolvedHero {
+                val presence = value.artwork.titlePresence.takeUnless { it == ArtworkTitlePresence.UNKNOWN || it == ArtworkTitlePresence.EMBEDDED }
+                    ?: (analyzeText?.invoke(value.artwork.url, value.bitmap)
+                        ?: ArtworkTextRecognizer.analyze(context, value.artwork.url, value.bitmap))
+                return value.copy(artwork = value.artwork.copy(titlePresence = presence))
+            }
+            chosen = chosen?.let { inspected(it) }
+            if (chosen != null && !ArtworkImages.overlayTitle(chosen.artwork) && !settled) {
+                for ((candidateIndex, candidate) in candidates.withIndex().filter { (_, art) ->
+                    art.url != chosen.artwork.url && art.kind != ArtworkImages.Kind.BACKDROP &&
+                        ArtworkImages.highResolution(art.url) == art.url
+                }.take(4)) {
+                    val heightPx = with(density) { detailArtworkHeight(width, candidate.aspectRatio).roundToPx().coerceAtLeast(1) }
+                    val result = imageLoader.execute(ImageRequest.Builder(context).data(candidate.url).size(widthPx, heightPx)
+                        .allowHardware(false).precision(Precision.INEXACT).scale(Scale.FILL).crossfade(false).build())
+                    ensureActive()
+                    if (result !is SuccessResult || result.drawable.intrinsicWidth <= 0 || result.drawable.intrinsicHeight <= 0) continue
+                    val bitmap = withContext(Dispatchers.Default) { result.drawable.toBitmap().asImageBitmap() }
+                    val alternative = inspected(ResolvedHero(candidate, bitmap, bitmap.width.toFloat() / bitmap.height, item, candidateIndex))
+                    if (alternative.ratio < 1f && ArtworkImages.overlayTitle(alternative.artwork)) { chosen = alternative; break }
+                }
+            }
             ensureActive()
             resolved = chosen ?: resolved?.takeIf { it.artwork.url == candidates.getOrNull(start)?.url }
             chosen?.let { index = it.index; loadedRatio = it.ratio; settled = true }
             loading = false
         }
-        val artwork = resolved?.artwork?.let { ready -> candidates.firstOrNull { it.url == ready.url } ?: ready }
+        val artwork = resolved?.artwork
             ?: if (loading || inspection || settled) candidates.getOrNull(index) else null
         val ratio = resolved?.ratio ?: loadedRatio ?: artwork?.aspectRatio ?: (16f / 9f)
         val imageHeight = if (fullImage) detailArtworkHeight(maxWidth, ratio)
@@ -113,7 +139,7 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
         val titleItem = if (resolved?.artwork?.url in imageKey) item else resolved?.item ?: item
         if (fullImage) {
             Box {
-                IntegratedDetailHero(titleItem, imageHeight, separateTitle, imageLoader) {
+                IntegratedDetailHero(titleItem, imageHeight, separateTitle, imageLoader, overlayTitle = ArtworkImages.overlayTitle(artwork)) {
                     resolved?.let { ready -> Image(painter = BitmapPainter(ready.bitmap, filterQuality = FilterQuality.High),
                         contentDescription = if (!separateTitle) item.title else null,
                         contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().testTag("heroImage")) }
@@ -137,11 +163,11 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
                 // Keep artwork readable: only fade its edges, never blur it or darken the whole image.
                 if (!fullImage) Box(Modifier.fillMaxWidth().height(56.dp).align(Alignment.TopCenter)
                     .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .35f), Color.Transparent))))
-                if (!fullImage && separateTitle) Box(Modifier.fillMaxWidth().height(48.dp).align(Alignment.BottomCenter)
+                if (!fullImage) Box(Modifier.fillMaxWidth().height(48.dp).align(Alignment.BottomCenter)
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Ink))))
             }
             if (separateTitle) Box(Modifier.widthIn(max = 300.dp).fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)) {
-                MediaTitle(titleItem, Modifier.fillMaxWidth(), centered = true)
+                DetailTitle(titleItem, Modifier.fillMaxWidth(), imageLoader, compact = true)
             }
         }
     }

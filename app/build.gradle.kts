@@ -81,8 +81,8 @@ android {
         applicationId = "com.panoli707.aetherio.nativeapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 31
-        versionName = "0.16.0"
+        versionCode = 32
+        versionName = "0.16.1"
         manifestPlaceholders["tmdbCredentialsEmbedded"] = tmdbReadAccessToken.isNotEmpty()
         testInstrumentationRunner = when {
             providers.gradleProperty("scrollReleaseSmoke").orNull == "true" ->
@@ -134,6 +134,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-svg:2.7.0")
+    // Apache-2.0 OCR, bundled models, no telemetry, image upload or runtime model download.
+    implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.5.1")

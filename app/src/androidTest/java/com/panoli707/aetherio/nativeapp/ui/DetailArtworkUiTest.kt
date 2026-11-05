@@ -77,16 +77,16 @@ class DetailArtworkUiTest {
         assertTrue("Bottom-right edge must remain visible", samples[3].red > .9f && samples[3].green > .9f)
     }
 
-    @Test fun completePosterIncludesEveryEdgeAndConfirmedEmbeddedTitleIsNotDuplicated() {
+    @Test fun completePosterIncludesEveryEdgeAndKeepsTheTitleForAnUnverifiedLegacyFlag() {
         val item = MediaItem("1", MediaType.SERIES, "Integrated title", posterUrl = image(1200, 1800),
             logoUrl = image(600, 200), posterTitlePresence = ArtworkTitlePresence.EMBEDDED)
         compose.setContent { AetherioTheme { Box(Modifier.width(240.dp)) { HeroArtwork(item, true, 400.dp, fullImage = true) } } }
         waitFor("heroImage")
-        assertAllEdges("heroImage", 2f / 3f)
+        assertAllEdges("heroImage", 2f / 3f, faded = true)
         val bounds = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
         assertEquals(240f, (bounds.right - bounds.left).value, 1f)
         assertEquals(360f, (bounds.bottom - bounds.top).value, 1f)
-        compose.onNodeWithTag("detailTitle").assertDoesNotExist()
+        compose.onNodeWithTag("detailTitle").assertExists()
     }
 
     @Test fun unknownPosterAndCompleteLogoShareOneFadedHeader() {

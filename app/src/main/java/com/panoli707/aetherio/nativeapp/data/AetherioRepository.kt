@@ -362,14 +362,16 @@ internal class AetherioRepository(
             val images = json.optJSONObject("images") ?: JSONObject()
             val shared = parts.filter { it.tmdbSeason == first.tmdbSeason }.map { it.season }.distinct().size > 1
             return SeasonContent(SeasonArtwork.mapped(item, season, art, shared, CatalogJson.seasonPoster(json),
-                CatalogJson.logo(images), CatalogJson.portraitArtwork(images), CatalogJson.logos(images).drop(1)).copy(animeEntryId = first.animeId), episodes)
+                CatalogJson.logo(images), CatalogJson.portraitArtwork(images), CatalogJson.logos(images).drop(1),
+                CatalogJson.portraitAlternatives(images)).copy(animeEntryId = first.animeId), episodes)
         }
         val sourceSeason = if (item.seriesNumbering && parts.isNotEmpty() && season >= 1000) season - 1000 else season
         if (item.source == CatalogSource.TMDB) {
             val json = tmdb("tv/${item.id}/season/$sourceSeason", mapOf("append_to_response" to "images", "include_image_language" to "es,en,null"))
             val images = json.optJSONObject("images") ?: JSONObject()
             return SeasonContent(SeasonArtwork.apply(item, season, poster = CatalogJson.seasonPoster(json),
-                logo = CatalogJson.logo(images), portrait = CatalogJson.portraitArtwork(images), logos = CatalogJson.logos(images).drop(1)),
+                logo = CatalogJson.logo(images), portrait = CatalogJson.portraitArtwork(images), logos = CatalogJson.logos(images).drop(1),
+                portraits = CatalogJson.portraitAlternatives(images)),
                 CatalogJson.episodes(json, sourceSeason).map { it.copy(season = season) })
         }
         return SeasonContent(item, episodes(item, season))

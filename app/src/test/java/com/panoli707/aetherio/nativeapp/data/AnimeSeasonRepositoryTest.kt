@@ -30,6 +30,49 @@ class AnimeSeasonRepositoryTest {
         return JSONObject(buffer.readUtf8()).getJSONObject("variables")
     }
 
+    @Test fun dailyEventsAreFullyPaginatedAndCacheReevaluatesReleaseTimeAndMidnight() = runBlocking {
+        val start = AnimeToday.start(now)
+        val dayNow = (start + 36000) * 1000
+        var calls = 0
+        val client = client { request ->
+            calls++
+            val variables = variables(request)
+            val day = if (calls <= 2) start else start + 86400
+            assertEquals(day - 1, variables.getLong("start")); assertEquals(day + 86400, variables.getLong("end"))
+            val page = variables.getInt("page")
+            val event = JSONObject().put("episode", page).put("airingAt", day + 36000 + if (page == 1) -1 else 1)
+                .put("media", JSONObject(item))
+            200 to JSONObject().put("data", JSONObject().put("Page", JSONObject()
+                .put("pageInfo", JSONObject().put("hasNextPage", page == 1))
+                .put("airingSchedules", org.json.JSONArray().put(event)))).toString()
+        }
+        try {
+            val repository = AnimeSeasonRepository(client)
+            assertEquals(listOf(1), repository.today(dayNow).map { it.episode })
+            assertEquals(listOf(2, 1), repository.today(dayNow + 2000).map { it.episode })
+            assertEquals(2, calls)
+            repository.today(dayNow + 86400000)
+            assertEquals(4, calls)
+        } finally { client.dispatcher.executorService.shutdownNow(); client.connectionPool.evictAll() }
+    }
+
+    @Test fun aFailedDailyPageDoesNotCacheAnIncompleteListOrReplaceItWithSeasonalData() = runBlocking {
+        var calls = 0
+        val client = client { request ->
+            calls++
+            if (variables(request).getInt("page") == 1) 200 to """{"data":{"Page":{"pageInfo":{"hasNextPage":true},"airingSchedules":[]}}}"""
+            else 400 to "{}"
+        }
+        try {
+            val repository = AnimeSeasonRepository(client)
+            repeat(2) {
+                try { repository.today(now); fail("Expected incomplete daily feed failure") }
+                catch (_: AnimeCalendarException) { }
+            }
+            assertEquals(4, calls)
+        } finally { client.dispatcher.executorService.shutdownNow(); client.connectionPool.evictAll() }
+    }
+
     @Test fun allPagesAreLoadedAndOnlyACompleteSeasonIsCachedWithinItsActualQuarter() = runBlocking {
         var count = 0
         val client = client { request ->

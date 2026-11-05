@@ -44,15 +44,15 @@ class ArtworkImagesTest {
         assertEquals(1, ArtworkImages.headers(item.copy(posterUrl = "same", backdropUrl = "same"), true).size)
     }
 
-    @Test fun onlyConfirmedEmbeddedTitlesCanHideTheIndependentDetailTitle() {
+    @Test fun printedTitlesNeverRemoveTheIndependentAccessibleTitle() {
         val item = MediaItem("1", MediaType.SERIES, "Title", posterUrl = "poster")
         ArtworkTitlePresence.entries.forEach { presence ->
             val header = ArtworkImages.headers(item.copy(posterTitlePresence = presence), true).single()
-            assertEquals(presence != ArtworkTitlePresence.EMBEDDED, ArtworkImages.separateTitle(header, true))
+            assertTrue(ArtworkImages.separateTitle(header, true))
         }
         assertTrue(ArtworkImages.separateTitle(null, true))
         assertTrue(ArtworkImages.separateTitle(ArtworkImages.headers(item, true).single(), false))
-        assertFalse(ArtworkImages.separateTitle(ArtworkImages.headers(item.copy(posterTitlePresence = ArtworkTitlePresence.EMBEDDED), true).single(), false))
+        assertTrue(ArtworkImages.separateTitle(ArtworkImages.headers(item.copy(posterTitlePresence = ArtworkTitlePresence.EMBEDDED), true).single(), false))
     }
 
     @Test fun logoVariantsKeepProviderLanguageOrderAndNeverRewriteSignedOrForeignUrls() {

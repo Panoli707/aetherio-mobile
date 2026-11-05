@@ -46,6 +46,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
     onSelect: (MediaItem) -> Unit, onCategory: (String) -> Unit, onRetry: () -> Unit,
     onContinue: (WatchProgress) -> Unit = {}, onRetryAnime: () -> Unit = {}, onProfile: () -> Unit = {}) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val heroes = state.homePreferences.visibleHeroes(state.heroes)
     var touching by remember { mutableStateOf(false) }
     LaunchedEffect(lifecycle, active, pager, scroll, pager.pageCount) {
         if (active && pager.pageCount > 1) lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
@@ -66,7 +67,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
         }
     },
         contentPadding = PaddingValues(bottom = 110.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
-        if (state.heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(state.homePreferences.visibleHeroes(state.heroes), pager, onSelect, onProfile, onRetry, state.homeLoading) }
+        if (heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(heroes, pager, onSelect, onProfile, onRetry, state.homeLoading) }
         else item(key = "heading") {
             Box(Modifier.fillMaxWidth()) {
                 ScreenHeader("Aetherio")
@@ -113,12 +114,14 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
             item(key = "empty") { StatusMessage("El catálogo está vacío", "No hay títulos disponibles en este momento.", "Reintentar", onRetry) }
         }
         if (state.sections.none { it.id == "mal.airing_anime" } && "mal.airing_anime" !in state.homePreferences.hiddenCatalogIds) item(key = "animeSeasonLink") {
-            AiringAnimeSection(state.animeSeason, onSelect, { onCategory("airing") }, onRetryAnime)
+            AiringAnimeSection(state.animeToday, onSelect, { onCategory("airing") }, onRetryAnime)
         }
         val displayed = state.homePreferences.ordered(state.sections)
-        for (section in displayed.filter { it.items.isNotEmpty() || it.loading || it.error != null }) {
-            item(key = "section:${section.id}") { HomeCatalogSection(section, onSelect, onCategory, onRetry, state.animeSeason,
-                state.homePreferences.horizontalPosters) }
+        for (section in displayed.filter { it.id == "mal.airing_anime" || it.items.isNotEmpty() || it.loading || it.error != null }) {
+            item(key = "section:${section.id}") {
+                if (section.id == "mal.airing_anime") AiringAnimeSection(state.animeToday, onSelect, { onCategory("airing") }, onRetryAnime)
+                else HomeCatalogSection(section, onSelect, onCategory, onRetry, state.animeSeason, state.homePreferences.horizontalPosters)
+            }
             if (section.id == "tmdb.top_movie") item(key = "movie-series-genres") {
                 CatalogNavigationRow("Explorar géneros - Series y películas", "movieSeriesGenres",
                     DesktopHomeCatalog.genres.map { "genre:${it.id}" to it.title }, onCategory)

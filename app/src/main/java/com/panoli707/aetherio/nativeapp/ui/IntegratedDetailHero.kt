@@ -24,18 +24,18 @@ import coil.ImageLoader
 /** One photograph, one continuous fade and one title: the logo has no separate panel/background. */
 @Composable
 internal fun IntegratedDetailHero(item: MediaItem, imageHeight: Dp, showTitle: Boolean,
-    imageLoader: ImageLoader, image: @Composable () -> Unit) {
+    imageLoader: ImageLoader, overlayTitle: Boolean = true, image: @Composable () -> Unit) {
     val density = LocalDensity.current
     val imageHeightPx = with(density) { imageHeight.roundToPx().coerceAtLeast(1) }
     val bottomGap = with(density) { 12.dp.roundToPx() }
     Layout(modifier = Modifier.fillMaxWidth().testTag("detailIntegratedHero"), content = {
         Box { image() }
         Box(Modifier.testTag("detailHeroFade").drawWithCache {
-            val start = imageHeightPx * .70f
+            val start = imageHeightPx * if (overlayTitle) .70f else .96f
             val brush = Brush.verticalGradient(0f to Color.Transparent, .6f to Ink.copy(alpha = .65f), 1f to Ink,
                 startY = start, endY = imageHeightPx.toFloat())
             onDrawBehind {
-                if (showTitle) drawRect(brush, topLeft = Offset(0f, start), size = Size(size.width, (size.height - start).coerceAtLeast(0f)))
+                drawRect(brush, topLeft = Offset(0f, start), size = Size(size.width, (size.height - start).coerceAtLeast(0f)))
             }
         })
         if (showTitle) Box(Modifier.widthIn(max = 300.dp).fillMaxWidth().padding(horizontal = 18.dp)) {
@@ -45,7 +45,7 @@ internal fun IntegratedDetailHero(item: MediaItem, imageHeight: Dp, showTitle: B
         val width = constraints.maxWidth
         val title = measurables.getOrNull(2)?.measure(Constraints(maxWidth = width))
         val titleHeight = title?.height ?: 0
-        val overlap = detailTitleOverlap(imageHeightPx, titleHeight)
+        val overlap = if (overlayTitle) detailTitleOverlap(imageHeightPx, titleHeight) else 0
         val titleTop = imageHeightPx - overlap
         val height = constraints.constrainHeight(if (title != null) maxOf(imageHeightPx, titleTop + titleHeight) + bottomGap else imageHeightPx)
         val photo = measurables[0].measure(Constraints.fixed(width, imageHeightPx))

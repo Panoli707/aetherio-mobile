@@ -45,7 +45,7 @@ import kotlinx.coroutines.withContext
 /** A separate, stable title area. A failed/missing logo never leaves a detail page unnamed. */
 @Composable
 internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
-    imageLoader: ImageLoader = LocalContext.current.imageLoader) {
+    imageLoader: ImageLoader = LocalContext.current.imageLoader, compact: Boolean = false) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val inspection = LocalInspectionMode.current
@@ -61,9 +61,10 @@ internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
         val textSize = measurer.measure(AnnotatedString(item.title), style, constraints = Constraints(maxWidth = widthPx)).size
         // A valid logo must not inherit hundreds of dp of blank space from a novel-length title.
         // Only the final written fallback expands; the loading/decoded-logo frame stays fixed.
-        val frameHeight = if (!loading && logo == null) maxOf(112.dp, with(density) { textSize.height.toDp() }) else 112.dp
+        val logoHeight = if (compact) 72.dp else 112.dp
+        val frameHeight = if (!loading && logo == null) maxOf(if (compact) 0.dp else logoHeight, with(density) { textSize.height.toDp() }) else logoHeight
         // A text fallback changing height must not restart the failed logo request.
-        val heightPx = with(density) { 112.dp.roundToPx().coerceAtLeast(1) }
+        val heightPx = with(density) { logoHeight.roundToPx().coerceAtLeast(1) }
         LaunchedEffect(item.key, candidates, widthPx, heightPx, imageLoader) {
             if (inspection) return@LaunchedEffect
             loading = candidates.isNotEmpty()

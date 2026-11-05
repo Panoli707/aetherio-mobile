@@ -38,6 +38,31 @@ internal class AnimeSeasonRepository(
     private var cachedEntries = emptyList<SeasonalAnime>()
     private val details = mutableMapOf<String, Pair<Long, MediaDetail>>()
     private var retryNotBeforeMs = 0L
+    private var todayStart = 0L
+    private var todayFetchedAt = 0L
+    private var todaySchedule = emptyList<AnimeAiringEpisode>()
+
+    /** Query actual airing events, including long-running shows and a season's final episode. */
+    suspend fun today(nowMs: Long = clockMs()): List<AnimeAiringEpisode> = bounded { mutex.withLock {
+        val start = AnimeToday.start(nowMs)
+        if (todayStart == start && nowMs - todayFetchedAt in 0 until 5 * 60 * 1000L)
+            return@withLock AnimeToday.released(todaySchedule, nowMs)
+        val entries = mutableListOf<AnimeAiringEpisode>()
+        var page = 1
+        do {
+            val data = request("""query TodayAnime(${'$'}page:Int!,${'$'}start:Int!,${'$'}end:Int!){Page(page:${'$'}page,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:${'$'}start,airingAt_lesser:${'$'}end,sort:TIME_DESC){episode airingAt media{type $FIELDS}}}}""",
+                JSONObject().put("page", page).put("start", start - 1).put("end", start + 86400)).getJSONObject("Page")
+            val schedules = data.getJSONArray("airingSchedules")
+            if (schedules.length() > 50) throw failure()
+            for (i in 0 until schedules.length()) AnimeToday.episode(schedules.getJSONObject(i))?.let(entries::add)
+            if (!data.getJSONObject("pageInfo").getBoolean("hasNextPage")) break
+            if (++page > 10) throw failure()
+        } while (true)
+        todaySchedule = entries.distinctBy { it.key }
+        todayStart = start
+        todayFetchedAt = nowMs
+        AnimeToday.released(todaySchedule, nowMs)
+    } }
 
     suspend fun homeCatalog(feed: AnimeFeed): List<AnimeCatalogEntry> = bounded { mutex.withLock {
         require(feed.sort in setOf("POPULARITY_DESC", "SCORE_DESC", "TRENDING_DESC"))

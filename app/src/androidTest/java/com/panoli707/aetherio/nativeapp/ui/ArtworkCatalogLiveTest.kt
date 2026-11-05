@@ -61,12 +61,9 @@ class ArtworkCatalogLiveTest {
                 compose.onNodeWithTag("detailTitle", true).getUnclippedBoundsInRoot() else null
             assertEquals(item.title, 240f, (photo.right - photo.left).value, 1f)
             assertTrue("${item.title} must not resolve to a horizontal strip", photo.bottom - photo.top > 240.dp)
-            if (title != null) assertTrue("${item.title} title must bridge the image and the background", title.top < photo.bottom && title.bottom > photo.bottom)
-            else {
-                assertTrue("Only an embedded seasonal title may replace the overlay", ArtworkImages.headers(item, true)
-                    .any { it.titlePresence == ArtworkTitlePresence.EMBEDDED })
-                compose.onNodeWithContentDescription(item.title, true).assertExists()
-            }
+            assertNotNull("${item.title} must retain an independent title", title)
+            assertTrue("${item.title} title must bridge or follow the image", title!!.top <= photo.bottom && title.bottom > photo.bottom)
+            compose.onNodeWithTag("detailHeroFade").assertExists()
             compose.onAllNodesWithTag("heroImage", true).assertCountEquals(1)
             val file = File(context.filesDir, "artwork-qa/catalog-${item.id}.png")
             file.parentFile!!.mkdirs()

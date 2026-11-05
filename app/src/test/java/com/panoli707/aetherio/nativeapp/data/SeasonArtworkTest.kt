@@ -51,30 +51,31 @@ class SeasonArtworkTest {
         assertEquals("unique-clean", unique.portraitArtworkUrl)
     }
 
-    @Test fun aSeasonCoverDoesNotInheritTheGeneralLogoOrItsFallbacks() {
+    @Test fun aSeasonCoverCanUseTheSeriesLogoWithoutInheritingItsArtwork() {
         val known = base.copy(posterTitlePresence = ArtworkTitlePresence.EMBEDDED, logoAlternatives = listOf("backup-logo"))
         val season = SeasonArtwork.apply(known, 2, poster = "season-poster", logo = "season-logo", logos = listOf("season-backup"))
-        assertEquals(ArtworkTitlePresence.EMBEDDED, season.posterTitlePresence)
+        assertEquals(ArtworkTitlePresence.UNKNOWN, season.posterTitlePresence)
         assertEquals("season-logo", season.logoUrl)
-        assertEquals(listOf("season-backup"), season.logoAlternatives)
+        assertEquals(listOf("season-backup", "general-logo", "backup-logo"), season.logoAlternatives)
         val mapped = SeasonArtwork.mapped(known, 2, known.copy(posterUrl = "entry", posterTitlePresence = ArtworkTitlePresence.ABSENT),
             true, null, null, null)
         assertEquals(ArtworkTitlePresence.ABSENT, mapped.posterTitlePresence)
     }
 
-    @Test fun successiveSeasonsNeverOverlayTheMainLogoOnAPrintedCover() {
+    @Test fun successiveSeasonsRetainAnAccessibleTitleAndDoNotAssumeTextPlacement() {
         val first = SeasonArtwork.apply(base, 1, poster = "printed-first", logo = "first-logo")
         val second = SeasonArtwork.apply(base, 2, poster = "printed-second", logo = "second-logo")
         assertEquals("first-logo", first.logoUrl)
         assertEquals("second-logo", second.logoUrl)
-        assertFalse(ArtworkImages.separateTitle(ArtworkImages.headers(first, true).first(), true))
-        assertFalse(ArtworkImages.separateTitle(ArtworkImages.headers(second, true).first(), true))
+        assertTrue(ArtworkImages.separateTitle(ArtworkImages.headers(first, true).first(), true))
+        assertTrue(ArtworkImages.separateTitle(ArtworkImages.headers(second, true).first(), true))
+        assertFalse(ArtworkImages.overlayTitle(ArtworkImages.headers(second, true).first()))
         val textless = SeasonArtwork.apply(base, 2, portrait = "verified-clean", logo = "second-logo",
             portraitTitle = ArtworkTitlePresence.ABSENT)
         assertTrue(ArtworkImages.separateTitle(ArtworkImages.headers(textless, true).first(), true))
         assertEquals("second-logo", textless.logoUrl)
         val noSeasonLogo = SeasonArtwork.apply(base, 2, poster = "printed-second")
-        assertNull(noSeasonLogo.logoUrl)
+        assertEquals(base.logoUrl, noSeasonLogo.logoUrl)
         assertTrue(noSeasonLogo.logoAlternatives.isEmpty())
         assertEquals(base.logoUrl, SeasonArtwork.apply(base, 3).logoUrl)
         val cleanAlternative = SeasonArtwork.apply(base, 2, poster = "printed-cover", portrait = "clean-alternative",

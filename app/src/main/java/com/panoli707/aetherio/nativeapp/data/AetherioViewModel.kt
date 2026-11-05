@@ -47,6 +47,8 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val animeSeasonLoader = AnimeSeasonLoader(viewModelScope, { animeRepository.season(it) },
         { change -> mutableState.update { it.copy(animeSeason = change(it.animeSeason)) } },
         { error -> if (BuildConfig.DEBUG) Log.w("AnimeCalendar", (error as? AnimeCalendarException)?.diagnostic ?: "kind=UNKNOWN") })
+    private val animeTodayLoader = AnimeTodayLoader(viewModelScope, animeRepository::today,
+        { change -> mutableState.update { it.copy(animeToday = change(it.animeToday)) } })
     private var addonRestoreFailed = false
 
     fun rememberPlaybackQuery(fromSources: Boolean) {
@@ -88,6 +90,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
 
     fun loadAnimeSeason() {
         animeSeasonLoader.load()
+        animeTodayLoader.load()
     }
 
     fun playbackTarget(animeSource: Boolean): WatchTarget? {

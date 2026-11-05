@@ -25,7 +25,7 @@ import java.io.File
 class DetailArtworkLiveTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun dragonBallSeasonCoverDoesNotGetASecondSeriesLogo() {
+    @Test fun dragonBallSeasonCoverKeepsAnIndependentTitleAndFade() {
         assumeTrue(InstrumentationRegistry.getArguments().getString("manualLogoArtwork") == "true")
         assumeTrue(Build.MODEL.contains("sdk", true))
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -41,9 +41,8 @@ class DetailArtworkLiveTest {
         file.parentFile!!.mkdirs()
         file.outputStream().use { compose.onNodeWithTag("heroArtwork", true).captureToImage().asAndroidBitmap()
             .compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-        assertTrue("Seasonal poster should not acquire a duplicate main logo",
-            compose.onAllNodesWithTag("detailLogo", true).fetchSemanticsNodes().isEmpty() ||
-                ArtworkImages.headers(item, true).first().kind == ArtworkImages.Kind.PORTRAIT)
+        compose.onNodeWithTag("detailTitle").assertExists()
+        compose.onNodeWithTag("detailHeroFade").assertExists()
     }
 
     @Test fun reportedSeriesHavePortraitCoversAndAnIntegratedFadedTitle() {
@@ -80,12 +79,9 @@ class DetailArtworkLiveTest {
                 compose.onNodeWithTag("detailTitle", true).getUnclippedBoundsInRoot() else null
             assertEquals(240f, (photo.right - photo.left).value, 1f)
             assertTrue("The reported anime needs a real portrait, not a horizontal strip", photo.bottom - photo.top > 240.dp)
-            if (title != null) assertTrue("The title must be integrated into the end of the artwork", title.top < photo.bottom && title.bottom > photo.bottom)
-            else {
-                assertTrue("Only a printed cover may replace the overlay", ArtworkImages.headers(item, true)
-                    .any { it.titlePresence == ArtworkTitlePresence.EMBEDDED })
-                compose.onNodeWithContentDescription(item.title, true).assertExists()
-            }
+            assertNotNull("The title must remain available", title)
+            assertTrue("The title must bridge or follow the artwork", title!!.top <= photo.bottom && title.bottom > photo.bottom)
+            compose.onNodeWithTag("detailHeroFade").assertExists()
             if (title != null && compose.onAllNodesWithTag("detailLogo", true).fetchSemanticsNodes().isNotEmpty())
                 assertEquals("A decoded logo must keep a compact title area", 112f, (title.bottom - title.top).value, 1f)
             if (title != null) assertTrue("The title must never be suppressed by an unclassified poster",

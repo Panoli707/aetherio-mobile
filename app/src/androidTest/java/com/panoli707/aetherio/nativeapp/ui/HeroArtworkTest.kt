@@ -84,7 +84,7 @@ class HeroArtworkTest {
         assertTrue("Bottom right of artwork must remain visible", yellow.red > .45f && yellow.green > .45f)
     }
 
-    @Test fun portraitPosterShowsEveryCornerAndDoesNotRepeatItsEmbeddedTitle() {
+    @Test fun portraitPosterShowsEveryCornerAndRetainsAnAccessibleIndependentTitle() {
         val item = MediaItem("550", MediaType.MOVIE, "Embedded title", posterUrl = fixture(1200, 1800),
             posterTitlePresence = ArtworkTitlePresence.EMBEDDED)
         compose.setContent { AetherioTheme {
@@ -92,8 +92,7 @@ class HeroArtworkTest {
         } }
         waitForImage()
         assertArtworkFillsFrame()
-        compose.onNodeWithText(item.title).assertDoesNotExist()
-        compose.onNodeWithContentDescription(item.title).assertIsDisplayed()
+        compose.onNodeWithText(item.title).assertIsDisplayed()
         val bounds = compose.onNodeWithTag("heroImage").getUnclippedBoundsInRoot()
         assertEquals(heroArtworkHeight(360.dp, 800.dp, 2f / 3f).value, (bounds.bottom - bounds.top).value, 1f)
     }

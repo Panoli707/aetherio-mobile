@@ -23,36 +23,38 @@ import androidx.compose.ui.unit.dp
 import com.panoli707.aetherio.nativeapp.data.*
 
 @Composable
-internal fun AiringAnimeSection(state: AnimeSeasonState, onSelect: (MediaItem) -> Unit, onCalendar: () -> Unit, onRetry: () -> Unit) {
+internal fun AiringAnimeSection(state: AnimeTodayState, onSelect: (MediaItem) -> Unit, onCalendar: () -> Unit, onRetry: () -> Unit,
+    nowMs: Long = System.currentTimeMillis()) {
+    val entries = remember(state.entries, nowMs) { AnimeToday.released(state.entries, nowMs) }
     Column(Modifier.padding(vertical = 18.dp).testTag("airingAnimeSection")) {
         Row(Modifier.fillMaxWidth().clickable(onClickLabel = "Ver temporada y días de emisión", onClick = onCalendar)
             .semantics(mergeDescendants = true) { }.padding(horizontal = 18.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Anime emitiéndose ahora", style = MaterialTheme.typography.titleLarge)
-                Text(state.season.label + " · Temporada y días de emisión", color = Muted, style = MaterialTheme.typography.bodySmall)
+                Text("Anime en emisión", style = MaterialTheme.typography.titleLarge)
+                Text("Episodios emitidos hoy · Japón (JST)", color = Muted, style = MaterialTheme.typography.bodySmall)
             }
             Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = Accent)
         }
-        if (state.loading && state.entries.isEmpty()) LoadingRow("Consultando emisiones…")
+        if (state.loading && entries.isEmpty()) LoadingRow("Consultando emisiones…")
         if (state.error != null) StatusMessage("No se pudieron actualizar las emisiones", state.error, "Reintentar", onRetry)
-        if (state.loaded && !state.loading && state.error == null && state.entries.isEmpty())
-            Text("No hay animes en emisión confirmados para esta temporada.", color = Muted, modifier = Modifier.padding(horizontal = 18.dp))
-        val entries = remember(state.entries) {
-            state.entries.sortedByDescending { it.latestAiringAt ?: Long.MIN_VALUE }.distinctBy { SeriesIdentity.item(it.item).key }
-        }
+        if (state.loaded && !state.loading && state.error == null && entries.isEmpty())
+            Text("Todavía no hay episodios emitidos hoy confirmados. Consulta el calendario para ver los próximos.", color = Muted, modifier = Modifier.padding(horizontal = 18.dp))
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val coverWidth = posterWidth(maxWidth)
             LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp),
                 modifier = Modifier.testTag("airingAnimeCards")) {
-                items(entries, key = { it.item.key }, contentType = { "airing-poster" }) { entry -> AiringAnimeCard(entry, { onSelect(entry.item) },
-                    Modifier.width(coverWidth).testTag("airingPoster:${entry.item.key}")) }
+                items(entries, key = { it.key }, contentType = { "airing-poster" }) { entry -> AiringAnimeCard(
+                    SeasonalAnime(entry.item, null, null, null, entry.episode, entry.airedAt), { onSelect(entry.item) },
+                    Modifier.width(coverWidth).testTag("airingPoster:${entry.item.key}"),
+                    airedLabel = java.text.SimpleDateFormat("HH:mm 'JST'", java.util.Locale.US).apply { timeZone = AnimeSeason.japan }
+                        .format(java.util.Date(entry.airedAt * 1000))) }
             }
         }
     }
 }
 
 @Composable
-internal fun AiringAnimeCard(entry: SeasonalAnime, onClick: () -> Unit, modifier: Modifier = Modifier) {
+internal fun AiringAnimeCard(entry: SeasonalAnime, onClick: () -> Unit, modifier: Modifier = Modifier, airedLabel: String? = null) {
     Column(modifier.clickable(onClickLabel = "Ver ${entry.item.title}", onClick = onClick).semantics(mergeDescendants = true) { }) {
         Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(14.dp)).testTag("airingArt:${entry.item.key}")) {
             Artwork(entry.item.posterUrl, Modifier.fillMaxSize())
@@ -66,7 +68,7 @@ internal fun AiringAnimeCard(entry: SeasonalAnime, onClick: () -> Unit, modifier
         }
         Text(entry.item.title, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(top = 8.dp))
-        Text(entry.item.animeSeasonLabel.ifBlank { entry.item.year }, color = Muted, style = MaterialTheme.typography.bodySmall,
+        Text(airedLabel?.let { "Emitido · $it" } ?: entry.item.animeSeasonLabel.ifBlank { entry.item.year }, color = Muted, style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 3.dp))
     }
 }

@@ -17,53 +17,66 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AiringAnimeDesignTest {
     @get:Rule val compose = createComposeRule()
-    private val anime = MediaItem("123", MediaType.SERIES, "Anime en emisión", source = CatalogSource.ANILIST,
+    private val anime = MediaItem("123", MediaType.SERIES, "Anime de prueba", source = CatalogSource.ANILIST,
         isAnime = true, episodeCount = 12, animeSeasonLabel = "Otoño 2026")
 
     @Test fun homeShowsCoverEpisodeAndTitleAndHeadingOpensCalendarWhileCardOpensDetail() {
         var category: String? = null
         var selected: MediaItem? = null
-        val season = AnimeSeasonState(AnimeSeason(2026, "FALL"), listOf(SeasonalAnime(anime, AnimeWeekday.FRIDAY, 6, 1793973600,
-            latestEpisode = 4, latestAiringAt = 1791554400)), loaded = true)
+        val now = System.currentTimeMillis()
+        val today = AnimeTodayState(AnimeToday.start(now), listOf(AnimeAiringEpisode(anime, 4, now / 1000 - 1)), loaded = true)
         compose.setContent { AetherioTheme {
-            HomeScreen(AppState(homeLoading = false, animeSeason = season), rememberLazyListState(), rememberPagerState { 0 }, false,
+            HomeScreen(AppState(homeLoading = false, animeToday = today), rememberLazyListState(), rememberPagerState { 0 }, false,
                 { selected = it }, { category = it }, {})
         } }
         compose.onNodeWithTag("homeScroll").performScrollToNode(hasTestTag("airingAnimeSection"))
         compose.onNodeWithText("Ep. 4 / 12", useUnmergedTree = true).assertExists()
-        compose.onNodeWithText("Anime en emisión").performClick()
+        compose.onNodeWithText(anime.title).performClick()
         compose.runOnIdle { assertEquals(anime, selected); assertNull(category) }
-        compose.onNodeWithText("Anime emitiéndose ahora").performClick()
+        compose.onNodeWithText("Anime en emisión").performClick()
         compose.runOnIdle { assertEquals("airing", category) }
     }
 
     @Test fun unknownAiredEpisodeIsNotInventedFromTheNextEpisode() {
         compose.setContent { AetherioTheme {
-            AiringAnimeSection(AnimeSeasonState(entries = listOf(SeasonalAnime(anime, null, 6, 1793973600)), loaded = true), {}, {}, {})
+            AiringAnimeSection(AnimeTodayState(loaded = true), {}, {}, {})
         } }
-        compose.onNodeWithText("En emisión", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Todavía no hay episodios emitidos hoy confirmados. Consulta el calendario para ver los próximos.").assertExists()
         compose.onNodeWithText("Ep. 5 / 12", useUnmergedTree = true).assertDoesNotExist()
     }
 
     @Test fun errorOffersAnActualRetryRatherThanLeavingAnEmptyHeading() {
         var retried = false
         compose.setContent { AetherioTheme {
-            AiringAnimeSection(AnimeSeasonState(error = "Sin conexión"), {}, {}, { retried = true })
+            AiringAnimeSection(AnimeTodayState(error = "Sin conexión"), {}, {}, { retried = true })
         } }
         compose.onNodeWithText("Reintentar").performClick()
         compose.runOnIdle { assertTrue(retried) }
     }
 
     @Test fun retryRestoresHomeCoversAndRemovesTheFailureMessage() {
-        val state = mutableStateOf(AnimeSeasonState(error = "Sin conexión"))
+        val state = mutableStateOf(AnimeTodayState(error = "Sin conexión"))
         compose.setContent { AetherioTheme {
             AiringAnimeSection(state.value, {}, {}, {
-                state.value = AnimeSeasonState(entries = listOf(SeasonalAnime(anime, null, null, null)), loaded = true)
+                state.value = AnimeTodayState(entries = listOf(AnimeAiringEpisode(anime, 4, System.currentTimeMillis() / 1000)), loaded = true)
             })
         } }
         compose.onNodeWithText("Reintentar").performClick()
         compose.onNodeWithText("No se pudieron actualizar las emisiones").assertDoesNotExist()
         compose.onNodeWithText(anime.title).assertExists()
+    }
+
+    @Test fun yesterdayAndFutureEventsNeverLeakIntoTodaysRailEvenIfTheCatalogHasOtherAnime() {
+        val now = System.currentTimeMillis()
+        val start = AnimeToday.start(now)
+        compose.setContent { AetherioTheme {
+            AiringAnimeSection(AnimeTodayState(entries = listOf(AnimeAiringEpisode(anime.copy(title = "Ayer"), 2, start - 1),
+                AnimeAiringEpisode(anime.copy(title = "Futuro"), 3, now / 1000 + 3600),
+                AnimeAiringEpisode(anime.copy(title = "Hoy"), 4, start)), loaded = true), {}, {}, {}, now)
+        } }
+        compose.onNodeWithText("Hoy").assertExists()
+        compose.onNodeWithText("Ayer").assertDoesNotExist()
+        compose.onNodeWithText("Futuro").assertDoesNotExist()
     }
 
     @Test fun sharedThemeUsesTheApprovedDetailPaletteForAllSurfacesAndControls() {

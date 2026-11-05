@@ -36,8 +36,8 @@ data class HomePreferences(
     }
 
     fun visibleHeroes(heroes: List<MediaItem>): List<MediaItem> = when (content) {
-        HomeContentPreference.ANIME -> heroes.sortedByDescending { it.isAnime }
-        HomeContentPreference.MOVIES_SERIES -> heroes.sortedBy { it.isAnime }
+        HomeContentPreference.ANIME -> heroes.filter { it.isAnime }
+        HomeContentPreference.MOVIES_SERIES -> heroes.filterNot { it.isAnime }
         HomeContentPreference.BOTH -> if (animeFirst) heroes.sortedByDescending { it.isAnime } else heroes.sortedBy { it.isAnime }
     }
 }

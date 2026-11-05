@@ -33,6 +33,7 @@ import com.panoli707.aetherio.nativeapp.data.DesktopHomeCatalog
 import com.panoli707.aetherio.nativeapp.data.HomePreferences
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import kotlinx.coroutines.launch
+import androidx.lifecycle.repeatOnLifecycle
 
 @Composable
 fun AetherioApp(
@@ -88,7 +89,8 @@ fun AetherioApp(
     val categoryScroll = rememberSaveable(categoryId, saver = LazyGridState.Saver) { LazyGridState() }
     val browseScroll = rememberSaveable(categoryId, saver = LazyListState.Saver) { LazyListState() }
     val detailScroll = rememberSaveable(detailKey, saver = LazyListState.Saver) { LazyListState() }
-    val pager = rememberPagerState { state.heroes.size }
+    val pager = rememberPagerState { state.homePreferences.visibleHeroes(state.heroes).size }
+    LaunchedEffect(state.homePreferences.content, state.homePreferences.animeFirst) { pager.scrollToPage(0) }
     val screenState = rememberSaveableStateHolder()
     val focus = LocalFocusManager.current
     val scope = rememberCoroutineScope()
@@ -99,6 +101,12 @@ fun AetherioApp(
     }
     val openSearch: () -> Unit = { focus.clearFocus(); searchNeedsFocus = true; searchOpen = true }
     LaunchedEffect(tab, categoryId) { if (tab == "home" || tab == "anime" || categoryId == "airing") onLoadAnimeSeason() }
+    val homeLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(homeLifecycle, tab) {
+        if (tab == "home") homeLifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
+            while (true) { kotlinx.coroutines.delay(60_000); onLoadAnimeSeason() }
+        }
+    }
     LaunchedEffect(categoryId, parentCategoryId) {
         val id = parentCategoryId ?: categoryId
         if (id != null && DesktopHomeCatalog.browseTitle(id) != null) onBrowse(id, false)

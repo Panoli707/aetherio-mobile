@@ -1,0 +1,20 @@
+Reconocimiento local de texto en portadas
+
+Tesseract4Android 4.9.0 (Standard), Copyright 2019 Adaptech s.r.o., Robert Pösel.
+https://github.com/adaptech-cz/Tesseract4Android/tree/4.9.0
+Apache License 2.0. Incluye Tesseract 5.5.1, Leptonica 1.85.0,
+libpng 1.6.48 e IJG libjpeg 9f. Se adjuntan sus avisos originales.
+
+This software is based in part on the work of the Independent JPEG Group.
+
+Modelos eng y jpn de tessdata_fast 4.1.0, Apache License 2.0:
+https://github.com/tesseract-ocr/tessdata_fast/tree/4.1.0
+
+Los modelos se incluyen en el APK. Este componente no descarga modelos,
+no envía imágenes ni resultados y no añade telemetría. La caché local
+contiene únicamente copias de los modelos incluidos y clasificaciones
+temporales; no modifica las imágenes originales de los proveedores.
+
+El OCR es aproximado: los títulos muy estilizados pueden no reconocerse.
+El texto de respaldo y la disposición sin superposición se mantienen
+cuando no se encuentra un logo o no se puede clasificar una portada.

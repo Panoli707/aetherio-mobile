@@ -109,8 +109,8 @@ class AnimeScreenTest {
                 onDesktopSourceToggle = { _, _ -> }, onRequestSources = { _, _, _ -> }, onDismissSources = {},
                 onPlaySource = { _, _ -> }, onUpdateAction = {}, onAutomaticUpdatesChange = {})
         }
-        compose.onNodeWithTag("homeScroll").performScrollToNode(hasText("Anime emitiéndose ahora"))
-        compose.onNodeWithText("Anime emitiéndose ahora").performClick()
+        compose.onNodeWithTag("homeScroll").performScrollToNode(hasText("Anime en emisión"))
+        compose.onNodeWithText("Anime en emisión").performClick()
         compose.onNode(hasText("Lunes") and hasClickAction()).assertIsSelected()
         compose.onNodeWithText("Anime lunes").performClick()
         compose.onNodeWithText("ANIME").assertDoesNotExist()

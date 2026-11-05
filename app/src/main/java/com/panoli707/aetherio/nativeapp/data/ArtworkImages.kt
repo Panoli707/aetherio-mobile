@@ -13,12 +13,14 @@ internal object ArtworkImages {
         val clean = item.portraitArtworkUrl?.takeIf(String::isNotBlank)?.let { Header(it, 2f / 3f, Kind.PORTRAIT, item.portraitTitlePresence) }
         val poster = item.posterUrl?.takeIf(String::isNotBlank)?.let { Header(it, 2f / 3f, Kind.POSTER, item.posterTitlePresence) }
         val backdrop = item.backdropUrl?.takeIf(String::isNotBlank)?.let { Header(it, 16f / 9f, Kind.BACKDROP, item.backdropTitlePresence) }
-        return (if (portrait) listOf(clean, poster, backdrop) else listOf(backdrop, clean, poster))
+        val alternatives = item.portraitAlternatives.map { Header(it, 2f / 3f, Kind.PORTRAIT) }
+        return (if (portrait) listOf(clean, poster) + alternatives + backdrop else listOf(backdrop, clean, poster) + alternatives)
             .filterNotNull().distinctBy { it.url }
     }
-    fun separateTitle(header: Header?, detail: Boolean): Boolean = if (detail)
-        header?.titlePresence != ArtworkTitlePresence.EMBEDDED
-    else header?.titlePresence != ArtworkTitlePresence.EMBEDDED
+    fun separateTitle(header: Header?, detail: Boolean): Boolean = true
+
+    fun overlayTitle(header: Header?): Boolean = header?.titlePresence in
+        setOf(ArtworkTitlePresence.ABSENT, ArtworkTitlePresence.TOP)
 
     fun logos(item: MediaItem): List<String> = (listOfNotNull(item.logoUrl) + item.logoAlternatives)
         .filter(String::isNotBlank).flatMap { listOfNotNull(highResolution(it), it) }.distinct()

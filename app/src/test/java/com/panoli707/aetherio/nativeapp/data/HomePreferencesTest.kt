@@ -19,6 +19,16 @@ class HomePreferencesTest {
         assertEquals(listOf(movie, anime), HomePreferences().visibleHeroes(listOf(anime, movie)))
     }
 
+    @Test fun heroModesFilterInsteadOfMerelySortingAndBothRetainsBothKinds() {
+        val animeMovie = anime.copy(id = "3", type = MediaType.MOVIE)
+        val series = movie.copy(id = "4", type = MediaType.SERIES)
+        val all = listOf(movie, anime, series, animeMovie)
+        assertEquals(listOf(anime, animeMovie), HomePreferences(content = HomeContentPreference.ANIME).visibleHeroes(all))
+        assertEquals(listOf(movie, series), HomePreferences(content = HomeContentPreference.MOVIES_SERIES).visibleHeroes(all))
+        assertEquals(all.toSet(), HomePreferences(content = HomeContentPreference.BOTH).visibleHeroes(all).toSet())
+        assertTrue(HomePreferences(content = HomeContentPreference.ANIME).visibleHeroes(listOf(movie, series)).isEmpty())
+    }
+
     @Test fun explicitOrderSurvivesRefreshAndUnknownCatalogsJoinWithoutLosingTheirDefaultPosition() {
         val preferred = HomePreferences().move("tmdb.top_series", -1, sections)
         assertEquals(listOf("tmdb.top_series", "tmdb.top_movie", "mal.top_anime"), preferred.ordered(sections).map { it.id })

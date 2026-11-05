@@ -25,6 +25,29 @@ import org.junit.runner.RunWith
 class HomeDesignSettingsTest {
     @get:Rule val compose = createComposeRule()
 
+    @Test fun changingContentModeFiltersEveryHeroAndClampsThePagerWhenTheListShrinks() {
+        val movie = MediaItem("900000001", MediaType.MOVIE, "Película destacada")
+        val anime = movie.copy(id = "900000002", title = "Anime destacado", isAnime = true)
+        val series = movie.copy(id = "900000003", type = MediaType.SERIES, title = "Serie destacada")
+        val state = mutableStateOf(AppState(homeLoading = false, heroes = listOf(movie, series, anime),
+            homePreferences = HomePreferences(content = HomeContentPreference.ANIME)))
+        lateinit var pager: androidx.compose.foundation.pager.PagerState
+        compose.setContent { AetherioTheme {
+            pager = rememberPagerState { state.value.homePreferences.visibleHeroes(state.value.heroes).size }
+            HomeScreen(state.value, rememberLazyListState(), pager, false, {}, {}, {})
+        } }
+        compose.runOnIdle { assertEquals(1, pager.pageCount) }
+        compose.onNode(hasClickAction() and hasText("Anime destacado")).assertExists()
+        compose.onNode(hasClickAction() and hasText("Película destacada")).assertDoesNotExist()
+        compose.runOnIdle { state.value = state.value.copy(homePreferences = HomePreferences(content = HomeContentPreference.MOVIES_SERIES)) }
+        compose.runOnIdle { assertEquals(2, pager.pageCount) }
+        compose.onNodeWithTag("homeHero").performTouchInput { swipeLeft() }
+        compose.runOnIdle { state.value = state.value.copy(homePreferences = HomePreferences(content = HomeContentPreference.ANIME)) }
+        compose.runOnIdle { assertEquals(1, pager.pageCount); assertEquals(0, pager.currentPage) }
+        compose.runOnIdle { state.value = state.value.copy(homePreferences = HomePreferences(content = HomeContentPreference.BOTH)) }
+        compose.runOnIdle { assertEquals(3, pager.pageCount) }
+    }
+
     @Test fun preferencesChangeImmediatelyAndResetWithoutFakingDesktopIntegrations() {
         val state = mutableStateOf(AppState(homePreferences = HomePreferences()))
         compose.setContent { AetherioTheme {

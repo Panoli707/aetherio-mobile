@@ -40,7 +40,7 @@ internal fun HomeDesignSettings(state: AppState, onChange: (HomePreferences) -> 
                 label = { Text(label) }, modifier = Modifier.fillMaxWidth().testTag("designContent:${value.name}"))
         }
     }
-    Text("Prioriza el contenido elegido sin ocultar los demás catálogos.", color = Muted, style = MaterialTheme.typography.bodySmall)
+    Text("Las portadas iniciales muestran solo el tipo elegido; en Ambos se combinan. Los demás catálogos siguen disponibles.", color = Muted, style = MaterialTheme.typography.bodySmall)
     Text(if (state.homePreferencesSaving) "Guardando…" else "Los cambios se guardan automáticamente en este dispositivo.",
         color = Muted, style = MaterialTheme.typography.bodySmall)
     state.homePreferencesError?.let { message ->

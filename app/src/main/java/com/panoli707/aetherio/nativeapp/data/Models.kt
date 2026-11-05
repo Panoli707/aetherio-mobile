@@ -8,7 +8,7 @@ enum class MediaType(val path: String, val label: String) {
 enum class CatalogSource { TMDB, CINEMETA, ANILIST }
 enum class SectionStyle { POSTERS, RANKED, FEATURED }
 /** Image content, not a guess based on a provider field or its language tag. */
-enum class ArtworkTitlePresence { UNKNOWN, EMBEDDED, ABSENT }
+enum class ArtworkTitlePresence { UNKNOWN, EMBEDDED, ABSENT, TOP, BOTTOM, CENTER }
 
 data class MediaItem(
     val id: String,
@@ -35,7 +35,8 @@ data class MediaItem(
     val posterTitlePresence: ArtworkTitlePresence = ArtworkTitlePresence.UNKNOWN,
     val portraitTitlePresence: ArtworkTitlePresence = ArtworkTitlePresence.UNKNOWN,
     val backdropTitlePresence: ArtworkTitlePresence = ArtworkTitlePresence.UNKNOWN,
-    val logoAlternatives: List<String> = emptyList()
+    val logoAlternatives: List<String> = emptyList(),
+    val portraitAlternatives: List<String> = emptyList()
 ) {
     val key: String get() = "${source.name}:${type.path}:$id"
 }
@@ -114,6 +115,7 @@ data class AppState(
     val watchProgress: List<WatchProgress> = emptyList(),
     val watchingAnime: List<MediaItem> = emptyList(),
     val animeSeason: AnimeSeasonState = AnimeSeasonState(),
+    val animeToday: AnimeTodayState = AnimeTodayState(),
     val profileName: String = "Usuario",
     val addons: List<AddonConfig> = listOf(ProviderHub.config),
     val enabledDesktopSources: Set<String> = DesktopSources.defaultIds,

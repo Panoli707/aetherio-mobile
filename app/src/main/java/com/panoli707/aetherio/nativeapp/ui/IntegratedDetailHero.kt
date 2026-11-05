@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.panoli707.aetherio.nativeapp.data.MediaItem
 import coil.ImageLoader
 
-/** Shared Home/detail geometry: the entire title is inside the photo, above the fade. */
+/** Shared Home/detail geometry: the entire title stays inside the photo, drawn on top of its fade. */
 @Composable
 internal fun IntegratedDetailHero(item: MediaItem, imageHeight: Dp, showTitle: Boolean,
     imageLoader: ImageLoader, compact: Boolean = false, image: @Composable () -> Unit) {
@@ -43,7 +43,7 @@ internal fun IntegratedDetailHero(item: MediaItem, imageHeight: Dp, showTitle: B
         val height = constraints.constrainHeight(imageHeightPx)
         val start = artworkFadeStart(height)
         val title = measurables.getOrNull(2)?.measure(Constraints(maxWidth = width,
-            maxHeight = (start - bottomGap).coerceAtLeast(0)))
+            maxHeight = (height - bottomGap).coerceAtLeast(0)))
         val titleTop = artworkTitleTop(height, title?.height ?: 0, bottomGap)
         val photo = measurables[0].measure(Constraints.fixed(width, height))
         val fade = measurables[1].measure(Constraints.fixed(width, height - start))

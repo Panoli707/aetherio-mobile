@@ -61,12 +61,12 @@ class DetailArtworkUiTest {
 
     private fun waitFor(tag: String) { compose.waitUntil(15_000) { compose.onAllNodesWithTag(tag, true).fetchSemanticsNodes().size == 1 } }
 
-    private fun assertAllEdges(tag: String, sourceRatio: Float, faded: Boolean = false) {
+    private fun assertAllEdges(tag: String, sourceRatio: Float, faded: Boolean = false, bottomAligned: Boolean = false) {
         val pixels = compose.onNodeWithTag(tag, true).captureToImage().toPixelMap()
         val w = minOf(pixels.width.toFloat(), pixels.height * sourceRatio)
         val h = w / sourceRatio
         val left = (pixels.width - w) / 2f
-        val top = (pixels.height - h) / 2f
+        val top = if (bottomAligned) pixels.height - h else (pixels.height - h) / 2f
         val bottom = if (faded) .64f else .985f
         val samples = listOf(.015f to .015f, .985f to .015f, .015f to bottom, .985f to bottom).map { (x, y) ->
             pixels[(left + w * x).toInt().coerceIn(0, pixels.width - 1), (top + h * y).toInt().coerceIn(0, pixels.height - 1)]
@@ -93,11 +93,11 @@ class DetailArtworkUiTest {
         val item = MediaItem("1", MediaType.SERIES, "Title", posterUrl = image(1200, 1800), logoUrl = image(1200, 240))
         compose.setContent { AetherioTheme { Box(Modifier.width(240.dp)) { HeroArtwork(item, true, 400.dp, fullImage = true) } } }
         waitFor("heroImage"); waitFor("detailLogo")
-        assertAllEdges("heroImage", 2f / 3f, faded = true); assertAllEdges("detailLogo", 5f)
+        assertAllEdges("heroImage", 2f / 3f, faded = true); assertAllEdges("detailLogo", 5f, bottomAligned = true)
         val picture = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
         val logo = compose.onNodeWithTag("detailLogo", true).getUnclippedBoundsInRoot()
         val fade = compose.onNodeWithTag("detailHeroFade", true).getUnclippedBoundsInRoot()
-        assertTrue("The whole logo must be inside the picture above the fade", logo.top >= picture.top && logo.bottom < fade.top && fade.bottom == picture.bottom)
+        assertTrue("The whole logo must stay inside the lower picture edge", logo.top >= picture.top && logo.bottom < picture.bottom && fade.bottom == picture.bottom)
         compose.onNodeWithTag("detailHeroFade").assertExists()
     }
 

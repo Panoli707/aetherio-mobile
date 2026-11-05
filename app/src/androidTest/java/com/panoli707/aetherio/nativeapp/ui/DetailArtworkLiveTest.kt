@@ -81,7 +81,7 @@ class DetailArtworkLiveTest {
             assertTrue("The reported anime needs a real portrait, not a horizontal strip", photo.bottom - photo.top > 240.dp)
             assertNotNull("The title must remain available", title)
             val fade = compose.onNodeWithTag("detailHeroFade").getUnclippedBoundsInRoot()
-            assertTrue("The entire title must stay inside the artwork above the fade", title!!.top >= photo.top && title.bottom < fade.top)
+            assertTrue("The entire title must stay inside the lower artwork edge", title!!.top >= photo.top && title.bottom < photo.bottom)
             compose.onNodeWithTag("detailHeroFade").assertExists()
             if (title != null && compose.onAllNodesWithTag("detailLogo", true).fetchSemanticsNodes().isNotEmpty())
                 assertEquals("A decoded logo must keep a compact title area", 112f, (title.bottom - title.top).value, 1f)

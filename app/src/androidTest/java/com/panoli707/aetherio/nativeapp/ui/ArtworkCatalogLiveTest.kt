@@ -63,7 +63,7 @@ class ArtworkCatalogLiveTest {
             assertTrue("${item.title} must not resolve to a horizontal strip", photo.bottom - photo.top > 240.dp)
             assertNotNull("${item.title} must retain an independent title", title)
             val fade = compose.onNodeWithTag("detailHeroFade").getUnclippedBoundsInRoot()
-            assertTrue("${item.title} title must stay inside the image above the fade", title!!.top >= photo.top && title.bottom < fade.top)
+            assertTrue("${item.title} title must stay inside the lower image edge", title!!.top >= photo.top && title.bottom < photo.bottom)
             compose.onNodeWithTag("detailHeroFade").assertExists()
             compose.onAllNodesWithTag("heroImage", true).assertCountEquals(1)
             val file = File(context.filesDir, "artwork-qa/catalog-${item.id}.png")

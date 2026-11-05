@@ -83,7 +83,8 @@ internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
             logo = decoded
             loading = false
         }
-        Box(Modifier.fillMaxWidth().height(frameHeight.coerceAtMost(maxHeight)), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxWidth().height(frameHeight.coerceAtMost(maxHeight)),
+            contentAlignment = if (insideArtwork) Alignment.BottomCenter else Alignment.Center) {
             val ready = logo
             if (ready != null) {
                 val painter = remember(ready) { BitmapPainter(ready, filterQuality = FilterQuality.High) }
@@ -93,7 +94,8 @@ internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
                     val scale = minOf(size.width / ready.width, size.height / ready.height)
                     val fitted = Size(ready.width * scale, ready.height * scale)
                     val x = (size.width - fitted.width) / 2f
-                    val y = (size.height - fitted.height) / 2f
+                    // Match Image's bottom alignment: a short/wide logo must not float in a tall frame.
+                    val y = if (insideArtwork) size.height - fitted.height else (size.height - fitted.height) / 2f
                     val radius = 1.dp.toPx()
                     for ((dx, dy) in listOf(-1f to 0f, 1f to 0f, 0f to -1f, 0f to 1f)) {
                         translate(x + dx * radius, y + dy * radius) {
@@ -101,7 +103,7 @@ internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
                         }
                     }
                     drawContent()
-                }, contentScale = ContentScale.Fit)
+                }, contentScale = ContentScale.Fit, alignment = if (insideArtwork) Alignment.BottomCenter else Alignment.Center)
             }
             else Text(item.title, Modifier.fillMaxWidth().testTag("detailTitleText"), style = style,
                 maxLines = if (loading || insideArtwork) 3 else Int.MAX_VALUE,

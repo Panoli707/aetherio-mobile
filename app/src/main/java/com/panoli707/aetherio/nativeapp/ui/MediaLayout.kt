@@ -35,8 +35,8 @@ internal fun detailArtworkHeight(width: Dp, aspectRatio: Float): Dp {
     return (width / ratio).coerceAtLeast(1.dp)
 }
 
-/** Only the bottom 14% fades; no part of a logo/title is placed in that region. */
+/** The photograph keeps its smooth fade; the logo is drawn above it, not pushed up by it. */
 internal fun artworkFadeStart(imageHeightPx: Int): Int = (imageHeightPx.coerceAtLeast(0) * .86f).toInt()
 
 internal fun artworkTitleTop(imageHeightPx: Int, titleHeightPx: Int, gapPx: Int): Int =
-    (artworkFadeStart(imageHeightPx) - gapPx.coerceAtLeast(0) - titleHeightPx.coerceAtLeast(0)).coerceAtLeast(0)
+    (imageHeightPx.coerceAtLeast(0) - gapPx.coerceAtLeast(0) - titleHeightPx.coerceAtLeast(0)).coerceAtLeast(0)

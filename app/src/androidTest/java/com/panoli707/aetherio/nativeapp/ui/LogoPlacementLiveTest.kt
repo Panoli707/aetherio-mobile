@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.panoli707.aetherio.nativeapp.data.*
+import com.panoli707.aetherio.nativeapp.BuildConfig
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
@@ -30,6 +31,7 @@ class LogoPlacementLiveTest {
         val repository = AetherioRepository()
         val items = runBlocking {
             listOf(MediaItem("1", MediaType.SERIES, "Cowboy Bebop", CatalogSource.ANILIST, isAnime = true),
+                MediaItem("206401", MediaType.SERIES, "FX Fighter Kurumi-chan", CatalogSource.ANILIST, isAnime = true),
                 MediaItem("159042", MediaType.SERIES, "Reincarnated as a Sword II", CatalogSource.ANILIST, isAnime = true),
                 MediaItem("1396", MediaType.SERIES, "Breaking Bad"),
                 MediaItem("129", MediaType.MOVIE, "El viaje de Chihiro", isAnime = true)).map { base ->
@@ -51,9 +53,11 @@ class LogoPlacementLiveTest {
             val photo = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
             val logo = compose.onNodeWithTag("detailLogo", true).getUnclippedBoundsInRoot()
             val fade = compose.onNodeWithTag("detailHeroFade", true).getUnclippedBoundsInRoot()
-            assertTrue("${selected.title}: logo must be before the fade", logo.top >= photo.top && logo.bottom < fade.top)
+            assertTrue("${selected.title}: logo must stay inside the lower edge", logo.top >= photo.top && logo.bottom < photo.bottom)
+            assertEquals(8f, (photo.bottom - logo.bottom).value, .6f)
+            assertTrue("The logo must not be pushed above the fade", logo.bottom > fade.top)
             assertEquals(photo.bottom, compose.onNodeWithTag("heroArtwork").getUnclippedBoundsInRoot().bottom)
-            val file = File(context.filesDir, "logo-placement-0164/${selected.id}-${if (full) "detail" else "home"}.png")
+            val file = File(context.filesDir, "logo-placement-${BuildConfig.VERSION_NAME}/${selected.id}-${if (full) "detail" else "home"}.png")
             file.parentFile!!.mkdirs()
             file.outputStream().use { compose.onNodeWithTag("heroArtwork").captureToImage().asAndroidBitmap()
                 .compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.unit.dp
@@ -34,7 +35,7 @@ class LogoPlacementUiTest {
         return file.toURI().toString()
     }
 
-    @Test fun allContentTypesAndArtworkOrientationsKeepTheWholeLogoBeforeTheFadeInHomeAndDetails() {
+    @Test fun allContentTypesAndArtworkOrientationsKeepTheWholeLogoAtTheBottomInsideTheImage() {
         val portrait = image(600, 900, android.graphics.Color.BLUE)
         val banner = image(1600, 400, android.graphics.Color.BLUE)
         val logo = image(600, 200, android.graphics.Color.WHITE)
@@ -55,20 +56,33 @@ class LogoPlacementUiTest {
                     compose.onAllNodesWithTag("heroArtworkLoading", true).fetchSemanticsNodes().isEmpty() &&
                         compose.onAllNodesWithTag("detailLogo", true).fetchSemanticsNodes().size == 1
                 }
+                compose.waitForIdle()
                 val photo = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
                 val title = compose.onNodeWithTag("detailLogo", true).getUnclippedBoundsInRoot()
                 val fade = compose.onNodeWithTag("detailHeroFade", true).getUnclippedBoundsInRoot()
                 val hero = compose.onNodeWithTag("heroArtwork", true).getUnclippedBoundsInRoot()
-                assertTrue("$type anime=$anime detail=$detail portrait=$vertical", title.top >= photo.top && title.bottom < fade.top)
+                assertTrue("$type anime=$anime detail=$detail portrait=$vertical", title.top >= photo.top && title.bottom < photo.bottom)
                 assertTrue(title.left >= photo.left && title.right <= photo.right)
                 assertEquals(photo.bottom, fade.bottom)
                 assertEquals(photo.bottom, hero.bottom)
+                val height = (photo.bottom - photo.top).value
+                assertEquals("The image keeps its original fade", .86f,
+                    (fade.top - photo.top).value / height, .01f) // One rounded pixel in a short banner.
+                assertEquals("Logo frame must finish 8 dp inside the picture", 8f, (photo.bottom - title.bottom).value, .6f)
+                // Check actual ink, not just the fixed Image node: Fit used to centre a wide logo.
+                val pixels = compose.onNodeWithTag("detailLogo", true).captureToImage().toPixelMap()
+                val inkRows = (0 until pixels.height).filter { y ->
+                    val pixel = pixels[pixels.width / 2, y]
+                    pixel.red > .9f && pixel.green > .9f && pixel.blue > .9f
+                }
+                assertTrue("Logo ink must reach the lower edge of its frame", inkRows.isNotEmpty() && inkRows.last() >= pixels.height - 3)
             }
         compose.runOnIdle { item.value = item.value.copy(logoUrl = "file:///missing-logo-placement.png") }
         compose.waitUntil(15_000) { compose.onAllNodes(hasTestTag("detailTitle") and hasStateDescription("Título preparado"), true).fetchSemanticsNodes().size == 1 }
         compose.onNodeWithTag("detailTitleText").assertIsDisplayed()
         val fallback = compose.onNodeWithTag("detailTitle").getUnclippedBoundsInRoot()
-        assertTrue(fallback.bottom < compose.onNodeWithTag("detailHeroFade").getUnclippedBoundsInRoot().top)
+        val photo = compose.onNodeWithTag("heroImage").getUnclippedBoundsInRoot()
+        assertTrue(fallback.top >= photo.top && fallback.bottom < photo.bottom)
     }
 
     @Test fun everyNewBundledLogoDecodesAndHasTransparentMargins() {
@@ -89,7 +103,7 @@ class LogoPlacementUiTest {
         compose.setContent { AetherioTheme { Box(Modifier.width(300.dp)) { HeroArtwork(item, true, 600.dp, fullImage = true) } } }
         compose.waitUntil(30_000) { compose.onAllNodesWithTag("heroArtworkLoading", true).fetchSemanticsNodes().isEmpty() &&
             compose.onAllNodesWithTag("detailLogo", true).fetchSemanticsNodes().size == 1 }
-        val file = File(context.filesDir, "logo-placement-0164/bundled-reference.png")
+        val file = File(context.filesDir, "logo-placement-0165/bundled-reference.png")
         file.parentFile!!.mkdirs()
         file.outputStream().use { compose.onNodeWithTag("heroArtwork").captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it) }
     }

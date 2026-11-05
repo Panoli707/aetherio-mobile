@@ -57,14 +57,18 @@ class MediaLayoutTest {
         }
     }
 
-    @Test fun theWholeTitleIsInsideThePhotoAboveTheStartOfTheFade() {
+    @Test fun theWholeTitleIsAnchoredToTheBottomOfThePhotoNotPushedUpByTheFade() {
         for (height in listOf(60, 200, 360, 540, 1200)) {
             val start = artworkFadeStart(height)
-            val titleHeight = minOf(112, (start - 8).coerceAtLeast(0))
+            val titleHeight = minOf(112, (height - 8).coerceAtLeast(0))
             val top = artworkTitleTop(height, titleHeight, 8)
             assertTrue(top >= 0)
-            assertTrue(top + titleHeight <= start - 8)
+            assertEquals(height - 8, top + titleHeight)
             assertTrue(start < height)
+            assertEquals((height * .86f).toInt(), start)
+            val previousTop = ((height * .86f).toInt() - 8 - titleHeight).coerceAtLeast(0)
+            assertTrue(top >= previousTop)
+            if (height >= 200) assertTrue("The title must be lower than 0.16.4 without enlarging the picture", top > previousTop)
         }
         assertEquals(0, artworkTitleTop(0, 400, 8))
     }

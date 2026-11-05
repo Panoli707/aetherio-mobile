@@ -49,7 +49,7 @@ internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
     val context = LocalContext.current
     val density = LocalDensity.current
     val inspection = LocalInspectionMode.current
-    val candidates = remember(item.logoUrl, item.logoAlternatives) { ArtworkImages.logos(item) }
+    val candidates = remember(item.key, item.animeEntryId, item.seasonHint, item.logoUrl, item.logoAlternatives) { ArtworkImages.logos(item) }
     var logo by remember(item.key, candidates) { mutableStateOf<ImageBitmap?>(null) }
     var loading by remember(item.key, candidates) { mutableStateOf(candidates.isNotEmpty()) }
     val measurer = rememberTextMeasurer()

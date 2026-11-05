@@ -1,0 +1,13 @@
+Logos de Dandivine, Super Psychic Policeman Chojo, DARK MACHINE THE ANIMATION y Firefly Wedding
+
+Recursos originales de las fichas públicas de Crunchyroll, incorporados a petición del usuario.
+Los derechos sobre los gráficos y las marcas pertenecen a sus respectivos titulares.
+No están cubiertos por la licencia del código de Aetherio. No se implica afiliación.
+
+https://www.crunchyroll.com/series/GT00385792/dandivine
+https://www.crunchyroll.com/series/GT00384013/super-psychic-policeman-chojo
+https://www.crunchyroll.com/series/GT00383997/dark-machine-the-animation
+https://www.crunchyroll.com/series/GT00383999/firefly-wedding
+
+Se conservaron colores y transparencia. Solo se recortaron márgenes transparentes.
+La procedencia y los identificadores se documentan en third_party/anime-logos/README.md.

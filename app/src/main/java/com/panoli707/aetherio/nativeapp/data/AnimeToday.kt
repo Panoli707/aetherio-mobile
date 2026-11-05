@@ -15,15 +15,33 @@ data class AnimeTodayState(val dayStart: Long = 0, val entries: List<AnimeAiring
     val loading: Boolean = false, val loaded: Boolean = false, val error: String? = null)
 
 internal object AnimeToday {
+    const val HISTORY_DAYS = 30
+
     fun start(nowMs: Long): Long = Calendar.getInstance(AnimeSeason.japan).apply {
         timeInMillis = nowMs
         set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
     }.timeInMillis / 1000
 
+    fun historyStart(nowMs: Long): Long = start(nowMs) - (HISTORY_DAYS - 1) * 86400L
+
+    /** Latest confirmed airing per AniList entry, including earlier Japanese calendar days. */
     fun released(entries: List<AnimeAiringEpisode>, nowMs: Long): List<AnimeAiringEpisode> {
-        val start = start(nowMs)
-        return entries.filter { it.episode > 0 && it.airedAt >= start && it.airedAt < start + 86400 && it.airedAt <= nowMs / 1000 }
-            .distinctBy { it.key }.sortedByDescending { it.airedAt }
+        val oldest = historyStart(nowMs)
+        val latest = nowMs / 1000
+        return entries.filter { it.episode > 0 && it.airedAt >= oldest && it.airedAt <= latest }
+            .sortedWith(compareByDescending<AnimeAiringEpisode> { it.airedAt }.thenBy { it.item.key }.thenByDescending { it.episode })
+            .distinctBy { it.item.key }
+    }
+
+    fun relativeAge(airedAt: Long, nowMs: Long): String {
+        val minutes = ((nowMs / 1000 - airedAt).coerceAtLeast(0) / 60)
+        return when {
+            minutes < 1 -> "Hace menos de 1 min"
+            minutes < 60 -> "Hace $minutes min"
+            minutes < 1440 -> "Hace ${minutes / 60} h"
+            minutes < 2880 -> "Hace 1 día"
+            else -> "Hace ${minutes / 1440} días"
+        }
     }
 
     fun episode(json: JSONObject): AnimeAiringEpisode? {
@@ -46,17 +64,17 @@ internal class AnimeTodayLoader(private val scope: CoroutineScope,
         val now = clock()
         val start = AnimeToday.start(now)
         job = scope.launch {
-            update { if (it.dayStart == start) it.copy(loading = true, error = null) else AnimeTodayState(start, loading = true) }
+            update { it.copy(dayStart = start, entries = AnimeToday.released(it.entries, now), loading = true, error = null) }
             try {
                 val entries = fetch(now)
                 ensureActive()
-                // Never publish yesterday's response as today's after midnight.
-                if (AnimeToday.start(clock()) == start) update { AnimeTodayState(start, entries, loaded = true) }
-                else update { AnimeTodayState(AnimeToday.start(clock())) }
+                // Previous days remain valid after midnight, but aged-out/future events do not.
+                val completedAt = clock()
+                update { AnimeTodayState(AnimeToday.start(completedAt), AnimeToday.released(entries, completedAt), loaded = true) }
             } catch (error: CancellationException) { update { it.copy(loading = false) }; throw error }
             catch (error: Exception) {
                 update { it.copy(loading = false, error = (error as? AnimeCalendarException)?.userMessage()
-                    ?: "No se pudieron actualizar los episodios de hoy. Inténtalo de nuevo.") }
+                    ?: "No se pudieron actualizar las emisiones recientes. Inténtalo de nuevo.") }
             }
         }
     }

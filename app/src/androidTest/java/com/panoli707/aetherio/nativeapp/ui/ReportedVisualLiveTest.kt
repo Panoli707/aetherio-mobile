@@ -19,6 +19,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import coil.imageLoader
 
 /** Current provider artwork is sampled explicitly; no claim of perfect OCR over the entire catalog. */
 @RunWith(AndroidJUnit4::class)
@@ -32,14 +33,24 @@ class ReportedVisualLiveTest {
         val entries = AnimeSeasonRepository().today(now)
         assertEquals(entries, AnimeToday.released(entries, now))
         assertTrue(entries.all { it.item.isAnime && it.episode > 0 })
-        compose.setContent { AetherioTheme {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        // Warm only the visible sample so the exported reference shows decoded provider covers.
+        for (entry in entries.take(8)) entry.item.posterUrl?.let { url ->
+            context.imageLoader.execute(coil.request.ImageRequest.Builder(context).data(url).size(600, 900).build())
+        }
+        compose.setContent { AetherioTheme { androidx.compose.material3.Surface(color = Ink) {
             AiringAnimeSection(AnimeTodayState(AnimeToday.start(now), entries, loaded = true), {}, {}, {}, now)
-        } }
-        compose.onNodeWithText("Episodios emitidos hoy · Japón (JST)", useUnmergedTree = true).assertExists()
+        } } }
+        compose.onNodeWithText("Emitidos recientemente · Japón (JST)", useUnmergedTree = true).assertExists()
+        android.util.Log.i("RecentAnimeQA", "Complete recent feed: ${entries.size} distinct anime")
         entries.firstOrNull()?.let { entry ->
             assertTrue(compose.onAllNodesWithText("Ep. ${entry.episode} / ${entry.item.episodeCount ?: "—"}", useUnmergedTree = true)
                 .fetchSemanticsNodes().isNotEmpty())
         }
+        val file = File(context.filesDir, "anime-logos-0163/recent-row.png")
+        file.parentFile!!.mkdirs()
+        file.outputStream().use { compose.onNodeWithTag("airingAnimeSection").captureToImage().asAndroidBitmap()
+            .compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
     }
 
     @Test fun reportedShowsAlwaysHaveOnePortraitAFadeAndAnIndependentTitle() {

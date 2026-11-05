@@ -38,10 +38,10 @@ class AnimeSeasonRepositoryTest {
             calls++
             val variables = variables(request)
             val day = if (calls <= 2) start else start + 86400
-            assertEquals(day - 1, variables.getLong("start")); assertEquals(day + 86400, variables.getLong("end"))
+            assertEquals(day - 29 * 86400 - 1, variables.getLong("start")); assertEquals(day + 86400, variables.getLong("end"))
             val page = variables.getInt("page")
             val event = JSONObject().put("episode", page).put("airingAt", day + 36000 + if (page == 1) -1 else 1)
-                .put("media", JSONObject(item))
+                .put("media", JSONObject(item).put("id", page))
             200 to JSONObject().put("data", JSONObject().put("Page", JSONObject()
                 .put("pageInfo", JSONObject().put("hasNextPage", page == 1))
                 .put("airingSchedules", org.json.JSONArray().put(event)))).toString()
@@ -53,6 +53,51 @@ class AnimeSeasonRepositoryTest {
             assertEquals(2, calls)
             repository.today(dayNow + 86400000)
             assertEquals(4, calls)
+        } finally { client.dispatcher.executorService.shutdownNow(); client.connectionPool.evictAll() }
+    }
+
+    @Test fun recentFeedLoadsAllPagesBeyondThirtyDistinctAnimeAndCachesOnlyTheCompleteResult() = runBlocking {
+        var calls = 0
+        val client = client { request ->
+            calls++
+            val page = variables(request).getInt("page")
+            assertTrue("Should finish after the third page", page <= 3)
+            val events = org.json.JSONArray()
+            // A whole page for one anime must not count as 50 distinct anime.
+            if (page == 1) repeat(50) { index ->
+                events.put(JSONObject().put("episode", 50 - index).put("airingAt", now / 1000 - index)
+                    .put("media", JSONObject(item)))
+            } else repeat(40) { index ->
+                events.put(JSONObject().put("episode", 1).put("airingAt", now / 1000 - 100 - index)
+                    .put("media", JSONObject(item).put("id", page * 200 + index)))
+            }
+            200 to JSONObject().put("data", JSONObject().put("Page", JSONObject()
+                .put("pageInfo", JSONObject().put("hasNextPage", page < 3)).put("airingSchedules", events))).toString()
+        }
+        try {
+            val repository = AnimeSeasonRepository(client)
+            val entries = repository.today(now)
+            assertEquals(81, entries.size)
+            assertEquals(81, entries.map { it.item.key }.toSet().size)
+            assertEquals(50, entries.first().episode)
+            assertEquals(3, calls)
+            assertEquals(entries, repository.today(now + 1000))
+            assertEquals(3, calls)
+        } finally { client.dispatcher.executorService.shutdownNow(); client.connectionPool.evictAll() }
+    }
+
+    @Test fun exhaustedRecentFeedCanReturnFewerThanThirtyWithoutInventingData() = runBlocking {
+        val client = client { _ ->
+            val events = org.json.JSONArray()
+                .put(JSONObject().put("episode", 3).put("airingAt", now / 1000 - 86400).put("media", JSONObject(item)))
+                .put(JSONObject().put("episode", 4).put("airingAt", now / 1000 + 1).put("media", JSONObject(item).put("id", 456)))
+            200 to JSONObject().put("data", JSONObject().put("Page", JSONObject()
+                .put("pageInfo", JSONObject().put("hasNextPage", false)).put("airingSchedules", events))).toString()
+        }
+        try {
+            val result = AnimeSeasonRepository(client).today(now)
+            assertEquals(1, result.size)
+            assertEquals(3, result.single().episode)
         } finally { client.dispatcher.executorService.shutdownNow(); client.connectionPool.evictAll() }
     }
 

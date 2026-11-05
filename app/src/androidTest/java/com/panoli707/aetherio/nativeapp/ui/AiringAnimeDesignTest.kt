@@ -41,7 +41,7 @@ class AiringAnimeDesignTest {
         compose.setContent { AetherioTheme {
             AiringAnimeSection(AnimeTodayState(loaded = true), {}, {}, {})
         } }
-        compose.onNodeWithText("Todavía no hay episodios emitidos hoy confirmados. Consulta el calendario para ver los próximos.").assertExists()
+        compose.onNodeWithText("No hay emisiones confirmadas en los últimos 30 días. Consulta el calendario para ver las próximas.").assertExists()
         compose.onNodeWithText("Ep. 5 / 12", useUnmergedTree = true).assertDoesNotExist()
     }
 
@@ -66,17 +66,62 @@ class AiringAnimeDesignTest {
         compose.onNodeWithText(anime.title).assertExists()
     }
 
-    @Test fun yesterdayAndFutureEventsNeverLeakIntoTodaysRailEvenIfTheCatalogHasOtherAnime() {
+    @Test fun earlierDaysAreIncludedButFutureAndExpiredEventsAreNot() {
         val now = System.currentTimeMillis()
         val start = AnimeToday.start(now)
         compose.setContent { AetherioTheme {
-            AiringAnimeSection(AnimeTodayState(entries = listOf(AnimeAiringEpisode(anime.copy(title = "Ayer"), 2, start - 1),
-                AnimeAiringEpisode(anime.copy(title = "Futuro"), 3, now / 1000 + 3600),
-                AnimeAiringEpisode(anime.copy(title = "Hoy"), 4, start)), loaded = true), {}, {}, {}, now)
+            AiringAnimeSection(AnimeTodayState(entries = listOf(AnimeAiringEpisode(anime.copy(id = "1", title = "Ayer"), 2, start - 1),
+                AnimeAiringEpisode(anime.copy(id = "2", title = "Futuro"), 3, now / 1000 + 3600),
+                AnimeAiringEpisode(anime.copy(id = "3", title = "Hoy"), 4, start),
+                AnimeAiringEpisode(anime.copy(id = "4", title = "Antiguo"), 1, AnimeToday.historyStart(now) - 1)), loaded = true), {}, {}, {}, now)
         } }
         compose.onNodeWithText("Hoy").assertExists()
-        compose.onNodeWithText("Ayer").assertDoesNotExist()
+        compose.onNodeWithText("Ayer").assertExists()
         compose.onNodeWithText("Futuro").assertDoesNotExist()
+        compose.onNodeWithText("Antiguo").assertDoesNotExist()
+        compose.onNodeWithText("Emitidos recientemente · Japón (JST)").assertExists()
+    }
+
+    @Test fun horizontalPreferenceKeepsSpecialRecentRowPortraitWithoutChangingItsEpisodeOrNavigation() {
+        val now = System.currentTimeMillis()
+        val state = mutableStateOf(AppState(homeLoading = false,
+            animeToday = AnimeTodayState(entries = listOf(AnimeAiringEpisode(anime, 4, now / 1000)), loaded = true)))
+        var selected: MediaItem? = null
+        compose.setContent { AetherioTheme {
+            HomeScreen(state.value, rememberLazyListState(), rememberPagerState { 0 }, false, { selected = it }, {}, {})
+        } }
+        compose.onNodeWithTag("homeScroll").performScrollToNode(hasTestTag("airingAnimeSection"))
+        fun ratio(): Float {
+            val bounds = compose.onNodeWithTag("airingArt:${anime.key}", true).getUnclippedBoundsInRoot()
+            return (bounds.right - bounds.left).value / (bounds.bottom - bounds.top).value
+        }
+        assertEquals(2f / 3f, ratio(), .02f)
+        compose.runOnIdle { state.value = state.value.copy(homePreferences = HomePreferences(horizontalPosters = true)) }
+        assertEquals(2f / 3f, ratio(), .02f)
+        compose.onNodeWithText("Ep. 4 / 12", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText(anime.title).performClick()
+        compose.runOnIdle { assertEquals(anime, selected) }
+        compose.runOnIdle { state.value = state.value.copy(homePreferences = HomePreferences()) }
+        assertEquals(2f / 3f, ratio(), .02f)
+    }
+
+    @Test fun recentRowHasRelativeAgeSeasonAndScrollableCardsBeyondThirty() {
+        val now = System.currentTimeMillis()
+        val entries = (1..45).map { AnimeAiringEpisode(anime.copy(id = "$it", title = "Anime $it"), 4, now / 1000 - it * 3600) }
+        var selected: MediaItem? = null
+        compose.setContent { AetherioTheme {
+            AiringAnimeSection(AnimeTodayState(entries = entries, loaded = true), { selected = it }, {}, {}, now)
+        } }
+        compose.onNodeWithText("Hace 1 h", useUnmergedTree = true).assertExists()
+        compose.onAllNodesWithText("Otoño 2026", useUnmergedTree = true).onFirst().assertExists()
+        val first = compose.onNodeWithTag("airingArt:${entries.first().item.key}", true).getUnclippedBoundsInRoot()
+        val row = compose.onNodeWithTag("airingAnimeCards").getUnclippedBoundsInRoot()
+        assertTrue(first.right - first.left < (row.right - row.left) / 2)
+        compose.onNodeWithContentDescription("Más emisiones recientes").performClick()
+        compose.onNodeWithContentDescription("Emisiones anteriores en la fila").assertIsEnabled()
+        compose.onNodeWithTag("airingAnimeCards").performScrollToIndex(44)
+        compose.onNodeWithText("Anime 45").performClick()
+        compose.runOnIdle { assertEquals(entries.last().item, selected) }
     }
 
     @Test fun sharedThemeUsesTheApprovedDetailPaletteForAllSurfacesAndControls() {

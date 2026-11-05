@@ -42,7 +42,7 @@ internal class AnimeSeasonRepository(
     private var todayFetchedAt = 0L
     private var todaySchedule = emptyList<AnimeAiringEpisode>()
 
-    /** Query actual airing events, including long-running shows and a season's final episode. */
+    /** All distinct anime with confirmed events across the last 30 Japanese days. */
     suspend fun today(nowMs: Long = clockMs()): List<AnimeAiringEpisode> = bounded { mutex.withLock {
         val start = AnimeToday.start(nowMs)
         if (todayStart == start && nowMs - todayFetchedAt in 0 until 5 * 60 * 1000L)
@@ -51,12 +51,13 @@ internal class AnimeSeasonRepository(
         var page = 1
         do {
             val data = request("""query TodayAnime(${'$'}page:Int!,${'$'}start:Int!,${'$'}end:Int!){Page(page:${'$'}page,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:${'$'}start,airingAt_lesser:${'$'}end,sort:TIME_DESC){episode airingAt media{type $FIELDS}}}}""",
-                JSONObject().put("page", page).put("start", start - 1).put("end", start + 86400)).getJSONObject("Page")
+                JSONObject().put("page", page).put("start", AnimeToday.historyStart(nowMs) - 1).put("end", start + 86400)).getJSONObject("Page")
             val schedules = data.getJSONArray("airingSchedules")
             if (schedules.length() > 50) throw failure()
             for (i in 0 until schedules.length()) AnimeToday.episode(schedules.getJSONObject(i))?.let(entries::add)
             if (!data.getJSONObject("pageInfo").getBoolean("hasNextPage")) break
-            if (++page > 10) throw failure()
+            // A runaway provider response is an error, never a silently truncated recent feed.
+            if (++page > 100) throw failure()
         } while (true)
         todaySchedule = entries.distinctBy { it.key }
         todayStart = start

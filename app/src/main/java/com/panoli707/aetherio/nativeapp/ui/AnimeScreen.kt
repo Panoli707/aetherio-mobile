@@ -52,9 +52,10 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
                 else LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(continuing, key = { it.target.key }) { progress ->
                         Column(Modifier.width(280.dp).clickable(onClickLabel = "Continuar ${progress.target.item.title}") { onContinue(progress) }) {
-                            Artwork(progress.target.imageUrl ?: progress.target.item.backdropUrl ?: progress.target.item.posterUrl,
-                                Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(14.dp)), contentScale =
-                                if (progress.target.imageUrl == null && progress.target.item.backdropUrl == null) ContentScale.Fit else ContentScale.Crop)
+                            if (progress.target.episode != null && progress.target.imageUrl != null)
+                                Artwork(progress.target.imageUrl, Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(14.dp)))
+                            else CanonicalPoster(progress.target.item, Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(14.dp)),
+                                contentScale = ContentScale.Fit)
                             LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Accent, trackColor = Outline)
                             Text(progress.target.episodeTitle.ifBlank { progress.target.item.title }, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
@@ -82,7 +83,7 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
                         Column(Modifier.weight(1f)) {
                             Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(14.dp))
                                 .testTag("watchingArt:${item.key}").clickable(onClickLabel = "Ver ${item.title}") { onSelect(item) }) {
-                                Artwork(item.posterUrl, Modifier.fillMaxSize())
+                                CanonicalPoster(item, Modifier.fillMaxSize())
                                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent, Ink))))
                                 Text(if (item.episodeCount != null) "$watched/${item.episodeCount} vistos" else "$watched vistos",
                                     modifier = Modifier.align(Alignment.BottomStart).padding(8.dp), style = MaterialTheme.typography.labelMedium)

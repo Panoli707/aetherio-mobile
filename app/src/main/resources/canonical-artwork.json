@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "reviewedOn": "2026-11-05",
+  "evidence": "TMDB root movie/tv images; visual comparison of six portrait candidates and four logos per title. No season endpoint, no title-based identity merge. Covers have no printed title; logos contain the title only. Breaking Bad's 35/56 are chemical symbols, not season numbers.",
+  "titles": [
+    {"key":"TMDB:tv:220542","title":"Los diarios de la boticaria","cover":"https://image.tmdb.org/t/p/w1280/tKZeL5kDZbOo8ao1szJZuZT0kqO.jpg","ratio":0.667,"logo":"https://image.tmdb.org/t/p/original/vRQp7KKs6yGNFHfdxScbbsQBhe5.png"},
+    {"key":"TMDB:tv:95479","title":"Jujutsu Kaisen","cover":"https://image.tmdb.org/t/p/w1280/voajKwMZyb8Zj8Ahc2PhPQ67EAe.jpg","ratio":0.667,"logo":"https://image.tmdb.org/t/p/original/fOZl04GPyiWeDi5gg8yOce5QWap.png"},
+    {"key":"TMDB:tv:12609","title":"Dragon Ball","cover":"https://image.tmdb.org/t/p/w1280/cKasHrSa8d6Eo8vP4FLhYyMzch.jpg","ratio":0.667,"logo":"https://image.tmdb.org/t/p/original/bfGb8uMRWCglNSukoCC43rJHAYw.png"},
+    {"key":"TMDB:tv:1396","title":"Breaking Bad","cover":"https://image.tmdb.org/t/p/w1280/7TOPrmrJ8qO5cKJa7r6WSnjim54.jpg","ratio":0.667,"logo":"https://image.tmdb.org/t/p/original/chw44B2VnLha8iiTdyZcIW0ZELC.png"},
+    {"key":"TMDB:movie:550","title":"El club de la lucha","cover":"https://image.tmdb.org/t/p/w1280/jY7XQqNdQrH6pzE1TzTP6rJvqJw.jpg","ratio":0.667,"logo":"https://image.tmdb.org/t/p/original/tKWEI9FW5TxJRVs4aIVzzeekvd.png"},
+    {"key":"TMDB:movie:157336","title":"Interstellar","cover":"https://image.tmdb.org/t/p/w1280/iolc5VLP4PFU0XvjTVRiCb80mUR.jpg","ratio":0.667,"logo":"https://image.tmdb.org/t/p/original/xBmWKbXWEgRn69x7qma4uiPgE1N.png"},
+    {"key":"TMDB:movie:129","title":"El viaje de Chihiro","cover":"https://image.tmdb.org/t/p/w1280/b1h8uxUY46g8G1k6FmliMZW1ZK0.jpg","ratio":0.667,"logo":"https://image.tmdb.org/t/p/original/9pP6hVRh7Lq7g0rJGsPgB5PnkCF.png"}
+  ]
+}

@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -80,12 +81,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                 item(key = "hero") {
                     Column(Modifier.fillMaxWidth().background(DetailNight).testTag("detailHero"),
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        if (detail == null && media.posterUrl == null && media.portraitArtworkUrl == null && media.backdropUrl == null) {
-                            Box(Modifier.fillMaxWidth().height(detailArtworkHeight(artworkWidth, 2f / 3f))
-                                .testTag("detailArtworkPlaceholder"), contentAlignment = Alignment.Center) {
-                                if (state.detailLoading) CircularProgressIndicator(color = Accent)
-                            }
-                        } else HeroArtwork(media, portrait, viewportHeight, fullImage = true)
+                        HeroArtwork(media, portrait, viewportHeight, fullImage = true)
                         Column(Modifier.widthIn(max = 600.dp).fillMaxWidth().padding(horizontal = 22.dp).padding(bottom = 14.dp, top = 10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             val metadata = buildList {
@@ -271,7 +267,8 @@ private fun DetailEpisodeCard(episode: EpisodeItem, media: MediaItem, progress: 
         modifier = Modifier.width(width).combinedClickable(onClick = onPlay, onClickLabel = "Reproducir", onLongClick = onActions, onLongClickLabel = "Opciones del episodio")) {
         Column {
             Box(Modifier.fillMaxWidth().aspectRatio(1.78f)) {
-                DetailArtwork(episode.imageUrl ?: media.backdropUrl ?: media.posterUrl, Modifier.fillMaxSize())
+                if (episode.imageUrl != null) DetailArtwork(episode.imageUrl, Modifier.fillMaxSize())
+                else CanonicalPoster(media, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, DetailNight.copy(alpha = .55f)))))
                 IconButton(onClick = onActions, modifier = Modifier.align(Alignment.TopStart).padding(4.dp).size(44.dp)) {
                     Icon(if (progress?.watched == true) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,

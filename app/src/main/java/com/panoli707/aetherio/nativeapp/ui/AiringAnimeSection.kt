@@ -78,7 +78,7 @@ internal fun AiringAnimeCard(entry: SeasonalAnime, onClick: () -> Unit, modifier
     Column(modifier.clickable(onClickLabel = "Ver ${entry.item.title}", onClick = onClick).semantics(mergeDescendants = true) { }) {
         Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f)
             .clip(RoundedCornerShape(14.dp)).testTag("airingArt:${entry.item.key}")) {
-            Artwork(entry.item.posterUrl, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+            CanonicalPoster(entry.item, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
             Box(Modifier.fillMaxWidth().align(Alignment.BottomCenter).height(65.dp)
                 .background(Brush.verticalGradient(listOf(Color.Transparent, Ink.copy(alpha = .9f)))))
             val episode = entry.latestEpisode

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toPixelMap
@@ -39,14 +40,20 @@ class ArtworkPresentationTest {
         return file.toURI().toString()
     }
     private fun ready() { compose.waitUntil(30_000) { compose.onAllNodesWithTag("heroArtworkLoading", true).fetchSemanticsNodes().isEmpty() } }
+    private fun provider(item: MediaItem, clean: String? = null): ArtworkProvider {
+        val resolver = CanonicalArtworkResolver({ item }, { url, logo, _ ->
+            ArtworkInspection(2f / 3f, clean = !logo && url == clean)
+        })
+        return ArtworkProvider { resolver.resolve(it) }
+    }
 
     @Test fun bottomPrintedTitleSelectsACleanSameScopePortraitBeforeShowingIt() {
         val printed = image(Color.RED)
         val clean = image(Color.GREEN)
         val item = MediaItem("1", MediaType.SERIES, "Título", posterUrl = printed, portraitAlternatives = listOf(clean))
-        compose.setContent { AetherioTheme { Box(Modifier.width(300.dp).verticalScroll(rememberScrollState())) {
-            HeroArtwork(item, true, 800.dp, fullImage = true,
-                analyzeText = { url, _ -> if (url == printed) ArtworkTitlePresence.BOTTOM else ArtworkTitlePresence.ABSENT })
+        val provider = provider(item, clean)
+        compose.setContent { AetherioTheme { CompositionLocalProvider(LocalArtworkProvider provides provider) {
+            Box(Modifier.width(300.dp).verticalScroll(rememberScrollState())) { HeroArtwork(item, true, 800.dp, fullImage = true) }
         } } }
         ready()
         val pixels = compose.onNodeWithTag("heroImage").captureToImage().toPixelMap()
@@ -55,30 +62,34 @@ class ArtworkPresentationTest {
         compose.onNodeWithTag("detailHeroFade").assertExists()
     }
 
-    @Test fun aTopPrintedTitleKeepsTheOriginalPortraitAndStillDisplaysTheLogo() {
+    @Test fun topPrintedTitlesAreRejectedRatherThanDuplicatedWithAnotherLogo() {
         val portrait = image(Color.RED)
         val logo = image(Color.WHITE)
         val item = MediaItem("1", MediaType.SERIES, "Título", posterUrl = portrait, logoUrl = logo,
             posterTitlePresence = ArtworkTitlePresence.TOP)
-        compose.setContent { AetherioTheme { Box(Modifier.width(300.dp).verticalScroll(rememberScrollState())) {
-            HeroArtwork(item, true, 800.dp, fullImage = true)
+        val provider = provider(item)
+        compose.setContent { AetherioTheme { CompositionLocalProvider(LocalArtworkProvider provides provider) {
+            Box(Modifier.width(300.dp).verticalScroll(rememberScrollState())) { HeroArtwork(item, true, 800.dp, fullImage = true) }
         } } }
         ready()
-        compose.waitUntil(15_000) { compose.onAllNodesWithTag("detailLogo", true).fetchSemanticsNodes().isNotEmpty() }
+        compose.onAllNodesWithTag("detailLogo", true).assertCountEquals(0)
+        compose.onAllNodesWithTag("heroImage", true).assertCountEquals(0)
+        compose.onNodeWithText(item.title).assertExists()
         compose.onNodeWithTag("detailHeroFade").assertExists()
         val title = compose.onNodeWithTag("detailTitle").getUnclippedBoundsInRoot()
-        val photo = compose.onNodeWithTag("heroImage").getUnclippedBoundsInRoot()
+        val photo = compose.onNodeWithTag("heroArtwork").getUnclippedBoundsInRoot()
         assertTrue(title.top < photo.bottom)
     }
 
     @Test fun withoutACleanAlternativeOrLogoBottomTextUsesAnUnobscuredWrittenTitle() {
         val item = MediaItem("1", MediaType.MOVIE, "Título de reserva", posterUrl = image(Color.WHITE),
             posterTitlePresence = ArtworkTitlePresence.BOTTOM)
-        compose.setContent { AetherioTheme { Box(Modifier.width(300.dp).verticalScroll(rememberScrollState())) {
-            HeroArtwork(item, true, 800.dp, fullImage = true)
+        val provider = provider(item)
+        compose.setContent { AetherioTheme { CompositionLocalProvider(LocalArtworkProvider provides provider) {
+            Box(Modifier.width(300.dp).verticalScroll(rememberScrollState())) { HeroArtwork(item, true, 800.dp, fullImage = true) }
         } } }
         ready()
-        val photo = compose.onNodeWithTag("heroImage").getUnclippedBoundsInRoot()
+        val photo = compose.onNodeWithTag("heroArtwork").getUnclippedBoundsInRoot()
         val title = compose.onNodeWithTag("detailTitle").getUnclippedBoundsInRoot()
         val fade = compose.onNodeWithTag("detailHeroFade").getUnclippedBoundsInRoot()
         assertTrue(title.top >= photo.top && title.bottom < photo.bottom && fade.bottom == photo.bottom)

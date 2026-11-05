@@ -37,6 +37,7 @@ import coil.request.ImageRequest
 
 @RunWith(AndroidJUnit4::class)
 class HeroArtworkTest {
+    @get:Rule val artwork = ArtworkFixtureRule()
     @get:Rule val compose = createComposeRule()
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val fixtures = mutableListOf<File>()
@@ -84,7 +85,7 @@ class HeroArtworkTest {
         assertTrue("Bottom right of artwork must remain visible", yellow.red > .45f && yellow.green > .45f)
     }
 
-    @Test fun portraitPosterShowsEveryCornerAndRetainsAnAccessibleIndependentTitle() {
+    @Test fun canonicalPortraitShowsEveryCornerAndRetainsAnAccessibleIndependentTitle() {
         val item = MediaItem("550", MediaType.MOVIE, "Embedded title", posterUrl = fixture(1200, 1800),
             posterTitlePresence = ArtworkTitlePresence.EMBEDDED)
         compose.setContent { AetherioTheme {
@@ -109,7 +110,7 @@ class HeroArtworkTest {
         compose.onNodeWithText(item.title).assertIsDisplayed()
     }
 
-    @Test fun textlessPortraitGetsASeparateTitleAndMissingArtworkFallsBackToThePoster() {
+    @Test fun textlessPortraitKeepsItsTitleAndCanonicalPixelsWhenMetadataChanges() {
         val poster = fixture(1200, 1800)
         val item = mutableStateOf(MediaItem("1396", MediaType.SERIES, "Series title", posterUrl = poster,
             portraitArtworkUrl = fixture(1200, 1800)))
@@ -134,7 +135,7 @@ class HeroArtworkTest {
         assertArtworkFillsFrame()
     }
 
-    @Test fun lowResolutionPosterUsesAnAvailableSharperBannerWithoutZoomingIt() {
+    @Test fun aPinnedPortraitDoesNotSwitchToADifferentSharperBanner() {
         val item = MediaItem("550", MediaType.MOVIE, "Better artwork", posterUrl = fixture(60, 90),
             backdropUrl = fixture(1920, 1080))
         compose.setContent { AetherioTheme {
@@ -165,7 +166,7 @@ class HeroArtworkTest {
         compose.onNodeWithTag("detailPrimaryPlay").assertIsDisplayed()
     }
 
-    @Test fun landscapeHeaderPrefersTheBannerInsteadOfCroppingThePortraitPoster() {
+    @Test fun landscapeHeaderRetainsTheSameCanonicalPortrait() {
         val item = MediaItem("550", MediaType.MOVIE, "Landscape title", posterUrl = fixture(1200, 1800),
             backdropUrl = fixture(1920, 1080))
         compose.setContent { AetherioTheme {

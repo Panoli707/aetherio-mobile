@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 @RunWith(AndroidJUnit4::class)
 class StableArtworkUiTest {
+    @get:Rule val artwork = ArtworkFixtureRule()
     @get:Rule val compose = createComposeRule()
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val files = mutableListOf<File>()
@@ -74,7 +75,7 @@ class StableArtworkUiTest {
     @Test fun initialDetailShowsAvailableArtworkWhileTheSelectedSeasonLoads() {
         val catalog = MediaItem("220542", MediaType.SERIES, "Los diarios de la boticaria", posterUrl = image(Color.RED))
         val general = catalog.copy(portraitArtworkUrl = image(Color.GREEN))
-        val selected = SeasonArtwork.apply(general, 2, poster = image(Color.BLUE))
+        val selected = general.copy(seasonHint = 2, posterUrl = image(Color.BLUE))
         val pending = CompletableDeferred<SeasonContent>()
         val state = mutableStateOf(AppState())
         val controller = DetailLoader(scope, { MediaDetail(general, seasons = listOf(SeasonInfo(1, "T1", 24), SeasonInfo(2, "T2", 24)), selectedSeason = 1) },
@@ -88,11 +89,11 @@ class StableArtworkUiTest {
         assertTrue(state.value.episodesLoading)
         assertTrue(state.value.detail!!.episodes.isEmpty())
         pending.complete(SeasonContent(selected, listOf(EpisodeItem(1, 2, "Episode"))))
-        expectColor(2)
+        expectColor(1)
         compose.onNodeWithTag("detailArtworkPlaceholder").assertDoesNotExist()
     }
 
-    @Test fun lowResolutionCandidateIsVisibleWhileItsSharperAlternativeIsPending() {
+    @Test fun canonicalCoverNeverRequestsASharperDifferentIllustration() {
         val red = image(Color.RED, 60, 90)
         val blue = image(Color.BLUE, 1920, 1080)
         val gate = CompletableDeferred<Unit>()
@@ -100,8 +101,8 @@ class StableArtworkUiTest {
         val loader = delayed(blue, gate, starts)
         val item = MediaItem("1", MediaType.SERIES, "Quality", posterUrl = red, backdropUrl = blue)
         compose.setContent { AetherioTheme { Box(Modifier.width(360.dp)) { HeroArtwork(item, true, 800.dp, imageLoader = loader) } } }
-        compose.waitUntil(15_000) { starts.get() == 2 }
         expectColor(0)
+        assertEquals(1, starts.get())
         compose.onNodeWithTag("heroArtworkLoading").assertDoesNotExist()
         gate.complete(Unit)
         compose.waitForIdle()
@@ -109,17 +110,13 @@ class StableArtworkUiTest {
         compose.onAllNodesWithTag("heroImage", true).assertCountEquals(1)
     }
 
-    @Test fun ocrCannotHoldTheFirstBitmapOrItsLoadingIndicator() {
+    @Test fun aCanonicalCoverNeverInspectsAlternativesOnTheVisibleScreen() {
         val gate = CompletableDeferred<Unit>().also(gates::add)
-        val started = AtomicBoolean(false)
         val item = MediaItem("1", MediaType.SERIES, "OCR does not gate pixels", posterUrl = image(Color.RED),
             portraitAlternatives = listOf(image(Color.BLUE)))
         compose.setContent { AetherioTheme { Box(Modifier.width(360.dp)) {
-            HeroArtwork(item, true, 800.dp, analyzeText = { _, _ ->
-                started.set(true); gate.await(); ArtworkTitlePresence.TOP
-            })
+            HeroArtwork(item, true, 800.dp)
         } } }
-        compose.waitUntil(15_000) { started.get() }
         expectColor(0)
         compose.onNodeWithTag("heroArtworkLoading").assertDoesNotExist()
         assertFalse(gate.isCompleted)
@@ -127,7 +124,7 @@ class StableArtworkUiTest {
         expectColor(0)
     }
 
-    @Test fun delayedReplacementKeepsOnlyTheOldCoverAndLateResultsCannotOverwriteTheNewSelection() {
+    @Test fun newMetadataAndSeasonUrlsCannotReplaceTheCanonicalCover() {
         val red = image(Color.RED)
         val blue = image(Color.BLUE)
         val green = image(Color.GREEN)
@@ -138,13 +135,14 @@ class StableArtworkUiTest {
         compose.setContent { AetherioTheme { Box(Modifier.width(360.dp)) { HeroArtwork(item.value, true, 800.dp, imageLoader = loader) } } }
         expectColor(0)
         compose.runOnIdle { item.value = item.value.copy(posterUrl = blue, seasonHint = 2) }
-        compose.waitUntil(15_000) { starts.get() == 2 }
+        compose.waitForIdle()
+        assertEquals(1, starts.get())
         expectColor(0)
         compose.runOnIdle { item.value = item.value.copy(posterUrl = green, seasonHint = 3) }
-        expectColor(1)
+        expectColor(0)
         gate.complete(Unit)
         compose.waitForIdle()
-        expectColor(1)
+        expectColor(0)
         val count = starts.get()
         val bounds = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
         compose.runOnIdle { item.value = item.value.copy(score = 9.0, overview = "Metadata refreshed") }
@@ -153,16 +151,14 @@ class StableArtworkUiTest {
         assertEquals(bounds, compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot())
     }
 
-    @Test fun boticariaMappedSeasonsShowTheirOwnPixelsInsteadOfTheSharedPortrait() {
-        val base = MediaItem("220542", MediaType.SERIES, "Los diarios de la boticaria", portraitArtworkUrl = image(Color.YELLOW))
+    @Test fun boticariaMappedSeasonsKeepTheSameCanonicalPixels() {
+        val base = MediaItem("220542", MediaType.SERIES, "Los diarios de la boticaria", portraitArtworkUrl = image(Color.RED))
         val entries = listOf(image(Color.RED), image(Color.GREEN), image(Color.BLUE))
-        val item = mutableStateOf(SeasonArtwork.mapped(base, 1, base.copy(posterUrl = entries[0], portraitArtworkUrl = null),
-            true, "shared", null, base.portraitArtworkUrl))
+        val item = mutableStateOf(base.copy(seasonHint = 1))
         compose.setContent { AetherioTheme { Box(Modifier.width(360.dp)) { HeroArtwork(item.value, true, 800.dp) } } }
         for (number in listOf(1, 2, 3, 1)) {
-            compose.runOnIdle { item.value = SeasonArtwork.mapped(base, number,
-                base.copy(posterUrl = entries[number - 1], portraitArtworkUrl = null), true, "shared", null, base.portraitArtworkUrl) }
-            expectColor(number - 1)
+            compose.runOnIdle { item.value = base.copy(seasonHint = number, posterUrl = entries[number - 1]) }
+            expectColor(0)
         }
     }
 

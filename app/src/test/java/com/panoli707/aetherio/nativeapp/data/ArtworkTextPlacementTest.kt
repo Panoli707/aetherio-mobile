@@ -19,11 +19,11 @@ class ArtworkTextPlacementTest {
             assertEquals(presence in setOf(ArtworkTitlePresence.TOP, ArtworkTitlePresence.ABSENT), ArtworkImages.overlayTitle(header))
         }
     }
-    @Test fun portraitAlternativesSurviveCacheRoundTripAndAreScopedToTheirSeason() {
+    @Test fun discoveryCandidatesSurviveLegacyCacheButCanonicalPresentationClearsThem() {
         val base = MediaItem("1", MediaType.SERIES, "Title", portraitAlternatives = listOf("https://example.org/base.jpg"))
         assertEquals(base, CatalogJson.decode(CatalogJson.encode(listOf(base))).single())
-        val season = SeasonArtwork.apply(base, 2, poster = "https://example.org/season.jpg")
+        val season = CanonicalArtwork("Title", "https://example.org/clean.jpg").item(base.copy(seasonHint = 2))
         assertTrue(season.portraitAlternatives.isEmpty())
-        assertEquals(ArtworkTitlePresence.UNKNOWN, season.posterTitlePresence)
+        assertEquals(ArtworkTitlePresence.ABSENT, season.posterTitlePresence)
     }
 }

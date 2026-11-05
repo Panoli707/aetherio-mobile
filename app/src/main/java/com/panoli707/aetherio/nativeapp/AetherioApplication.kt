@@ -3,9 +3,13 @@ package com.panoli707.aetherio.nativeapp
 import android.app.Application
 import coil.ImageLoader
 import coil.ImageLoaderFactory
+import coil.imageLoader
 import coil.decode.SvgDecoder
 
 class AetherioApplication : Application(), ImageLoaderFactory {
+    internal val canonicalArtwork by lazy { com.panoli707.aetherio.nativeapp.ui.CanonicalArtworkProvider(this) { imageLoader } }
+    internal var artworkProviderOverride: com.panoli707.aetherio.nativeapp.ui.ArtworkProvider? = null
+    internal val artworkProvider get() = artworkProviderOverride ?: canonicalArtwork
     override fun onCreate() {
         super.onCreate()
         // Debug-only, on-device diagnostics. Release builds never install a logging observer.

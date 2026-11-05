@@ -19,12 +19,15 @@ import kotlinx.coroutines.withContext
 
 /** Bundled open-source Latin/Japanese OCR, serialized off the UI thread. No network or telemetry. */
 internal object ArtworkTextRecognizer {
+    data class Reading(val text: String, val complete: Boolean, val placement: ArtworkTitlePresence)
     private val mutex = Mutex()
-    private val cache = object : LinkedHashMap<String, ArtworkTitlePresence>(128, .75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ArtworkTitlePresence>?) = size > 128
+    private val cache = object : LinkedHashMap<String, Reading>(128, .75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Reading>?) = size > 128
     }
 
-    suspend fun analyze(context: Context, url: String, image: ImageBitmap): ArtworkTitlePresence = withContext(Dispatchers.Default) {
+    suspend fun analyze(context: Context, url: String, image: ImageBitmap): ArtworkTitlePresence = read(context, url, image).placement
+
+    suspend fun read(context: Context, url: String, image: ImageBitmap): Reading = withContext(Dispatchers.Default) {
         mutex.withLock {
             cache[url]?.let { return@withLock it }
             val original = image.asAndroidBitmap()
@@ -51,8 +54,9 @@ internal object ArtworkTextRecognizer {
                 engine.setImage(bitmap)
                 engine.getHOCRText(0) // Interruptible inference, unlike getUTF8Text().
                 ensureActive()
-                if (SystemClock.elapsedRealtime() > deadline) return@withLock ArtworkTitlePresence.UNKNOWN
+                if (SystemClock.elapsedRealtime() > deadline) return@withLock Reading("", false, ArtworkTitlePresence.UNKNOWN)
                 val boxes = mutableListOf<ArtworkTextBox>()
+                val words = mutableListOf<String>()
                 val iterator = engine.resultIterator
                 if (iterator != null) try {
                     val level = TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE
@@ -60,15 +64,16 @@ internal object ArtworkTextRecognizer {
                     do {
                         val rect = iterator.getBoundingBox(level)
                         val text = iterator.getUTF8Text(level).orEmpty()
+                        if (iterator.confidence(level) >= 25f) words.add(text)
                         if (iterator.confidence(level) >= 35f) boxes.add(ArtworkTextBox(rect[0].toFloat() / bitmap.width,
                             rect[1].toFloat() / bitmap.height, rect[2].toFloat() / bitmap.width,
                             rect[3].toFloat() / bitmap.height, text.count { it.isLetterOrDigit() }))
                     } while (iterator.next(level))
                 } finally { iterator.delete() }
-                ArtworkTextPlacement.classify(boxes).also { cache[url] = it }
+                Reading(words.joinToString(" "), true, ArtworkTextPlacement.classify(boxes)).also { cache[url] = it }
             } catch (error: CancellationException) { throw error }
-            catch (_: Exception) { ArtworkTitlePresence.UNKNOWN }
-            catch (_: LinkageError) { ArtworkTitlePresence.UNKNOWN }
+            catch (_: Exception) { Reading("", false, ArtworkTitlePresence.UNKNOWN) }
+            catch (_: LinkageError) { Reading("", false, ArtworkTitlePresence.UNKNOWN) }
             finally { engine?.recycle(); if (bitmap !== original) bitmap.recycle() }
         }
     }

@@ -120,7 +120,7 @@ internal fun Poster(item: MediaItem, onClick: () -> Unit, modifier: Modifier = M
     Column(modifier.clickable(onClickLabel = "Ver ${item.title}", onClick = onClick)
         .semantics(mergeDescendants = true) { }) {
         Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(14.dp)).testTag("posterArt:${item.key}")) {
-            Artwork(item.posterUrl, Modifier.fillMaxSize())
+            CanonicalPoster(item, Modifier.fillMaxSize())
             if (rank != null) {
                 Box(Modifier.fillMaxWidth().height(64.dp).background(Brush.verticalGradient(
                     listOf(Color.Black.copy(alpha = .65f), Color.Transparent))))
@@ -141,8 +141,7 @@ internal fun HorizontalPoster(item: MediaItem, onClick: () -> Unit, modifier: Mo
     Column(modifier.clickable(onClickLabel = "Ver ${item.title}", onClick = onClick)
         .semantics(mergeDescendants = true) { }) {
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp))) {
-            Artwork(item.backdropUrl ?: item.posterUrl, Modifier.fillMaxSize(),
-                contentScale = if (item.backdropUrl.isNullOrBlank()) ContentScale.Fit else ContentScale.Crop)
+            CanonicalPoster(item, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
             if (rank != null) Text("$rank", color = Cream, fontSize = 30.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.TopStart).background(Ink.copy(alpha = .8f), RoundedCornerShape(8.dp))
                     .padding(6.dp).semantics { contentDescription = "Puesto $rank" })
@@ -158,8 +157,7 @@ internal fun Featured(item: MediaItem, onClick: () -> Unit, modifier: Modifier =
     Box(modifier.aspectRatio(1.78f).clip(RoundedCornerShape(16.dp))
         .clickable(onClickLabel = "Ver ${item.title}", onClick = onClick)
         .semantics(mergeDescendants = true) { }) {
-        Artwork(item.backdropUrl ?: item.posterUrl, Modifier.fillMaxSize(),
-            contentScale = if (item.backdropUrl.isNullOrBlank()) ContentScale.Fit else ContentScale.Crop)
+        CanonicalPoster(item, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
             listOf(Color.Transparent, Ink.copy(alpha = .15f), Ink.copy(alpha = .92f)))))
         Column(Modifier.align(Alignment.BottomCenter).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {

@@ -7,19 +7,21 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AnimeLogoCatalogTest {
-    @Test fun everyAuditedIdentityResolvesOnlyForItsTypeProviderAndSeason() {
+    @Test fun everyAuditedIdentityUsesOneSeriesCandidateIndependentlyOfSeason() {
         assertTrue(AnimeLogoCatalog.entries.isNotEmpty())
         for (entry in AnimeLogoCatalog.entries) {
-            val expected = "file:///android_asset/anime-logos/${entry.asset}"
+            val first = AnimeLogoCatalog.entries.filter { it.tmdbId == entry.tmdbId && it.type == entry.type }
+                .sortedWith(compareBy<AnimeLogoCatalog.Entry> { it.season ?: 0 }.thenBy { it.animeId.toLong() }).first()
+            val expected = "file:///android_asset/anime-logos/${first.asset}"
             val anime = MediaItem(entry.animeId, entry.type, "Nombre arbitrario", CatalogSource.ANILIST)
             assertEquals(expected, AnimeLogoCatalog.logo(anime))
             val tmdb = anime.copy(id = entry.tmdbId, source = CatalogSource.TMDB,
                 seasonHint = entry.season, animeEntryId = entry.animeId)
             assertEquals(expected, AnimeLogoCatalog.logo(tmdb))
-            assertNull(AnimeLogoCatalog.logo(tmdb.copy(animeEntryId = "999999999")))
+            assertEquals(expected, AnimeLogoCatalog.logo(tmdb.copy(animeEntryId = "999999999")))
             assertNull(AnimeLogoCatalog.logo(anime.copy(source = CatalogSource.CINEMETA)))
             assertNull(AnimeLogoCatalog.logo(anime.copy(type = if (entry.type == MediaType.MOVIE) MediaType.SERIES else MediaType.MOVIE)))
-            if (entry.type == MediaType.SERIES) assertNull(AnimeLogoCatalog.logo(tmdb.copy(seasonHint = 999)))
+            if (entry.type == MediaType.SERIES) assertEquals(expected, AnimeLogoCatalog.logo(tmdb.copy(seasonHint = 999)))
             assertEquals(expected, ArtworkImages.logos(anime.copy(logoUrl = "https://example.org/fallback.png")).first())
         }
         assertNull(AnimeLogoCatalog.logo(MediaItem("999999999", MediaType.SERIES, "Cowboy Bebop", CatalogSource.ANILIST)))

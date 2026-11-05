@@ -25,13 +25,15 @@ internal object AnimeLogoCatalog {
 
     fun logo(item: MediaItem): String? {
         val candidates = when (item.source) {
-            CatalogSource.ANILIST -> entries.filter { it.animeId == item.id && it.type == item.type }
-            CatalogSource.TMDB -> entries.filter { it.tmdbId == item.id && it.type == item.type &&
-                (item.type == MediaType.MOVIE || it.season == (item.seasonHint ?: 1)) &&
-                (item.animeEntryId == null || item.animeEntryId == it.animeId) }
+            CatalogSource.ANILIST -> {
+                val root = entries.firstOrNull { it.animeId == item.id && it.type == item.type }
+                entries.filter { it.tmdbId == root?.tmdbId && it.type == item.type }
+            }
+            CatalogSource.TMDB -> entries.filter { it.tmdbId == item.id && it.type == item.type }
             else -> emptyList()
         }
-        // Multiple cours sharing a TMDB season need an explicit animeEntryId to choose a brand.
-        return candidates.singleOrNull()?.let { "file:///android_asset/anime-logos/${it.asset}" }
+        // The earliest audited identity is only a candidate: OCR must still reject season branding.
+        return candidates.sortedWith(compareBy<Entry> { it.season ?: 0 }.thenBy { it.animeId.toLong() })
+            .firstOrNull()?.let { "file:///android_asset/anime-logos/${it.asset}" }
     }
 }

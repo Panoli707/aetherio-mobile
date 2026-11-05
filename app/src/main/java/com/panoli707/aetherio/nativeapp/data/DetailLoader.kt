@@ -6,7 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
-/** Metadata is usable before episodes; season artwork and episode numbering still commit together. */
+/** Metadata is usable before episodes. Season results never replace the title's visual identity. */
 internal class DetailLoader(
     private val scope: CoroutineScope,
     private val fetchDetail: suspend (MediaItem) -> MediaDetail,
@@ -54,8 +54,8 @@ internal class DetailLoader(
                 ensureActive()
                 if (generation != request) return@launch
                 if (selected != null) seasons[selected] = content
-                val detail = fetched.copy(item = content.item, artworkBase = base, selectedSeason = selected, episodes = content.episodes)
-                update { it.copy(selectedItem = content.item, detail = detail, detailLoading = false,
+                val detail = fetched.copy(item = base, artworkBase = base, selectedSeason = selected, episodes = content.episodes)
+                update { it.copy(selectedItem = base, detail = detail, detailLoading = false,
                     episodesLoading = false, pendingSeason = null) }
             } catch (error: CancellationException) { throw error }
             catch (_: Exception) {
@@ -85,8 +85,8 @@ internal class DetailLoader(
                 if (generation != request) return@launch
                 if (seasons.size >= 8) seasons.remove(seasons.keys.first())
                 seasons[number] = content
-                update { it.copy(selectedItem = content.item,
-                    detail = detail.copy(item = content.item, artworkBase = base, selectedSeason = number, episodes = content.episodes),
+                update { it.copy(selectedItem = base,
+                    detail = detail.copy(item = base, artworkBase = base, selectedSeason = number, episodes = content.episodes),
                     episodesLoading = false, pendingSeason = null) }
             } catch (error: CancellationException) { throw error }
             catch (_: Exception) {

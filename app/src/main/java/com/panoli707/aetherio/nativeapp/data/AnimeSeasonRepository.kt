@@ -116,6 +116,14 @@ internal class AnimeSeasonRepository(
         cachedEntries
     } }
 
+    suspend fun artwork(item: MediaItem): MediaItem = bounded { mutex.withLock {
+        require(item.source == CatalogSource.ANILIST && item.id.matches(Regex("[0-9]{1,10}")))
+        val media = request("""query Artwork(${'$'}id:Int!){Media(id:${'$'}id,type:ANIME){$HOME_FIELDS}}""",
+            JSONObject().put("id", item.id.toInt())).getJSONObject("Media")
+        check(media.getInt("id").toString() == item.id)
+        requireNotNull(AnimeSeasonProtocol.item(media)).copy(type = item.type)
+    } }
+
     suspend fun detail(item: MediaItem, nowMs: Long = System.currentTimeMillis()): MediaDetail = bounded { mutex.withLock {
         require(item.source == CatalogSource.ANILIST && item.id.matches(Regex("[0-9]{1,10}")))
         details[item.id]?.takeIf { nowMs - it.first in 0 until 15 * 60 * 1000L }?.let { return@withLock it.second }

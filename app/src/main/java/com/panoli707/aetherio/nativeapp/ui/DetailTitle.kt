@@ -45,11 +45,14 @@ import kotlinx.coroutines.withContext
 /** Stable logo frame with a written fallback, optionally bounded inside artwork. */
 @Composable
 internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
-    imageLoader: ImageLoader = LocalContext.current.imageLoader, compact: Boolean = false, insideArtwork: Boolean = false) {
+    imageLoader: ImageLoader = LocalContext.current.imageLoader, compact: Boolean = false, insideArtwork: Boolean = false,
+    canonical: Boolean = false, pending: Boolean = false) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val inspection = LocalInspectionMode.current
-    val candidates = remember(item.key, item.animeEntryId, item.seasonHint, item.logoUrl, item.logoAlternatives) { ArtworkImages.logos(item) }
+    val candidates = remember(item.key, item.logoUrl, canonical) {
+        if (canonical) listOfNotNull(item.logoUrl) else ArtworkImages.logos(item)
+    }
     var logo by remember(item.key, candidates) { mutableStateOf<ImageBitmap?>(null) }
     var loading by remember(item.key, candidates) { mutableStateOf(candidates.isNotEmpty()) }
     val measurer = rememberTextMeasurer()
@@ -105,7 +108,7 @@ internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
                     drawContent()
                 }, contentScale = ContentScale.Fit, alignment = if (insideArtwork) Alignment.BottomCenter else Alignment.Center)
             }
-            else Text(item.title, Modifier.fillMaxWidth().testTag("detailTitleText"), style = style,
+            else if (!pending && (!canonical || !loading)) Text(item.title, Modifier.fillMaxWidth().testTag("detailTitleText"), style = style,
                 maxLines = if (loading || insideArtwork) 3 else Int.MAX_VALUE,
                 overflow = if (loading || insideArtwork) TextOverflow.Ellipsis else TextOverflow.Clip)
         }

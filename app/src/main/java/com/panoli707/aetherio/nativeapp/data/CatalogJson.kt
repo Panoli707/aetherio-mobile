@@ -26,7 +26,7 @@ internal object CatalogJson {
             ?.let { image("https://image.tmdb.org/t/p/$size$it") }
     fun logos(json: JSONObject): List<String> = objects(json.optJSONArray("logos"))
         .sortedWith(compareBy<JSONObject> { when (text(it, "iso_639_1")) { "es" -> 0; "en" -> 1; "" -> 2; else -> 3 } }
-            .thenByDescending { it.optInt("width", 0) })
+            .thenByDescending { minOf(it.optInt("width", 0), 2000) }.thenByDescending { it.optDouble("vote_average", 0.0) })
         .mapNotNull { tmdbImage(text(it, "file_path"), "w500") }.distinct().take(8)
     fun logo(json: JSONObject): String? = logos(json).firstOrNull()
 
@@ -55,8 +55,8 @@ internal object CatalogJson {
     fun portraitAlternatives(json: JSONObject): List<String> = objects(json.optJSONArray("posters"))
         .filter { it.optDouble("aspect_ratio", 0.0) in 0.45..0.85 && it.optInt("width") >= 500 }
         .sortedWith(compareBy<JSONObject> { if (text(it, "iso_639_1").isEmpty()) 0 else 1 }
-            .thenByDescending { it.optInt("width") }.thenByDescending { it.optDouble("vote_average", 0.0) })
-        .mapNotNull { tmdbImage(text(it, "file_path"), "original") }.distinct().take(4)
+            .thenByDescending { minOf(it.optInt("width"), 2000) }.thenByDescending { it.optDouble("vote_average", 0.0) })
+        .mapNotNull { tmdbImage(text(it, "file_path"), "w780") }.distinct().take(8)
 
     fun item(json: JSONObject, type: MediaType, source: CatalogSource, anime: Boolean = false): MediaItem? {
         val id = text(json, "id")

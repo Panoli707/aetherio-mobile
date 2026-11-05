@@ -85,9 +85,9 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
                         val target = progress.target
                         Column(Modifier.width(260.dp).clip(RoundedCornerShape(14.dp)).background(Panel)) {
                             Column(Modifier.clickable(onClickLabel = "Continuar ${target.item.title}") { onContinue(progress) }) {
-                                Artwork(target.imageUrl ?: target.item.backdropUrl ?: target.item.posterUrl,
-                                    Modifier.fillMaxWidth().height(140.dp), contentScale =
-                                    if (target.imageUrl == null && target.item.backdropUrl == null) ContentScale.Fit else ContentScale.Crop)
+                                if (target.episode != null && target.imageUrl != null)
+                                    Artwork(target.imageUrl, Modifier.fillMaxWidth().height(140.dp))
+                                else CanonicalPoster(target.item, Modifier.fillMaxWidth().height(140.dp), contentScale = ContentScale.Fit)
                                 LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Accent, trackColor = Outline)
                                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(target.item.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)

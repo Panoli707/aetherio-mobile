@@ -35,6 +35,13 @@ internal object ArtworkImages {
         }.getOrDefault(url)
     }
 
+    /** One display-sized variant per illustration; never rewrite signed/foreign URLs. */
+    fun canonicalResolution(url: String): String = highResolution(url)?.let { original ->
+        if (original.startsWith("https://image.tmdb.org/t/p/original/") &&
+            runCatching { URI(original).let { it.rawQuery == null && it.rawFragment == null } }.getOrDefault(false))
+            original.replace("/t/p/original/", "/t/p/w1280/") else original
+    } ?: url
+
     fun hero(item: MediaItem, portrait: Boolean): String? = if (portrait)
         item.posterUrl ?: item.backdropUrl else item.backdropUrl ?: item.posterUrl
 

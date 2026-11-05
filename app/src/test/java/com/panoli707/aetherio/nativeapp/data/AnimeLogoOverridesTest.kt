@@ -27,7 +27,9 @@ class AnimeLogoOverridesTest {
         assertEquals(listOf("original"), ArtworkImages.logos(item))
         assertNull(AnimeLogoOverrides.logo(item.copy(id = "205909", type = MediaType.MOVIE)))
         assertNull(AnimeLogoOverrides.logo(item.copy(id = "205909", source = CatalogSource.CINEMETA)))
-        assertNull(AnimeLogoOverrides.logo(item.copy(id = "320909", source = CatalogSource.TMDB, seasonHint = 2)))
-        assertNull(AnimeLogoOverrides.logo(item.copy(id = "320909", source = CatalogSource.TMDB, animeEntryId = "218938")))
+        assertEquals(AnimeLogoOverrides.logo(item.copy(id = "320909", source = CatalogSource.TMDB)),
+            AnimeLogoOverrides.logo(item.copy(id = "320909", source = CatalogSource.TMDB, seasonHint = 2)))
+        assertEquals(AnimeLogoOverrides.logo(item.copy(id = "320909", source = CatalogSource.TMDB)),
+            AnimeLogoOverrides.logo(item.copy(id = "320909", source = CatalogSource.TMDB, animeEntryId = "218938")))
     }
 }

@@ -1,5 +1,7 @@
 # Auditoría de logos de anime
 
+> La presentación actual sigue [la política canónica de 0.20.0](CANONICAL.md): un único par por título, sin cambios por temporada. Este inventario conserva la procedencia de candidatos históricos; no obliga a mostrarlos ni acredita que todos sean logos genéricos sin texto de temporada.
+
 `anime-logo-audit.json` registra el inventario, fecha UTC, consultas cubiertas y estado por ID AniList. Es una instantánea reproducible de los catálogos actuales, **no un censo de todo el anime histórico**. Las fuentes no disponibles quedan en `unavailableScopes`; nunca se consideran auditadas.
 
 ## Resultado de esta publicación

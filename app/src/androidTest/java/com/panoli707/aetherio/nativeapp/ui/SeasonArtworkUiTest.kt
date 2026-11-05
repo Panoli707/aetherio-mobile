@@ -22,6 +22,7 @@ import java.io.File
 
 @RunWith(AndroidJUnit4::class)
 class SeasonArtworkUiTest {
+    @get:Rule val artwork = ArtworkFixtureRule()
     @get:Rule val compose = createComposeRule()
     private val files = mutableListOf<File>()
     @After fun cleanup() { files.forEach { it.delete() } }
@@ -45,7 +46,7 @@ class SeasonArtworkUiTest {
         }
     }
 
-    @Test fun selectingSeasonsReplacesGeneralArtworkAndMissingSeasonArtRestoresTheBase() {
+    @Test fun selectingSeasonsNeverChangesTheCanonicalCover() {
         val base = MediaItem("1396", MediaType.SERIES, "Series", portraitArtworkUrl = image(Color.GREEN))
         val first = image(Color.RED)
         val second = image(Color.BLUE)
@@ -54,11 +55,11 @@ class SeasonArtworkUiTest {
             Box(Modifier.width(360.dp)) { HeroArtwork(current.value, true, 800.dp) }
         } }
         expectColor(1)
-        compose.runOnIdle { current.value = SeasonArtwork.apply(base, 1, poster = first) }
-        expectColor(0)
-        compose.runOnIdle { current.value = SeasonArtwork.apply(base, 2, poster = second) }
-        expectColor(2)
-        compose.runOnIdle { current.value = SeasonArtwork.apply(base, 3) }
+        compose.runOnIdle { current.value = base.copy(seasonHint = 1, posterUrl = first) }
+        expectColor(1)
+        compose.runOnIdle { current.value = base.copy(seasonHint = 2, posterUrl = second) }
+        expectColor(1)
+        compose.runOnIdle { current.value = base.copy(seasonHint = 3) }
         expectColor(1)
     }
 }

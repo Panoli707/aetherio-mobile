@@ -15,7 +15,7 @@ import org.junit.Test
 class DetailLoaderTest {
     private val base = MediaItem("220542", MediaType.SERIES, "Los diarios de la boticaria", posterUrl = "general")
     private val detail = MediaDetail(base, seasons = (1..3).map { SeasonInfo(it, "Temporada $it", 24) }, selectedSeason = 1)
-    private fun season(number: Int) = SeasonContent(SeasonArtwork.apply(base, number, poster = "season-$number"),
+    private fun season(number: Int) = SeasonContent(base.copy(seasonHint = number, posterUrl = "season-$number"),
         listOf(EpisodeItem(1, number, "Episodio")))
 
     @Test fun metadataIsPublishedBeforeTheHistorySeasonWithoutEnablingOldEpisodes() = runTest {
@@ -29,7 +29,7 @@ class DetailLoaderTest {
         assertTrue(state.episodesLoading); assertEquals(2, state.pendingSeason)
         assertTrue(state.detail!!.episodes.isEmpty())
         pending.complete(season(2)); runCurrent()
-        assertEquals(listOf("general", "season-2"), seen.mapNotNull { it.detail?.item?.posterUrl }.distinct())
+        assertEquals(listOf("general"), seen.mapNotNull { it.detail?.item?.posterUrl }.distinct())
         assertEquals(2, state.detail!!.selectedSeason); assertEquals(base, state.detail!!.artworkBase)
         assertFalse(state.detailLoading)
     }
@@ -88,11 +88,11 @@ class DetailLoaderTest {
         loader.open(base); runCurrent()
         loader.select(1); runCurrent(); assertEquals(1, requests)
         loader.select(2); runCurrent()
-        assertEquals("season-1", state.detail!!.item.posterUrl)
+        assertEquals("general", state.detail!!.item.posterUrl)
         assertEquals(1, state.detail!!.selectedSeason); assertEquals(2, state.pendingSeason); assertTrue(state.episodesLoading)
         loader.select(2); runCurrent(); assertEquals(2, requests)
         pending.complete(season(2)); runCurrent()
-        assertEquals("season-2", state.detail!!.item.posterUrl)
+        assertEquals("general", state.detail!!.item.posterUrl)
         assertEquals(2, state.detail!!.episodes.single().season); assertNull(state.pendingSeason)
         loader.select(1); runCurrent(); assertEquals(2, requests) // Session cache, no image/metadata roulette.
     }
@@ -106,7 +106,7 @@ class DetailLoaderTest {
         loader.open(base); runCurrent()
         loader.select(2); runCurrent(); loader.select(3); runCurrent()
         pending.complete(season(2)); runCurrent()
-        assertEquals(3, state.detail!!.selectedSeason); assertEquals("season-3", state.detail!!.item.posterUrl)
+        assertEquals(3, state.detail!!.selectedSeason); assertEquals("general", state.detail!!.item.posterUrl)
     }
 
     @Test fun openingAnotherSeriesDiscardsPendingResultsEvenWhenTheirTransportCannotBeCancelled() = runTest {
@@ -126,7 +126,7 @@ class DetailLoaderTest {
         val loader = DetailLoader(this, { detail }, { _, n -> if (n == 2 && fail) error("offline") else season(n) }, { null },
             { state }, { state = it(state) })
         loader.open(base); runCurrent(); loader.select(2); runCurrent()
-        assertEquals(1, state.detail!!.selectedSeason); assertEquals("season-1", state.detail!!.item.posterUrl)
+        assertEquals(1, state.detail!!.selectedSeason); assertEquals("general", state.detail!!.item.posterUrl)
         assertNotNull(state.detailError); assertFalse(state.episodesLoading); assertNull(state.pendingSeason)
         fail = false; loader.retry(); runCurrent()
         assertEquals(2, state.detail!!.selectedSeason); assertNull(state.detailError)
@@ -140,6 +140,6 @@ class DetailLoaderTest {
         loader.open(base); runCurrent()
         assertNull(state.detail); assertFalse(state.detailLoading); assertNotNull(state.detailError)
         fail = false; loader.retry(); runCurrent()
-        assertEquals("season-1", state.detail!!.item.posterUrl); assertNull(state.detailError)
+        assertEquals("general", state.detail!!.item.posterUrl); assertNull(state.detailError)
     }
 }

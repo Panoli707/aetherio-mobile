@@ -15,6 +15,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class HomeDesignTest {
+    @get:Rule val artwork = ArtworkFixtureRule()
     @get:Rule val compose = createComposeRule()
     private val movie = MediaItem("900000001", MediaType.MOVIE, "Primera película",
         overview = "Una aventura en el bosque.", year = "2026", score = 6.7)

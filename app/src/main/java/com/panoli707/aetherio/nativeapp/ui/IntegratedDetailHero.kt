@@ -22,7 +22,8 @@ import coil.ImageLoader
 /** Shared Home/detail geometry: the entire title stays inside the photo, drawn on top of its fade. */
 @Composable
 internal fun IntegratedDetailHero(item: MediaItem, imageHeight: Dp, showTitle: Boolean,
-    imageLoader: ImageLoader, compact: Boolean = false, image: @Composable () -> Unit) {
+    imageLoader: ImageLoader, compact: Boolean = false, canonicalLogo: Boolean = false,
+    titleLoading: Boolean = false, image: @Composable () -> Unit) {
     val density = LocalDensity.current
     val imageHeightPx = with(density) { imageHeight.roundToPx().coerceAtLeast(1) }
     val bottomGap = with(density) { 8.dp.roundToPx() }
@@ -36,7 +37,8 @@ internal fun IntegratedDetailHero(item: MediaItem, imageHeight: Dp, showTitle: B
             }
         })
         if (showTitle) Box(Modifier.widthIn(max = 300.dp).fillMaxWidth().padding(horizontal = 18.dp)) {
-            DetailTitle(item, Modifier.fillMaxWidth(), imageLoader, compact = compact, insideArtwork = true)
+            DetailTitle(item, Modifier.fillMaxWidth(), imageLoader, compact = compact, insideArtwork = true,
+                canonical = canonicalLogo, pending = titleLoading)
         }
     }) { measurables, constraints ->
         val width = constraints.maxWidth

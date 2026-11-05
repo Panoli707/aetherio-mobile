@@ -15,9 +15,7 @@ internal object AnimeLogoOverrides {
         val match = when (item.source) {
             CatalogSource.ANILIST -> logos.firstOrNull { it.aniListId == item.id }
             CatalogSource.TMDB -> {
-                // Do not leak first-season branding into a different mapped entry or future season.
-                if (item.seasonHint != null && item.seasonHint != 1) return null
-                logos.firstOrNull { it.tmdbId == item.id && (item.animeEntryId == null || item.animeEntryId == it.aniListId) }
+                logos.firstOrNull { it.tmdbId == item.id }
             }
             else -> null
         }

@@ -438,20 +438,19 @@ class AetherioRepositoryTest {
         }
     }
 
-    @Test fun seasonContentLoadsRealSeasonArtAndDoesNotLetTheGeneralPortraitWin() = runBlocking {
+    @Test fun seasonContentNeverRequestsImagesOrReplacesTheSeriesArtwork() = runBlocking {
         TlsFixture().use { fixture ->
             val repository = fixture.repository()
             val base = series.copy(posterUrl = "https://example.org/general.jpg", portraitArtworkUrl = "https://example.org/general-clean.jpg")
             fixture.server.enqueue(MockResponse().setBody("""{"poster_path":"/season-two.jpg",
                 "episodes":[{"episode_number":1,"name":"Season two episode"}]}"""))
             val content = repository.seasonContent(base, 2)
-            assertEquals("https://image.tmdb.org/t/p/original/season-two.jpg", content.item.posterUrl)
-            assertNull(content.item.portraitArtworkUrl)
-            assertEquals(content.item.posterUrl, ArtworkImages.headers(content.item, true).first().url)
+            assertEquals(base.posterUrl, content.item.posterUrl)
+            assertEquals(base.portraitArtworkUrl, content.item.portraitArtworkUrl)
             assertEquals(2, content.episodes.single().season)
             val request = fixture.request()
             authenticated(request, "/3/tv/1396/season/2")
-            assertEquals("images", request.requestUrl!!.queryParameter("append_to_response"))
+            assertNull(request.requestUrl!!.queryParameter("append_to_response"))
             fixture.server.enqueue(MockResponse().setBody("""{"poster_path":null,"episodes":[]}"""))
             assertEquals(base.copy(seasonHint = 3), repository.seasonContent(base, 3).item)
             fixture.request()
@@ -459,11 +458,9 @@ class AetherioRepositoryTest {
         }
     }
 
-    @Test fun boticariaUsesEachMappedEntryWithoutARepeatedTmdbPortraitAndKeepsEpisodeOffsets() = runBlocking {
+    @Test fun boticariaKeepsTheSeriesArtworkWithoutFetchingMappedArtAndPreservesEpisodeOffsets() = runBlocking {
         TlsFixture().use { fixture ->
-            val requested = mutableListOf<String>()
-            val repository = AetherioRepository(readAccessToken = TOKEN, client = fixture.client, tmdbBase = fixture.server.url("/3"),
-                seasonAnimeArtwork = { entry -> requested.add(entry.id); entry.copy(posterUrl = "https://example.org/${entry.id}.jpg") })
+            val repository = AetherioRepository(readAccessToken = TOKEN, client = fixture.client, tmdbBase = fixture.server.url("/3"))
             val base = SeriesIdentity.item(MediaItem("220542", MediaType.SERIES, "Los diarios de la boticaria",
                 portraitArtworkUrl = "https://example.org/general.jpg"))
             for (number in 1..3) {
@@ -471,13 +468,12 @@ class AetherioRepositoryTest {
                 fixture.server.enqueue(MockResponse().setBody("""{"poster_path":"/shared.jpg","images":{"posters":[
                     {"file_path":"/shared-clean.jpg","iso_639_1":null,"width":1200,"aspect_ratio":0.666}]},"episodes":[$episodes]}"""))
                 val content = repository.seasonContent(base, number)
-                assertEquals("https://example.org/${requested.last()}.jpg", ArtworkImages.headers(content.item, true).first().url)
-                assertNull(content.item.portraitArtworkUrl)
+                assertEquals(base.portraitArtworkUrl, content.item.portraitArtworkUrl)
                 assertEquals(1, content.episodes.first().number); assertEquals(number, content.episodes.first().season)
                 assertEquals(24, content.episodes.size)
                 authenticated(fixture.request(), "/3/tv/220542/season/1")
             }
-            assertEquals(listOf("161645", "176301", "195516"), requested)
+            assertTrue(fixture.externalRequests.isEmpty())
         }
     }
 

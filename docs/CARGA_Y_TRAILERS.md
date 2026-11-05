@@ -1,5 +1,7 @@
 # Carga de portadas y reproducción de tráileres
 
+> **Desde 0.20.0**, la selección progresiva de imágenes de 0.19.0 queda sustituida por [una portada y un logo canónicos por título](artwork/CANONICAL.md). Ya no cambia la portada por temporada ni se muestran candidatos provisionales. El diagnóstico histórico y los límites de tráileres se conservan como referencia.
+
 ## Qué causaba las esperas
 
 La revisión de 0.18.0 encontró trabajo interno en el camino hasta el contenido visible, además de la latencia de los servicios:

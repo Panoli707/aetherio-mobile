@@ -17,7 +17,7 @@ if ($LASTEXITCODE -ne 0 -or $avd -notcontains 'Aetherio_QA_API34') { throw 'Se r
 $out = Join-Path $root 'app/build/qa-regressions-release-0203'
 foreach ($directory in @($out, "$out/classes", "$out/dex")) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
 $android = Join-Path $sdk 'platforms/android-36/android.jar'
-& "$java/bin/javac.exe" -source 8 -target 8 -cp $android -d "$out/classes" "$PSScriptRoot/qa/RegressionReleaseInstrumentation.java"
+& "$java/bin/javac.exe" -encoding UTF-8 -source 8 -target 8 -cp $android -d "$out/classes" "$PSScriptRoot/qa/RegressionReleaseInstrumentation.java"
 if ($LASTEXITCODE -ne 0) { throw 'javac fallo.' }
 $classes = @(Get-ChildItem "$out/classes" -Recurse -Filter '*.class' | ForEach-Object FullName)
 & "$tools/d8.bat" --lib $android --min-api 24 --output "$out/dex" @classes

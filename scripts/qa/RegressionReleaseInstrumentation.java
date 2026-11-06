@@ -8,6 +8,8 @@ import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.SystemClock;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.view.MotionEvent;
+import android.graphics.Rect;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
@@ -43,6 +45,7 @@ public final class RegressionReleaseInstrumentation extends Instrumentation {
             result.putString("stream", "Release " + info.versionName + ": regression probe passed (" + mode + ")\n");
             finish(-1, result);
         } catch (Throwable error) {
+            try { capture("release-ui-failure"); } catch (Throwable ignored) { }
             result.putString("stream", android.util.Log.getStackTraceString(error));
             finish(1, result);
         }
@@ -68,6 +71,7 @@ public final class RegressionReleaseInstrumentation extends Instrumentation {
         capture("release-frieren");
         launchMain();
         click(waitFor("Ajustes", 30000));
+        waitFor("Configuración", 15000);
         click(scrollTo("Fuentes y contenido"));
         waitFor("Aetherio Provider Hub", 20000);
         long end = SystemClock.uptimeMillis() + 30000;
@@ -107,18 +111,38 @@ public final class RegressionReleaseInstrumentation extends Instrumentation {
     private AccessibilityNodeInfo scrollTo(String label) {
         for (int i = 0; i < 60; i++) {
             AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
+            if (root != null) root.refresh();
             AccessibilityNodeInfo found = find(root, label, false);
             if (found != null && found.isVisibleToUser()) return found;
-            AccessibilityNodeInfo scroll = findScrollable(root);
-            if (scroll == null || !scroll.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) {
-                SystemClock.sleep(300);
+            if (found != null && found.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.getId())) {
+                SystemClock.sleep(600);
                 found = find(getUiAutomation().getRootInActiveWindow(), label, false);
                 if (found != null && found.isVisibleToUser()) return found;
-                break;
             }
-            SystemClock.sleep(200);
+            AccessibilityNodeInfo scroll = findScrollable(root);
+            if (scroll == null || !scroll.performAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD)) {
+                // Accessibility actions can briefly be unavailable while Compose changes routes or
+                // animates a page. Fall back to a real content swipe, never to a navigation-bar tap.
+                if (root != null) swipeContent(root);
+            }
+            // Compose's accessibility scroll animates asynchronously. Wait for it to settle rather
+            // than issuing another request while the previous page is still moving.
+            SystemClock.sleep(600);
         }
         throw new AssertionError("Cannot scroll to: " + label);
+    }
+    private void swipeContent(AccessibilityNodeInfo root) {
+        Rect bounds = new Rect();
+        root.getBoundsInScreen(bounds);
+        float x = bounds.centerX(), from = bounds.top + bounds.height() * .72f, to = bounds.top + bounds.height() * .30f;
+        long down = SystemClock.uptimeMillis();
+        for (int i = 0; i <= 15; i++) {
+            int action = i == 0 ? MotionEvent.ACTION_DOWN : i == 15 ? MotionEvent.ACTION_UP : MotionEvent.ACTION_MOVE;
+            MotionEvent event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, x, from + (to - from) * i / 15f, 0);
+            getUiAutomation().injectInputEvent(event, true);
+            event.recycle();
+            SystemClock.sleep(16);
+        }
     }
     private AccessibilityNodeInfo findEditable(long timeout) {
         long end = SystemClock.uptimeMillis() + timeout;

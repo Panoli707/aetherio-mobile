@@ -2,7 +2,10 @@ package com.panoli707.aetherio.nativeapp.data
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
@@ -29,7 +32,9 @@ internal object ProviderHubDirectory {
         catch (_: Exception) { throw IllegalArgumentException("Directorio público del Hub no válido") }
 
     private fun parseDocument(raw: String): List<HubProvider> {
-        val json = SourceProtocol.root(raw, SourceProtocol.MANIFEST_LIMIT)
+        // Public manifests may contain hundreds of unrelated catalog genre options. Keep byte/depth
+        // bounds, but don't reject every provider because an ignored catalog exceeds stream limits.
+        val json = SourceProtocol.root(raw, SourceProtocol.MANIFEST_LIMIT, collectionLimit = 20_000)
         require(json.opt("version") == 1)
         val entries = requireNotNull(json.optJSONArray("addons"))
         require(entries.length() <= 100)
@@ -51,14 +56,26 @@ internal object ProviderHubDirectory {
             val compatibleType = (0 until fallback.getJSONArray("types").length()).any {
                 fallback.getJSONArray("types").optString(it) in setOf("movie", "series")
             }
-            val prefixes = fallback.optJSONArray("idPrefixes")
+            val prefixes = if (fallback.has("idPrefixes")) requireNotNull(fallback.optJSONArray("idPrefixes")) else null
             val compatibleId = prefixes == null || prefixes.length() == 0 || (0 until prefixes.length()).any {
                 Regex("tt[0-9]{0,12}").matches(prefixes.optString(it))
             }
             val resources = fallback.getJSONArray("resources")
             val hasStreams = (0 until resources.length()).any { resources.opt(it) == "stream" || resources.optJSONObject(it)?.optString("name") == "stream" }
+            val streamResources = org.json.JSONArray()
+            for (i in 0 until resources.length()) {
+                if (resources.opt(i) == "stream") streamResources.put("stream")
+                else resources.optJSONObject(i)?.takeIf { it.optString("name") == "stream" }?.let { resource ->
+                    val contract = JSONObject().put("name", "stream")
+                    listOf("types", "idPrefixes").forEach { key -> if (resource.has(key)) contract.put(key, resource.get(key)) }
+                    streamResources.put(contract)
+                }
+            }
+            val streamManifest = JSONObject().put("id", id).put("name", name).put("logo", logo)
+                .put("types", fallback.getJSONArray("types")).put("resources", streamResources)
+            prefixes?.let { streamManifest.put("idPrefixes", it) }
             val config = if (compatibleType && compatibleId && hasStreams) SourceProtocol.manifest(
-                JSONObject(fallback.toString()).put("id", id).put("name", name).put("logo", logo).toString(), url
+                streamManifest.toString(), url
             ).copy(hubManaged = true, payloadAttribution = hidden) else null
             val filter = entry.optJSONObject("streamNameFilter")
             val mode = filter?.getString("mode")?.also { require(it in setOf("include", "exclude")) }
@@ -85,7 +102,9 @@ internal object ProviderHubDirectory {
     }
 
     fun branding(raw: String): List<HubBranding> {
-        val entries = SourceProtocol.root(raw, SourceProtocol.MANIFEST_LIMIT).optJSONArray("scrapers") ?: return emptyList()
+        val entries = requireNotNull(SourceProtocol.root(raw, SourceProtocol.MANIFEST_LIMIT, collectionLimit = 20_000)
+            .optJSONArray("scrapers"))
+        require(entries.length() <= 1000)
         return (0 until entries.length()).mapNotNull { index ->
             val entry = entries.optJSONObject(index) ?: return@mapNotNull null
             val id = SourceMetadata.text(entry.opt("id")) ?: return@mapNotNull null
@@ -104,37 +123,39 @@ internal class ProviderHubDirectoryRepository(
     private val writeBrandingCache: (String) -> Unit = {}
 ) {
     private val mutex = Mutex()
-    private var providers = emptyList<HubProvider>()
-    private var loaded = false
-    private var branding = emptyList<HubBranding>()
+    private val mutableState = MutableStateFlow(HubDirectoryResult(
+        runCatching { readCache()?.let(ProviderHubDirectory::parse) }.getOrNull().orEmpty(), true,
+        runCatching { readBrandingCache()?.let(ProviderHubDirectory::branding) }.getOrNull().orEmpty()))
+    val state = mutableState.asStateFlow()
 
     suspend fun refresh(): HubDirectoryResult = mutex.withLock {
-        if (!loaded) {
-            providers = runCatching { readCache()?.let(ProviderHubDirectory::parse) }.getOrNull().orEmpty()
-            branding = runCatching { readBrandingCache()?.let(ProviderHubDirectory::branding) }.getOrNull().orEmpty()
-            loaded = true
-        }
-        try {
-            val raw = coroutineScope {
-                val logos = async {
-                    try {
-                        val manifest = repository.document("${ProviderHub.BASE}/manifest.json")
-                        branding = ProviderHubDirectory.branding(manifest)
-                        runCatching { writeBrandingCache(manifest) }
-                    }
-                    catch (error: CancellationException) { throw error }
-                    catch (_: Exception) { /* Branding failure cannot remove working addons. */ }
-                }
-                val directory = repository.document(ProviderHubDirectory.URL)
-                logos.await()
-                directory
+        supervisorScope {
+            val directory = async {
+                try {
+                    val raw = repository.document(ProviderHubDirectory.URL, revalidate = true)
+                    val updated = ProviderHubDirectory.parse(raw)
+                    mutableState.update { it.copy(providers = updated) }
+                    runCatching { writeCache(raw) }
+                    true
+                } catch (error: CancellationException) { throw error }
+                catch (_: Exception) { false }
             }
-            val updated = ProviderHubDirectory.parse(raw)
-            providers = updated // An explicitly empty valid directory really is empty.
-            runCatching { writeCache(raw) }
-            HubDirectoryResult(providers, false, branding)
-        } catch (error: CancellationException) { throw error }
-        catch (_: Exception) { HubDirectoryResult(providers, true, branding) }
+            val manifest = async {
+                try {
+                    val raw = repository.document("${ProviderHub.BASE}/manifest.json", revalidate = true)
+                    val updated = ProviderHubDirectory.branding(raw)
+                    mutableState.update { it.copy(branding = updated) }
+                    runCatching { writeBrandingCache(raw) }
+                    true
+                } catch (error: CancellationException) { throw error }
+                catch (_: Exception) { false }
+            }
+            // Publish each document as it arrives: a slow/failed endpoint cannot hide the other.
+            val directoryReady = directory.await()
+            val manifestReady = manifest.await()
+            mutableState.update { it.copy(stale = !directoryReady || !manifestReady) }
+            return@supervisorScope mutableState.value
+        }
     }
 }
 

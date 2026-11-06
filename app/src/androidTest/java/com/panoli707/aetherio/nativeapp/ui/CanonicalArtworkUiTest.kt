@@ -84,7 +84,7 @@ class CanonicalArtworkUiTest {
         compose.onNodeWithText("Neutral title").assertExists()
     }
 
-    @Test fun unknownCoverStillLoadsTheLogoOutsideTheImageWithoutOverlappingPrintedText() {
+    @Test fun unknownCoverLoadsTheLogoAtTheInnerBottomEdgeWithoutAddingHeight() {
         val cover = image(Color.BLUE)
         val logo = image(Color.CYAN, 600, 150)
         val item = MediaItem("90000002", MediaType.MOVIE, "Visible title")
@@ -99,7 +99,35 @@ class CanonicalArtworkUiTest {
         compose.waitUntil(15_000) { compose.onAllNodesWithTag("detailLogo", true).fetchSemanticsNodes().size == 1 }
         val photo = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
         val title = compose.onNodeWithTag("detailTitle", true).getUnclippedBoundsInRoot()
-        assertTrue("Unknown art cannot hide the title or receive an overlaid logo", title.top >= photo.bottom)
+        val frame = compose.onNodeWithTag("heroArtwork", true).getUnclippedBoundsInRoot()
+        assertTrue(title.top >= photo.top)
+        assertEquals(8f, (photo.bottom - title.bottom).value, 1f)
+        assertEquals(photo.bottom, frame.bottom)
+        compose.onAllNodesWithTag("detailTitle", true).assertCountEquals(1)
+    }
+
+    @Test fun printedArtworkAndFailedLogosKeepTheWrittenFallbackInsideTheSameImageHeight() {
+        val cover = image(Color.BLUE)
+        val full = mutableStateOf(true)
+        val portrait = mutableStateOf(true)
+        val item = MediaItem("90000005", MediaType.MOVIE, "Written fallback")
+        val provider = ArtworkProvider { CanonicalArtwork(it.title, cover, titlePresence = ArtworkTitlePresence.EMBEDDED,
+            logo = "file:///missing-qa-logo.png") }
+        compose.setContent { AetherioTheme { CompositionLocalProvider(LocalArtworkProvider provides provider) {
+            Box(Modifier.width(300.dp)) { HeroArtwork(item, portrait.value, 800.dp, fullImage = full.value) }
+        } } }
+        for ((isFull, isPortrait) in listOf(true to true, false to true, false to false)) {
+            compose.runOnIdle { full.value = isFull; portrait.value = isPortrait }
+            compose.waitUntil(15_000) { compose.onAllNodesWithTag("heroImage", true).fetchSemanticsNodes().size == 1 }
+            compose.waitForIdle()
+            val photo = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
+            val title = compose.onNodeWithTag("detailTitle", true).getUnclippedBoundsInRoot()
+            val frame = compose.onNodeWithTag("heroArtwork", true).getUnclippedBoundsInRoot()
+            compose.onNodeWithText(item.title).assertExists()
+            assertTrue(title.top >= photo.top)
+            assertEquals(8f, (photo.bottom - title.bottom).value, 1f)
+            assertEquals(photo.bottom, frame.bottom)
+        }
     }
 
     @Test fun cleanUpgradeSwapsOnlyAfterDecodeAndKeepsLogoInsideTheImage() {

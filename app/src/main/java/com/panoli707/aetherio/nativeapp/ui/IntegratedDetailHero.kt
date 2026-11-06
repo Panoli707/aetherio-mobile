@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.Layout
@@ -27,7 +28,7 @@ internal fun IntegratedDetailHero(item: MediaItem, imageHeight: Dp, showTitle: B
     val density = LocalDensity.current
     val imageHeightPx = with(density) { imageHeight.roundToPx().coerceAtLeast(1) }
     val bottomGap = with(density) { 8.dp.roundToPx() }
-    Layout(modifier = Modifier.fillMaxWidth().testTag("detailIntegratedHero"), content = {
+    Layout(modifier = Modifier.fillMaxWidth().clipToBounds().testTag("detailIntegratedHero"), content = {
         Box { image() }
         Box(Modifier.testTag("detailHeroFade").drawWithCache {
             val brush = Brush.verticalGradient(0f to Color.Transparent, .6f to Ink.copy(alpha = .65f), 1f to Ink,

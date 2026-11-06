@@ -71,9 +71,9 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
         }
     }
     Text("Aetherio Provider Hub", style = MaterialTheme.typography.titleLarge)
-    Text("No necesitas añadir addons: los proveedores administrados se sincronizan con el Hub al abrir la app y al buscar o actualizar fuentes, sin actualizar el APK. Catálogos y fichas siguen integrados en Mobile.", color = Muted)
+    Text("No necesitas añadir addons: la lista se sincroniza al abrir o volver a la app, cada cinco minutos mientras está abierta y al buscar fuentes, sin actualizar el APK. Si falla la conexión, se reintenta automáticamente. Catálogos y fichas siguen integrados en Mobile.", color = Muted)
     if (state.hubDirectoryLoading) LoadingRow("Sincronizando proveedores del Hub…")
-    if (state.hubDirectoryStale) Text("No se pudo actualizar el directorio. Se conserva la última lista válida; vuelve a buscar fuentes para reintentar.", color = Muted)
+    if (state.hubDirectoryStale) Text("No se pudo actualizar todo el directorio. Se conserva la última lista válida y se reintentará automáticamente.", color = Muted)
     state.hubProviders.filterNot { it.hidden }.forEach { provider ->
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             ProviderIcon(provider.name, provider.logoUrl, Modifier.size(30.dp))
@@ -87,20 +87,15 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
             }
         }
     }
-    var showRuntimeProviders by rememberSaveable { mutableStateOf(false) }
     if (state.hubRuntimeProviders.isNotEmpty()) {
-        TextButton(onClick = { showRuntimeProviders = !showRuntimeProviders }) {
-            Text("${if (showRuntimeProviders) "Ocultar" else "Ver"} proveedores del resolvedor (${state.hubRuntimeProviders.size})")
-        }
-        if (showRuntimeProviders) {
-            Text("El servidor consulta estos proveedores. Que estén habilitados no garantiza resultados para todos los títulos.", color = Muted,
-                style = MaterialTheme.typography.bodySmall)
-            state.hubRuntimeProviders.forEach { provider ->
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ProviderIcon(provider.name, provider.logoUrl, Modifier.size(28.dp))
-                    Text(provider.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-                    Text(if (provider.enabled) "Habilitado" else "Desactivado", color = Muted, style = MaterialTheme.typography.labelSmall)
-                }
+        Text("Proveedores del resolvedor (${state.hubRuntimeProviders.size})", style = MaterialTheme.typography.titleMedium)
+        Text("El servidor consulta estos proveedores. Que estén habilitados no garantiza resultados para todos los títulos.", color = Muted,
+            style = MaterialTheme.typography.bodySmall)
+        state.hubRuntimeProviders.forEach { provider ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                ProviderIcon(provider.name, provider.logoUrl, Modifier.size(28.dp))
+                Text(provider.name, Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+                Text(if (provider.enabled) "Habilitado" else "Desactivado", color = Muted, style = MaterialTheme.typography.labelSmall)
             }
         }
     }

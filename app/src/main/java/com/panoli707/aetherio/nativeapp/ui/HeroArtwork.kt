@@ -54,7 +54,6 @@ private fun HeroArtworkContent(item: MediaItem, portrait: Boolean, viewportHeigh
     var bitmap by remember(key, provider) { mutableStateOf<ImageBitmap?>(null) }
     var loadedRatio by rememberSaveable(key) { mutableStateOf<Float?>(null) }
     var loading by remember(key, provider) { mutableStateOf(true) }
-    var presence by remember(key, provider) { mutableStateOf(ArtworkTitlePresence.UNKNOWN) }
     var genericLogo by remember(key, provider) { mutableStateOf<String?>(null) }
     var attempt by remember(key) { mutableIntStateOf(0) }
     val density = LocalDensity.current
@@ -79,7 +78,6 @@ private fun HeroArtworkContent(item: MediaItem, portrait: Boolean, viewportHeigh
                     ensureActive()
                     bitmap = decoded
                     loadedRatio = decoded.width.toFloat() / decoded.height
-                    presence = selected.titlePresence
                 }
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { /* Keep the canonical illustration or the neutral frame; never rotate artwork. */ }
@@ -93,7 +91,7 @@ private fun HeroArtworkContent(item: MediaItem, portrait: Boolean, viewportHeigh
             val clean = try { provider.refine(item, selected, portrait) }
                 catch (e: CancellationException) { throw e }
                 catch (_: Exception) { selected }
-            if (clean.cover == selected.cover) { choice = clean; presence = clean.titlePresence }
+            if (clean.cover == selected.cover) choice = clean
             if (clean.cover != selected.cover) {
                 // Decode the approved replacement before swapping; never flash an empty frame.
                 val result = imageLoader.execute(ImageRequest.Builder(context).data(clean.cover)
@@ -102,7 +100,6 @@ private fun HeroArtworkContent(item: MediaItem, portrait: Boolean, viewportHeigh
                 if (result is SuccessResult) {
                     val decoded = withContext(Dispatchers.Default) { result.drawable.toBitmap().asImageBitmap() }
                     bitmap = decoded; choice = clean; loadedRatio = decoded.width.toFloat() / decoded.height
-                    presence = clean.titlePresence
                 }
             }
         }
@@ -117,29 +114,21 @@ private fun HeroArtworkContent(item: MediaItem, portrait: Boolean, viewportHeigh
         // Clear all unvalidated logo inputs while resolving. Only the selected pair can be drawn.
         val titleItem = choice?.copy(logo = if (bitmap == null) null else choice?.logo ?: genericLogo)?.item(item)
             ?: item.copy(logoUrl = null, logoAlternatives = emptyList())
-        Column {
-          Box {
-            IntegratedDetailHero(titleItem, imageHeight, bitmap == null || presence == ArtworkTitlePresence.ABSENT,
-                imageLoader, compact = !fullImage,
-                canonicalLogo = true) {
-                bitmap?.let { ready -> Image(painter = BitmapPainter(ready, filterQuality = FilterQuality.High),
-                    contentDescription = item.title, contentScale = if (fullImage) ContentScale.Fit else ContentScale.Crop,
-                    alignment = Alignment.Center, modifier = Modifier.fillMaxSize().testTag("heroImage")) }
-                if (!fullImage) Box(Modifier.fillMaxWidth().height(56.dp)
-                    .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .35f), Color.Transparent))))
-            }
-            if (loading && !inspection) androidx.compose.material3.CircularProgressIndicator(
-                Modifier.align(Alignment.Center).size(28.dp).testTag("heroArtworkLoading"), color = Accent)
-            if (!loading && bitmap == null && !inspection) androidx.compose.material3.TextButton(
-                onClick = { choice = null; attempt++ }, modifier = Modifier.align(Alignment.Center).testTag("heroArtworkRetry")) {
-                androidx.compose.material3.Text("Reintentar portada")
-            }
-          }
-          // Unknown/printed art must not make the title disappear or receive a duplicate overlaid logo.
-          if (bitmap != null && presence != ArtworkTitlePresence.ABSENT) {
-              DetailTitle(titleItem, Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
-                  imageLoader, compact = !fullImage, canonical = true)
-          }
+        // The cover owns the only title slot, including unknown/printed art and text fallback.
+        // OCR may improve the image, but must never add a row below it or move the title.
+        IntegratedDetailHero(titleItem, imageHeight, showTitle = true,
+            imageLoader = imageLoader, compact = !fullImage, canonicalLogo = true) {
+            bitmap?.let { ready -> Image(painter = BitmapPainter(ready, filterQuality = FilterQuality.High),
+                contentDescription = item.title, contentScale = if (fullImage) ContentScale.Fit else ContentScale.Crop,
+                alignment = Alignment.Center, modifier = Modifier.fillMaxSize().testTag("heroImage")) }
+            if (!fullImage) Box(Modifier.fillMaxWidth().height(56.dp)
+                .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .35f), Color.Transparent))))
+        }
+        if (loading && !inspection) androidx.compose.material3.CircularProgressIndicator(
+            Modifier.align(Alignment.Center).size(28.dp).testTag("heroArtworkLoading"), color = Accent)
+        if (!loading && bitmap == null && !inspection) androidx.compose.material3.TextButton(
+            onClick = { choice = null; attempt++ }, modifier = Modifier.align(Alignment.Center).testTag("heroArtworkRetry")) {
+            androidx.compose.material3.Text("Reintentar portada")
         }
     }
 }

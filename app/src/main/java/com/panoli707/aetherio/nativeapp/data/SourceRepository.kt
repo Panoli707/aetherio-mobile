@@ -43,13 +43,13 @@ internal class SourceRepository(client: OkHttpClient = DEFAULT, requestTimeoutMs
         fetch(url, SourceProtocol.STREAM_LIMIT) { SourceProtocol.streams(it, config) }
     }
 
-    suspend fun document(url: String): String = withContext(Dispatchers.IO) {
-        fetch(SourceProtocol.httpsUrl(url), SourceProtocol.MANIFEST_LIMIT) { it }
+    suspend fun document(url: String, revalidate: Boolean = false): String = withContext(Dispatchers.IO) {
+        fetch(SourceProtocol.httpsUrl(url), SourceProtocol.MANIFEST_LIMIT, revalidate) { it }
     }
 
-    private suspend fun <T> fetch(url: HttpUrl, limit: Int, parse: (String) -> T): T {
+    private suspend fun <T> fetch(url: HttpUrl, limit: Int, revalidate: Boolean = false, parse: (String) -> T): T {
         repeat(attempts) { attempt ->
-            try { return fetchOnce(url, limit, parse) }
+            try { return fetchOnce(url, limit, revalidate, parse) }
             catch (e: CancellationException) { throw e }
             catch (e: SourceFetchException) {
                 if (!e.retryable || attempt == attempts - 1) throw e
@@ -59,10 +59,12 @@ internal class SourceRepository(client: OkHttpClient = DEFAULT, requestTimeoutMs
         throw failure()
     }
 
-    private suspend fun <T> fetchOnce(url: HttpUrl, limit: Int, parse: (String) -> T): T =
+    private suspend fun <T> fetchOnce(url: HttpUrl, limit: Int, revalidate: Boolean, parse: (String) -> T): T =
         suspendCancellableCoroutine { continuation ->
             val call = try {
-                client.newCall(Request.Builder().url(url).get().build())
+                client.newCall(Request.Builder().url(url).get().apply {
+                    if (revalidate) header("Cache-Control", "no-cache")
+                }.build())
             } catch (_: Exception) {
                 continuation.resumeWithException(failure())
                 return@suspendCancellableCoroutine

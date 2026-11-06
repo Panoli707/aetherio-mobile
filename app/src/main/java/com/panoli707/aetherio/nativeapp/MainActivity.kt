@@ -158,6 +158,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
+        model.startHubSync()
         updateModel.checkForUpdates()
+    }
+
+    override fun onStop() {
+        model.stopHubSync()
+        super.onStop()
     }
 }

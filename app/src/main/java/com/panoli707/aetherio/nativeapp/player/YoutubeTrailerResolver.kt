@@ -17,10 +17,14 @@ import com.panoli707.aetherio.nativeapp.R
 
 internal data class YoutubeTrailerStream(val url: String, val mime: String?, val headers: Map<String, String>)
 
+internal fun interface YoutubeTrailerSource {
+    suspend fun resolve(context: Context, id: String, forceRefresh: Boolean): YoutubeTrailerStream
+}
+
 /** Desktop pipeline adapted to Android: resolve the selected public video and stream in Media3.
  * No login/cookies, downloads, server, automatic executable updates or persisted signed URLs.
  */
-internal object YoutubeTrailerResolver {
+internal object YoutubeTrailerResolver : YoutubeTrailerSource {
     private val lock = Mutex()
     private val cache = linkedMapOf<String, Pair<Long, YoutubeTrailerStream>>()
     private const val BUNDLED_SHA256 = "e51e69e89489f199530f13d32a4342da3ddb2cf34842f364603a066db05afbf3"
@@ -58,7 +62,8 @@ internal object YoutubeTrailerResolver {
         }
         return YoutubeTrailerStream(url, mime, PlaybackHeaders.validate(safeHeaders))
     }
-    suspend fun resolve(context: Context, id: String, forceRefresh: Boolean = false): YoutubeTrailerStream {
+    suspend fun resolve(context: Context, id: String): YoutubeTrailerStream = resolve(context, id, false)
+    override suspend fun resolve(context: Context, id: String, forceRefresh: Boolean): YoutubeTrailerStream {
         require(TrailerEmbed.validId(id) != null)
         return com.panoli707.aetherio.nativeapp.data.LoadTiming.measure(com.panoli707.aetherio.nativeapp.data.LoadTiming.Stage.YOUTUBE_RESOLVE) {
         withTimeout(60_000) {

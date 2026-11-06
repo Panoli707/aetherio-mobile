@@ -13,6 +13,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.panoli707.aetherio.nativeapp.data.AppState
 import com.panoli707.aetherio.nativeapp.data.DesktopSources
 import com.panoli707.aetherio.nativeapp.data.SourceProtocol
+import com.panoli707.aetherio.nativeapp.data.HubBranding
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -96,6 +97,19 @@ class AddonsSettingsTest {
         compose.onNodeWithText("Se conserva la última lista válida", substring = true).assertExists()
         compose.onNodeWithText(privateUrl, substring = true, useUnmergedTree = true).assertDoesNotExist()
         compose.onAllNodes(isToggleable()).assertCountEquals(5)
+    }
+
+    @Test fun allRuntimeProvidersAndNewlyPublishedNamesAreVisibleWithoutAnExpansionToggle() {
+        val state = mutableStateOf(AppState(addonsLoading = false, hubRuntimeProviders = listOf(
+            HubBranding("first", "first", "Primer resolvedor", null))))
+        compose.setContent { AetherioTheme {
+            Column(Modifier.verticalScroll(rememberScrollState())) { AddonsSettings(state.value, {}, {}, { _, _ -> }) }
+        } }
+        compose.onNodeWithText("Primer resolvedor").performScrollTo().assertIsDisplayed()
+        compose.runOnIdle { state.value = state.value.copy(hubRuntimeProviders = state.value.hubRuntimeProviders +
+            HubBranding("new", "new", "Recién publicado", null)) }
+        compose.onNodeWithText("Recién publicado").performScrollTo().assertIsDisplayed()
+        compose.onNodeWithText("Proveedores del resolvedor (2)").assertExists()
     }
 
     @Test fun instantReaddWithSameIdsClearsUrlAndRestoresControls() {

@@ -275,12 +275,18 @@ class VideoActivity : ComponentActivity() {
                 try {
                     val refresh = refreshTrailer
                     refreshTrailer = false
-                    val stream = YoutubeTrailerResolver.resolve(this@VideoActivity, requireNotNull(youtubeId), refresh)
+                    val stream = (application as AetherioApplication).youtubeTrailers
+                        .resolve(this@VideoActivity, requireNotNull(youtubeId), refresh)
                     mediaUrl = stream.url; trailerMime = stream.mime; playbackHeaders = stream.headers
                     startPlayer()
                 } catch (_: TimeoutCancellationException) {
                     screen = screen.copy(buffering = false, error = "YouTube tardó demasiado en responder. Puedes reintentar el tráiler.")
                 } catch (e: CancellationException) { throw e }
+                catch (_: LinkageError) {
+                    // Runtime extraction/initialization can fail before Java throws an Exception
+                    // (e.g. missing/optimized classes). Keep retry/back usable, never kill the app.
+                    screen = screen.copy(buffering = false, error = "No se pudo iniciar el motor del tráiler en este dispositivo. Puedes reintentar o volver a la ficha.")
+                }
                 catch (_: Exception) {
                     screen = screen.copy(buffering = false, error = "No se pudo obtener este tráiler de YouTube. Puede estar restringido o no disponible. Reintenta o elige otro tráiler.")
                 }

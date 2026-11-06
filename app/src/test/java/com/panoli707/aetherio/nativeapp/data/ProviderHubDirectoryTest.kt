@@ -1,6 +1,11 @@
 package com.panoli707.aetherio.nativeapp.data
 
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeout
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Response
@@ -38,6 +43,27 @@ class ProviderHubDirectoryTest {
         assertEquals(listOf("tt09"), providers[0].config!!.idPrefixes)
         assertEquals("${ProviderHub.BASE}/addons/logos/restricted.png", providers[0].logoUrl)
         assertNull(providers[1].config)
+    }
+
+    @Test fun newlyAddedBridgeWithHundredsOfIgnoredCatalogOptionsDoesNotRejectTheEntireHub() {
+        val bridge = entry("new-cnc-bridge")
+        bridge.getJSONObject("manifestFallback").put("catalogs", JSONArray().put(JSONObject()
+            .put("id", "live-tv").put("extra", JSONArray().put(JSONObject().put("name", "genre")
+                .put("options", JSONArray((1..800).map { "Genre $it" }))))))
+        val providers = ProviderHubDirectory.parse(directory(entry("existing"), bridge, entry("also-new")))
+        assertEquals(listOf("existing", "new-cnc-bridge", "also-new"), providers.map { it.id })
+        assertTrue(providers.all { it.config != null })
+        // Strict generic/custom manifests keep their collection limits; only the public directory
+        // ignores irrelevant catalogs before passing its stream contract to SourceProtocol.
+        assertThrows(IllegalArgumentException::class.java) {
+            SourceProtocol.manifest(bridge.getJSONObject("manifestFallback").toString(),
+                SourceProtocol.manifestUrl("https://bridge.example/manifest.json"))
+        }
+    }
+
+    @Test fun projectingTheStreamContractCannotTurnMalformedIdentifierRestrictionsIntoUnrestrictedAccess() {
+        val malformed = entry().apply { getJSONObject("manifestFallback").put("idPrefixes", "tt") }
+        assertThrows(IllegalArgumentException::class.java) { ProviderHubDirectory.parse(directory(malformed)) }
     }
 
     @Test fun malformedPartialOrDuplicateDirectoriesCannotBeMistakenForAnAdministrativeRemoval() {
@@ -118,5 +144,56 @@ class ProviderHubDirectoryTest {
         assertEquals(350, SourceProtocol.streams(body(350), config).sources.size)
         assertThrows(IllegalArgumentException::class.java) { SourceProtocol.streams(body(2001), config) }
         assertThrows(IllegalArgumentException::class.java) { SourceProtocol.streams(body(350), config.copy(hubManaged = false)) }
+    }
+
+    @Test fun runtimeProvidersPublishEvenIfTheAddonDirectoryFailsAndMarkTheSnapshotPartial() = runBlocking {
+        var failDirectory = false
+        var failManifest = false
+        var runtime = "first"
+        val client = OkHttpClient.Builder().addInterceptor { chain ->
+            assertEquals("no-cache", chain.request().header("Cache-Control"))
+            val directory = chain.request().url.encodedPath == "/addons.json"
+            val body = if (directory) directory(entry("first")) else """{"scrapers":[{"id":"$runtime","name":"$runtime"}]}"""
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
+                .code(if ((directory && failDirectory) || (!directory && failManifest)) 503 else 200)
+                .message("fixture").body(body.toResponseBody()).build()
+        }.build()
+        try {
+            val repository = ProviderHubDirectoryRepository(SourceRepository(client))
+            assertFalse(repository.refresh().stale)
+            failDirectory = true
+            runtime = "new-runtime"
+            val partial = repository.refresh()
+            assertTrue(partial.stale)
+            assertEquals("first", partial.providers.single().id)
+            assertEquals("new-runtime", partial.branding.single().id)
+            failDirectory = false
+            failManifest = true
+            assertTrue(repository.refresh().stale)
+            failManifest = false
+            assertFalse(repository.refresh().stale)
+        } finally { client.connectionPool.evictAll(); client.dispatcher.executorService.shutdownNow() }
+    }
+
+    @Test fun eitherPublicDocumentCanPopulateAFreshInstallationBeforeTheSlowerEndpointFinishes() = runBlocking {
+        for (slowDirectory in listOf(true, false)) {
+            val gate = CountDownLatch(1)
+            val client = OkHttpClient.Builder().addInterceptor { chain ->
+                val directory = chain.request().url.encodedPath == "/addons.json"
+                if (directory == slowDirectory) check(gate.await(10, TimeUnit.SECONDS))
+                Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("fixture")
+                    .body((if (directory) directory(entry("first")) else """{"scrapers":[{"id":"runtime","name":"Runtime"}]}""").toResponseBody()).build()
+            }.build()
+            try {
+                val repository = ProviderHubDirectoryRepository(SourceRepository(client))
+                val refresh = async { repository.refresh() }
+                withTimeout(5_000) { repository.state.first {
+                    if (slowDirectory) it.branding.isNotEmpty() else it.providers.isNotEmpty()
+                } }
+                assertFalse(refresh.isCompleted)
+                gate.countDown()
+                assertFalse(refresh.await().stale)
+            } finally { gate.countDown(); client.connectionPool.evictAll(); client.dispatcher.executorService.shutdownNow() }
+        }
     }
 }

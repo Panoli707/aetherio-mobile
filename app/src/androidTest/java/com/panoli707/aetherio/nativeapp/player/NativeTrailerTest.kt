@@ -15,12 +15,15 @@ import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
+import org.junit.After
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class NativeTrailerTest {
     @get:Rule val compose = createEmptyComposeRule()
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
+    private val app get() = context.applicationContext as com.panoli707.aetherio.nativeapp.AetherioApplication
+    @After fun restoreResolver() { app.youtubeTrailerSourceOverride = null }
 
     @Test fun bothDirectAndYoutubeTrailersRouteToTheNativePlayerWithoutEpisodeExtras() {
         val direct = DetailLinks.directTrailer("https://cdn.example/trailer.mp4", "Tráiler directo")!!
@@ -70,6 +73,33 @@ class NativeTrailerTest {
         ActivityScenario.launch<VideoActivity>(intent).use { scenario ->
             compose.onNodeWithText("Reintentar").assertIsDisplayed()
             scenario.onActivity { assertNull(player(it.window.decorView)); assertFalse(containsWebView(it.window.decorView)) }
+        }
+    }
+
+    @Test fun firstRuntimeInitializationErrorKeepsTheAppAliveWithRetryAndBackAndNoHistory() = runBlocking {
+        val before = WatchHistoryRepository.get(context).load()
+        var attempts = 0
+        app.youtubeTrailerSourceOverride = YoutubeTrailerSource { _, _, _ ->
+            attempts++
+            throw ExceptionInInitializerError("QA missing reflective ZIP constructor")
+        }
+        ActivityScenario.launch<VideoActivity>(TrailerPlayback.intent(context, DetailLinks.trailer("M7lc1UVf-VE", "Cold runtime")!!)).use {
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Reintentar").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithText("No se pudo iniciar el motor", substring = true).assertIsDisplayed()
+            compose.onNodeWithText("Cambiar fuente").assertDoesNotExist()
+            compose.onNodeWithText("Reintentar").performClick()
+            compose.waitUntil(15_000) { attempts >= 2 }
+            compose.onNodeWithContentDescription("Volver").performClick()
+        }
+        assertEquals(before, WatchHistoryRepository.get(context).load())
+    }
+
+    @Test fun missingRuntimeClassIsRecoverableInsteadOfClosingTheApplication() {
+        app.youtubeTrailerSourceOverride = YoutubeTrailerSource { _, _, _ -> throw NoClassDefFoundError("QA runtime") }
+        ActivityScenario.launch<VideoActivity>(TrailerPlayback.intent(context, DetailLinks.trailer("M7lc1UVf-VE", "Missing runtime")!!)).use {
+            compose.waitUntil(15_000) { compose.onAllNodesWithText("Reintentar").fetchSemanticsNodes().isNotEmpty() }
+            compose.onNodeWithContentDescription("Volver").assertIsDisplayed()
+            compose.onNodeWithText("Reintentar").assertIsDisplayed()
         }
     }
 

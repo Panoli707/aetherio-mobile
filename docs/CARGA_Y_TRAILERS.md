@@ -1,5 +1,7 @@
 # Carga de portadas y reproducción de tráileres
 
+> **Corrección 0.20.3:** se reprodujo el cierre de 0.20.2 en un APK optimizado con el motor de YouTube sin instalar. R8 eliminaba constructores de implementaciones de `ZipExtraField` que Commons Compress instancia por reflexión. `app/proguard-rules.pro` conserva esas clases y constructores, sin desactivar la optimización general. Los `LinkageError` de inicialización se convierten además en un error recuperable en el reproductor. La prueba `scripts/qa-regressions-release.ps1 -Serial emulator-5554 -Mode trailer-cold` preserva temporalmente el runtime del AVD compartido, ejercita una extracción nueva y restaura el anterior sin borrar datos.
+
 > **Desde 0.20.0**, la selección progresiva de imágenes de 0.19.0 queda sustituida por [una portada y un logo canónicos por título](artwork/CANONICAL.md). Ya no cambia la portada por temporada ni se muestran candidatos provisionales. El diagnóstico histórico y los límites de tráileres se conservan como referencia.
 
 ## Qué causaba las esperas
@@ -53,6 +55,6 @@ Para comparar versiones, usar el mismo dispositivo y conexión, registrar primer
 `TrailerPlayback` elige una actividad interna según la clase de recurso:
 
 - **Enlace directo HTTPS:** abre `VideoActivity`, el mismo reproductor Media3 de Aetherio, sin sesión torrent, cambio de fuentes ni progreso de episodios. Se admiten archivos MP4/M4V/WebM/MOV y manifiestos HLS/DASH explícitos de `trailerStreams` en metadatos Cinemeta. Se valida el enlace antes de abrirlo; su existencia no garantiza formato, disponibilidad ni derechos de reproducción. Utilizar solo contenido propio o autorizado.
-- **ID de YouTube:** conserva `TrailerActivity` y el IFrame oficial dentro de la app, con marca y controles de YouTube. No abre automáticamente otra app. TMDB y AniList entregan estos IDs, no enlaces MP4/HLS. No se extraen streams, eluden restricciones ni se consultan proveedores de películas para un tráiler.
+- **ID de YouTube:** desde 0.20.1 abre `VideoActivity` y resuelve el vídeo público seleccionado con `youtubedl-android 0.18.1` y el ejecutable incluido `yt-dlp 2026.10.26`. Media3 reproduce imagen y audio, preferentemente hasta 720p. No se abren otras apps ni se consultan fuentes de películas para el tráiler. No se usan cookies ni cuentas; las restricciones de disponibilidad pueden impedir la reproducción. La actividad IFrame anterior queda como código histórico, no es la ruta de `TrailerPlayback`.
 
-Por tanto, el tráiler de YouTube de la captura del usuario **seguirá usando el reproductor oficial integrado** si el catálogo no ofrece una alternativa directa autorizada. Esta versión no promete convertir todos los tráileres de YouTube al reproductor nativo. La tarjeta distingue «Reproductor de Aetherio» de «YouTube · Reproductor oficial integrado».
+Los tráileres no escriben historial de episodios ni abren sesiones torrent. Si un vídeo no está disponible, se ofrece reintentar o volver a la ficha; disponer de un ID no garantiza poder reproducirlo.

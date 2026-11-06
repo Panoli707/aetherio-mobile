@@ -57,6 +57,11 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val animeTodayLoader = AnimeTodayLoader(viewModelScope, animeRepository::today,
         { change -> mutableState.update { it.copy(animeToday = change(it.animeToday)) } })
     private var addonRestoreFailed = false
+    private var hubRefreshes = 0
+    private val hubSync = HubDirectorySync(viewModelScope, ::refreshHubDirectory)
+
+    fun startHubSync() = hubSync.start()
+    fun stopHubSync() = hubSync.stop()
 
     fun rememberPlaybackQuery(fromSources: Boolean) {
         playbackQuery = state.value.sourceQuery.takeIf { fromSources }
@@ -114,6 +119,10 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     }
 
     init {
+        viewModelScope.launch { hubDirectory.state.collect { directory ->
+            mutableState.update { it.copy(hubProviders = directory.providers, hubRuntimeProviders = directory.branding,
+                hubDirectoryStale = directory.stale, sources = directory.decorate(it.sources)) }
+        } }
         viewModelScope.launch { history.entries.collect { entries -> mutableState.update { it.copy(watchProgress = entries, watchingAnime = watching(entries)) } } }
         loadHome()
         addonRestoreJob = viewModelScope.launch {
@@ -128,17 +137,20 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 addonRestoreFailed = true
                 mutableState.update { it.copy(addonsLoading = false, addonError = "No se pudieron abrir los proveedores guardados. Se conservan sin sobrescribir; reinicia la app para reintentar. Provider Hub sigue integrado.") }
             }
-            refreshHubDirectory()
         }
     }
 
     private suspend fun refreshHubDirectory(): HubDirectoryResult {
+        hubRefreshes++
         mutableState.update { it.copy(hubDirectoryLoading = true) }
         try {
             val result = withContext(Dispatchers.IO) { hubDirectory.refresh() }
             mutableState.update { it.copy(hubProviders = result.providers, hubRuntimeProviders = result.branding, hubDirectoryStale = result.stale) }
             return result
-        } finally { mutableState.update { it.copy(hubDirectoryLoading = false) } }
+        } finally {
+            hubRefreshes--
+            mutableState.update { it.copy(hubDirectoryLoading = hubRefreshes > 0) }
+        }
     }
 
     fun loadHome() = loadHome(force = false)
@@ -295,14 +307,8 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
             try {
                 addonRestoreJob?.join()
                 ensureActive()
-                val directory = refreshHubDirectory()
                 val desktop = DesktopSources.providers.filter { it.id in state.value.enabledDesktopSources }
                 val addons = state.value.addons.filter { item.type in it.types && desktop.none { provider -> provider.manifestUrl == it.manifestUrl } }
-                val managed = directory.providers.filter { provider ->
-                    provider.enabled && provider.config?.types?.contains(item.type) == true &&
-                        addons.none { !ProviderHub.isHub(it) && it.manifestId == provider.id } &&
-                        desktop.none { it.manifestUrl == provider.config.manifestUrl }
-                }
                 if (addons.isEmpty() && desktop.isEmpty()) {
                     mutableState.update { it.copy(sourcesLoading = false, sourceError = "No hay proveedores compatibles configurados para este título.") }
                     return@launch
@@ -328,35 +334,54 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 }
                 val resolved = query.copy(item = media)
                 mutableState.update { it.copy(sourceQuery = resolved) }
-                var failures = if (directory.stale) 1 else 0
+                var failures = 0
                 var unsupported = 0
                 val lookups = addons.filter { hasImdb }.map { addon -> null to suspend {
                     (if (ProviderHub.isHub(addon)) hubRepository else sourceRepository).sources(addon, repository.providerQuery(resolved, false)) } } +
                     compatibleDesktop.map { provider -> provider.id to suspend {
-                        desktopSourceRepository.sources(provider.id, repository.providerQuery(resolved, provider.id == "animeav1")) } } +
-                    managed.filter { hasImdb }.map { provider -> null to suspend {
-                        ProviderHubDirectory.filter(provider, SourceRepository(requestTimeoutMs = provider.timeoutMs, attempts = provider.attempts)
-                            .sources(requireNotNull(provider.config), repository.providerQuery(resolved, false))) } }
-                supervisorScope {
-                    lookups.forEach { (desktopId, lookup) -> launch {
-                        try {
-                            val result = lookup()
-                            ensureActive()
-                            unsupported += result.unsupportedCount
-                            mutableState.update { current ->
-                                if (current.sourceQuery?.key != resolved.key) current else current.copy(
-                                    sources = SourceMetadata.merge(current.sources, directory.decorate(result.sources))
-                                )
-                            }
-                        } catch (e: CancellationException) { throw e }
-                        catch (_: Exception) {
-                            failures++
-                            if (desktopId != null) mutableState.update { current ->
-                                if (current.sourceQuery?.key != resolved.key) current else current.copy(
-                                    desktopSourceErrors = current.desktopSourceErrors + desktopId)
-                            }
+                         desktopSourceRepository.sources(provider.id, repository.providerQuery(resolved, provider.id == "animeav1")) } }
+                suspend fun lookup(desktopId: String?, request: suspend () -> SourceResult) {
+                    try {
+                        val result = request()
+                        ensureActive()
+                        unsupported += result.unsupportedCount
+                        mutableState.update { current ->
+                            if (current.sourceQuery?.key != resolved.key) current else current.copy(
+                                sources = SourceMetadata.merge(current.sources, hubDirectory.state.value.decorate(result.sources)))
                         }
-                    } }
+                    } catch (e: CancellationException) { throw e }
+                    catch (_: Exception) {
+                        failures++
+                        if (desktopId != null) mutableState.update { current ->
+                            if (current.sourceQuery?.key != resolved.key) current else current.copy(
+                                desktopSourceErrors = current.desktopSourceErrors + desktopId)
+                        }
+                    }
+                }
+                supervisorScope {
+                    val queried = mutableSetOf<String>()
+                    fun queryManaged(directory: HubDirectoryResult) {
+                        directory.providers.filter { provider ->
+                            hasImdb && provider.enabled && provider.config?.types?.contains(item.type) == true &&
+                                addons.none { !ProviderHub.isHub(it) && it.manifestId == provider.id } &&
+                                desktop.none { it.manifestUrl == provider.config.manifestUrl }
+                        }.forEach { provider ->
+                            val config = requireNotNull(provider.config)
+                            if (queried.add(config.id)) launch { lookup(null) {
+                                ProviderHubDirectory.filter(provider, SourceRepository(requestTimeoutMs = provider.timeoutMs, attempts = provider.attempts)
+                                    .sources(config, repository.providerQuery(resolved, false)))
+                            } }
+                        }
+                    }
+                    // Start integrated/custom/cached providers immediately, not after two directory
+                    // round-trips. Freshly published providers join this same query as metadata arrives.
+                    lookups.forEach { (desktopId, request) -> launch { lookup(desktopId, request) } }
+                    queryManaged(hubDirectory.state.value)
+                    launch {
+                        val directory = refreshHubDirectory()
+                        if (directory.stale) failures++
+                        queryManaged(directory)
+                    }
                 }
                 ensureActive()
                 mutableState.update { current ->

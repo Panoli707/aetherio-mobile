@@ -10,6 +10,8 @@ class AetherioApplication : Application(), ImageLoaderFactory {
     internal val canonicalArtwork by lazy { com.panoli707.aetherio.nativeapp.ui.CanonicalArtworkProvider(this) { imageLoader } }
     internal var artworkProviderOverride: com.panoli707.aetherio.nativeapp.ui.ArtworkProvider? = null
     internal val artworkProvider get() = artworkProviderOverride ?: canonicalArtwork
+    internal var youtubeTrailerSourceOverride: com.panoli707.aetherio.nativeapp.player.YoutubeTrailerSource? = null
+    internal val youtubeTrailers get() = youtubeTrailerSourceOverride ?: com.panoli707.aetherio.nativeapp.player.YoutubeTrailerResolver
     override fun onCreate() {
         super.onCreate()
         // Debug-only, on-device diagnostics. Release builds never install a logging observer.

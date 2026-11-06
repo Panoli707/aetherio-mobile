@@ -268,7 +268,7 @@ private fun DetailEpisodeCard(episode: EpisodeItem, media: MediaItem, progress: 
         Column {
             Box(Modifier.fillMaxWidth().aspectRatio(1.78f)) {
                 if (episode.imageUrl != null) DetailArtwork(episode.imageUrl, Modifier.fillMaxSize())
-                else CanonicalPoster(media, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+                else CanonicalPoster(media, Modifier.fillMaxSize(), portrait = false)
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, DetailNight.copy(alpha = .55f)))))
                 IconButton(onClick = onActions, modifier = Modifier.align(Alignment.TopStart).padding(4.dp).size(44.dp)) {
                     Icon(if (progress?.watched == true) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,

@@ -37,8 +37,7 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
             contentPadding = PaddingValues(bottom = 120.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
             item(key = "animeHeader") {
                 if (hero == null) ScreenHeader("Anime") else Box(Modifier.fillMaxWidth().height((maxWidth / (16f / 9f)).coerceAtMost(260.dp))) {
-                    Artwork(ArtworkImages.hero(hero, portrait = false), Modifier.fillMaxSize(), highResolution = true,
-                        contentScale = ContentScale.Inside)
+                    CanonicalPoster(hero, Modifier.fillMaxSize(), portrait = false)
                     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, Ink))))
                     Column(Modifier.align(Alignment.BottomStart).padding(20.dp)) {
                         Text(if (continuing.isNotEmpty()) "Continuar viendo" else "Estás viendo", style = MaterialTheme.typography.titleLarge)
@@ -55,7 +54,7 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
                             if (progress.target.episode != null && progress.target.imageUrl != null)
                                 Artwork(progress.target.imageUrl, Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(14.dp)))
                             else CanonicalPoster(progress.target.item, Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(14.dp)),
-                                contentScale = ContentScale.Fit)
+                                portrait = false)
                             LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Accent, trackColor = Outline)
                             Text(progress.target.episodeTitle.ifBlank { progress.target.item.title }, maxLines = 1, overflow = TextOverflow.Ellipsis,
                                 style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))

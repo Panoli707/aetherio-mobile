@@ -82,11 +82,88 @@ class CanonicalArtworkTest {
         assertNotEquals(CanonicalArtworkIdentity.key(base), CanonicalArtworkIdentity.key(base.copy(type = MediaType.MOVIE)))
     }
 
+    @Test fun rootLanguageAliasesAreAllowedButSeasonDisplayNamesCannotAuthorizeSeasonBranding() = runTest {
+        val root = MediaItem("900001", MediaType.MOVIE, "English title")
+        val names = mutableListOf<String>()
+        val resolver = CanonicalArtworkResolver({ root.copy(title = "Título español", logoUrl = "https://fixture/title.png") },
+            { _, _, title -> names += title; ArtworkInspection(3f, genericLogo = true) })
+        assertNotNull(resolver.logo(root))
+        assertTrue(names.last().contains("English title"))
+        assertNotNull(resolver.logo(root.copy(title = "English title II", seasonHint = 2)))
+        assertFalse(names.last().contains("II"))
+    }
+
+    @Test fun horizontalSelectionUsesBackdropAndNeverReusesAPersistedVerticalPoster() = runTest {
+        val disk = mutableMapOf(base.key to CanonicalArtwork(base.title, base.posterUrl).encode())
+        val item = base.copy(backdropUrl = "https://fixture/wide.jpg")
+        val resolver = CanonicalArtworkResolver({ error("seed has both formats") }, { _, _, _ -> error("no card OCR") },
+            disk::get, { key, value -> disk[key] = value })
+        assertEquals(base.posterUrl, resolver.resolve(item).cover)
+        assertEquals(item.backdropUrl, resolver.resolve(item, false).cover)
+        assertEquals(16f / 9f, resolver.resolve(item, false).ratio)
+        assertEquals(2, disk.size)
+        assertEquals(item.backdropUrl, resolver.resolve(item.copy(seasonHint = 3), false).cover)
+    }
+
+    @Test fun horizontalSelectionFetchesRootBackdropWhenCatalogOnlyHasAPoster() = runTest {
+        var calls = 0
+        val resolver = CanonicalArtworkResolver({ calls++; base.copy(backdropUrl = "https://fixture/wide.jpg") }, { _, _, _ -> null })
+        assertEquals("https://fixture/wide.jpg", resolver.resolve(base, false).cover)
+        assertEquals(1, calls)
+    }
+
+    @Test fun missingLandscapeNeverFallsBackToAVerticalPosterOrPinsTheAbsence() = runTest {
+        val writes = mutableListOf<String>()
+        var online = false
+        val resolver = CanonicalArtworkResolver({ if (online) base.copy(backdropUrl = "https://fixture/wide.jpg") else error("offline") },
+            { _, _, _ -> null }, write = { key, _ -> writes += key })
+        assertNull(resolver.resolve(base, false).cover)
+        assertTrue(writes.isEmpty())
+        online = true
+        assertEquals("https://fixture/wide.jpg", resolver.resolve(base, false).cover)
+    }
+
+    @Test fun bundledLogoCanBeValidatedWithoutNetworkMetadata() = runTest {
+        val resolver = CanonicalArtworkResolver({ error("offline") }, { url, logo, _ ->
+            ArtworkInspection(3f, genericLogo = logo && url.startsWith("file:///android_asset/"))
+        })
+        assertTrue(resolver.logo(base)!!.startsWith("file:///android_asset/"))
+    }
+
+    @Test fun cleanUpgradeInspectsAlternativesOnlyAfterCoverAndPersistsItsRealRatio() = runTest {
+        val disk = mutableMapOf<String, String>()
+        var calls = 0
+        val resolver = CanonicalArtworkResolver({ base.copy(portraitAlternatives = listOf("https://fixture/dirty.jpg", "https://fixture/clean.jpg")) },
+            { url, logo, _ -> calls++; assertFalse(logo); ArtworkInspection(.7f, clean = url.endsWith("clean.jpg")) },
+            disk::get, { key, value -> disk[key] = value })
+        val first = resolver.resolve(base)
+        assertEquals(0, calls)
+        val clean = resolver.refine(base, first, true)
+        assertEquals("https://fixture/clean.jpg", clean.cover)
+        assertEquals(.7f, clean.ratio)
+        assertEquals(ArtworkTitlePresence.ABSENT, clean.titlePresence)
+        assertEquals(clean, resolver.resolve(base.copy(seasonHint = 2)))
+        assertEquals(clean, CanonicalArtwork.decode(disk[base.key]))
+    }
+
+    @Test fun failedOrWrongOrientationUpgradeKeepsExistingCoverAndDoesNotPinFailure() = runTest {
+        val resolver = CanonicalArtworkResolver({ base.copy(backdropAlternatives = listOf("https://fixture/vertical.jpg")) },
+            { _, _, _ -> ArtworkInspection(.7f, clean = true) })
+        val first = resolver.resolve(base)
+        assertEquals(first, resolver.refine(base, first, false))
+    }
+
     @Test fun logoGuardsKeepRejectingSeasonWordsAndUnrelatedText() {
         for (text in listOf("Series Season 2", "Series Temporada II", "Series III", "Series 2", "Series Cour", "Series 第2期", "Series Shibuya Incident"))
             assertFalse(text, CanonicalArtworkPolicy.genericLogo(text, "Series", true, true))
         assertTrue(CanonicalArtworkPolicy.genericLogo("Series", "Series", true, true))
         assertTrue(CanonicalArtworkPolicy.genericLogo("86", "86", true, true))
+        assertTrue(CanonicalArtworkPolicy.genericLogo("Horrest Gump", "Forrest Gump", true, true))
+        assertTrue(CanonicalArtworkPolicy.genericLogo("Korrest Gump", "Forrest Gump", true, true))
+        assertFalse(CanonicalArtworkPolicy.genericLogo("Horrast Gump", "Forrest Gump", true, true))
+        assertFalse(CanonicalArtworkPolicy.genericLogo("Horrest Gump Tom Hanks", "Forrest Gump", true, true))
+        assertTrue(CanonicalArtworkPolicy.genericLogo("Attack on Titan 進撃の巨人", "Attack on Titan\n進撃の巨人", true, true))
+        assertFalse(CanonicalArtworkPolicy.genericLogo("Attack on Titan FINAL SEASON", "Attack on Titan\n進撃の巨人", true, true))
         assertFalse(CanonicalArtworkPolicy.genericLogo("Series", "Series", false, true))
         assertFalse(CanonicalArtworkPolicy.genericLogo("Series", "Series", true, false))
     }
@@ -98,6 +175,8 @@ class CanonicalArtworkTest {
         assertEquals(ArtworkTitlePresence.ABSENT, legacy.titlePresence)
         val choice = legacy.copy(titlePresence = ArtworkTitlePresence.UNKNOWN)
         assertEquals(choice, CanonicalArtwork.decode(choice.encode()))
-        assertEquals(7, CanonicalArtworkCatalog.entries.size)
+        assertEquals(13, CanonicalArtworkCatalog.entries.size)
+        assertEquals(8, CanonicalArtworkCatalog.landscapes.size)
+        assertEquals("TMDB:tv:46260", CanonicalArtworkIdentity.key(MediaItem("20", MediaType.SERIES, "Naruto", CatalogSource.ANILIST)))
     }
 }

@@ -372,7 +372,7 @@ internal class AetherioRepository(
         check(CatalogJson.text(json, "id") == root.id)
         // Never let an old saved season image become the series fallback.
         val empty = root.copy(posterUrl = null, backdropUrl = null, portraitArtworkUrl = null,
-            logoUrl = null, logoAlternatives = emptyList(), portraitAlternatives = emptyList())
+            logoUrl = null, logoAlternatives = emptyList(), portraitAlternatives = emptyList(), backdropAlternatives = emptyList())
         return CatalogJson.detail(empty, json).item
     }
     suspend fun episodes(item: MediaItem, season: Int): List<EpisodeItem> = if (item.source == CatalogSource.ANILIST)

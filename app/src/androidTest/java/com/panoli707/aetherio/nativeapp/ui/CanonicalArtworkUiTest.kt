@@ -29,8 +29,8 @@ class CanonicalArtworkUiTest {
     private val files = mutableListOf<File>()
     private val gate = CompletableDeferred<Unit>()
     @After fun cleanup() { gate.complete(Unit); files.forEach { it.delete() } }
-    private fun image(color: Int): String {
-        val bitmap = Bitmap.createBitmap(600, 900, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
+    private fun image(color: Int, width: Int = 600, height: Int = 900): String {
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply { eraseColor(color) }
         val file = File.createTempFile("canonical-qa-", ".png", context.cacheDir)
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle(); files += file
@@ -84,6 +84,78 @@ class CanonicalArtworkUiTest {
         compose.onNodeWithText("Neutral title").assertExists()
     }
 
+    @Test fun unknownCoverStillLoadsTheLogoOutsideTheImageWithoutOverlappingPrintedText() {
+        val cover = image(Color.BLUE)
+        val logo = image(Color.CYAN, 600, 150)
+        val item = MediaItem("90000002", MediaType.MOVIE, "Visible title")
+        val provider = object : ArtworkProvider {
+            override suspend fun resolve(item: MediaItem) = CanonicalArtwork(item.title, cover,
+                titlePresence = ArtworkTitlePresence.UNKNOWN)
+            override suspend fun logo(item: MediaItem) = logo
+        }
+        compose.setContent { AetherioTheme { CompositionLocalProvider(LocalArtworkProvider provides provider) {
+            Box(Modifier.width(300.dp)) { HeroArtwork(item, true, 800.dp) }
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithTag("detailLogo", true).fetchSemanticsNodes().size == 1 }
+        val photo = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
+        val title = compose.onNodeWithTag("detailTitle", true).getUnclippedBoundsInRoot()
+        assertTrue("Unknown art cannot hide the title or receive an overlaid logo", title.top >= photo.bottom)
+    }
+
+    @Test fun cleanUpgradeSwapsOnlyAfterDecodeAndKeepsLogoInsideTheImage() {
+        val dirty = image(Color.RED)
+        val clean = image(Color.GREEN)
+        val logo = image(Color.CYAN, 600, 150)
+        val item = MediaItem("90000003", MediaType.MOVIE, "Clean title")
+        val provider = object : ArtworkProvider {
+            override suspend fun resolve(item: MediaItem) = CanonicalArtwork(item.title, dirty,
+                titlePresence = ArtworkTitlePresence.UNKNOWN)
+            override suspend fun refine(item: MediaItem, current: CanonicalArtwork, portrait: Boolean): CanonicalArtwork {
+                gate.await()
+                return CanonicalArtwork(item.title, clean, logo = logo)
+            }
+        }
+        compose.setContent { AetherioTheme { CompositionLocalProvider(LocalArtworkProvider provides provider) {
+            Box(Modifier.width(300.dp)) { HeroArtwork(item, true, 800.dp) }
+        } } }
+        compose.waitUntil(15_000) { compose.onAllNodesWithTag("heroImage", true).fetchSemanticsNodes().size == 1 }
+        gate.complete(Unit)
+        compose.waitUntil(15_000) { compose.onAllNodesWithTag("detailLogo", true).fetchSemanticsNodes().size == 1 }
+        val pixels = compose.onNodeWithTag("heroImage", true).captureToImage().toPixelMap()
+        assertTrue(pixels[pixels.width / 2, pixels.height / 2].green > .9f)
+        val photo = compose.onNodeWithTag("heroImage", true).getUnclippedBoundsInRoot()
+        val title = compose.onNodeWithTag("detailTitle", true).getUnclippedBoundsInRoot()
+        assertEquals(8f, (photo.bottom - title.bottom).value, 1f)
+    }
+
+    @Test fun horizontalCardRequestsLandscapeArtworkInsteadOfFittingAVerticalPoster() {
+        val vertical = image(Color.RED)
+        val wide = image(Color.GREEN, 960, 540)
+        val item = MediaItem("90000004", MediaType.SERIES, "Landscape example")
+        val requested = AtomicBoolean(false)
+        val provider = object : ArtworkProvider {
+            override suspend fun resolve(item: MediaItem) = CanonicalArtwork(item.title, vertical)
+            override suspend fun resolve(item: MediaItem, portrait: Boolean): CanonicalArtwork {
+                requested.set(!portrait)
+                return if (portrait) resolve(item) else CanonicalArtwork(item.title, wide, 16f / 9f)
+            }
+        }
+        compose.setContent { AetherioTheme { CompositionLocalProvider(LocalArtworkProvider provides provider) {
+            HorizontalPoster(item, {}, Modifier.width(300.dp))
+        } } }
+        compose.waitUntil(15_000) { requested.get() }
+        compose.waitUntil(15_000) {
+            compose.onAllNodesWithContentDescription(item.title, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.waitForIdle()
+        val node = compose.onNodeWithContentDescription(item.title, useUnmergedTree = true)
+        // AsyncImage can enter semantics before the decoder completes.
+        compose.waitUntil(15_000) {
+            val pixels = node.captureToImage().toPixelMap()
+            pixels[1, pixels.height / 2].green > .9f && pixels[pixels.width - 2, pixels.height / 2].green > .9f
+        }
+    }
+
     @Test fun bundledOcrDetectsARealSeasonLabelAndAcceptsABlankIllustration() = runBlocking {
         fun bitmap(text: String): Bitmap = Bitmap.createBitmap(960, 480, Bitmap.Config.ARGB_8888).apply {
             eraseColor(Color.WHITE)
@@ -99,5 +171,21 @@ class CanonicalArtworkUiTest {
             val clear = ArtworkTextRecognizer.read(context, "qa-clean-${System.nanoTime()}", blank.asImageBitmap())
             assertTrue(CanonicalArtworkPolicy.clean(clear.text, clear.complete))
         } finally { season.recycle(); blank.recycle() }
+    }
+
+    @Test fun transparentLogoInspectionUsesContrastWithoutChangingTheDisplayedOriginal() = runBlocking {
+        for (color in listOf(Color.BLACK, Color.WHITE, Color.RED)) {
+            val original = Bitmap.createBitmap(960, 240, Bitmap.Config.ARGB_8888)
+            Canvas(original).drawText("FORREST GUMP", 20f, 155f, Paint().apply {
+                this.color = color; textSize = 105f; isAntiAlias = true
+            })
+            val mask = logoOcrMask(original)
+            try {
+                assertEquals(0, Color.alpha(original.getPixel(0, 0)))
+                assertEquals(Color.WHITE, mask.getPixel(0, 0))
+                val reading = ArtworkTextRecognizer.read(context, "qa-transparent-$color-${System.nanoTime()}", mask.asImageBitmap())
+                assertTrue("OCR: ${reading.text}", CanonicalArtworkPolicy.genericLogo(reading.text, "Forrest Gump", reading.complete, true))
+            } finally { original.recycle(); mask.recycle() }
+        }
     }
 }

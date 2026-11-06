@@ -36,7 +36,9 @@ data class MediaItem(
     val portraitTitlePresence: ArtworkTitlePresence = ArtworkTitlePresence.UNKNOWN,
     val backdropTitlePresence: ArtworkTitlePresence = ArtworkTitlePresence.UNKNOWN,
     val logoAlternatives: List<String> = emptyList(),
-    val portraitAlternatives: List<String> = emptyList()
+    val portraitAlternatives: List<String> = emptyList(),
+    val backdropAlternatives: List<String> = emptyList(),
+    val artworkTitles: List<String> = emptyList()
 ) {
     val key: String get() = "${source.name}:${type.path}:$id"
 }

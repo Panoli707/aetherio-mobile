@@ -141,7 +141,7 @@ internal fun HorizontalPoster(item: MediaItem, onClick: () -> Unit, modifier: Mo
     Column(modifier.clickable(onClickLabel = "Ver ${item.title}", onClick = onClick)
         .semantics(mergeDescendants = true) { }) {
         Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).clip(RoundedCornerShape(14.dp))) {
-            CanonicalPoster(item, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+            CanonicalPoster(item, Modifier.fillMaxSize(), portrait = false)
             if (rank != null) Text("$rank", color = Cream, fontSize = 30.sp, fontWeight = FontWeight.Bold,
                 modifier = Modifier.align(Alignment.TopStart).background(Ink.copy(alpha = .8f), RoundedCornerShape(8.dp))
                     .padding(6.dp).semantics { contentDescription = "Puesto $rank" })
@@ -157,7 +157,7 @@ internal fun Featured(item: MediaItem, onClick: () -> Unit, modifier: Modifier =
     Box(modifier.aspectRatio(1.78f).clip(RoundedCornerShape(16.dp))
         .clickable(onClickLabel = "Ver ${item.title}", onClick = onClick)
         .semantics(mergeDescendants = true) { }) {
-        CanonicalPoster(item, Modifier.fillMaxSize(), contentScale = ContentScale.Fit)
+        CanonicalPoster(item, Modifier.fillMaxSize(), portrait = false)
         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(
             listOf(Color.Transparent, Ink.copy(alpha = .15f), Ink.copy(alpha = .92f)))))
         Column(Modifier.align(Alignment.BottomCenter).padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {

@@ -108,7 +108,7 @@ internal fun DetailTitle(item: MediaItem, modifier: Modifier = Modifier,
                     drawContent()
                 }, contentScale = ContentScale.Fit, alignment = if (insideArtwork) Alignment.BottomCenter else Alignment.Center)
             }
-            else if (!pending && (!canonical || !loading)) Text(item.title, Modifier.fillMaxWidth().testTag("detailTitleText"), style = style,
+            else if (!pending) Text(item.title, Modifier.fillMaxWidth().testTag("detailTitleText"), style = style,
                 maxLines = if (loading || insideArtwork) 3 else Int.MAX_VALUE,
                 overflow = if (loading || insideArtwork) TextOverflow.Ellipsis else TextOverflow.Clip)
         }

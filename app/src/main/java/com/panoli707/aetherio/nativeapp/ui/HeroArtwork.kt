@@ -33,14 +33,13 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 
 /** Own the entire subcomposition by title, not only individual remembered image fields. */
 @Composable
 internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
     modifier: Modifier = Modifier, maxArtworkHeight: Dp = Dp.Infinity,
     imageLoader: ImageLoader = LocalContext.current.imageLoader, fullImage: Boolean = false) {
-    key(CanonicalArtworkIdentity.key(item)) {
+    key(CanonicalArtworkIdentity.key(item), portrait) {
         HeroArtworkContent(item, portrait, viewportHeight, modifier, maxArtworkHeight, imageLoader, fullImage)
     }
 }
@@ -67,7 +66,7 @@ private fun HeroArtworkContent(item: MediaItem, portrait: Boolean, viewportHeigh
             loading = bitmap == null
             try {
                 // Metadata updates and season changes deliberately do not restart this effect.
-                val selected = choice ?: provider.resolve(item).also { choice = it; loadedRatio = it.ratio }
+                val selected = choice ?: provider.resolve(item, portrait).also { choice = it; loadedRatio = it.ratio }
                 val url = selected.cover ?: return@LaunchedEffect
                 val heightPx = (widthPx / selected.ratio).toInt().coerceAtLeast(1)
                 val result = LoadTiming.measure(LoadTiming.Stage.IMAGE_REQUEST) {
@@ -86,22 +85,40 @@ private fun HeroArtworkContent(item: MediaItem, portrait: Boolean, viewportHeigh
             catch (_: Exception) { /* Keep the canonical illustration or the neutral frame; never rotate artwork. */ }
             finally { loading = false }
         }
+        var refined by remember(key, portrait) { mutableStateOf(false) }
         LaunchedEffect(key, bitmap, choice) {
             val selected = choice ?: return@LaunchedEffect
-            val ready = bitmap ?: return@LaunchedEffect
-            if (selected.titlePresence == ArtworkTitlePresence.UNKNOWN) {
-                presence = withTimeoutOrNull(4_000) { ArtworkTextRecognizer.analyze(context, selected.cover.orEmpty(), ready) }
-                    ?: ArtworkTitlePresence.UNKNOWN
+            if (bitmap == null || refined) return@LaunchedEffect
+            refined = true
+            val clean = try { provider.refine(item, selected, portrait) }
+                catch (e: CancellationException) { throw e }
+                catch (_: Exception) { selected }
+            if (clean.cover == selected.cover) { choice = clean; presence = clean.titlePresence }
+            if (clean.cover != selected.cover) {
+                // Decode the approved replacement before swapping; never flash an empty frame.
+                val result = imageLoader.execute(ImageRequest.Builder(context).data(clean.cover)
+                    .size(widthPx, (widthPx / clean.ratio).toInt().coerceAtLeast(1))
+                    .scale(Scale.FIT).allowHardware(false).crossfade(false).build())
+                if (result is SuccessResult) {
+                    val decoded = withContext(Dispatchers.Default) { result.drawable.toBitmap().asImageBitmap() }
+                    bitmap = decoded; choice = clean; loadedRatio = decoded.width.toFloat() / decoded.height
+                    presence = clean.titlePresence
+                }
             }
-            if (presence == ArtworkTitlePresence.ABSENT && selected.logo == null) genericLogo = provider.logo(item)
         }
-        val ratio = loadedRatio ?: choice?.ratio ?: 2f / 3f
+        // Resolve logos independently of cover OCR. Incomplete cover analysis must not prevent retrieval.
+        LaunchedEffect(key, provider, choice != null, choice?.logo) {
+            if (choice != null && choice?.logo == null) genericLogo = try { provider.logo(item) }
+                catch (e: CancellationException) { throw e } catch (_: Exception) { null }
+        }
+        val ratio = loadedRatio ?: choice?.ratio ?: if (portrait) 2f / 3f else 16f / 9f
         val imageHeight = if (fullImage) detailArtworkHeight(maxWidth, ratio)
             else heroArtworkHeight(maxWidth, viewportHeight, ratio, maxArtworkHeight)
         // Clear all unvalidated logo inputs while resolving. Only the selected pair can be drawn.
         val titleItem = choice?.copy(logo = if (bitmap == null) null else choice?.logo ?: genericLogo)?.item(item)
             ?: item.copy(logoUrl = null, logoAlternatives = emptyList())
-        Box {
+        Column {
+          Box {
             IntegratedDetailHero(titleItem, imageHeight, bitmap == null || presence == ArtworkTitlePresence.ABSENT,
                 imageLoader, compact = !fullImage,
                 canonicalLogo = true) {
@@ -117,6 +134,12 @@ private fun HeroArtworkContent(item: MediaItem, portrait: Boolean, viewportHeigh
                 onClick = { choice = null; attempt++ }, modifier = Modifier.align(Alignment.Center).testTag("heroArtworkRetry")) {
                 androidx.compose.material3.Text("Reintentar portada")
             }
+          }
+          // Unknown/printed art must not make the title disappear or receive a duplicate overlaid logo.
+          if (bitmap != null && presence != ArtworkTitlePresence.ABSENT) {
+              DetailTitle(titleItem, Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+                  imageLoader, compact = !fullImage, canonical = true)
+          }
         }
     }
 }

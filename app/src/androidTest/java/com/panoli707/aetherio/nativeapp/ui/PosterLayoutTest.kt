@@ -25,6 +25,7 @@ class PosterLayoutTest {
         val anime = MediaItem("fixture-anime", MediaType.SERIES, "Anime de prueba", isAnime = true)
         val movie = MediaItem("fixture-movie", MediaType.MOVIE, "Película de prueba")
         val state = AppState(homeLoading = false,
+            animeToday = AnimeTodayState(entries = listOf(AnimeAiringEpisode(anime, 1, System.currentTimeMillis() / 1000 - 60)), loaded = true),
             animeSeason = AnimeSeasonState(entries = listOf(SeasonalAnime(anime, null, null, null)), loaded = true),
             sections = listOf(CatalogSection("movies", "Películas", listOf(movie))))
         val page = mutableStateOf("home")
@@ -46,8 +47,9 @@ class PosterLayoutTest {
         val poster = compose.onNodeWithTag("posterArt:${movie.key}", useUnmergedTree = true).getUnclippedBoundsInRoot()
         val airingWidth = (airing.right - airing.left).value
         val posterWidth = (poster.right - poster.left).value
-        assertEquals(100f, airingWidth, 1f)
-        assertEquals(airingWidth, posterWidth, 1f)
+        // Recent emissions intentionally use wider portrait cards; ordinary grids still share 100 dp.
+        assertEquals((360f - 36f) / 2.6f, airingWidth, 1f)
+        assertEquals(100f, posterWidth, 1f)
         assertEquals(airingWidth * 1.5f, (airing.bottom - airing.top).value, 1f)
         assertEquals(posterWidth * 1.5f, (poster.bottom - poster.top).value, 1f)
         compose.runOnIdle { page.value = "grid" }

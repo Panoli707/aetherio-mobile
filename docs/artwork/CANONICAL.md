@@ -1,5 +1,11 @@
 # Una identidad visual por título desde 0.20.0
 
+> **Corrección 0.20.2:** la identidad conserva una selección por formato: póster vertical y fondo horizontal real. Las tarjetas apaisadas ya no encajan un póster vertical con franjas. El registro revisado contiene 13 pares verticales y ocho horizontales; incluye Naruto, Frieren y Hyouken, además de películas y series. Se comprobaron en vivo 21 portadas de 1280 × 1920 o 1280 × 720 y 13 logos transparentes. `scripts/prepare-artwork-review.py` permite comparar candidatos de los endpoints raíz sin modificar el registro. La equivalencia AniList 20 → TMDB 46260 es solo de arte (Naruto, título original ナルト, estreno 2002); no cambia la reproducción.
+>
+> Los logos se recuperan independientemente de la inspección de la portada; se validan también los nombres originales y los recursos incluidos pueden utilizarse sin red. Si la portada contiene texto o su estado es incierto, el logo o título se muestra debajo, nunca se oculta ni se superpone sobre texto incrustado. Tras mostrar la primera imagen, Inicio y ficha pueden adoptar una única alternativa limpia validada por OCR local; se descarga antes de sustituirla y se guarda por formato. Las tarjetas no hacen OCR. Un resultado incierto conserva la portada, y la ausencia de fondo horizontal no fija un póster vertical como sustituto.
+>
+> Las descripciones inferiores de una sola ilustración para ambas orientaciones, ausencia de cambios de portada y bloqueo de logos por OCR de portada son históricas y no corresponden a 0.20.2. Se conservan preferencias, biblioteca, historial y registros verticales válidos anteriores.
+
 > **Corrección 0.20.1:** la validación OCR descrita abajo ya no bloquea la portada ni las tarjetas. Se fija y muestra una imagen del título principal sin esperar metadatos adicionales si el catálogo ya la proporciona. Si no hay una selección limpia, se admite el póster del título y se omite el logo superpuesto mientras haya texto o incertidumbre. Solo la ficha analiza la composición, después de mostrar la imagen; las tarjetas no hacen OCR. La validación opcional de logos va separada. Los registros válidos antiguos siguen siendo compatibles. Véanse los cambios actuales en [0.20.1](../releases/0.20.1.md). El resto de este documento describe el diseño original y los límites de 0.20.0.
 
 ## Comportamiento

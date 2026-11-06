@@ -5,6 +5,20 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class CatalogJsonTest {
+    @Test fun landscapeCandidatesAreHdWideAndLanguageNeutralIsOnlyAPreference() {
+        val images = JSONObject("""{"backdrops":[
+            {"width":640,"aspect_ratio":1.778,"file_path":"/small.jpg"},
+            {"width":2000,"aspect_ratio":0.667,"file_path":"/portrait.jpg"},
+            {"width":1920,"aspect_ratio":1.778,"iso_639_1":"es","file_path":"/spanish.jpg"},
+            {"width":3840,"aspect_ratio":1.778,"iso_639_1":null,"file_path":"/neutral.jpg"}]}""")
+        assertEquals(listOf("https://image.tmdb.org/t/p/w1280/neutral.jpg", "https://image.tmdb.org/t/p/w1280/spanish.jpg"),
+            CatalogJson.backdropAlternatives(images))
+        val item = CatalogJson.item(JSONObject("""{"id":550,"title":"El club de la lucha","original_title":"Fight Club"}""")
+            .put("images", images), MediaType.MOVIE, CatalogSource.TMDB)!!
+        assertEquals(listOf("El club de la lucha", "Fight Club"), item.artworkTitles)
+        assertEquals(item, CatalogJson.decode(CatalogJson.encode(listOf(item))).single())
+    }
+
     @Test fun headerArtworkSelectsOnlyHighResolutionTextlessPortraitsAndSurvivesPersistence() {
         val images = JSONObject("""{"posters":[
             {"iso_639_1":"es","width":2000,"aspect_ratio":0.667,"vote_average":10,"file_path":"/title.jpg"},

@@ -53,10 +53,17 @@ internal object CatalogJson {
         .firstNotNullOfOrNull { tmdbImage(text(it, "file_path"), "original") }
 
     fun portraitAlternatives(json: JSONObject): List<String> = objects(json.optJSONArray("posters"))
-        .filter { it.optDouble("aspect_ratio", 0.0) in 0.45..0.85 && it.optInt("width") >= 500 }
+        .filter { it.optDouble("aspect_ratio", 0.0) in 0.45..0.85 && it.optInt("width") >= 1080 }
         .sortedWith(compareBy<JSONObject> { if (text(it, "iso_639_1").isEmpty()) 0 else 1 }
             .thenByDescending { minOf(it.optInt("width"), 2000) }.thenByDescending { it.optDouble("vote_average", 0.0) })
         .mapNotNull { tmdbImage(text(it, "file_path"), "w780") }.distinct().take(8)
+
+    /** Real landscape candidates; neutral language is a preference, not proof of textless art. */
+    fun backdropAlternatives(json: JSONObject): List<String> = objects(json.optJSONArray("backdrops"))
+        .filter { it.optDouble("aspect_ratio", 0.0) in 1.3..2.5 && it.optInt("width") >= 1280 }
+        .sortedWith(compareBy<JSONObject> { if (text(it, "iso_639_1").isEmpty()) 0 else 1 }
+            .thenByDescending { minOf(it.optInt("width"), 3840) }.thenByDescending { it.optDouble("vote_average", 0.0) })
+        .mapNotNull { tmdbImage(text(it, "file_path"), "w1280") }.distinct().take(8)
 
     fun item(json: JSONObject, type: MediaType, source: CatalogSource, anime: Boolean = false): MediaItem? {
         val id = text(json, "id")
@@ -81,7 +88,9 @@ internal object CatalogJson {
             certification = if (tmdb) DetailMetadata.certification(json, type) else null,
             portraitArtworkUrl = if (tmdb) portraitArtwork(json.optJSONObject("images") ?: JSONObject()) else null,
             logoAlternatives = if (tmdb) logos(json.optJSONObject("images") ?: JSONObject()).drop(1) else emptyList(),
-            portraitAlternatives = if (tmdb) portraitAlternatives(json.optJSONObject("images") ?: JSONObject()) else emptyList())
+            portraitAlternatives = if (tmdb) portraitAlternatives(json.optJSONObject("images") ?: JSONObject()) else emptyList(),
+            backdropAlternatives = if (tmdb) backdropAlternatives(json.optJSONObject("images") ?: JSONObject()) else emptyList(),
+            artworkTitles = listOf("title", "name", "original_title", "original_name").map { text(json, it) }.filter(String::isNotBlank).distinct())
     }
     fun catalog(json: JSONObject, type: MediaType, source: CatalogSource, anime: Boolean = false): List<MediaItem> =
         objects(json.optJSONArray(if (source == CatalogSource.TMDB) "results" else "metas"))
@@ -107,7 +116,8 @@ internal object CatalogJson {
                  backdropTitlePresence = if (parsed.backdropUrl == null || parsed.backdropUrl == base.backdropUrl) base.backdropTitlePresence else ArtworkTitlePresence.UNKNOWN,
                  logoAlternatives = (parsed.logoAlternatives + listOfNotNull(base.logoUrl) + base.logoAlternatives)
                       .filter { it != (parsed.logoUrl ?: base.logoUrl) }.distinct().take(8),
-                  portraitAlternatives = (parsed.portraitAlternatives + base.portraitAlternatives).distinct().take(4))
+                   portraitAlternatives = (parsed.portraitAlternatives + base.portraitAlternatives).distinct().take(8),
+                   backdropAlternatives = (parsed.backdropAlternatives + base.backdropAlternatives).distinct().take(8))
     }
     fun episodes(json: JSONObject, season: Int, cinemeta: Boolean = false): List<EpisodeItem> =
         objects(json.optJSONArray(if (cinemeta) "videos" else "episodes")).mapNotNull {
@@ -154,7 +164,9 @@ internal object CatalogJson {
                put("posterTitlePresence", item.posterTitlePresence.name); put("portraitTitlePresence", item.portraitTitlePresence.name)
                put("backdropTitlePresence", item.backdropTitlePresence.name)
                 put("logoAlternatives", JSONArray(item.logoAlternatives.mapNotNull(::image).take(8)))
-                put("portraitAlternatives", JSONArray(item.portraitAlternatives.mapNotNull(::image).take(4)))
+                 put("portraitAlternatives", JSONArray(item.portraitAlternatives.mapNotNull(::image).take(8)))
+                 put("backdropAlternatives", JSONArray(item.backdropAlternatives.mapNotNull(::image).take(8)))
+                 put("artworkTitles", JSONArray(item.artworkTitles.filter { it.isNotBlank() && it.length <= 500 }.distinct().take(4)))
         }) }
     }.toString()
     fun decode(raw: String): List<MediaItem> = runCatching {
@@ -173,7 +185,9 @@ internal object CatalogJson {
                 text(json, "certification").takeIf(String::isNotBlank), image(text(json, "portraitArtwork")),
                 titlePresence(json, "posterTitlePresence"), titlePresence(json, "portraitTitlePresence"), titlePresence(json, "backdropTitlePresence"),
                 strings(json.optJSONArray("logoAlternatives")).mapNotNull(::image).distinct().take(8),
-                strings(json.optJSONArray("portraitAlternatives")).mapNotNull(::image).distinct().take(4))
+                 strings(json.optJSONArray("portraitAlternatives")).mapNotNull(::image).distinct().take(8),
+                 strings(json.optJSONArray("backdropAlternatives")).mapNotNull(::image).distinct().take(8),
+                 strings(json.optJSONArray("artworkTitles")).filter { it.length <= 500 }.distinct().take(4))
         }.distinctBy { it.key }
     }.getOrDefault(emptyList())
     private fun titlePresence(json: JSONObject, key: String): ArtworkTitlePresence =

@@ -87,7 +87,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
                             Column(Modifier.clickable(onClickLabel = "Continuar ${target.item.title}") { onContinue(progress) }) {
                                 if (target.episode != null && target.imageUrl != null)
                                     Artwork(target.imageUrl, Modifier.fillMaxWidth().height(140.dp))
-                                else CanonicalPoster(target.item, Modifier.fillMaxWidth().height(140.dp), contentScale = ContentScale.Fit)
+                                else CanonicalPoster(target.item, Modifier.fillMaxWidth().height(140.dp), portrait = false)
                                 LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Accent, trackColor = Outline)
                                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     Text(target.item.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleSmall)

@@ -17,7 +17,7 @@ internal data class CanonicalArtwork(val title: String, val cover: String?, val 
     val logo: String? = null, val titlePresence: ArtworkTitlePresence = ArtworkTitlePresence.ABSENT) {
     fun item(base: MediaItem) = base.copy(title = title, posterUrl = cover, portraitArtworkUrl = cover,
         backdropUrl = null, logoUrl = logo, posterTitlePresence = titlePresence,
-        portraitTitlePresence = titlePresence, logoAlternatives = emptyList(), portraitAlternatives = emptyList())
+        portraitTitlePresence = titlePresence, logoAlternatives = emptyList(), portraitAlternatives = emptyList(), backdropAlternatives = emptyList())
     fun encode(): String = JSONObject().put("title", title).put("cover", cover).put("ratio", ratio)
         .put("logo", logo).put("titlePresence", titlePresence.name).toString()
     companion object {
@@ -36,6 +36,9 @@ internal data class CanonicalArtwork(val title: String, val cover: String?, val 
 
 internal object CanonicalArtworkIdentity {
     fun root(item: MediaItem): MediaItem {
+        CanonicalArtworkCatalog.aliases[item.key]?.let { key ->
+            return item.copy(id = key.substringAfterLast(':'), source = CatalogSource.TMDB, seasonHint = null, animeEntryId = null)
+        }
         val series = SeriesIdentity.item(item)
         val mapped = if (series.source == CatalogSource.ANILIST) AnimeLogoCatalog.entries
             .firstOrNull { it.animeId == series.id && it.type == series.type } else null
@@ -63,7 +66,12 @@ internal object CanonicalArtworkPolicy {
         val titleWords = Regex("[\\p{L}\\p{N}]+").findAll(name).map { it.value }.toList()
         val words = Regex("[\\p{L}\\p{N}]+").findAll(value).map { it.value }.filter { it.length >= 3 }.toList()
         if (words.isEmpty() && value.trim() != name.trim()) return false
-        if (words.any { word -> titleWords.none { it == word || (minOf(it.length, word.length) >= 4 && (it.contains(word) || word.contains(it))) } }) return false
+        if (words.any { word -> titleWords.none {
+            it == word || (minOf(it.length, word.length) >= 4 && (it.contains(word) || word.contains(it))) ||
+                // Serif/stylized letters commonly read F as H/K. Allow one substitution in a long
+                // title word only; season/digit guards above and unrelated-word rejection remain.
+                (word.length >= 5 && word.length == it.length && word.indices.count { index -> word[index] != it[index] } == 1)
+        } }) return false
         return true
     }
 }
@@ -79,11 +87,29 @@ internal class CanonicalArtworkResolver(
 ) {
     private val locks = List(32) { Mutex() }
     private val slots = Semaphore(4)
+    private val metadataLocks = List(32) { Mutex() }
+    private val sources = object : LinkedHashMap<String, MediaItem>(64, .75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, MediaItem>?) = size > 64
+    }
+    private suspend fun source(item: MediaItem): MediaItem? {
+        val root = CanonicalArtworkIdentity.root(item)
+        val key = root.key
+        return metadataLocks[(key.hashCode() and Int.MAX_VALUE) % metadataLocks.size].withLock {
+            synchronized(sources) { sources[key] } ?: try {
+                withTimeoutOrNull(8_000) { metadata(root) }?.also { source ->
+                    if (listOf(source.posterUrl, source.portraitArtworkUrl, source.backdropUrl).any { it != null })
+                        synchronized(sources) { sources[key] = source }
+                }
+            } catch (e: CancellationException) { throw e } catch (_: Exception) { null }
+        }
+    }
     private val memory = object : LinkedHashMap<String, CanonicalArtwork>(128, .75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CanonicalArtwork>?) = size > 256
     }
     suspend fun resolve(item: MediaItem): CanonicalArtwork = resolve(item, CanonicalArtworkIdentity.key(item))
-    internal suspend fun resolve(item: MediaItem, key: String): CanonicalArtwork = locks[(key.hashCode() and Int.MAX_VALUE) % locks.size].withLock {
+    suspend fun resolve(item: MediaItem, portrait: Boolean): CanonicalArtwork =
+        resolve(item, if (portrait) CanonicalArtworkIdentity.key(item) else "landscape:${CanonicalArtworkIdentity.key(item)}", portrait)
+    internal suspend fun resolve(item: MediaItem, key: String, portrait: Boolean = true): CanonicalArtwork = locks[(key.hashCode() and Int.MAX_VALUE) % locks.size].withLock {
         synchronized(memory) { memory[key] }?.let { return@withLock it }
         CanonicalArtwork.decode(read(key))?.let { synchronized(memory) { memory[key] = it }; return@withLock it }
         slots.withPermit {
@@ -91,22 +117,20 @@ internal class CanonicalArtworkResolver(
             // Only trust seed art when it already belongs to the root, not a mapped anime part or saved season.
             val seed = item.takeIf { it.key == root.key && it.seasonHint == null && it.animeEntryId == null &&
                 listOf(it.portraitArtworkUrl, it.posterUrl, it.backdropUrl).any { url -> CatalogJson.image(url) != null } }
-            val source = seed ?: try { withTimeoutOrNull(8_000) { metadata(root) } }
-                catch (e: CancellationException) { throw e }
-                catch (_: Exception) { null }
+            val source = (if (!portrait && seed?.backdropUrl == null) source(root) ?: seed else seed ?: source(root))
                 ?: return@withPermit CanonicalArtwork(root.title, null)
-            val portrait = CatalogJson.image(source.portraitArtworkUrl)
+            val cleanPortrait = CatalogJson.image(source.portraitArtworkUrl)
             val poster = CatalogJson.image(source.posterUrl)
             val backdrop = CatalogJson.image(source.backdropUrl)
-            val url = portrait ?: poster ?: backdrop
-                ?: return@withPermit CanonicalArtwork(source.title, null)
+            val url = (if (portrait) cleanPortrait ?: poster ?: backdrop else backdrop ?: source.backdropAlternatives.firstOrNull())
+                ?: return@withPermit CanonicalArtwork(source.title, null, if (portrait) 2f / 3f else 16f / 9f)
             val presence = when (url) {
-                portrait -> source.portraitTitlePresence
+                cleanPortrait -> source.portraitTitlePresence
                 poster -> source.posterTitlePresence
                 else -> source.backdropTitlePresence
             }
             val choice = CanonicalArtwork(source.title, ArtworkImages.canonicalResolution(url),
-                if (portrait == null && poster == null) 16f / 9f else 2f / 3f, titlePresence = presence)
+                if (url == backdrop || url in source.backdropAlternatives) 16f / 9f else 2f / 3f, titlePresence = presence)
             currentCoroutineContext().ensureActive()
             write(key, choice.encode())
             synchronized(memory) { memory[key] = choice }
@@ -114,14 +138,49 @@ internal class CanonicalArtworkResolver(
         }
     }
 
+    /** A single optional clean-art upgrade after the first image. Cards never wait for OCR. */
+    suspend fun refine(item: MediaItem, current: CanonicalArtwork, portrait: Boolean): CanonicalArtwork {
+        if (current.titlePresence == ArtworkTitlePresence.ABSENT) return current
+        val source = source(item) ?: return current
+        val candidates = if (portrait) listOfNotNull(source.portraitArtworkUrl) + source.portraitAlternatives
+            else source.backdropAlternatives + listOfNotNull(source.backdropUrl)
+        val clean = withTimeoutOrNull(10_000) {
+            for (url in candidates.map(ArtworkImages::canonicalResolution).distinct().take(6)) {
+                val result = try { inspect(url, false, source.title) }
+                    catch (e: CancellationException) { throw e } catch (_: Exception) { null }
+                if (result?.clean == true && (if (portrait) result.ratio in .45f.. .95f else result.ratio in 1.3f..2.5f))
+                    return@withTimeoutOrNull CanonicalArtwork(current.title, url, result.ratio,
+                        titlePresence = ArtworkTitlePresence.ABSENT)
+            }
+            null
+        } ?: return current
+        val key = (if (portrait) "" else "landscape:") + CanonicalArtworkIdentity.key(item)
+        locks[(key.hashCode() and Int.MAX_VALUE) % locks.size].withLock {
+            currentCoroutineContext().ensureActive()
+            write(key, clean.encode())
+            synchronized(memory) { memory[key] = clean }
+        }
+        return clean
+    }
+
     /** Hero-only optional work, after the cover is visible. Never gates a catalog card. */
     suspend fun logo(item: MediaItem): String? {
         val root = CanonicalArtworkIdentity.root(item)
-        val source = try { withTimeoutOrNull(5_000) { metadata(root) } }
-            catch (e: CancellationException) { throw e } catch (_: Exception) { null } ?: return null
-        return withTimeoutOrNull(6_000) {
-            for (url in ArtworkImages.logos(source).mapNotNull(ArtworkImages::highResolution).distinct().take(4)) {
-                val inspected = try { inspect(url, true, source.title) }
+        // Bundled candidates must remain usable offline; do not gate them on a metadata request.
+        for (url in ArtworkImages.logos(root).filter { it.startsWith("file:///android_asset/") }.take(2)) {
+            val result = withTimeoutOrNull(5_000) {
+                try { inspect(url, true, root.title) }
+                catch (e: CancellationException) { throw e } catch (_: Exception) { null }
+            }
+            if (result?.genericLogo == true) return url
+        }
+        val source = source(item) ?: return null
+        val rootNames = if (item.key == root.key && item.seasonHint == null && item.animeEntryId == null)
+            listOf(item.title) + item.artworkTitles else emptyList()
+        return withTimeoutOrNull(12_000) {
+            for (url in ArtworkImages.logos(source).filterNot { it.startsWith("file:///android_asset/") }
+                .mapNotNull(ArtworkImages::highResolution).distinct().take(4)) {
+                val inspected = try { inspect(url, true, (listOf(source.title) + source.artworkTitles + rootNames).distinct().joinToString("\n")) }
                     catch (e: CancellationException) { throw e } catch (_: Exception) { null }
                 if (inspected?.genericLogo == true) return@withTimeoutOrNull url
             }

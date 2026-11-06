@@ -1,0 +1,5 @@
+# Preserve verbatim upstream notices, including their original whitespace.
+app/src/main/assets/licenses/GDBM_LICENSE.txt -text -whitespace
+app/src/main/assets/licenses/YOUTUBE_BZIP2_LICENSE.txt -text -whitespace
+app/src/main/assets/licenses/YOUTUBE_XZ_LICENSE.txt -text -whitespace
+app/src/main/assets/licenses/YTDLP_THIRD_PARTY_LICENSES.txt -text -whitespace

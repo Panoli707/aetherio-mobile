@@ -81,8 +81,8 @@ android {
         applicationId = "com.panoli707.aetherio.nativeapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 40
-        versionName = "0.20.0"
+        versionCode = 41
+        versionName = "0.20.1"
         manifestPlaceholders["tmdbCredentialsEmbedded"] = tmdbReadAccessToken.isNotEmpty()
         testInstrumentationRunner = when {
             providers.gradleProperty("scrollReleaseSmoke").orNull == "true" ->
@@ -115,6 +115,7 @@ android {
         buildConfig = true
     }
     sourceSets.getByName("main").java.srcDir(generateTmdbMaterial.flatMap { it.outputDirectory })
+    packaging.jniLibs.useLegacyPackaging = true
 }
 
 tasks.named("preBuild").configure { dependsOn(generateTmdbMaterial) }
@@ -137,6 +138,7 @@ dependencies {
     // Apache-2.0 OCR, bundled models, no telemetry, image upload or runtime model download.
     implementation("cz.adaptech.tesseract4android:tesseract4android:4.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
     implementation("androidx.media3:media3-exoplayer:1.5.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.5.1")
     implementation("androidx.media3:media3-exoplayer-dash:1.5.1")

@@ -1,0 +1,30 @@
+YouTube trailer resolver (Aetherio 0.20.1)
+
+The Android playback pipeline is an independent adaptation of the desktop
+youtube_resolve_stream flow: resolve the selected public YouTube ID locally,
+then stream the resulting video+audio URL in Media3. It does not redistribute
+trailers, use account cookies, remove DRM or download media files.
+
+youtubedl-android library/common 0.18.1
+Copyright the youtubedl-android contributors (yausername, JunkFood02 and others).
+License: GNU GPL version 3. Full text: GPL-3.0.txt in this licenses directory.
+Source: https://github.com/yausername/youtubedl-android
+Exact published sources are attached to the 0.20.1 release as
+youtubedl-android-0.18.1-sources.zip (library/common source JARs and provenance).
+The dependency bundles CPython 3.12 and QuickJS for Android. Their notices and
+the wrapper build/source links are in the attached source bundle.
+
+yt-dlp 2026.10.26 (the platform-independent zipimport executable)
+Copyright the yt-dlp contributors.
+License: Unlicense for yt-dlp itself; the release also contains ISC/MIT code.
+Full upstream THIRD_PARTY_LICENSES and license notices are included separately.
+Source: https://github.com/yt-dlp/yt-dlp/tree/2026.10.26
+Executable SHA256: e51e69e89489f199530f13d32a4342da3ddb2cf34842f364603a066db05afbf3
+The exact release source archive is attached to the Aetherio release.
+No automatic extractor updater or optional remote EJS component download is
+enabled. yt-dlp does fetch public YouTube player data/scripts as part of
+resolution; the bundled QuickJS runtime processes them locally.
+
+This software is provided without warranty. YouTube service changes, network
+conditions, geographic/age restrictions and private or removed videos can
+prevent playback. Such restrictions are not bypassed.

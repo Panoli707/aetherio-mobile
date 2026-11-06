@@ -49,6 +49,8 @@ import com.panoli707.aetherio.nativeapp.player.torrent.*
 import java.io.IOException
 import java.util.Locale
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -75,6 +77,11 @@ class VideoActivity : ComponentActivity() {
     private var lastTorrentProgressAt = 0L
     private var watchTarget: WatchTarget? = null
     private val isTrailer get() = intent.getBooleanExtra(EXTRA_TRAILER, false)
+    private val youtubeId get() = if (isTrailer) TrailerEmbed.validId(intent.getStringExtra(EXTRA_YOUTUBE_ID)) else null
+    private var trailerMime: String? = null
+    private var trailerJob: Job? = null
+    private var youtubeRequestValid = false
+    private var refreshTrailer = false
     private val hasSources get() = !isTrailer && intent.getBooleanExtra(EXTRA_HAS_SOURCES, false)
     private val history by lazy { WatchHistoryRepository.get(application) }
     private var progressInitialized = false
@@ -88,7 +95,10 @@ class VideoActivity : ComponentActivity() {
     private val httpClient by lazy {
         OkHttpClient.Builder().followRedirects(true).followSslRedirects(true)
             .addNetworkInterceptor { chain ->
-                try { MediaUrlPolicy.validate(chain.request().url.toString(), allowDesktopHttp) }
+                try {
+                    if (youtubeRequestValid) YoutubeTrailerResolver.validateUrl(chain.request().url.toString())
+                    else MediaUrlPolicy.validate(chain.request().url.toString(), allowDesktopHttp)
+                }
                 catch (_: IllegalArgumentException) { throw IOException("Destino de video no permitido") }
                 val request = chain.request()
                 val headers = request.headers.names().associateWith { request.header(it).orEmpty() }
@@ -158,7 +168,8 @@ class VideoActivity : ComponentActivity() {
         } }
         mediaUrl = try {
             if (isTrailer) require(!intent.hasExtra(EXTRA_TORRENT_REQUEST) &&
-                com.panoli707.aetherio.nativeapp.data.DetailLinks.directTrailer(intent.getStringExtra(EXTRA_URL).orEmpty(), "Tráiler") != null)
+                (if (intent.hasExtra(EXTRA_YOUTUBE_ID)) youtubeId != null && !intent.hasExtra(EXTRA_URL)
+                else com.panoli707.aetherio.nativeapp.data.DetailLinks.directTrailer(intent.getStringExtra(EXTRA_URL).orEmpty(), "Tráiler") != null))
             if (intent.hasExtra(EXTRA_TORRENT_REQUEST)) {
                 require(!intent.hasExtra(EXTRA_URL))
                 torrentRequest = TorrentRequest.decode(requireNotNull(intent.getStringExtra(EXTRA_TORRENT_REQUEST)))
@@ -168,7 +179,8 @@ class VideoActivity : ComponentActivity() {
             playbackHeaders = PlaybackHeaders.validate(headers?.keySet()?.associateWith {
                 headers.getString(it) ?: throw IllegalArgumentException()
             }.orEmpty(), torrentRequest == null && intent.getBooleanExtra(EXTRA_PROVIDER_HEADERS, false))
-            if (torrentRequest != null) null else MediaUrlPolicy.validate(intent.getStringExtra(EXTRA_URL).orEmpty(), allowDesktopHttp)
+            youtubeRequestValid = youtubeId != null
+            if (torrentRequest != null || youtubeRequestValid) null else MediaUrlPolicy.validate(intent.getStringExtra(EXTRA_URL).orEmpty(), allowDesktopHttp)
         } catch (_: RuntimeException) {
             torrentRequest = null
             screen = screen.copy(error = "El enlace de video no es valido o no esta permitido.")
@@ -220,6 +232,7 @@ class VideoActivity : ComponentActivity() {
         super.onPause()
     }
     override fun onStop() {
+        trailerJob?.cancel(); trailerJob = null
         startJob?.cancel()
         startJob = null
         ticker?.cancel()
@@ -255,6 +268,25 @@ class VideoActivity : ComponentActivity() {
     }
 
     private fun preparePlayback() {
+        if (youtubeRequestValid) {
+            trailerJob?.cancel()
+            screen = screen.copy(error = null, buffering = true)
+            trailerJob = lifecycleScope.launch {
+                try {
+                    val refresh = refreshTrailer
+                    refreshTrailer = false
+                    val stream = YoutubeTrailerResolver.resolve(this@VideoActivity, requireNotNull(youtubeId), refresh)
+                    mediaUrl = stream.url; trailerMime = stream.mime; playbackHeaders = stream.headers
+                    startPlayer()
+                } catch (_: TimeoutCancellationException) {
+                    screen = screen.copy(buffering = false, error = "YouTube tardó demasiado en responder. Puedes reintentar el tráiler.")
+                } catch (e: CancellationException) { throw e }
+                catch (_: Exception) {
+                    screen = screen.copy(buffering = false, error = "No se pudo obtener este tráiler de YouTube. Puede estar restringido o no disponible. Reintenta o elige otro tráiler.")
+                }
+            }
+            return
+        }
         val request = torrentRequest
         if (request == null) { startPlayer(); return }
         closeTorrent()
@@ -323,7 +355,10 @@ class VideoActivity : ComponentActivity() {
             val remoteSource = ResolvingDataSource.Factory(
                 OkHttpDataSource.Factory(httpClient).setDefaultRequestProperties(playbackHeaders)
             ) { spec ->
-                val validated = try { MediaUrlPolicy.validate(spec.uri.toString(), allowDesktopHttp) }
+                val validated = try {
+                    if (youtubeRequestValid) YoutubeTrailerResolver.validateUrl(spec.uri.toString())
+                    else MediaUrlPolicy.validate(spec.uri.toString(), allowDesktopHttp)
+                }
                 catch (_: IllegalArgumentException) { throw IOException("Destino de video no permitido") }
                 spec.withUri(Uri.parse(validated))
             }
@@ -336,7 +371,7 @@ class VideoActivity : ComponentActivity() {
             active.setHandleAudioBecomingNoisy(true)
             active.addListener(listener)
             active.playWhenReady = resumePlayWhenReady
-            val mime = if (torrentRequest != null) null else VideoFormat.entries.mapNotNull { it.mimeType }.firstOrNull { it == intent.getStringExtra(EXTRA_MIME) }
+            val mime = trailerMime ?: if (torrentRequest != null) null else VideoFormat.entries.mapNotNull { it.mimeType }.firstOrNull { it == intent.getStringExtra(EXTRA_MIME) }
             val subtitles = mutableListOf<MediaItem.SubtitleConfiguration>()
             val rawSubtitles = intent.getStringExtra(EXTRA_SUBTITLES)
             if (rawSubtitles != null && rawSubtitles.length <= 128 * 1024) runCatching {
@@ -372,7 +407,7 @@ class VideoActivity : ComponentActivity() {
                     finish()
                 }
             }
-            VideoAction.RETRY -> { releasePlayer(); preparePlayback() }
+            VideoAction.RETRY -> { refreshTrailer = true; releasePlayer(); preparePlayback() }
             VideoAction.TOGGLE_PLAY -> if (active?.isPlaying == true) active.pause() else active?.play()
             VideoAction.REWIND, VideoAction.FORWARD -> if (active?.isCurrentMediaItemSeekable == true) {
                 val target = active.currentPosition + if (action == VideoAction.REWIND) -10_000 else 10_000
@@ -474,6 +509,7 @@ class VideoActivity : ComponentActivity() {
 
     companion object {
         const val EXTRA_TRAILER = "com.panoli707.aetherio.nativeapp.player.TRAILER"
+        const val EXTRA_YOUTUBE_ID = "com.panoli707.aetherio.nativeapp.player.YOUTUBE_TRAILER_ID"
         const val EXTRA_URL = "com.panoli707.aetherio.nativeapp.player.URL"
         const val EXTRA_TORRENT_REQUEST = "com.panoli707.aetherio.nativeapp.player.TORRENT_REQUEST"
         const val EXTRA_TITLE = "com.panoli707.aetherio.nativeapp.player.TITLE"

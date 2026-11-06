@@ -41,10 +41,8 @@ class ArtworkPresentationTest {
     }
     private fun ready() { compose.waitUntil(30_000) { compose.onAllNodesWithTag("heroArtworkLoading", true).fetchSemanticsNodes().isEmpty() } }
     private fun provider(item: MediaItem, clean: String? = null): ArtworkProvider {
-        val resolver = CanonicalArtworkResolver({ item }, { url, logo, _ ->
-            ArtworkInspection(2f / 3f, clean = !logo && url == clean)
-        })
-        return ArtworkProvider { resolver.resolve(it) }
+        return ArtworkProvider { CanonicalArtwork(item.title, clean ?: item.posterUrl,
+            titlePresence = if (clean != null) ArtworkTitlePresence.ABSENT else item.posterTitlePresence) }
     }
 
     @Test fun bottomPrintedTitleSelectsACleanSameScopePortraitBeforeShowingIt() {
@@ -62,7 +60,7 @@ class ArtworkPresentationTest {
         compose.onNodeWithTag("detailHeroFade").assertExists()
     }
 
-    @Test fun topPrintedTitlesAreRejectedRatherThanDuplicatedWithAnotherLogo() {
+    @Test fun topPrintedCoverRemainsVisibleWithoutADuplicateLogo() {
         val portrait = image(Color.RED)
         val logo = image(Color.WHITE)
         val item = MediaItem("1", MediaType.SERIES, "Título", posterUrl = portrait, logoUrl = logo,
@@ -73,15 +71,12 @@ class ArtworkPresentationTest {
         } } }
         ready()
         compose.onAllNodesWithTag("detailLogo", true).assertCountEquals(0)
-        compose.onAllNodesWithTag("heroImage", true).assertCountEquals(0)
-        compose.onNodeWithText(item.title).assertExists()
-        compose.onNodeWithTag("detailHeroFade").assertExists()
-        val title = compose.onNodeWithTag("detailTitle").getUnclippedBoundsInRoot()
-        val photo = compose.onNodeWithTag("heroArtwork").getUnclippedBoundsInRoot()
-        assertTrue(title.top < photo.bottom)
+        compose.onNodeWithTag("heroImage", true).assertExists()
+        compose.onNodeWithContentDescription(item.title, useUnmergedTree = true).assertExists()
+        compose.onAllNodesWithTag("detailTitleText", true).assertCountEquals(0)
     }
 
-    @Test fun withoutACleanAlternativeOrLogoBottomTextUsesAnUnobscuredWrittenTitle() {
+    @Test fun printedBottomTitleDoesNotBlankTheCoverOrGetASecondTitle() {
         val item = MediaItem("1", MediaType.MOVIE, "Título de reserva", posterUrl = image(Color.WHITE),
             posterTitlePresence = ArtworkTitlePresence.BOTTOM)
         val provider = provider(item)
@@ -89,12 +84,9 @@ class ArtworkPresentationTest {
             Box(Modifier.width(300.dp).verticalScroll(rememberScrollState())) { HeroArtwork(item, true, 800.dp, fullImage = true) }
         } } }
         ready()
-        val photo = compose.onNodeWithTag("heroArtwork").getUnclippedBoundsInRoot()
-        val title = compose.onNodeWithTag("detailTitle").getUnclippedBoundsInRoot()
-        val fade = compose.onNodeWithTag("detailHeroFade").getUnclippedBoundsInRoot()
-        assertTrue(title.top >= photo.top && title.bottom < photo.bottom && fade.bottom == photo.bottom)
-        compose.onNodeWithText(item.title).assertExists()
-        compose.onNodeWithTag("detailHeroFade").assertExists()
+        compose.onNodeWithTag("heroImage", true).assertExists()
+        compose.onAllNodesWithTag("detailTitleText", true).assertCountEquals(0)
+        compose.onAllNodesWithTag("detailLogo", true).assertCountEquals(0)
     }
 
     @Test fun bundledRecognizerDetectsLatinTitlePositionWithoutDownloadingAModel() = runBlocking {

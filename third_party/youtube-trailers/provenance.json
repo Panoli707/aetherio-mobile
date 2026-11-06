@@ -1,0 +1,39 @@
+[
+  {
+    "file": "youtubedl-android-0.18.1-source.zip",
+    "url": "https://codeload.github.com/yausername/youtubedl-android/zip/refs/tags/0.18.1",
+    "upstreamSha256": "9a40dc583f3b0efbe23780f9b8ce7a617e6e18f973ecf44bd470acd4bad5f3c4",
+    "sha256": "3d836f083affd229b0d894b8aad52058c73d36be8fb4e2ca77bd4374b9481178",
+    "transformation": "Source-only repack: omitted jniLibs, raw prebuilt executables and Gradle wrapper JAR; retained source, build scripts and licenses. Runtime artifacts come from pinned Maven 0.18.1."
+  },
+  {
+    "file": "library-0.18.1-sources.jar",
+    "url": "https://repo.maven.apache.org/maven2/io/github/junkfood02/youtubedl-android/library/0.18.1/library-0.18.1-sources.jar",
+    "sha256": "26e94f33de0ba802f3507862d509f80d100c1c9065ded7556d16ff51249c4a9a"
+  },
+  {
+    "file": "common-0.18.1-sources.jar",
+    "url": "https://repo.maven.apache.org/maven2/io/github/junkfood02/youtubedl-android/common/0.18.1/common-0.18.1-sources.jar",
+    "sha256": "7db17b16e5a66572aa40c8866941ae11f3f49128849beb2dc004dac84ca06a9b"
+  },
+  {
+    "file": "yt-dlp-2026.10.26-source.tar.gz",
+    "url": "https://github.com/yt-dlp/yt-dlp/releases/download/2026.10.26/yt-dlp.tar.gz",
+    "sha256": "21f942d258d25cc4e60b4982a25c423460f0bebb835f38e6dfd1fcb140087f95"
+  },
+  {
+    "file": "gdbm-1.26.tar.gz",
+    "url": "https://ftp.gnu.org/gnu/gdbm/gdbm-1.26.tar.gz",
+    "sha256": "6a24504a14de4a744103dcb936be976df6fbe88ccff26065e54c1c47946f4a5e"
+  },
+  {
+    "file": "readline-8.3.tar.gz",
+    "url": "https://ftp.gnu.org/gnu/readline/readline-8.3.tar.gz",
+    "sha256": "fe5383204467828cd495ee8d1d3c037a7eba1389c22bc6a041f627976f9061cc"
+  },
+  {
+    "file": "quickjs-2025-04-26.tar.xz",
+    "url": "https://bellard.org/quickjs/quickjs-2025-04-26.tar.xz",
+    "sha256": "2f20074c25166ef6f781f381c50d57b502cb85d470d639abccebbef7954c83bf"
+  }
+]

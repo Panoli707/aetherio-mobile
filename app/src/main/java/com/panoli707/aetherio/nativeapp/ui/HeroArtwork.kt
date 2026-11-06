@@ -33,12 +33,21 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
-/** Home and detail share one persisted visual identity. Rejected candidates never reach the screen. */
+/** Own the entire subcomposition by title, not only individual remembered image fields. */
 @Composable
 internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
     modifier: Modifier = Modifier, maxArtworkHeight: Dp = Dp.Infinity,
     imageLoader: ImageLoader = LocalContext.current.imageLoader, fullImage: Boolean = false) {
+    key(CanonicalArtworkIdentity.key(item)) {
+        HeroArtworkContent(item, portrait, viewportHeight, modifier, maxArtworkHeight, imageLoader, fullImage)
+    }
+}
+
+@Composable
+private fun HeroArtworkContent(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
+    modifier: Modifier, maxArtworkHeight: Dp, imageLoader: ImageLoader, fullImage: Boolean) {
     val context = LocalContext.current
     val provider = LocalArtworkProvider.current ?: (context.applicationContext as AetherioApplication).artworkProvider
     val key = CanonicalArtworkIdentity.key(item)
@@ -46,11 +55,14 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
     var bitmap by remember(key, provider) { mutableStateOf<ImageBitmap?>(null) }
     var loadedRatio by rememberSaveable(key) { mutableStateOf<Float?>(null) }
     var loading by remember(key, provider) { mutableStateOf(true) }
+    var presence by remember(key, provider) { mutableStateOf(ArtworkTitlePresence.UNKNOWN) }
+    var genericLogo by remember(key, provider) { mutableStateOf<String?>(null) }
+    var attempt by remember(key) { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val inspection = LocalInspectionMode.current
     BoxWithConstraints(modifier.fillMaxWidth().background(Ink).testTag("heroArtwork")) {
         val widthPx = with(density) { maxWidth.roundToPx().coerceAtLeast(1) }
-        LaunchedEffect(key, provider, widthPx, imageLoader) {
+        LaunchedEffect(key, provider, widthPx, imageLoader, attempt) {
             if (inspection) return@LaunchedEffect
             loading = bitmap == null
             try {
@@ -68,27 +80,43 @@ internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
                     ensureActive()
                     bitmap = decoded
                     loadedRatio = decoded.width.toFloat() / decoded.height
+                    presence = selected.titlePresence
                 }
             } catch (e: CancellationException) { throw e }
             catch (_: Exception) { /* Keep the canonical illustration or the neutral frame; never rotate artwork. */ }
             finally { loading = false }
         }
+        LaunchedEffect(key, bitmap, choice) {
+            val selected = choice ?: return@LaunchedEffect
+            val ready = bitmap ?: return@LaunchedEffect
+            if (selected.titlePresence == ArtworkTitlePresence.UNKNOWN) {
+                presence = withTimeoutOrNull(4_000) { ArtworkTextRecognizer.analyze(context, selected.cover.orEmpty(), ready) }
+                    ?: ArtworkTitlePresence.UNKNOWN
+            }
+            if (presence == ArtworkTitlePresence.ABSENT && selected.logo == null) genericLogo = provider.logo(item)
+        }
         val ratio = loadedRatio ?: choice?.ratio ?: 2f / 3f
         val imageHeight = if (fullImage) detailArtworkHeight(maxWidth, ratio)
             else heroArtworkHeight(maxWidth, viewportHeight, ratio, maxArtworkHeight)
         // Clear all unvalidated logo inputs while resolving. Only the selected pair can be drawn.
-        val titleItem = choice?.item(item) ?: item.copy(logoUrl = null, logoAlternatives = emptyList())
+        val titleItem = choice?.copy(logo = if (bitmap == null) null else choice?.logo ?: genericLogo)?.item(item)
+            ?: item.copy(logoUrl = null, logoAlternatives = emptyList())
         Box {
-            IntegratedDetailHero(titleItem, imageHeight, true, imageLoader, compact = !fullImage,
-                canonicalLogo = true, titleLoading = loading && choice == null) {
+            IntegratedDetailHero(titleItem, imageHeight, bitmap == null || presence == ArtworkTitlePresence.ABSENT,
+                imageLoader, compact = !fullImage,
+                canonicalLogo = true) {
                 bitmap?.let { ready -> Image(painter = BitmapPainter(ready, filterQuality = FilterQuality.High),
-                    contentDescription = null, contentScale = if (fullImage) ContentScale.Fit else ContentScale.Crop,
+                    contentDescription = item.title, contentScale = if (fullImage) ContentScale.Fit else ContentScale.Crop,
                     alignment = Alignment.Center, modifier = Modifier.fillMaxSize().testTag("heroImage")) }
                 if (!fullImage) Box(Modifier.fillMaxWidth().height(56.dp)
                     .background(Brush.verticalGradient(listOf(Color.Black.copy(alpha = .35f), Color.Transparent))))
             }
             if (loading && !inspection) androidx.compose.material3.CircularProgressIndicator(
                 Modifier.align(Alignment.Center).size(28.dp).testTag("heroArtworkLoading"), color = Accent)
+            if (!loading && bitmap == null && !inspection) androidx.compose.material3.TextButton(
+                onClick = { choice = null; attempt++ }, modifier = Modifier.align(Alignment.Center).testTag("heroArtworkRetry")) {
+                androidx.compose.material3.Text("Reintentar portada")
+            }
         }
     }
 }

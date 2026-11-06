@@ -168,7 +168,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                                     DetailArtwork(trailer.thumbnailUrl, Modifier.fillMaxSize())
                                 }
                                 Text(trailer.title, color = DetailText, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp))
-                                Text(if (trailer.kind == TrailerKind.DIRECT) "Reproductor de Aetherio" else "YouTube · Reproductor oficial integrado",
+                                Text(if (trailer.kind == TrailerKind.DIRECT) "Reproductor de Aetherio" else "YouTube · Reproductor de Aetherio",
                                     color = DetailMuted, style = MaterialTheme.typography.bodySmall)
                             } }
                         }

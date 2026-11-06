@@ -14,12 +14,12 @@ import java.util.Locale
 
 /** A title's visual identity, not the selected episode/season. Versioned separately from user data. */
 internal data class CanonicalArtwork(val title: String, val cover: String?, val ratio: Float = 2f / 3f,
-    val logo: String? = null) {
+    val logo: String? = null, val titlePresence: ArtworkTitlePresence = ArtworkTitlePresence.ABSENT) {
     fun item(base: MediaItem) = base.copy(title = title, posterUrl = cover, portraitArtworkUrl = cover,
-        backdropUrl = null, logoUrl = logo, posterTitlePresence = ArtworkTitlePresence.ABSENT,
-        portraitTitlePresence = ArtworkTitlePresence.ABSENT, logoAlternatives = emptyList(), portraitAlternatives = emptyList())
+        backdropUrl = null, logoUrl = logo, posterTitlePresence = titlePresence,
+        portraitTitlePresence = titlePresence, logoAlternatives = emptyList(), portraitAlternatives = emptyList())
     fun encode(): String = JSONObject().put("title", title).put("cover", cover).put("ratio", ratio)
-        .put("logo", logo).toString()
+        .put("logo", logo).put("titlePresence", titlePresence.name).toString()
     companion object {
         fun decode(raw: String?): CanonicalArtwork? = runCatching {
             val json = JSONObject(requireNotNull(raw))
@@ -28,7 +28,8 @@ internal data class CanonicalArtwork(val title: String, val cover: String?, val 
             val ratio = json.getDouble("ratio").toFloat().takeIf { it in .35f..3f } ?: return null
             val logo = CatalogJson.text(json, "logo")
             val local = logo.takeIf { Regex("file:///android_asset/anime-logos/(anilist_[0-9]+|dandivine|chojo|dark_machine|firefly_wedding)\\.png").matches(it) }
-            CanonicalArtwork(title, cover, ratio, CatalogJson.image(logo) ?: local)
+            val presence = json.optString("titlePresence", "ABSENT").let { ArtworkTitlePresence.valueOf(it) }
+            CanonicalArtwork(title, cover, ratio, CatalogJson.image(logo) ?: local, presence)
         }.getOrNull()
     }
 }
@@ -69,7 +70,7 @@ internal object CanonicalArtworkPolicy {
 
 internal data class ArtworkInspection(val ratio: Float, val clean: Boolean = false, val genericLogo: Boolean = false)
 
-/** Shared by Home and detail. Only inspected covers persist; their written-name fallback is stable too. */
+/** Load a series-level illustration without gating every card behind OCR and logo downloads. */
 internal class CanonicalArtworkResolver(
     private val metadata: suspend (MediaItem) -> MediaItem,
     private val inspect: suspend (String, Boolean, String) -> ArtworkInspection?,
@@ -77,7 +78,7 @@ internal class CanonicalArtworkResolver(
     private val write: (String, String) -> Unit = { _, _ -> }
 ) {
     private val locks = List(32) { Mutex() }
-    private val slots = Semaphore(2)
+    private val slots = Semaphore(4)
     private val memory = object : LinkedHashMap<String, CanonicalArtwork>(128, .75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CanonicalArtwork>?) = size > 256
     }
@@ -87,37 +88,44 @@ internal class CanonicalArtworkResolver(
         CanonicalArtwork.decode(read(key))?.let { synchronized(memory) { memory[key] = it }; return@withLock it }
         slots.withPermit {
             val root = CanonicalArtworkIdentity.root(item)
-            val source = try { metadata(root) } catch (e: CancellationException) { throw e }
-                catch (_: Exception) { return@withPermit CanonicalArtwork(root.title, null) }
-            var transientFailure = false
-            suspend fun check(url: String, logo: Boolean): ArtworkInspection? = try {
-                inspect(url, logo, source.title).also { if (it == null) transientFailure = true }
-            } catch (e: CancellationException) { throw e } catch (_: Exception) { transientFailure = true; null }
-            var cover: String? = null
-            var ratio = 2f / 3f
-            // Ranked metadata candidates are all inspected off-screen. Nothing rejected is painted.
-            withTimeoutOrNull(12_000) {
-                for (url in (listOfNotNull(source.portraitArtworkUrl) + source.portraitAlternatives +
-                        listOfNotNull(source.posterUrl, source.backdropUrl)).map(ArtworkImages::canonicalResolution).distinct().take(10)) {
-                    val result = check(url, false) ?: continue
-                    if (result.clean) { cover = url; ratio = result.ratio; break }
-                }
-            } ?: run { transientFailure = true }
-            var logo: String? = null
-            val logos = (listOfNotNull(source.logoUrl) + source.logoAlternatives + ArtworkImages.logos(source))
-                .mapNotNull(ArtworkImages::highResolution).distinct().take(8)
-            withTimeoutOrNull(6_000) {
-                for (url in logos) {
-                    if (check(url, true)?.genericLogo == true) { logo = url; break }
-                }
-            } ?: run { transientFailure = true }
-            val choice = CanonicalArtwork(source.title, cover, ratio, logo)
-            currentCoroutineContext().ensureActive()
-            if (cover != null || !transientFailure) {
-                if (cover != null) write(key, choice.encode())
-                synchronized(memory) { memory[key] = choice }
+            // Only trust seed art when it already belongs to the root, not a mapped anime part or saved season.
+            val seed = item.takeIf { it.key == root.key && it.seasonHint == null && it.animeEntryId == null &&
+                listOf(it.portraitArtworkUrl, it.posterUrl, it.backdropUrl).any { url -> CatalogJson.image(url) != null } }
+            val source = seed ?: try { withTimeoutOrNull(8_000) { metadata(root) } }
+                catch (e: CancellationException) { throw e }
+                catch (_: Exception) { null }
+                ?: return@withPermit CanonicalArtwork(root.title, null)
+            val portrait = CatalogJson.image(source.portraitArtworkUrl)
+            val poster = CatalogJson.image(source.posterUrl)
+            val backdrop = CatalogJson.image(source.backdropUrl)
+            val url = portrait ?: poster ?: backdrop
+                ?: return@withPermit CanonicalArtwork(source.title, null)
+            val presence = when (url) {
+                portrait -> source.portraitTitlePresence
+                poster -> source.posterTitlePresence
+                else -> source.backdropTitlePresence
             }
+            val choice = CanonicalArtwork(source.title, ArtworkImages.canonicalResolution(url),
+                if (portrait == null && poster == null) 16f / 9f else 2f / 3f, titlePresence = presence)
+            currentCoroutineContext().ensureActive()
+            write(key, choice.encode())
+            synchronized(memory) { memory[key] = choice }
             choice
+        }
+    }
+
+    /** Hero-only optional work, after the cover is visible. Never gates a catalog card. */
+    suspend fun logo(item: MediaItem): String? {
+        val root = CanonicalArtworkIdentity.root(item)
+        val source = try { withTimeoutOrNull(5_000) { metadata(root) } }
+            catch (e: CancellationException) { throw e } catch (_: Exception) { null } ?: return null
+        return withTimeoutOrNull(6_000) {
+            for (url in ArtworkImages.logos(source).mapNotNull(ArtworkImages::highResolution).distinct().take(4)) {
+                val inspected = try { inspect(url, true, source.title) }
+                    catch (e: CancellationException) { throw e } catch (_: Exception) { null }
+                if (inspected?.genericLogo == true) return@withTimeoutOrNull url
+            }
+            null
         }
     }
 }

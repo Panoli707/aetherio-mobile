@@ -37,19 +37,17 @@ class CanonicalArtworkUiTest {
         return file.toURI().toString()
     }
 
-    @Test fun rejectedPixelsAreNeverPaintedAndTheResolvedCoverDoesNotChangeWithSeasonOrOrientation() {
+    @Test fun selectedCoverDoesNotChangeWithSeasonOrOrientation() {
         val dirty = image(Color.RED)
         val clean = image(Color.GREEN)
         val started = AtomicBoolean(false)
         val item = mutableStateOf(MediaItem("90000000", MediaType.SERIES, "Canonical title", posterUrl = dirty,
             portraitAlternatives = listOf(clean)))
         val portrait = mutableStateOf(true)
-        val resolver = CanonicalArtworkResolver({ item.value }, { url, logo, _ ->
-            assertFalse(logo)
+        val provider = ArtworkProvider {
             started.set(true); gate.await()
-            ArtworkInspection(2f / 3f, clean = url == clean)
-        })
-        val provider = ArtworkProvider { resolver.resolve(it) }
+            CanonicalArtwork(it.title, clean)
+        }
         compose.setContent { AetherioTheme { CompositionLocalProvider(LocalArtworkProvider provides provider) {
             Box(Modifier.width(360.dp)) { HeroArtwork(item.value, portrait.value, 800.dp, fullImage = true) }
         } } }
@@ -74,7 +72,7 @@ class CanonicalArtworkUiTest {
     }
 
     @Test fun noSafeCoverUsesNeutralFrameInsteadOfAPrintedPosterAndUnvalidatedLogo() {
-        val item = MediaItem("90000001", MediaType.MOVIE, "Neutral title", posterUrl = image(Color.RED), logoUrl = "https://invalid/season.png")
+        val item = MediaItem("90000001", MediaType.MOVIE, "Neutral title", logoUrl = "https://invalid/season.png")
         val resolver = CanonicalArtworkResolver({ item }, { _, _, _ -> ArtworkInspection(.7f) })
         val provider = ArtworkProvider { resolver.resolve(it) }
         compose.setContent { AetherioTheme { CompositionLocalProvider(LocalArtworkProvider provides provider) {

@@ -36,8 +36,9 @@ internal fun IntegratedDetailHero(item: MediaItem, imageHeight: Dp, showTitle: B
                 drawRect(brush)
             }
         })
-        if (showTitle) Box(Modifier.widthIn(max = 300.dp).fillMaxWidth().padding(horizontal = 18.dp)) {
-            DetailTitle(item, Modifier.fillMaxWidth(), imageLoader, compact = compact, insideArtwork = true,
+        // Keep the measured child slots stable while asynchronous OCR changes composition.
+        Box(Modifier.widthIn(max = 300.dp).fillMaxWidth().padding(horizontal = 18.dp)) {
+            if (showTitle) DetailTitle(item, Modifier.fillMaxWidth(), imageLoader, compact = compact, insideArtwork = true,
                 canonical = canonicalLogo, pending = titleLoading)
         }
     }) { measurables, constraints ->

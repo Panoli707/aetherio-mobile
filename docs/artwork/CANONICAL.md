@@ -1,5 +1,7 @@
 # Una identidad visual por título desde 0.20.0
 
+> **Corrección 0.20.1:** la validación OCR descrita abajo ya no bloquea la portada ni las tarjetas. Se fija y muestra una imagen del título principal sin esperar metadatos adicionales si el catálogo ya la proporciona. Si no hay una selección limpia, se admite el póster del título y se omite el logo superpuesto mientras haya texto o incertidumbre. Solo la ficha analiza la composición, después de mostrar la imagen; las tarjetas no hacen OCR. La validación opcional de logos va separada. Los registros válidos antiguos siguen siendo compatibles. Véanse los cambios actuales en [0.20.1](../releases/0.20.1.md). El resto de este documento describe el diseño original y los límites de 0.20.0.
+
 ## Comportamiento
 
 Inicio, fichas y tarjetas de catálogo comparten una selección de portada por película o serie. Cambiar la temporada modifica los episodios, no la portada ni el logo. Las imágenes de episodios siguen siendo fotogramas del episodio, no portadas nuevas de la serie.

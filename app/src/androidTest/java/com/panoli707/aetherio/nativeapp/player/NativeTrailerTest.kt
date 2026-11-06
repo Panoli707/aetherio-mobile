@@ -22,7 +22,7 @@ class NativeTrailerTest {
     @get:Rule val compose = createEmptyComposeRule()
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
-    @Test fun directMediaRoutesToTheNativePlayerAndYoutubeStaysOfficialAndInternal() {
+    @Test fun bothDirectAndYoutubeTrailersRouteToTheNativePlayerWithoutEpisodeExtras() {
         val direct = DetailLinks.directTrailer("https://cdn.example/trailer.mp4", "Tráiler directo")!!
         val native = TrailerPlayback.intent(context, direct)
         assertEquals(VideoActivity::class.java.name, native.component!!.className)
@@ -31,7 +31,10 @@ class NativeTrailerTest {
         assertFalse(native.hasExtra(VideoActivity.EXTRA_HAS_SOURCES))
         assertFalse(native.hasExtra(VideoActivity.EXTRA_TORRENT_REQUEST))
         val youtube = TrailerPlayback.intent(context, DetailLinks.trailer("M7lc1UVf-VE", "YouTube")!!)
-        assertEquals(TrailerActivity::class.java.name, youtube.component!!.className)
+        assertEquals(VideoActivity::class.java.name, youtube.component!!.className)
+        assertTrue(youtube.getBooleanExtra(VideoActivity.EXTRA_TRAILER, false))
+        assertEquals("M7lc1UVf-VE", youtube.getStringExtra(VideoActivity.EXTRA_YOUTUBE_ID))
+        assertFalse(youtube.hasExtra(VideoActivity.EXTRA_URL))
         assertThrows(IllegalArgumentException::class.java) {
             TrailerPlayback.intent(context, direct.copy(url = "https://www.youtube.com/watch?v=M7lc1UVf-VE"))
         }
@@ -57,6 +60,45 @@ class NativeTrailerTest {
         if (view is PlayerView) return view.player
         if (view is ViewGroup) for (i in 0 until view.childCount) player(view.getChildAt(i))?.let { return it }
         return null
+    }
+    private fun containsWebView(view: View): Boolean = view is android.webkit.WebView ||
+        (view is ViewGroup && (0 until view.childCount).any { containsWebView(view.getChildAt(it)) })
+
+    @Test fun mixedYoutubeAndDirectIntentsAreRejectedWithoutStartingPlayback() {
+        val intent = TrailerPlayback.intent(context, DetailLinks.trailer("M7lc1UVf-VE", "Invalid mixed request")!!)
+            .putExtra(VideoActivity.EXTRA_URL, "https://cdn.example/trailer.mp4")
+        ActivityScenario.launch<VideoActivity>(intent).use { scenario ->
+            compose.onNodeWithText("Reintentar").assertIsDisplayed()
+            scenario.onActivity { assertNull(player(it.window.decorView)); assertFalse(containsWebView(it.window.decorView)) }
+        }
+    }
+
+    @Test fun optInYoutubeTrailerReallyPlaysInNativePlayerWithAudioAndNoWebView() = runBlocking {
+        assumeTrue(InstrumentationRegistry.getArguments().getString("liveYoutubeTrailer") == "true")
+        val id = InstrumentationRegistry.getArguments().getString("youtubeTrailerId") ?: "zSWdZVtXT7E"
+        val stream = YoutubeTrailerResolver.resolve(context, id)
+        assertTrue(stream.url.contains(".googlevideo.com/"))
+        val before = WatchHistoryRepository.get(context).load()
+        ActivityScenario.launch<VideoActivity>(TrailerPlayback.intent(context, DetailLinks.trailer(id, "Tráiler YouTube QA")!!)).use { scenario ->
+            compose.waitUntil(90_000) {
+                var ready = false
+                scenario.onActivity { activity ->
+                    val p = player(activity.window.decorView)
+                    ready = p?.playbackState == Player.STATE_READY && p.currentPosition > 500 && p.videoSize.height > 0
+                }
+                ready
+            }
+            scenario.onActivity { activity ->
+                val p = player(activity.window.decorView)!!
+                assertFalse(containsWebView(activity.window.decorView))
+                assertTrue(p.currentTracks.groups.any { it.type == androidx.media3.common.C.TRACK_TYPE_AUDIO && it.isSelected })
+                p.pause()
+                if (p.isCurrentMediaItemSeekable) p.seekTo(2_000)
+            }
+            scenario.moveToState(androidx.lifecycle.Lifecycle.State.CREATED)
+            scenario.onActivity { assertNull(player(it.window.decorView)) }
+        }
+        assertEquals(before, WatchHistoryRepository.get(context).load())
     }
 
     @Test fun optInDirectSampleReallyPlaysInAetherioWithoutCreatingWatchProgress() = runBlocking {

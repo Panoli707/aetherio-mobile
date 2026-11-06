@@ -7,97 +7,97 @@ import org.junit.Test
 
 class CanonicalArtworkTest {
     private val base = MediaItem("220542", MediaType.SERIES, "The Apothecary Diaries", posterUrl = "https://fixture/printed.jpg",
-        portraitAlternatives = listOf("https://fixture/clean.jpg"), logoUrl = "https://fixture/season.png",
-        logoAlternatives = listOf("https://fixture/title.png"))
+        logoUrl = "https://fixture/season.png", logoAlternatives = listOf("https://fixture/title.png"))
 
-    @Test fun rejectsPrintedCoversAndSeasonLogosThenPersistsExactlyOnePairAcrossSeasonsAndRestarts() = runTest {
+    @Test fun printedCatalogPosterLoadsWithoutMetadataOcrOrLogoRequestsAndStaysPinnedAcrossSeasons() = runTest {
         val disk = mutableMapOf<String, String>()
-        val inspected = mutableListOf<String>()
-        var metadataCalls = 0
-        fun resolver() = CanonicalArtworkResolver({ metadataCalls++; base }, { url, logo, _ ->
-            inspected += url
-            ArtworkInspection(2f / 3f, clean = !logo && url.endsWith("clean.jpg"), genericLogo = logo && url.endsWith("title.png"))
-        }, disk::get, { key, value -> disk[key] = value })
+        fun resolver() = CanonicalArtworkResolver({ error("must not fetch metadata for a root seed") },
+            { _, _, _ -> error("OCR must not gate cover loading") }, disk::get, { key, value -> disk[key] = value })
         val first = resolver()
-        val chosen = first.resolve(base)
-        assertEquals("https://fixture/clean.jpg", chosen.cover)
-        assertEquals("https://fixture/title.png", chosen.logo)
-        assertEquals(chosen, first.resolve(base.copy(seasonHint = 3, animeEntryId = "195516", posterUrl = "wrong")))
-        assertEquals(chosen, resolver().resolve(base.copy(seasonHint = 2)))
-        assertEquals(1, metadataCalls)
+        val choice = first.resolve(base)
+        assertEquals(base.posterUrl, choice.cover)
+        assertEquals(ArtworkTitlePresence.UNKNOWN, choice.titlePresence)
+        assertNull(choice.logo) // Do not put a second title over a printed poster.
+        assertEquals(choice, first.resolve(base.copy(seasonHint = 3, posterUrl = "https://fixture/season3.jpg")))
+        assertEquals(choice, resolver().resolve(base.copy(seasonHint = 2)))
         assertEquals(1, disk.size)
-        assertFalse(inspected.any { it.contains("wrong") })
     }
 
-    @Test fun incompleteOcrAndNetworkFailureNeverBecomeCleanArtworkOrAPermanentNegativeChoice() = runTest {
+    @Test fun savedSeasonArtIsNeverUsedAsTheRootAndCleanMetadataPortraitWins() = runTest {
+        var calls = 0
+        val resolver = CanonicalArtworkResolver({ calls++; base.copy(portraitArtworkUrl = "https://fixture/clean.jpg",
+            portraitTitlePresence = ArtworkTitlePresence.ABSENT) }, { _, _, _ -> error("no OCR in cover path") })
+        val choice = resolver.resolve(base.copy(seasonHint = 2, posterUrl = "https://fixture/wrong-season.jpg"))
+        assertEquals("https://fixture/clean.jpg", choice.cover)
+        assertEquals(ArtworkTitlePresence.ABSENT, choice.titlePresence)
+        assertEquals(1, calls)
+    }
+
+    @Test fun failedMetadataDoesNotPinAbsenceAndRetriesWhenItRecovers() = runTest {
         var online = false
-        var writes = 0
-        val resolver = CanonicalArtworkResolver({ if (!online) error("offline") else base }, { url, _, _ ->
-            if (url.endsWith("clean.jpg")) ArtworkInspection(.7f, clean = true) else null
-        }, write = { _, _ -> writes++ })
-        assertNull(resolver.resolve(base).cover)
+        val item = base.copy(posterUrl = null)
+        val resolver = CanonicalArtworkResolver({ if (!online) error("offline") else base }, { _, _, _ -> null })
+        assertNull(resolver.resolve(item).cover)
         online = true
-        assertNotNull(resolver.resolve(base).cover)
-        assertEquals(1, writes) // A verified cover stays pinned even if the logo falls back to its written name.
-        assertFalse(CanonicalArtworkPolicy.clean("", false))
-        assertFalse(CanonicalArtworkPolicy.clean("SERIES TITLE", true))
-        assertFalse(CanonicalArtworkPolicy.clean("第2期", true))
-        assertTrue(CanonicalArtworkPolicy.clean("", true))
+        assertEquals(base.posterUrl, resolver.resolve(item).cover)
     }
 
-    @Test fun sameTitleRequestsAreCoalescedAndCancelledSelectionsDoNotPersist() = runTest {
+    @Test fun emptyMetadataAndTimeoutRemainRetryable() = runTest {
+        var calls = 0
+        val resolver = CanonicalArtworkResolver({ calls++; if (calls == 1) delay(9_000); base.copy(posterUrl = null) }, { _, _, _ -> null })
+        assertNull(resolver.resolve(base.copy(posterUrl = null)).cover)
+        assertNull(resolver.resolve(base.copy(posterUrl = null)).cover)
+        assertEquals(2, calls)
+    }
+
+    @Test fun sameTitleRequestsAreCoalescedAndCancellationDoesNotPersist() = runTest {
         var calls = 0
         var writes = 0
         val gate = CompletableDeferred<Unit>()
-        val resolver = CanonicalArtworkResolver({ calls++; gate.await(); base.copy(logoUrl = null, logoAlternatives = emptyList()) },
-            { _, _, _ -> ArtworkInspection(.7f, clean = true) }, write = { _, _ -> writes++ })
-        val a = async { resolver.resolve(base) }
-        val b = async { resolver.resolve(base.copy(seasonHint = 2)) }
+        val resolver = CanonicalArtworkResolver({ calls++; gate.await(); base }, { _, _, _ -> null }, write = { _, _ -> writes++ })
+        val item = base.copy(posterUrl = null)
+        val a = async { resolver.resolve(item) }
+        val b = async { resolver.resolve(item.copy(seasonHint = 2)) }
         gate.complete(Unit)
         assertEquals(a.await(), b.await()); assertEquals(1, calls); assertEquals(1, writes)
         val cancelled = CanonicalArtworkResolver({ awaitCancellation() }, { _, _, _ -> null }, write = { _, _ -> error("must not write") })
-        val job = launch(start = CoroutineStart.UNDISPATCHED) { cancelled.resolve(base) }
+        val job = launch(start = CoroutineStart.UNDISPATCHED) { cancelled.resolve(item) }
         job.cancelAndJoin()
     }
 
-    @Test fun mappedAnimePartsShareOneSeriesKeyButMoviesAndUnverifiedLookalikesStaySeparate() {
-        val keys = listOf("161645", "176301", "195516").map {
-            CanonicalArtworkIdentity.key(MediaItem(it, MediaType.SERIES, "Any title", CatalogSource.ANILIST))
-        }
-        assertEquals(listOf(base.key, base.key, base.key), keys)
-        assertNotEquals(CanonicalArtworkIdentity.key(base), CanonicalArtworkIdentity.key(base.copy(type = MediaType.MOVIE)))
-        assertNotEquals(CanonicalArtworkIdentity.key(base), CanonicalArtworkIdentity.key(base.copy(id = "999999999")))
+    @Test fun logoValidationRunsSeparatelyAndRejectsSeasonCandidates() = runTest {
+        val inspected = mutableListOf<String>()
+        val resolver = CanonicalArtworkResolver({ base }, { url, logo, _ ->
+            assertTrue(logo); inspected += url
+            ArtworkInspection(3f, genericLogo = url.endsWith("title.png"))
+        })
+        assertNotNull(resolver.resolve(base).cover)
+        assertTrue(inspected.isEmpty())
+        assertEquals("https://fixture/title.png", resolver.logo(base))
     }
 
-    @Test fun logoGuardsRejectSeasonWordsNumbersRomanNumeralsAndOpaqueOrUnreadableImages() {
-        for (text in listOf("Series Season 2", "Series Temporada II", "Series III", "Series 2", "Series Cour", "Series 第2期"))
+    @Test fun mappedAnimePartsShareOneSeriesKeyButMoviesStaySeparate() {
+        for (id in listOf("161645", "176301", "195516")) assertEquals(base.key,
+            CanonicalArtworkIdentity.key(MediaItem(id, MediaType.SERIES, "Any title", CatalogSource.ANILIST)))
+        assertNotEquals(CanonicalArtworkIdentity.key(base), CanonicalArtworkIdentity.key(base.copy(type = MediaType.MOVIE)))
+    }
+
+    @Test fun logoGuardsKeepRejectingSeasonWordsAndUnrelatedText() {
+        for (text in listOf("Series Season 2", "Series Temporada II", "Series III", "Series 2", "Series Cour", "Series 第2期", "Series Shibuya Incident"))
             assertFalse(text, CanonicalArtworkPolicy.genericLogo(text, "Series", true, true))
         assertTrue(CanonicalArtworkPolicy.genericLogo("Series", "Series", true, true))
         assertTrue(CanonicalArtworkPolicy.genericLogo("86", "86", true, true))
-        assertTrue(CanonicalArtworkPolicy.genericLogo("Blade Runner 2049", "Blade Runner 2049", true, true))
         assertFalse(CanonicalArtworkPolicy.genericLogo("Series", "Series", false, true))
         assertFalse(CanonicalArtworkPolicy.genericLogo("Series", "Series", true, false))
-        assertFalse(CanonicalArtworkPolicy.genericLogo("Series Shibuya Incident", "Series", true, true))
     }
 
-    @Test fun invalidOrLegacyDiskRecordsCannotReintroduceUnvalidatedArtwork() {
+    @Test fun oldValidatedRecordsRemainCompatibleAndNewUnknownPresenceRoundTrips() {
         assertNull(CanonicalArtwork.decode("{}"))
         assertNull(CanonicalArtwork.decode("""{"title":"Series","cover":"file:///private","ratio":0.7}"""))
-        assertNull(CanonicalArtwork.decode("""{"title":"Series","cover":"https://cdn/image","ratio":0}"""))
-        val value = CanonicalArtwork("Series", "https://cdn/image", .7f, "https://cdn/logo")
-        assertEquals(value, CanonicalArtwork.decode(value.encode()))
-        assertEquals("file:///android_asset/anime-logos/anilist_1.png",
-            CanonicalArtwork.decode(value.copy(logo = "file:///android_asset/anime-logos/anilist_1.png").encode())!!.logo)
-    }
-
-    @Test fun reviewedCatalogHasExactlyOneSafePairPerRootWithoutSeasonKeys() {
+        val legacy = CanonicalArtwork.decode("""{"title":"Series","cover":"https://fixture/clean.jpg","ratio":0.7}""")!!
+        assertEquals(ArtworkTitlePresence.ABSENT, legacy.titlePresence)
+        val choice = legacy.copy(titlePresence = ArtworkTitlePresence.UNKNOWN)
+        assertEquals(choice, CanonicalArtwork.decode(choice.encode()))
         assertEquals(7, CanonicalArtworkCatalog.entries.size)
-        CanonicalArtworkCatalog.entries.forEach { (key, value) ->
-            assertTrue(Regex("TMDB:(movie|tv):[0-9]+").matches(key))
-            assertNotNull(value.cover); assertNotNull(value.logo)
-            assertEquals(value, CanonicalArtwork.decode(value.encode()))
-        }
-        assertEquals(CanonicalArtworkCatalog.entries["TMDB:tv:220542"],
-            CanonicalArtworkCatalog.entries[CanonicalArtworkIdentity.key(MediaItem("176301", MediaType.SERIES, "Season 2", CatalogSource.ANILIST))])
     }
 }

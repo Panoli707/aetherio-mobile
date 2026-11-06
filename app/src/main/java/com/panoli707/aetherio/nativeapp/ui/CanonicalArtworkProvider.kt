@@ -15,7 +15,10 @@ import com.panoli707.aetherio.nativeapp.data.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-internal fun interface ArtworkProvider { suspend fun resolve(item: MediaItem): CanonicalArtwork }
+internal fun interface ArtworkProvider {
+    suspend fun resolve(item: MediaItem): CanonicalArtwork
+    suspend fun logo(item: MediaItem): String? = null
+}
 internal val LocalArtworkProvider = staticCompositionLocalOf<ArtworkProvider?> { null }
 
 @androidx.compose.runtime.Composable
@@ -50,7 +53,14 @@ internal class CanonicalArtworkProvider(context: Context, private val loader: ()
         read = { preferences.getString(it, null) },
         write = { key, value -> preferences.edit().putString(key, value).apply() })
     override suspend fun resolve(item: MediaItem): CanonicalArtwork = withContext(Dispatchers.IO) {
-        CanonicalArtworkCatalog.entries[CanonicalArtworkIdentity.key(item)] ?: resolver.resolve(item)
+        LoadTiming.measure(LoadTiming.Stage.ARTWORK_SELECT) {
+            CanonicalArtworkCatalog.entries[CanonicalArtworkIdentity.key(item)] ?: resolver.resolve(item)
+        }
+    }
+    override suspend fun logo(item: MediaItem): String? = withContext(Dispatchers.IO) {
+        val key = CanonicalArtworkIdentity.key(item)
+        val saved = preferences.getString("logo:$key", null)
+        saved ?: resolver.logo(item)?.also { preferences.edit().putString("logo:$key", it).apply() }
     }
 
     private suspend fun inspect(url: String, logo: Boolean, title: String): ArtworkInspection? {

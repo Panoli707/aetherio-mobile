@@ -12,6 +12,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.security.MessageDigest;
 
 /** Android APIs only: exercises the installed optimized APK, without app/test-only hooks. */
 public final class RegressionReleaseInstrumentation extends Instrumentation {
@@ -156,7 +158,25 @@ public final class RegressionReleaseInstrumentation extends Instrumentation {
             SystemClock.sleep(200);
         } while (SystemClock.uptimeMillis() < end);
         boolean cold = args.getString("mode", "all").equals("trailer-cold");
-        require(playing || (youtube && error && !cold), "Trailer did not play or provide a recoverable error");
+        require(playing || (youtube && error), "Trailer did not play or provide a recoverable error");
+        if (cold && youtube) {
+            // The bundled extractor is installed only AFTER YoutubeDL.init() fully extracts Python.
+            // A network restriction must not mask a failed extraction or the guarded linkage error.
+            File extractor = new File(getTargetContext().getNoBackupFilesDir(), "youtubedl-android/yt-dlp/yt-dlp");
+            require(extractor.isFile(), "Cold runtime extraction did not complete");
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            try (FileInputStream input = new FileInputStream(extractor)) {
+                byte[] buffer = new byte[8192];
+                int count;
+                while ((count = input.read(buffer)) != -1) digest.update(buffer, 0, count);
+            }
+            StringBuilder hash = new StringBuilder();
+            for (byte value : digest.digest()) hash.append(String.format(java.util.Locale.ROOT, "%02x", value & 255));
+            require(hash.toString().equals("e51e69e89489f199530f13d32a4342da3ddb2cf34842f364603a066db05afbf3"), "Bundled extractor not installed after cold initialization");
+            require(find(getUiAutomation().getRootInActiveWindow(), "No se pudo iniciar el motor", false) == null,
+                "Runtime linkage guard fired: the cold extraction regression is not fixed");
+            sendStatus(0, status("YouTube cold runtime: full extraction and bundled SHA-256 verified\n"));
+        }
         if (playing) {
             click(waitFor("Pausar", 5000));
             waitFor("Reproducir", 5000);

@@ -33,6 +33,6 @@ if ($LASTEXITCODE -ne 0) { throw 'No se pudo firmar el APK de pruebas.' }
 if ($BuildOnly) { "Probe compilado: $out/probe.apk"; return }
 & $adb -s $Serial install -r "$out/probe.apk"
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo instalar el probe.' }
-$result = & $adb -s $Serial shell am instrument -w com.panoli707.aetherio.artworkqa0202/com.panoli707.aetherio.artworkqa.ArtworkReleaseInstrumentation
+$result = & $adb -s $Serial shell am instrument -r -w com.panoli707.aetherio.artworkqa0202/com.panoli707.aetherio.artworkqa.ArtworkReleaseInstrumentation
 $result | Tee-Object -FilePath "$out/result.txt"
 if ($LASTEXITCODE -ne 0 -or ($result -join "`n") -notmatch 'INSTRUMENTATION_CODE: -1\s*$') { throw 'Fallo la verificacion del APK release.' }

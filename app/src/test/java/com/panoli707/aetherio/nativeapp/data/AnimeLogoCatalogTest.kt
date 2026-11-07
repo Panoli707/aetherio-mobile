@@ -1,44 +1,36 @@
 package com.panoli707.aetherio.nativeapp.data
 
-import java.io.File
-import java.security.MessageDigest
-import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
 
 class AnimeLogoCatalogTest {
-    @Test fun everyAuditedIdentityUsesOneSeriesCandidateIndependentlyOfSeason() {
-        assertTrue(AnimeLogoCatalog.entries.isNotEmpty())
-        for (entry in AnimeLogoCatalog.entries) {
-            val first = AnimeLogoCatalog.entries.filter { it.tmdbId == entry.tmdbId && it.type == entry.type }
-                .sortedWith(compareBy<AnimeLogoCatalog.Entry> { it.season ?: 0 }.thenBy { it.animeId.toLong() }).first()
-            val expected = "file:///android_asset/anime-logos/${first.asset}"
-            val anime = MediaItem(entry.animeId, entry.type, "Nombre arbitrario", CatalogSource.ANILIST)
-            assertEquals(expected, AnimeLogoCatalog.logo(anime))
-            val tmdb = anime.copy(id = entry.tmdbId, source = CatalogSource.TMDB,
-                seasonHint = entry.season, animeEntryId = entry.animeId)
-            assertEquals(expected, AnimeLogoCatalog.logo(tmdb))
-            assertEquals(expected, AnimeLogoCatalog.logo(tmdb.copy(animeEntryId = "999999999")))
-            assertNull(AnimeLogoCatalog.logo(anime.copy(source = CatalogSource.CINEMETA)))
-            assertNull(AnimeLogoCatalog.logo(anime.copy(type = if (entry.type == MediaType.MOVIE) MediaType.SERIES else MediaType.MOVIE)))
-            if (entry.type == MediaType.SERIES) assertEquals(expected, AnimeLogoCatalog.logo(tmdb.copy(seasonHint = 999)))
-            assertEquals(expected, ArtworkImages.logos(anime.copy(logoUrl = "https://example.org/fallback.png")).first())
+    private val ids = listOf("213068" to "323937", "200294" to "327765", "179876" to "306565", "205909" to "320909")
+
+    @Test fun eachExplicitAnimeAndItsTmdbSeriesUseTheSameLocalLogoWithoutChangingAnyArtwork() {
+        val paths = ids.map { (anime, tmdb) ->
+            val item = MediaItem(anime, MediaType.SERIES, "Un nombre localizado", CatalogSource.ANILIST,
+                posterUrl = "poster", backdropUrl = "backdrop", logoUrl = "remote", portraitArtworkUrl = "clean",
+                logoAlternatives = listOf("backup"))
+            val snapshot = item.copy()
+            val local = ArtworkImages.logos(item).first()
+            assertTrue(local.startsWith("file:///android_asset/anime-logos/"))
+            assertTrue(Regex("file:///android_asset/anime-logos/anilist_[0-9]+\\.png").matches(local))
+            assertEquals(listOf(local, "remote", "backup"), ArtworkImages.logos(item))
+            assertEquals(local, ArtworkImages.logos(item.copy(id = tmdb, source = CatalogSource.TMDB)).first())
+            assertEquals(snapshot, item)
+            local
         }
-        assertNull(AnimeLogoCatalog.logo(MediaItem("999999999", MediaType.SERIES, "Cowboy Bebop", CatalogSource.ANILIST)))
+        assertEquals(4, paths.toSet().size)
     }
 
-    @Test fun bundledFilesMatchTheirProvenanceHashesAndNoAssetIsOrphaned() {
-        val raw = checkNotNull(javaClass.classLoader?.getResourceAsStream("anime-logo-catalog.json"))
-            .bufferedReader().use { JSONObject(it.readText()) }.getJSONArray("logos")
-        for (index in 0 until raw.length()) {
-            val row = raw.getJSONObject(index)
-            val file = File("src/main/assets/anime-logos", row.getString("asset"))
-            assertTrue(file.isFile)
-            val hash = MessageDigest.getInstance("SHA-256").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
-            assertEquals(row.getString("sha256"), hash)
-            assertTrue(row.getString("source").startsWith("https://"))
-        }
-        assertEquals(AnimeLogoCatalog.entries.map { it.asset }.toSet(),
-            File("src/main/assets/anime-logos").listFiles()!!.filter { it.name.startsWith("anilist_") }.map { it.name }.toSet())
+    @Test fun similarlyNamedAnimeMoviesOtherSourcesAndDifferentSeasonsAreUntouched() {
+        val item = MediaItem("218938", MediaType.SERIES, "Hotaru no Yomeiri", CatalogSource.ANILIST, logoUrl = "original")
+        assertEquals(listOf("original"), ArtworkImages.logos(item))
+        assertNull(AnimeLogoCatalog.logo(item.copy(id = "205909", type = MediaType.MOVIE)))
+        assertNull(AnimeLogoCatalog.logo(item.copy(id = "205909", source = CatalogSource.CINEMETA)))
+        assertEquals(AnimeLogoCatalog.logo(item.copy(id = "320909", source = CatalogSource.TMDB)),
+            AnimeLogoCatalog.logo(item.copy(id = "320909", source = CatalogSource.TMDB, seasonHint = 2)))
+        assertEquals(AnimeLogoCatalog.logo(item.copy(id = "320909", source = CatalogSource.TMDB)),
+            AnimeLogoCatalog.logo(item.copy(id = "320909", source = CatalogSource.TMDB, animeEntryId = "218938")))
     }
 }

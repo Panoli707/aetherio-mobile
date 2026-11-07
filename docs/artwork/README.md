@@ -6,7 +6,7 @@
 
 ## Resultado de esta publicación
 
-284 títulos revisados: **144 logos nuevos** y cuatro ya incluidos. Quedan 136 casos pendientes: 69 identidades sin equivalencia inequívoca, 56 sin logo transparente válido en las imágenes consultadas, nueve fallos de consulta y dos recursos rechazados tras revisarlos visualmente. Cada caso conserva su nombre, ID y motivo en el informe JSON; un pendiente no significa que el logo no exista en ningún sitio de Internet.
+284 títulos revisados: **150 logos nuevos** y catorce ya incluidos. Quedan 120 casos pendientes: 69 identidades sin equivalencia inequívoca, 40 sin logo transparente genérico válido, nueve fallos de consulta y dos recursos rechazados tras revisarlos visualmente. Cada caso conserva su nombre, ID y motivo en el informe JSON.
 
 Jikan no respondió durante la revisión: sus ocho consultas de Inicio quedan explícitamente sin auditar. Se utilizaron sus equivalentes disponibles en AniList como ampliación, sin presentarlos como resultados de Jikan. La temporada actual y los últimos 30 días de emisiones sí se paginaron por completo.
 
@@ -30,11 +30,11 @@ Estados del informe:
 - `lookup-failed`: fallo de consulta, distinto de una ausencia de logo confirmada.
 - `rejected-after-visual-review`: imagen descartada por texto promocional, mala calidad o identidad visual incorrecta.
 
-Las equivalencias existentes por ID y temporada tienen prioridad. Una nueva equivalencia exige título original exacto, año de estreno, género animación e idioma original compatible; la ambigüedad deja el caso pendiente. En temporadas posteriores se consulta su endpoint específico, sin reutilizar automáticamente el logo de la primera. La tabla no modifica identidades de reproducción ni portadas.
+Las equivalencias existentes por ID y temporada tienen prioridad. Las temporadas de una misma serie comparten un solo wordmark genérico, sin texto de temporada. Las películas conservan su logo propio. Kaguya-sama usa el wordmark genérico de Crunchyroll, sin el subtítulo ‘Ultra Romantic’. Las filas de AniList identifican cada temporada, pero comparten el asset genérico de su serie.
 
 ## Recursos y presentación
 
-`app/src/main/resources/anime-logo-catalog.json` conserva IDs, tipo, temporada, URL original y SHA-256 de cada PNG añadido. Los archivos están en `app/src/main/assets/anime-logos/`; solo se eliminan márgenes transparentes, se limita la resolución y se añaden cuatro píxeles de margen. Se conservan colores y proporciones. La aplicación prioriza los cuatro overrides anteriores, después este catálogo, después los recursos remotos y finalmente el título escrito.
+`app/src/main/resources/anime-logo-catalog.json` conserva IDs, tipo, temporada, URL original y SHA-256 de cada PNG. Los archivos están en `app/src/main/assets/anime-logos/`; se recortan márgenes transparentes, se limita la resolución y se añaden cuatro píxeles de margen. La aplicación prioriza este catálogo, después los recursos remotos y finalmente el título escrito. Las temporadas de Attack on Titan, Gintama, Haikyuu, My Hero Academia, Mob Psycho 100, Vinland Saga y Black Clover apuntan a un solo wordmark genérico por serie.
 
 Los gráficos y marcas son de sus respectivos titulares, no de Aetherio. TMDB proporciona metadatos e imágenes de terceros: esta documentación no concede derechos sobre ellos ni implica afiliación. Véase también `third_party/anime-logos/README.md` y los avisos incluidos en el APK.
 

@@ -130,7 +130,7 @@ class ProviderHubUiTest {
         compose.runOnIdle { assertEquals(source to VideoFormat.HLS, chosen) }
     }
 
-    @Test fun partialProviderFailuresDoNotInterruptPlayableResultsOrReturnWhenFiltering() {
+    @Test fun partialProviderFailuresStayVisibleWithoutInterruptingPlayableResultsOrFilters() {
         val source = StreamSource("available", "fixture", "Fixture", "Fuente disponible", "", "https://cdn.example/video.mp4")
         val message = "Provider Hub o un proveedor opcional no respondió."
         val state = mutableStateOf(AppState(addonsLoading = false, sourcesLoading = true, sourceError = message))
@@ -139,10 +139,10 @@ class ProviderHubUiTest {
         } }
         compose.onNodeWithText(message).assertDoesNotExist()
         compose.runOnIdle { state.value = state.value.copy(sourcesLoading = false, sources = listOf(source)) }
-        compose.onNodeWithText(message).assertDoesNotExist()
+        compose.onNodeWithText(message).assertIsDisplayed()
         compose.onNodeWithContentDescription("Fixture, 1 fuente").performClick()
-        compose.onNodeWithText(message).assertDoesNotExist()
-        compose.onNodeWithTag("source:fixture:available").assertIsDisplayed().assertIsEnabled()
+        compose.onNodeWithText(message).assertIsDisplayed()
+        compose.onNodeWithTag("source:fixture:available").performScrollTo().assertIsDisplayed().assertIsEnabled()
         compose.runOnIdle { state.value = state.value.copy(sources = emptyList()) }
         compose.onNodeWithTag("sourceFailure").assertIsDisplayed()
         compose.onNodeWithText(message).assertIsDisplayed()
@@ -174,7 +174,7 @@ class ProviderHubUiTest {
         } }
         compose.onNodeWithText("Presentado por AnimeAV1", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithContentDescription("Todas las fuentes, 2").assertIsDisplayed()
-        compose.onNodeWithTag("sourceFailure").assertDoesNotExist()
+        compose.onNodeWithTag("sourceFailure").assertExists()
         if (InstrumentationRegistry.getArguments().getString("capturePlayer") == "true") {
             compose.waitForIdle()
             val instrumentation = InstrumentationRegistry.getInstrumentation()

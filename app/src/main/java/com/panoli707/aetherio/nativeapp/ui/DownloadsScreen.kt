@@ -62,7 +62,7 @@ internal fun BatchDownloadDialog(item: MediaItem, season: Int, episodes: List<Ep
                             .clickable(enabled = enabled) { selected = if (checked) selected - episode.number else selected + episode.number }.padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Checkbox(checked, onCheckedChange = { selected = if (it) selected + episode.number else selected - episode.number }, enabled = enabled)
-                            AsyncImage(episode.imageUrl ?: item.posterUrl, null, contentScale = ContentScale.Crop, modifier = Modifier.size(60.dp, 44.dp).clip(RoundedCornerShape(8.dp)))
+                            EpisodeArtwork(episode.imageUrl, item, Modifier.size(60.dp, 44.dp).clip(RoundedCornerShape(8.dp)))
                             Column(Modifier.weight(1f)) {
                                 Text("E${episode.number} · ${episode.title}", maxLines = 2, overflow = TextOverflow.Ellipsis)
                                 Text(if (!episode.released) "Todavía no emitido" else if (!enabled) "Ya está en Descargas" else episode.runtimeMinutes?.let { "$it min" }.orEmpty(),
@@ -96,7 +96,10 @@ internal fun DownloadsScreen(state: AppState, actions: PersonalActions, onBack: 
             Surface(Modifier.fillMaxWidth().padding(horizontal = 18.dp), shape = RoundedCornerShape(22.dp), color = Panel, border = BorderStroke(1.dp, Outline)) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        AsyncImage(record.target.imageUrl ?: record.target.item.posterUrl, null, contentScale = ContentScale.Crop, modifier = Modifier.size(64.dp, 72.dp).clip(RoundedCornerShape(10.dp)))
+                        if (record.target.episode != null)
+                            EpisodeArtwork(record.target.imageUrl, record.target.item, Modifier.size(64.dp, 72.dp).clip(RoundedCornerShape(10.dp)))
+                        else AsyncImage(record.target.imageUrl ?: record.target.item.posterUrl, null, contentScale = ContentScale.Crop,
+                            modifier = Modifier.size(64.dp, 72.dp).clip(RoundedCornerShape(10.dp)))
                         Column(Modifier.weight(1f)) {
                             Text(record.label, style = MaterialTheme.typography.titleMedium)
                             Text(record.provider, color = Muted, style = MaterialTheme.typography.bodySmall)

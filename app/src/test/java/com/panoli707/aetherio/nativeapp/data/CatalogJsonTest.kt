@@ -3,8 +3,18 @@ package com.panoli707.aetherio.nativeapp.data
 import org.json.JSONObject
 import org.junit.Assert.*
 import org.junit.Test
+import java.time.Instant
 
 class CatalogJsonTest {
+    @Test fun episodeWithAnExactReleaseTimeIsUnavailableUntilThatInstant() {
+        val json = JSONObject("""{"videos":[{"season":1,"episode":7,"title":"Episode 7","released":"2026-11-07T14:45:00Z"}]}""")
+        val beforeRelease = Instant.parse("2026-11-07T14:44:59Z").toEpochMilli()
+        val releaseTime = Instant.parse("2026-11-07T14:45:00Z").toEpochMilli()
+
+        assertFalse(CatalogJson.episodes(json, 1, cinemeta = true, nowMs = beforeRelease).single().released)
+        assertTrue(CatalogJson.episodes(json, 1, cinemeta = true, nowMs = releaseTime).single().released)
+    }
+
     @Test fun landscapeCandidatesAreHdWideAndLanguageNeutralIsOnlyAPreference() {
         val images = JSONObject("""{"backdrops":[
             {"width":640,"aspect_ratio":1.778,"file_path":"/small.jpg"},

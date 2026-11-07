@@ -12,6 +12,7 @@ import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -29,6 +30,7 @@ internal class AnimeTrackingApi(
     private val malUrl: String = "https://api.myanimelist.net/v2",
     private val malTokenUrl: String = "https://myanimelist.net/v1/oauth2/token",
     private val spacingMs: Long = 2200,
+    private val brokerUrl: String = AnimeOAuth.BROKER,
 ) {
     private val throttle = Mutex()
     private var nextAt = 0L
@@ -67,6 +69,22 @@ internal class AnimeTrackingApi(
     private suspend fun graph(query: String, variables: JSONObject = JSONObject(), token: String? = null): JSONObject =
         request(Request.Builder().url(graphUrl).post(JSONObject().put("query", query).put("variables", variables).toString()
             .toRequestBody("application/json".toMediaType())), token).getJSONObject("data")
+
+    suspend fun aniListAuthorization(clientId: String, pending: OAuthPending): String {
+        require(pending.service == AnimeService.ANILIST)
+        val body = JSONObject().put("state", pending.state).put("challenge", AnimeOAuth.challenge(pending))
+        val json = request(Request.Builder().url("$brokerUrl/start").post(body.toString().toRequestBody("application/json".toMediaType())))
+        // The server may never choose arbitrary browser destinations or change client/state/return.
+        val expected = AnimeOAuth.authorize(clientId, pending)
+        val actual = json.getString("authorizationUrl").toHttpUrl()
+        val wanted = expected.toHttpUrl()
+        require(actual.scheme == wanted.scheme && actual.host == wanted.host && actual.port == 443 &&
+            actual.encodedPath == wanted.encodedPath && actual.username.isEmpty() && actual.password.isEmpty() && actual.fragment == null &&
+            actual.queryParameterNames == wanted.queryParameterNames && actual.queryParameterNames.all { key ->
+                actual.queryParameterValues(key) == wanted.queryParameterValues(key)
+            })
+        return actual.toString()
+    }
 
     suspend fun malToken(clientId: String, pending: OAuthPending?, codeOrRefresh: String): OAuthSession {
         val form = FormBody.Builder().add("client_id", clientId)

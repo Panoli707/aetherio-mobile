@@ -36,7 +36,15 @@ internal class AnimeTrackingStore(context: Context, private val api: AnimeTracki
         val pending = AnimeOAuth.pending(service, System.currentTimeMillis())
         secrets.write("pending_${service.name}", pending.encode())
         change(service) { it.copy(error = null) }
-        AnimeOAuth.authorize(clientId(service), pending)
+        try {
+            if (service == AnimeService.ANILIST) api.aniListAuthorization(clientId(service), pending)
+            else AnimeOAuth.authorize(clientId(service), pending)
+        } catch (e: CancellationException) { throw e }
+        catch (_: Exception) {
+            secrets.write("pending_${service.name}", null)
+            change(service) { it.copy(error = "No se pudo iniciar la autorización segura. Comprueba la conexión y vuelve a intentarlo; tu cuenta anterior se conserva.") }
+            error("AUTH_START")
+        }
     } }
     suspend fun finish(raw: String) {
         val service = AnimeOAuth.service(raw) ?: return
@@ -45,8 +53,7 @@ internal class AnimeTrackingStore(context: Context, private val api: AnimeTracki
             val params = AnimeOAuth.callback(raw, pending, System.currentTimeMillis())
             secrets.write("pending_${service.name}", null) // Consume before exchanging credentials; a callback cannot be replayed.
             val session = if (service == AnimeService.ANILIST) {
-                val seconds = params["expires_in"]?.toLongOrNull()?.also { require(it in 1..31_536_000) } ?: 31_536_000
-                OAuthSession(params.getValue("access_token"), expiresAt = System.currentTimeMillis() + seconds * 1000)
+                OAuthSession(params.getValue("access_token"), expiresAt = System.currentTimeMillis() + params.getValue("expires_in").toLong() * 1000)
             } else api.malToken(clientId(service), pending, params.getValue("code"))
             val account = api.account(service, session.access)
             secrets.write("token_${service.name}", session.encode())

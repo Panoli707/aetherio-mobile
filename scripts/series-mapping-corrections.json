@@ -1,0 +1,11 @@
+{
+  "description": "Explicit ID/episode corrections, not title matching. TMDB combines both deliveries; IMDb and AniList separate them.",
+  "sources": [
+    "https://www.themoviedb.org/tv/283428/season/1",
+    "https://v3-cinemeta.strem.io/meta/series/tt39123061.json",
+    "https://anilist.co/anime/186497",
+    "https://anilist.co/anime/213805"
+  ],
+  "rows": [[186497,283428,1,0,1],[213805,283428,1,14,2]],
+  "legacyCombined": ["283428"]
+}

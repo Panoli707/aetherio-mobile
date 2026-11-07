@@ -40,7 +40,7 @@ class AnimeLogoLiveTest {
         compose.setContent { AetherioTheme { Box(Modifier.width(240.dp)) { HeroArtwork(item.value, true, 700.dp, fullImage = true) } } }
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         for (selected in items) {
-            assertNotNull(AnimeLogoOverrides.logo(selected))
+            assertNotNull(AnimeLogoCatalog.logo(selected))
             compose.runOnIdle { item.value = selected }
             compose.waitUntil(90_000) {
                 compose.onAllNodesWithTag("heroArtworkLoading", true).fetchSemanticsNodes().isEmpty() &&

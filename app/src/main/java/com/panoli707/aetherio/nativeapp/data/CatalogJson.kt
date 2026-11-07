@@ -3,6 +3,7 @@ package com.panoli707.aetherio.nativeapp.data
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URI
+import java.text.ParsePosition
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -81,7 +82,11 @@ internal object CatalogJson {
             if (tmdb) tmdbImage(text(json, "backdrop_path"), "w1280") else image(text(json, "background")),
             if (tmdb) logo(json.optJSONObject("images") ?: JSONObject()) else image(text(json, "logo")),
             text(json, if (tmdb) "overview" else "description"), Regex("[0-9]{4}").find(date)?.value.orEmpty(), score,
-            if (tmdb) objects(json.optJSONArray("genres")).mapNotNull { text(it, "name").takeIf(String::isNotEmpty) }
+            if (tmdb) objects(json.optJSONArray("genres")).mapNotNull { text(it, "name").takeIf(String::isNotEmpty) }.ifEmpty {
+                val ids = json.optJSONArray("genre_ids")
+                val names = (if (type == MediaType.MOVIE) DesktopDiscover.movieGenres else DesktopDiscover.seriesGenres).entries.associate { it.value to it.key }
+                (0 until (ids?.length() ?: 0)).mapNotNull { names[ids?.optInt(it)?.toString()] }
+            }
             else strings(json.optJSONArray("genres")), anime,
             if (tmdb) imdb(text(json.optJSONObject("external_ids") ?: JSONObject(), "imdb_id")) else imdb(id),
             voteCount = if (tmdb) json.optInt("vote_count", 0).takeIf { it > 0 } else null,
@@ -108,7 +113,7 @@ internal object CatalogJson {
             year = parsed.year.ifEmpty { base.year }, score = parsed.score.takeIf { it > 0 } ?: base.score,
              genres = parsed.genres.ifEmpty { base.genres }, imdbId = parsed.imdbId ?: base.imdbId,
               episodeCount = json.optInt("number_of_episodes", 0).takeIf { it > 0 } ?: base.episodeCount,
-               seasonHint = base.seasonHint, animeEntryId = base.animeEntryId, seriesNumbering = base.seriesNumbering,
+                seasonHint = base.seasonHint, animeEntryId = base.animeEntryId, seriesNumbering = base.seriesNumbering, imdbNumbering = base.imdbNumbering,
                 voteCount = parsed.voteCount ?: base.voteCount, certification = parsed.certification ?: base.certification,
                  portraitArtworkUrl = parsed.portraitArtworkUrl ?: base.portraitArtworkUrl,
                  posterTitlePresence = if (parsed.posterUrl == null || parsed.posterUrl == base.posterUrl) base.posterTitlePresence else ArtworkTitlePresence.UNKNOWN,
@@ -119,18 +124,30 @@ internal object CatalogJson {
                    portraitAlternatives = (parsed.portraitAlternatives + base.portraitAlternatives).distinct().take(8),
                    backdropAlternatives = (parsed.backdropAlternatives + base.backdropAlternatives).distinct().take(8))
     }
-    fun episodes(json: JSONObject, season: Int, cinemeta: Boolean = false): List<EpisodeItem> =
+    fun episodes(json: JSONObject, season: Int, cinemeta: Boolean = false, nowMs: Long = System.currentTimeMillis()): List<EpisodeItem> =
         objects(json.optJSONArray(if (cinemeta) "videos" else "episodes")).mapNotNull {
             val number = it.optInt(if (cinemeta) "episode" else "episode_number", 0)
             if (number <= 0 || (cinemeta && it.optInt("season", 0) != season)) return@mapNotNull null
             EpisodeItem(number, season, text(it, if (cinemeta) "title" else "name").ifEmpty { text(it, "name") }.ifEmpty { "Episodio $number" },
                 text(it, "overview").ifEmpty { if (cinemeta) text(it, "description") else "" },
                  if (cinemeta) image(text(it, "thumbnail")) else tmdbImage(text(it, "still_path"), "w500"),
-                 text(it, if (cinemeta) "released" else "air_date").take(10).let { date ->
-                     date.matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}")) && date <= SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) },
-                 DetailMetadata.date(text(it, if (cinemeta) "released" else "air_date")),
-                 it.optInt("runtime", 0).takeIf { minutes -> minutes in 1..1440 })
+                  text(it, if (cinemeta) "released" else "air_date").let { release -> episodeReleased(release, nowMs) },
+                  DetailMetadata.date(text(it, if (cinemeta) "released" else "air_date")),
+                  it.optInt("runtime", 0).takeIf { minutes -> minutes in 1..1440 })
         }.distinctBy { it.number }.sortedBy { it.number }
+
+    private fun episodeReleased(release: String, nowMs: Long): Boolean {
+        val timestampFormats = listOf("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", "yyyy-MM-dd'T'HH:mm:ssXXX")
+        timestampFormats.forEach { pattern ->
+            val format = SimpleDateFormat(pattern, Locale.US).apply { isLenient = false }
+            val position = ParsePosition(0)
+            val parsed = runCatching { format.parse(release, position) }.getOrNull()
+            if (parsed != null && position.index == release.length) return parsed.time <= nowMs
+        }
+        val date = release.take(10).takeIf { it.matches(Regex("[0-9]{4}-[0-9]{2}-[0-9]{2}")) } ?: return false
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date(nowMs))
+        return date <= today
+    }
     fun detail(base: MediaItem, json: JSONObject): MediaDetail {
         val tmdb = base.source == CatalogSource.TMDB
         val seasons = if (tmdb) objects(json.optJSONArray("seasons")).mapNotNull {
@@ -158,7 +175,7 @@ internal object CatalogJson {
             put("genres", JSONArray(item.genres)); put("anime", item.isAnime)
             put("imdb", item.imdbId)
             put("episodeCount", item.episodeCount); put("animeSeasonLabel", item.animeSeasonLabel)
-             put("seasonHint", item.seasonHint); put("animeEntryId", item.animeEntryId); put("seriesNumbering", item.seriesNumbering)
+              put("seasonHint", item.seasonHint); put("animeEntryId", item.animeEntryId); put("seriesNumbering", item.seriesNumbering); put("imdbNumbering", item.imdbNumbering)
               put("voteCount", item.voteCount); put("certification", item.certification)
                put("portraitArtwork", image(item.portraitArtworkUrl))
                put("posterTitlePresence", item.posterTitlePresence.name); put("portraitTitlePresence", item.portraitTitlePresence.name)
@@ -187,7 +204,7 @@ internal object CatalogJson {
                 strings(json.optJSONArray("logoAlternatives")).mapNotNull(::image).distinct().take(8),
                  strings(json.optJSONArray("portraitAlternatives")).mapNotNull(::image).distinct().take(8),
                  strings(json.optJSONArray("backdropAlternatives")).mapNotNull(::image).distinct().take(8),
-                 strings(json.optJSONArray("artworkTitles")).filter { it.length <= 500 }.distinct().take(4))
+                  strings(json.optJSONArray("artworkTitles")).filter { it.length <= 500 }.distinct().take(4), json.optBoolean("imdbNumbering"))
         }.distinctBy { it.key }
     }.getOrDefault(emptyList())
     private fun titlePresence(json: JSONObject, key: String): ArtworkTitlePresence =

@@ -65,22 +65,3 @@ internal fun SearchScreen(state: AppState, scroll: LazyGridState, requestFocus: 
         }
     }
 }
-
-@Composable
-internal fun LibraryScreen(state: AppState, scroll: LazyGridState, filter: String, onFilter: (String) -> Unit,
-    onSelect: (MediaItem) -> Unit, onSearch: () -> Unit) {
-    val items = LibraryCatalog.all(state).filter { filter == "all" || it.type.path == filter }
-    Column(Modifier.fillMaxSize()) {
-        ScreenHeader("Biblioteca")
-        Text("En curso, vistos y guardados", color = Muted, modifier = Modifier.padding(horizontal = 18.dp))
-        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("all" to "Todos", "movie" to "Películas", "tv" to "Series").forEach { (key, label) ->
-                FilterChip(selected = filter == key, onClick = { onFilter(key) }, label = { Text(label) })
-            }
-        }
-        if (items.isEmpty()) StatusMessage("Todavía no hay títulos aquí",
-            if (LibraryCatalog.all(state).isEmpty()) "Las películas y series que veas o guardes aparecerán aquí automáticamente."
-            else "No tienes títulos guardados en este filtro.", "Buscar", onSearch)
-        else CatalogGrid(items, scroll, onSelect, Modifier.weight(1f), footer = true)
-    }
-}

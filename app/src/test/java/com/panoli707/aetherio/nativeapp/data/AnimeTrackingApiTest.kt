@@ -9,6 +9,27 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AnimeTrackingApiTest {
+    @Test fun brokerStartSendsOnlyChallengeAndValidatesTheImplicitAuthorizationUrl() = runBlocking {
+        val server = MockWebServer(); server.start()
+        try {
+            val pending = AnimeOAuth.pending(AnimeService.ANILIST, System.currentTimeMillis())
+            val expected = AnimeOAuth.authorize("56163", pending)
+            val api = AnimeTrackingApi(spacingMs = 0, brokerUrl = server.url("/").toString().removeSuffix("/"))
+            server.enqueue(MockResponse().setBody(JSONObject().put("authorizationUrl", expected).toString()))
+            assertEquals(expected, api.aniListAuthorization("56163", pending))
+            val start = server.takeRequest()
+            val body = JSONObject(start.body.readUtf8())
+            assertEquals(AnimeOAuth.challenge(pending), body.getString("challenge"))
+            assertFalse(body.toString().contains(pending.verifier))
+            assertFalse(body.has("client_secret")); assertNull(start.getHeader("Authorization"))
+            for (wrong in listOf("https://evil.example/", expected.replace("response_type=token", "response_type=code"), expected.replace("56163", "12345"),
+                expected + "&redirect_uri=https%3A%2F%2Fauth.example%2Fcallback", expected + "&response_type=token")) {
+                server.enqueue(MockResponse().setBody(JSONObject().put("authorizationUrl", wrong).toString()))
+                try { api.aniListAuthorization("56163", pending); fail("Foreign authorization URL accepted") }
+                catch (_: IllegalArgumentException) { }
+            }
+        } finally { server.shutdown() }
+    }
     @Test fun anilistListChunksAndFavoritesAreMergedWithoutInventingFavoriteListStatus() = runBlocking {
         val server = MockWebServer()
         server.start()

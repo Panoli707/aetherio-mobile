@@ -59,7 +59,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
             media.type != MediaType.SERIES || detail?.selectedSeason == null || progress.target.season == detail.selectedSeason
         }, media)?.takeIf { !it.watched && it.positionMs > 0 }
         val episodes = detail?.episodes.orEmpty().filter { it.season == detail?.selectedSeason }
-        val first = episodes.firstOrNull().takeUnless { state.episodesLoading }
+        val first = episodes.firstOrNull { it.released }.takeUnless { state.episodesLoading }
         val canPlay = media.type == MediaType.MOVIE || (!state.episodesLoading && (recent != null || first != null))
         val play: () -> Unit = {
             if (recent != null) onRequestSources(media, recent.target.season, recent.target.episode)
@@ -265,7 +265,7 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
 
 @Composable
 private fun DetailIcon(label: String, icon: ImageVector, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    IconButton(onClick = onClick, modifier = modifier.size(48.dp).background(DetailPanel.copy(alpha = .8f), CircleShape)) { Icon(icon, label, tint = DetailText) }
+    IconButton(onClick = onClick, modifier = modifier.size(48.dp).background(DetailPanel.copy(alpha = ButtonSurfaceAlpha), CircleShape)) { Icon(icon, label, tint = DetailText) }
 }
 
 @Composable
@@ -299,15 +299,22 @@ private fun DetailSynopsis(overview: String, key: String) {
 private fun DetailEpisodeCard(episode: EpisodeItem, media: MediaItem, progress: WatchProgress?, width: androidx.compose.ui.unit.Dp,
     onPlay: () -> Unit, onActions: () -> Unit) {
     Surface(color = DetailPanel, shape = RoundedCornerShape(20.dp), border = BorderStroke(1.dp, Divider),
-        modifier = Modifier.width(width).combinedClickable(onClick = onPlay, onClickLabel = "Reproducir", onLongClick = onActions, onLongClickLabel = "Opciones del episodio")) {
+        modifier = Modifier.width(width).combinedClickable(enabled = episode.released, onClick = onPlay,
+            onClickLabel = "Reproducir", onLongClick = onActions, onLongClickLabel = "Opciones del episodio")
+            .semantics { contentDescription = "Episodio T${episode.season} E${episode.number}";
+                stateDescription = if (episode.released) "Disponible" else "Todavía no disponible" }) {
         Column {
             Box(Modifier.fillMaxWidth().aspectRatio(1.78f)) {
-                if (episode.imageUrl != null) DetailArtwork(episode.imageUrl, Modifier.fillMaxSize())
-                else CanonicalPoster(media, Modifier.fillMaxSize(), portrait = false)
+                EpisodeArtwork(episode.imageUrl, media, Modifier.fillMaxSize())
                 Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, DetailNight.copy(alpha = .55f)))))
-                IconButton(onClick = onActions, modifier = Modifier.align(Alignment.TopStart).padding(4.dp).size(44.dp)) {
+                IconButton(onClick = onActions, enabled = episode.released,
+                    modifier = Modifier.align(Alignment.TopStart).padding(4.dp).size(44.dp)) {
                     Icon(if (progress?.watched == true) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                        "Opciones del episodio T${episode.season} E${episode.number}", tint = if (progress?.watched == true) Success else Cream,
+                        "Opciones del episodio T${episode.season} E${episode.number}", tint = when {
+                            !episode.released -> DetailMuted
+                            progress?.watched == true -> Success
+                            else -> Cream
+                        },
                         modifier = Modifier.background(DetailNight.copy(alpha = .65f), CircleShape))
                 }
                 episode.runtimeMinutes?.let { Text("$it min", color = DetailText, style = MaterialTheme.typography.labelSmall,

@@ -81,8 +81,8 @@ android {
         applicationId = "com.panoli707.aetherio.nativeapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 44
-        versionName = "0.21.0"
+        versionCode = 46
+        versionName = "0.22.0"
         // Public OAuth client identifiers. Native apps must never embed client secrets.
         buildConfigField("String", "ANILIST_CLIENT_ID", "\"56163\"")
         buildConfigField("String", "MAL_CLIENT_ID", "\"eaf348d964cb8409f563aeba210ba95f\"")

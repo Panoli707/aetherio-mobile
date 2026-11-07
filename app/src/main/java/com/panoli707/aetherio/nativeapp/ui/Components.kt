@@ -71,7 +71,7 @@ internal fun RoundAction(description: String, icon: ImageVector, onClick: () -> 
         onClick = onClick,
         enabled = enabled,
         modifier = modifier.size(48.dp).clip(CircleShape)
-            .background(Panel.copy(alpha = .88f)).border(1.dp, Cream.copy(alpha = .14f), CircleShape)
+            .background(Panel.copy(alpha = ButtonSurfaceAlpha)).border(1.dp, Cream.copy(alpha = .14f), CircleShape)
     ) { Icon(icon, contentDescription = description, tint = Cream) }
 }
 
@@ -199,7 +199,8 @@ internal fun LoadingRow(label: String) {
 @Composable
 internal fun FloatingNavigation(tab: String, collapsed: Boolean, onTab: (String) -> Unit, onSearch: () -> Unit,
     modifier: Modifier = Modifier) {
-    val glass = Brush.linearGradient(listOf(Panel.copy(alpha = .97f), RaisedPanel.copy(alpha = .97f)))
+    val glassAlpha = if (TransparentControlsEnabled) .24f else .97f
+    val glass = Brush.linearGradient(listOf(Panel.copy(alpha = glassAlpha), RaisedPanel.copy(alpha = glassAlpha)))
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val itemWidth = ((maxWidth - 118.dp) / 4).coerceIn(48.dp, 70.dp)
         Row(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
@@ -226,7 +227,7 @@ internal fun FloatingNavigation(tab: String, collapsed: Boolean, onTab: (String)
 @Composable
 private fun NavigationItem(label: String, icon: ImageVector, selected: Boolean, compact: Boolean, width: Dp, onClick: () -> Unit) {
     Column(Modifier.width(if (compact) 48.dp else width).height(if (compact) 48.dp else 54.dp)
-        .clip(CircleShape).background(if (selected) AccentContainer else Color.Transparent)
+        .clip(CircleShape).background(if (selected) AccentContainer.copy(alpha = if (TransparentControlsEnabled) .42f else 1f) else Color.Transparent)
         .clickable(role = Role.Tab, onClick = onClick).semantics(mergeDescendants = true) { this.selected = selected },
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Icon(icon, if (compact) label else null, Modifier.size(23.dp), tint = if (selected) Accent else Muted)

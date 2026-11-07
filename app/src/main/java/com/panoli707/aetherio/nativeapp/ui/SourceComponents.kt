@@ -239,7 +239,7 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                         "Ir a Ajustes", { closeThen(onSettings) })
                 }
                 if (state.sourcesLoading) item(key = "loading") { LoadingRow("Buscando fuentes…") }
-                if (!state.sourcesLoading && state.sourceError != null && state.sources.none { it.playable }) item(key = "error") {
+                if (!state.sourcesLoading && state.sourceError != null) item(key = "error") {
                     val message = state.sourceError
                     Text(message, color = Cream.copy(alpha = .85f),
                         modifier = Modifier.padding(vertical = 12.dp).testTag("sourceFailure")
@@ -278,7 +278,7 @@ private fun SourceSystemBars() {
 private fun SourceToolbarAction(description: String, icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit, enabled: Boolean = true, loading: Boolean = false) {
     IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(48.dp)
-        .background(Cream.copy(alpha = .07f), CircleShape).border(1.dp, Outline, CircleShape)
+        .background(Cream.copy(alpha = if (TransparentControlsEnabled) .035f else .07f), CircleShape).border(1.dp, Outline, CircleShape)
         .semantics { contentDescription = description }) {
         if (loading) CircularProgressIndicator(Modifier.size(20.dp), color = Accent, strokeWidth = 2.dp)
         else Icon(icon, null, tint = Cream.copy(alpha = if (enabled) 1f else .45f))

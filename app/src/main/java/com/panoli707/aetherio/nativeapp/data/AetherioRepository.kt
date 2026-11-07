@@ -69,6 +69,20 @@ internal class AetherioRepository(
     private val homeAnime by lazy { homeAnimeSource ?: HomeAnimeRepository(client, animeRepository) }
     private val animeMatches = mutableMapOf<String, MediaItem?>()
     private val animeMatchLock = Mutex()
+    private val imdbCatalogs = java.util.concurrent.ConcurrentHashMap<String, Pair<Long, JSONObject>>()
+
+    private suspend fun imdbCatalog(item: MediaItem): JSONObject {
+        val id = requireNotNull(item.imdbId?.takeIf { it.matches(Regex("tt[0-9]{5,12}")) })
+        imdbCatalogs[id]?.takeIf { System.currentTimeMillis() - it.first in 0 until 15 * 60_000L }?.let { return it.second }
+        val meta = requireNotNull(json("$cinemeta/meta/series/$id.json").optJSONObject("meta"))
+        check(CatalogJson.text(meta, "id") == id && meta.optJSONArray("videos") != null)
+        if (imdbCatalogs.size >= 50) imdbCatalogs.clear()
+        if (meta.getJSONArray("videos").length() > 0) imdbCatalogs[id] = System.currentTimeMillis() to meta
+        return meta
+    }
+
+    private suspend fun imdbDetail(item: MediaItem): MediaDetail = CatalogJson.detail(
+        item.copy(id = requireNotNull(item.imdbId), source = CatalogSource.CINEMETA), imdbCatalog(item))
 
     private fun authenticatedTmdb(url: HttpUrl): Boolean = readAccessToken.isNotBlank() &&
         url.isHttps && url.host == tmdbBase.host && url.port == tmdbBase.port &&
@@ -120,6 +134,22 @@ internal class AetherioRepository(
         }
     }
     private fun cineType(type: MediaType) = if (type == MediaType.MOVIE) "movie" else "series"
+    suspend fun discover(catalog: DiscoverCatalog, page: Int, genre: String): DiscoverPage {
+        require(catalog.manifestUrl == null)
+        if (catalog.type == "anime") return animeRepository.discover(catalog.sort, page, genre)
+        val request = DesktopDiscover.request(catalog, page, genre)
+        val payload = tmdb(request.path, request.params)
+        check(payload.optJSONArray("results") != null)
+        val type = if (catalog.type == "movie") MediaType.MOVIE else MediaType.SERIES
+        val raw = payload.getJSONArray("results")
+        val animeIds = (0 until raw.length()).mapNotNull { raw.optJSONObject(it) }.filter { item ->
+            CatalogJson.text(item, "original_language") == "ja" && item.optJSONArray("genre_ids")?.let { ids ->
+                (0 until ids.length()).any { ids.optInt(it) == 16 }
+            } == true
+        }.map { CatalogJson.text(it, "id") }.toSet()
+        val items = CatalogJson.catalog(payload, type, CatalogSource.TMDB).map { it.copy(isAnime = it.id in animeIds) }
+        return DiscoverPage(SeriesIdentity.items(items), page < minOf(payload.optInt("total_pages", page), 500))
+    }
     private suspend fun trending(type: MediaType): List<MediaItem> = optional {
         CatalogJson.catalog(tmdb("trending/${type.path}/day"), type, CatalogSource.TMDB).also { check(it.isNotEmpty()) }
     } ?: CatalogJson.catalog(json("$cinemeta/catalog/${cineType(type)}/top.json"), type, CatalogSource.CINEMETA)
@@ -335,9 +365,9 @@ internal class AetherioRepository(
         } }.awaitAll()
     }
     suspend fun detail(item: MediaItem): MediaDetail {
+        val identity = SeriesIdentity.item(item)
+        if (identity != item) return detail(identity)
         if (item.source == CatalogSource.ANILIST) {
-            val canonical = SeriesIdentity.item(item)
-            if (canonical.key != item.key) return detail(canonical)
             return animeRepository.detail(item)
         }
         val data = if (item.source == CatalogSource.TMDB) tmdb("${item.type.path}/${item.id}", mapOf(
@@ -345,12 +375,28 @@ internal class AetherioRepository(
             "include_image_language" to "es,en,null", "include_video_language" to "es,en,null"))
             else requireNotNull(json("$cinemeta/meta/${cineType(item.type)}/${item.id}.json").optJSONObject("meta"))
         check(CatalogJson.text(data, "id") == item.id)
-        val detail = CatalogJson.detail(item, data)
+        val detail = CatalogJson.detail(item.copy(imdbNumbering = false), data)
         val parts = SeriesIdentity.index.parts(item)
         if (parts.isEmpty()) return detail
+        // TMDB can combine two anime deliveries in one season while IMDb separates them. Prefer
+        // the actual IMDb video inventory for a complete mapped series; keep its TMDB artwork/ID.
+        val imdb = optional { imdbDetail(detail.item) }
+        if (imdb != null) {
+            val preferred = AnimeEpisodeCatalog.preferImdb(detail, imdb, parts)
+            if (preferred.item.imdbNumbering) return preferred
+        }
         val grouped = parts.groupBy { it.season }.mapNotNull { (number, group) ->
             val first = group.minBy { it.offset }
-            val source = detail.seasons.firstOrNull { it.number == first.tmdbSeason } ?: return@mapNotNull null
+            val source = detail.seasons.firstOrNull { it.number == first.tmdbSeason }
+            if (source == null) {
+                // A known sequel is not proof that TMDB has already added its season. Ask the
+                // exact AniList entries, rather than silently dropping them or guessing by title.
+                val entries = group.mapNotNull { part -> optional { animeRepository.detail(MediaItem(part.animeId,
+                    MediaType.SERIES, item.title, CatalogSource.ANILIST, isAnime = true)) } }
+                if (entries.size != group.size) return@mapNotNull null
+                val count = entries.sumOf { it.item.episodeCount ?: it.episodes.size }
+                return@mapNotNull SeasonInfo(number, "Temporada $number", count)
+            }
             val until = parts.filter { it.tmdbSeason == first.tmdbSeason && it.season != number && it.offset > first.offset }
                 .minOfOrNull { it.offset } ?: source.episodeCount
             val count = (minOf(until, source.episodeCount) - first.offset).coerceAtLeast(0)
@@ -382,13 +428,23 @@ internal class AetherioRepository(
         else CatalogJson.episodes(requireNotNull(json("$cinemeta/meta/${cineType(item.type)}/${item.id}.json").optJSONObject("meta")), season, true)
 
     suspend fun seasonContent(item: MediaItem, season: Int): SeasonContent {
+        if (item.imdbNumbering) return SeasonContent(item.copy(seasonHint = season),
+            CatalogJson.episodes(imdbCatalog(item), season, true))
         val parts = SeriesIdentity.index.parts(item)
         val group = parts.filter { it.season == season }
         if (item.seriesNumbering && group.isNotEmpty()) {
             val first = group.minBy { it.offset }
             val end = parts.filter { it.tmdbSeason == first.tmdbSeason && it.season != season && it.offset > first.offset }
                 .minOfOrNull { it.offset } ?: Int.MAX_VALUE
-            val json = tmdb("tv/${item.id}/season/${first.tmdbSeason}")
+            val json = optional { tmdb("tv/${item.id}/season/${first.tmdbSeason}") }
+            if (json == null) {
+                val base = group.minOf { it.offset }
+                val episodes = group.flatMap { part ->
+                    animeRepository.detail(MediaItem(part.animeId, MediaType.SERIES, item.title, CatalogSource.ANILIST, isAnime = true))
+                        .episodes.map { it.copy(season = season, number = it.number + part.offset - base) }
+                }.distinctBy { it.number }.sortedBy { it.number }
+                return SeasonContent(item.copy(seasonHint = season, animeEntryId = first.animeId), episodes)
+            }
             val episodes = CatalogJson.episodes(json, first.tmdbSeason).filter { it.number > first.offset && it.number <= end }
                 .map { it.copy(season = season, number = it.number - first.offset) }
             return SeasonContent(item.copy(seasonHint = season, animeEntryId = first.animeId), episodes)
@@ -410,7 +466,18 @@ internal class AetherioRepository(
         val group = parts.filter { it.season == season }
         if (group.isEmpty()) return if (season >= 1000) query.copy(season = season - 1000) else query
         val base = group.minOf { it.offset }
-        if (!animeAv1) return query.copy(season = group.first().tmdbSeason, episode = episode + base)
+        if (!animeAv1) {
+            if (query.item.imdbNumbering || SeriesIdentity.index.knownImdbSeasons(query.item)) return query
+            val inventory = optional { imdbDetail(query.item) }
+            val selected = optional { seasonContent(query.item, season).episodes.firstOrNull { it.number == episode } }
+            if (inventory != null && selected != null) {
+                val catalog = imdbCatalog(query.item)
+                val candidates = inventory.seasons.flatMap { CatalogJson.episodes(catalog, it.number, true) }
+                AnimeEpisodeCatalog.matchingEpisode(selected, candidates)?.let { return query.copy(season = it.season, episode = it.number) }
+                throw IOException("No se pudo confirmar la numeración IMDb de este episodio")
+            }
+            return query.copy(season = group.first().tmdbSeason, episode = episode + base)
+        }
         val part = group.filter { episode + base > it.offset }.maxByOrNull { it.offset } ?: return query
         val entry = animeRepository.detail(MediaItem(part.animeId, MediaType.SERIES, query.item.title,
             source = CatalogSource.ANILIST, isAnime = true)).item

@@ -71,7 +71,9 @@ fun AetherioApp(
     personalActions: PersonalActions = PersonalActions(),
     onPrepareDownloads: (MediaItem, List<EpisodeItem>) -> Unit = { _, _ -> },
     onDownloadSource: (StreamSource) -> Unit = {}, onSkipDownload: () -> Unit = {},
-    profileRequest: Int = 0, downloadsRequest: Int = 0
+    profileRequest: Int = 0, downloadsRequest: Int = 0,
+    onLibraryFilters: (com.panoli707.aetherio.nativeapp.data.LibraryFilters) -> Unit = {},
+    onDiscover: (com.panoli707.aetherio.nativeapp.data.DiscoverSelection, Boolean, Boolean) -> Unit = { _, _, _ -> }
 ) {
     var startupComplete by rememberSaveable { mutableStateOf(false) }
     val startupReady = !state.homeLoading || state.sections.isNotEmpty() || state.homeError != null ||
@@ -84,7 +86,6 @@ fun AetherioApp(
 
     var tab by rememberSaveable { mutableStateOf("home") }
     var directDownloads by rememberSaveable { mutableStateOf(false) }
-    var torrentDownload by remember { mutableStateOf<StreamSource?>(null) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var searchNeedsFocus by rememberSaveable { mutableStateOf(false) }
     var categoryId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -100,7 +101,6 @@ fun AetherioApp(
             handledProfileRequest = profileRequest; handledDownloadsRequest = downloadsRequest
         }
     }
-    var libraryFilter by rememberSaveable { mutableStateOf("all") }
     var airingDay by rememberSaveable(state.animeSeason.season.year, state.animeSeason.season.code) { mutableStateOf("MONDAY") }
     val homeScroll = rememberLazyListState()
     val animeScroll = rememberLazyListState()
@@ -203,11 +203,12 @@ fun AetherioApp(
                         screenState.SaveableStateProvider(tab) {
                             when (tab) {
                                 "anime" -> AnimeScreen(state, animeScroll, select, onContinue, { categoryId = "airing" })
-                                "library" -> LibraryScreen(state, libraryScroll, libraryFilter, { libraryFilter = it }, select, openSearch)
+                                "library" -> LibraryScreen(state, libraryScroll, state.libraryFilters.type, {}, select, openSearch,
+                                    onFilters = onLibraryFilters, onDiscover = onDiscover, personalActions = personalActions)
                                  "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon, onDesktopSourceToggle,
                                      updates, onUpdateAction, onAutomaticUpdatesChange, onHomePreferencesChange, personalActions, select)
-                                 "profile" -> ProfileSpace(state, onRenameProfile, personalActions, { tab = "home" },
-                                     { tab = "settings" }, select, initialDownloads = directDownloads, navigationRequest = maxOf(profileRequest, downloadsRequest))
+                                  "profile" -> ProfileSpace(state, onRenameProfile, personalActions, { tab = "home" },
+                                      select, initialDownloads = directDownloads, navigationRequest = maxOf(profileRequest, downloadsRequest))
                                 else -> HomeScreen(state, homeScroll, pager, !linkOpen && state.sourceQuery == null && !updates.noticeVisible,
                                      select, { parentCategoryId = null; categoryId = it }, onRetryHome, onContinue, onLoadAnimeSeason,
                                      onProfile = { focus.clearFocus(); directDownloads = false; tab = "profile" })
@@ -227,7 +228,7 @@ fun AetherioApp(
                     SourceSheet(state, query, onDismissSources, { source, format ->
                         if (state.downloadSelection.isEmpty()) onPlaySource(source, format)
                         else if (!state.downloadEnqueueing) {
-                            if (source.isTorrent) torrentDownload = source else onDownloadSource(source)
+                            onDownloadSource(source)
                         }
                     },
                         onSkipDownload = onSkipDownload,
@@ -244,10 +245,6 @@ fun AetherioApp(
                     })
                 }
             }
-            torrentDownload?.let { source -> AlertDialog(onDismissRequest = { torrentDownload = null }, title = { Text("Descarga torrent (P2P)") },
-                text = { Text("Tu IP será visible para otros participantes. La descarga puede consumir mucho almacenamiento y continuar en segundo plano. La subida de contenido sigue desactivada. Usa solo contenido que tengas permiso para descargar.") },
-                confirmButton = { TextButton(onClick = { torrentDownload = null; onDownloadSource(source) }) { Text("Descargar") } },
-                dismissButton = { TextButton(onClick = { torrentDownload = null }) { Text("Cancelar") } }) }
             state.animeTracking.draft?.let { draft -> AnimeEntryEditor(draft.service, draft.entry, personalActions, personalActions.dismissAnime) }
             if (!linkOpen && state.sourceQuery == null && !imeVisible && updates.noticeVisible) {
                 UpdateDialog(updates, onUpdateAction)

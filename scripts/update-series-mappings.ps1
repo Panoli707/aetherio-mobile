@@ -12,8 +12,27 @@ $output = @($rows | Where-Object {
     $offset = if ($null -ne $_.episode_offset.tmdb) { [int]$_.episode_offset.tmdb } else { 0 }
     if ($offset -ge 0) { ,@([int]$_.anilist_id, [int]$_.themoviedb_id.tv, [int]$_.season.tmdb, $offset, $display) }
 })
-$document = [ordered]@{ source = $url; revision = $Revision; rows = $output }
+$imdb = [ordered]@{}
+foreach ($group in ($rows | Where-Object { $_.themoviedb_id.tv -gt 0 } | Group-Object { [string]$_.themoviedb_id.tv })) {
+    $ids = @($group.Group | ForEach-Object { $_.imdb_id } | Where-Object { $_ -cmatch '^tt[0-9]{5,12}$' } | Sort-Object -Unique)
+    if ($ids.Count -eq 1) { $imdb[$group.Name] = $ids[0] }
+}
+$corrections = Get-Content (Join-Path $PSScriptRoot 'series-mapping-corrections.json') -Raw | ConvertFrom-Json
+$correctedIds = @($corrections.rows | ForEach-Object { $_[0] })
+$finalRows = New-Object 'System.Collections.Generic.List[object]'
+foreach ($row in $output) {
+    if ($row[0] -notin $correctedIds) { $finalRows.Add([int[]]@($row)) }
+}
+foreach ($row in $corrections.rows) { $finalRows.Add([int[]]@($row)) }
+$output = $finalRows.ToArray()
+$document = [ordered]@{ source = $url; revision = $Revision; rows = $output; imdb = $imdb;
+    corrections = $corrections.sources; legacyCombined = $corrections.legacyCombined }
 $directory = Join-Path (Split-Path $PSScriptRoot -Parent) 'app\src\main\resources'
 [void][IO.Directory]::CreateDirectory($directory)
-[IO.File]::WriteAllText((Join-Path $directory 'series-mappings.json'), ($document | ConvertTo-Json -Depth 6 -Compress), [Text.UTF8Encoding]::new($false))
+$serialized = $document | ConvertTo-Json -Depth 6 -Compress
+$validated = $serialized | ConvertFrom-Json
+foreach ($row in $validated.rows) {
+    if ($row -isnot [array] -or $row.Count -ne 5) { throw 'Formato de equivalencias no valido; se conserva el recurso anterior.' }
+}
+[IO.File]::WriteAllText((Join-Path $directory 'series-mappings.json'), $serialized, [Text.UTF8Encoding]::new($false))
 "Generadas $($output.Count) equivalencias factuales; la app rechaza grupos ambiguos antes de usarlas."

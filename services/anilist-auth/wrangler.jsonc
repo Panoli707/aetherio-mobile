@@ -1,0 +1,15 @@
+{
+  "name": "aetherio-anilist-auth",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "preview_urls": false,
+  "observability": { "enabled": false },
+  "vars": {
+    "CLIENT_ID": "56163",
+    "PUBLIC_ORIGIN": "https://aetherio-anilist-auth.adrianchaves341.workers.dev"
+  },
+  "durable_objects": { "bindings": [{ "name": "SESSIONS", "class_name": "OAuthSession" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["OAuthSession"] }],
+  "ratelimits": [{ "name": "START_LIMIT", "namespace_id": "56163", "simple": { "limit": 10, "period": 60 } }]
+}

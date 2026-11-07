@@ -13,6 +13,22 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AnimeSeasonRepositoryTest {
+    @Test fun discoverPassesPageSortAndGenreToAniListWithoutAuthentication() = runBlocking {
+        val client = client { request ->
+            val variables = variables(request)
+            assertEquals(3, variables.getInt("page"))
+            assertEquals("FAVOURITES_DESC", variables.getString("sort"))
+            assertEquals("Mystery", variables.getString("genre"))
+            200 to page(false, 900000001)
+        }
+        try {
+            val result = AnimeSeasonRepository(client).discover("FAVOURITES_DESC", 3, "Mystery")
+            assertFalse(result.hasMore)
+            assertEquals("900000001", result.items.single().id)
+            assertTrue(result.items.single().isAnime)
+        } finally { client.dispatcher.executorService.shutdownNow(); client.connectionPool.evictAll() }
+    }
+
     private val season = AnimeSeason(2026, "FALL")
     private val now = 1793610000000L
     private val item = """{"id":123,"title":{"romaji":"Fixture anime"},"season":"FALL","seasonYear":2026,"status":"RELEASING","episodes":12,"nextAiringEpisode":{"episode":6,"airingAt":1793973600}}"""

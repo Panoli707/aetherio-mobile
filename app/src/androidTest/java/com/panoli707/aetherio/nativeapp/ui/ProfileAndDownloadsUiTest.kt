@@ -16,7 +16,7 @@ class ProfileAndDownloadsUiTest {
     @Test fun localProfileHasBothRealConnectionActionsAndNoUpdatesOrFakeEngineToggles() {
         var connected: AnimeService? = null
         compose.setContent { AetherioTheme {
-            ProfileSpace(AppState(profileName = "Local"), {}, PersonalActions(connect = { connected = it }), {}, {}, {})
+            ProfileSpace(AppState(profileName = "Local"), {}, PersonalActions(connect = { connected = it }), {}, {})
         } }
         compose.onNodeWithTag("connect:ANILIST").performScrollTo().performClick()
         compose.runOnIdle { assertEquals(AnimeService.ANILIST, connected) }
@@ -32,7 +32,7 @@ class ProfileAndDownloadsUiTest {
         val state = AppState(animeTracking = AnimeTrackingState(connections = mapOf(
             AnimeService.ANILIST to AnimeConnection(AnimeAccount(1, "Account A", null), entries, updatedAt = 100),
             AnimeService.MAL to AnimeConnection())))
-        compose.setContent { AetherioTheme { ProfileSpace(state, {}, PersonalActions(), {}, {}, {}) } }
+        compose.setContent { AetherioTheme { ProfileSpace(state, {}, PersonalActions(), {}, {}) } }
         compose.onNodeWithText("Account A").performScrollTo().assertIsDisplayed()
         compose.onNodeWithText("Conectado").assertExists()
         compose.onNodeWithTag("connect:ANILIST").assertDoesNotExist()
@@ -60,7 +60,8 @@ class ProfileAndDownloadsUiTest {
         compose.setContent { AetherioTheme {
             DetailScreen(AppState(detail = detail), item, rememberLazyListState(), {}, {}, {}, {}, {}, { _, _, _ -> })
         } }
-        compose.onNodeWithTag("downloadSeason").performScrollTo().performClick()
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("downloadSeason"))
+        compose.onNodeWithTag("downloadSeason").performClick()
         compose.onNodeWithTag("batchDownloads").assertIsDisplayed()
         compose.onNodeWithText("Series · Temporada 2").assertExists()
     }

@@ -38,6 +38,7 @@ class AetherioRepositoryTest {
     private class TlsFixture(listener: EventListener = EventListener.NONE) : Closeable {
         val server = MockWebServer()
         val externalRequests: MutableList<Request> = Collections.synchronizedList(mutableListOf())
+        var cinemetaDetail = CINEMETA_DETAIL
         val client: OkHttpClient
 
         init {
@@ -62,7 +63,7 @@ class AetherioRepositoryTest {
                         externalRequests.add(request)
                         val body = when (request.url.host) {
                             "api.themoviedb.org", "trkll.aetherio.workers.dev" -> CATALOG
-                            "v3-cinemeta.strem.io" -> if (request.url.encodedPath.startsWith("/meta/")) CINEMETA_DETAIL else CINEMETA_CATALOG
+                            "v3-cinemeta.strem.io" -> if (request.url.encodedPath.startsWith("/meta/")) cinemetaDetail else CINEMETA_CATALOG
                             else -> "{}"
                         }
                         Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(200).message("OK")
@@ -477,6 +478,32 @@ class AetherioRepositoryTest {
         }
     }
 
+    @Test fun iceAnimeUsesBothImdbSeasonsAndSharesTheCorrectEpisodeWithAllImdbProviders() = runBlocking {
+        TlsFixture().use { fixture ->
+            fixture.cinemetaDetail = """{"meta":{"id":"tt39123061","name":"The Ramparts of Ice","videos":[
+                {"season":1,"episode":1,"name":"Lines and Walls","released":"2026-04-02T14:45:00Z"},
+                {"season":2,"episode":1,"name":"Clouds and Rain","released":"2026-10-01T14:45:00Z"}]}}"""
+            fixture.server.enqueue(MockResponse().setBody("""{"id":283428,"name":"Rompiendo el hielo","seasons":[
+                {"season_number":1,"episode_count":28}],"external_ids":{"imdb_id":"tt39123061"}}"""))
+            val repository = fixture.repository()
+            val detail = repository.detail(MediaItem("213805", MediaType.SERIES, "Koori no Jouheki 2nd Season", CatalogSource.ANILIST))
+            assertEquals(listOf(1,2), detail.seasons.map { it.number })
+            assertEquals(2, detail.selectedSeason)
+            assertTrue(detail.item.imdbNumbering)
+            val content = repository.seasonContent(detail.item, 2)
+            assertEquals(listOf(1), content.episodes.map { it.number })
+            assertEquals(2, content.episodes.single().season)
+            val query = SourceQuery(detail.item, 2, 1)
+            assertEquals(query, repository.providerQuery(query, false))
+            assertTrue(SourceProtocol.endpoint(ProviderHub.config, query).toString().endsWith("/series/tt39123061:2:1.json"))
+            assertEquals(detail.item, CatalogJson.decode(CatalogJson.encode(listOf(detail.item))).single())
+            authenticated(fixture.request(), "/3/tv/283428")
+            assertEquals(1, fixture.server.requestCount)
+            assertEquals(1, fixture.externalRequests.size)
+            assertNull(fixture.externalRequests.single().header("Authorization"))
+        }
+    }
+
     @Test fun failedTmdbSearchFallsBackToCinemetaWithoutForwardingAuthorization() = runBlocking {
         TlsFixture().use { fixture ->
             val repository = fixture.repository()
@@ -552,6 +579,34 @@ class AetherioRepositoryTest {
             } finally {
                 job.cancelAndJoin()
             }
+        }
+    }
+
+    @Test fun discoverUsesDesktopFiltersAndRealPaginationWithoutLeakingTmdbCredentials() = runBlocking {
+        TlsFixture().use { fixture ->
+            fixture.server.enqueue(MockResponse().setBody("""{"page":2,"total_pages":3,"results":[{"id":550,"title":"Fight Club","genre_ids":[18]}]}"""))
+            val catalog = DesktopDiscover.catalogs.first { it.key == "tmdb:movie:top" }
+            val result = fixture.repository().discover(catalog, 2, "Drama")
+            assertTrue(result.hasMore)
+            assertEquals(listOf("Drama"), result.items.single().genres)
+            val request = fixture.request()
+            assertEquals("/3/discover/movie", request.requestUrl!!.encodedPath)
+            assertEquals("2", request.requestUrl!!.queryParameter("page"))
+            assertEquals("300", request.requestUrl!!.queryParameter("vote_count.gte"))
+            assertEquals("18", request.requestUrl!!.queryParameter("with_genres"))
+            assertEquals("false", request.requestUrl!!.queryParameter("include_adult"))
+            assertEquals("Bearer $TOKEN", request.getHeader("Authorization"))
+            assertFalse(request.path.orEmpty().contains(TOKEN))
+            assertEquals(0, fixture.externalRequests.size)
+        }
+    }
+
+    @Test fun discoveringJapaneseAnimationPreservesItsEligibilityForNativeAnimeSources() = runBlocking {
+        TlsFixture().use { fixture ->
+            fixture.server.enqueue(MockResponse().setBody("""{"total_pages":1,"results":[{"id":900000001,"name":"Anime descubierto","original_language":"ja","genre_ids":[16]}]}"""))
+            val result = fixture.repository().discover(DesktopDiscover.catalogs.first { it.key == "tmdb:series:popular" }, 1, "")
+            assertTrue(result.items.single().isAnime)
+            assertFalse(result.hasMore)
         }
     }
 

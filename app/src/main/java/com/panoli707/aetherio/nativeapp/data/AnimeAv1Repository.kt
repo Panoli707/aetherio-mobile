@@ -59,11 +59,15 @@ internal class AnimeAv1Repository(client: OkHttpClient = OkHttpClient()) {
                 if (title.isEmpty() || title.length > 300 || title.any(Char::isISOControl)) {
                     return@withTimeoutOrNull SourceResult(emptyList())
                 }
-                val catalog = fetch(AnimeAv1Protocol.catalogUrl(title))
-                val selected = AnimeAv1Protocol.selectTitle(AnimeAv1Protocol.parseCatalog(catalog.body), query)
-                    ?: return@withTimeoutOrNull SourceResult(emptyList())
-                val page = fetch(AnimeAv1Protocol.episodeUrl(selected.slug, episode))
-                val embeds = AnimeAv1Protocol.parseEpisode(page.body, selected.slug, episode)
+                var selected: AnimeAv1Protocol.Title? = null
+                for (alias in (listOf(title) + query.item.artworkTitles).distinct().take(3)) {
+                    val catalog = fetch(AnimeAv1Protocol.catalogUrl(alias))
+                    selected = AnimeAv1Protocol.selectTitle(AnimeAv1Protocol.parseCatalog(catalog.body), query)
+                    if (selected != null) break
+                }
+                val match = selected ?: return@withTimeoutOrNull SourceResult(emptyList())
+                val page = fetch(AnimeAv1Protocol.episodeUrl(match.slug, episode))
+                val embeds = AnimeAv1Protocol.parseEpisode(page.body, match.slug, episode)
                 val sources = linkedMapOf<String, StreamSource>()
                 var unsupported = 0
                 var failures = 0

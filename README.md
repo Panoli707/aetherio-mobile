@@ -1,6 +1,6 @@
 # Aetherio
 
-Aetherio es una aplicación multimedia nativa para Android. Gestiona tu biblioteca de series, películas y anime con un reproductor integrado, progreso local y descargas para ver sin conexión. No requiere una cuenta; opcionalmente puedes conectar AniList y MyAnimeList para gestionar tus listas de anime. Consulta los cambios y límites de [0.21.0](docs/releases/0.21.0.md).
+Aetherio es una aplicación multimedia nativa para Android. Gestiona tu biblioteca de series, películas y anime con un reproductor integrado, progreso local y descargas para ver sin conexión. No requiere una cuenta; opcionalmente puedes conectar AniList y MyAnimeList para gestionar tus listas de anime. Consulta los cambios y límites de [0.22.0](docs/releases/0.22.0.md).
 
 ## Dependencias
 

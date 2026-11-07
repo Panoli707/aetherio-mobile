@@ -53,7 +53,10 @@ internal object AnimeSeasonProtocol {
             year = year.takeIf { it > 0 }?.toString().orEmpty(),
             score = json.optDouble("averageScore", 0.0).takeIf { it.isFinite() }?.div(10) ?: 0.0,
             genres = (0 until (genres?.length() ?: 0)).mapNotNull { genres?.optString(it) }.take(20), isAnime = true,
-            episodeCount = json.optInt("episodes", 0).takeIf { it in 1..100000 }, animeSeasonLabel = label)
+            episodeCount = json.optInt("episodes", 0).takeIf { it in 1..100000 }, animeSeasonLabel = label,
+            artworkTitles = listOf("romaji", "english", "native").mapNotNull {
+                json.optJSONObject("title")?.optString(it)?.takeIf { value -> value.isNotBlank() && value != "null" }
+            }.distinct().take(4))
     }
 
     fun seasonal(json: JSONObject, season: AnimeSeason, nowSeconds: Long): SeasonalAnime? {

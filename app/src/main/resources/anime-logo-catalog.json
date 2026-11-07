@@ -337,10 +337,10 @@
       "tmdbId": "57041",
       "type": "SERIES",
       "season": 1,
-      "asset": "anilist_918.png",
-      "source": "https://image.tmdb.org/t/p/original/2GFz7E2Z1UWiWqOv2YGIbIaAWrH.png",
+      "asset": "anilist_9969.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00002221-content_logo_polychromatic-en-US",
       "identityEvidence": "exact-original-title-year-animation-and-language",
-      "sha256": "84581e87d90d0f00dab3df6521b08142b6dd7b95c23a4b502295f035a2c3aa57"
+      "sha256": "5e7b2f1da0aff7e6fca3b0ca3a4f1458d6e310a265ede8302f7214a135fd59f1"
     },
     {
       "aniListId": "1096",
@@ -443,6 +443,16 @@
       "sha256": "39e4c999474fab4d4b33422ac4b0ed26fadba0eded8317a573d75206fdd23319"
     },
     {
+      "aniListId": "9969",
+      "tmdbId": "57041",
+      "type": "SERIES",
+      "season": 5,
+      "asset": "anilist_9969.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00002221-content_logo_polychromatic-en-US",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "5e7b2f1da0aff7e6fca3b0ca3a4f1458d6e310a265ede8302f7214a135fd59f1"
+    },
+    {
       "aniListId": "11757",
       "tmdbId": "45782",
       "type": "SERIES",
@@ -461,6 +471,16 @@
       "source": "https://image.tmdb.org/t/p/original/sZxtClwUxlu1vZiuMlxXgPuaPx1.png",
       "identityEvidence": "exact-original-title-year-animation-and-language",
       "sha256": "542a567bad0422f891bff9678a8288293858465165f46be558dcced4ef2954bc"
+    },
+    {
+      "aniListId": "15417",
+      "tmdbId": "57041",
+      "type": "SERIES",
+      "season": 6,
+      "asset": "anilist_9969.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00002221-content_logo_polychromatic-en-US",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "5e7b2f1da0aff7e6fca3b0ca3a4f1458d6e310a265ede8302f7214a135fd59f1"
     },
     {
       "aniListId": "16498",
@@ -487,10 +507,10 @@
       "tmdbId": "60863",
       "type": "SERIES",
       "season": 1,
-      "asset": "anilist_20464.png",
-      "source": "https://image.tmdb.org/t/p/original/wyL5cbJw5hosM9D7c7z5cWAeThC.png",
+      "asset": "anilist_20992.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00111695-content_logo_polychromatic-en-US",
       "identityEvidence": "existing-series-ID-and-season-mapping",
-      "sha256": "d38f33351ce8ec0e1840374ecccb03b4632d5c611ce0e3366746f95486d23b78"
+      "sha256": "2b872043c608ed60672307240548f165f78b3768a5c5f7d151c060c798c1a10e"
     },
     {
       "aniListId": "20605",
@@ -534,6 +554,36 @@
       "sha256": "211669d68eff7e7396392e030aa9c5cfceff013abff9abe766fcb19ac546a445"
     },
     {
+      "aniListId": "20958",
+      "tmdbId": "1429",
+      "type": "SERIES",
+      "season": 2,
+      "asset": "anilist_16498.png",
+      "source": "https://image.tmdb.org/t/p/original/emwRAEjT5Tfxpm93pKincoVG8UO.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "230a27a8fe2296969f3160d0012546a83eeda5b335bb7f49c8fea4dce586e698"
+    },
+    {
+      "aniListId": "20992",
+      "tmdbId": "60863",
+      "type": "SERIES",
+      "season": 2,
+      "asset": "anilist_20992.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00111695-content_logo_polychromatic-en-US",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "2b872043c608ed60672307240548f165f78b3768a5c5f7d151c060c798c1a10e"
+    },
+    {
+      "aniListId": "20996",
+      "tmdbId": "57041",
+      "type": "SERIES",
+      "season": 7,
+      "asset": "anilist_9969.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00002221-content_logo_polychromatic-en-US",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "5e7b2f1da0aff7e6fca3b0ca3a4f1458d6e310a265ede8302f7214a135fd59f1"
+    },
+    {
       "aniListId": "21087",
       "tmdbId": "63926",
       "type": "SERIES",
@@ -568,20 +618,20 @@
       "tmdbId": "65930",
       "type": "SERIES",
       "season": 1,
-      "asset": "anilist_21459.png",
-      "source": "https://image.tmdb.org/t/p/original/nLMgG3o3ov0cv15LPbFgv4NVRmZ.png",
+      "asset": "anilist_21856.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00002328-content_logo_polychromatic-en-US",
       "identityEvidence": "existing-series-ID-and-season-mapping",
-      "sha256": "106cadf5a2a6aad2783faf495c47c8633911424a0e64147301983e615f7d7068"
+      "sha256": "5372a04eaa1bd8686941d087b7306d7172450450df0a931b809d0d239f5a735a"
     },
     {
       "aniListId": "21507",
       "tmdbId": "67075",
       "type": "SERIES",
       "season": 1,
-      "asset": "anilist_21507.png",
-      "source": "https://image.tmdb.org/t/p/original/nH2KsyLFAj9hB0VZYVhpPkFeKPD.png",
+      "asset": "anilist_101338.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00002315-content_logo_polychromatic-en-US",
       "identityEvidence": "existing-series-ID-and-season-mapping",
-      "sha256": "02a8f987ded2433590ed9c36b10a24d85f0e8d9e59a046dbaafe49233add9a95"
+      "sha256": "fcb93bd566e67ee21579a5f5c50a6bdf302dbc57d5719bbee8661409f812fa58"
     },
     {
       "aniListId": "21519",
@@ -594,6 +644,16 @@
       "sha256": "cbc4e0a545197253fdcd370061fae259d534cab24dd086288ead43ffc56ebf72"
     },
     {
+      "aniListId": "21698",
+      "tmdbId": "60863",
+      "type": "SERIES",
+      "season": 3,
+      "asset": "anilist_20992.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00111695-content_logo_polychromatic-en-US",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "2b872043c608ed60672307240548f165f78b3768a5c5f7d151c060c798c1a10e"
+    },
+    {
       "aniListId": "21827",
       "tmdbId": "75214",
       "type": "SERIES",
@@ -602,6 +662,16 @@
       "source": "https://image.tmdb.org/t/p/original/3mxodaw8QDT2uzno1UdTjLi1GFs.png",
       "identityEvidence": "existing-series-ID-and-season-mapping",
       "sha256": "33fb2965b2ff0b85f1cf6f3d0370281dbbd78720bcead86d140c1c0848a98c4e"
+    },
+    {
+      "aniListId": "21856",
+      "tmdbId": "65930",
+      "type": "SERIES",
+      "season": 2,
+      "asset": "anilist_21856.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00002328-content_logo_polychromatic-en-US",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "5372a04eaa1bd8686941d087b7306d7172450450df0a931b809d0d239f5a735a"
     },
     {
       "aniListId": "21875",
@@ -614,14 +684,34 @@
       "sha256": "18c533b8e4c43ea64a20917526b79799afe21923b4dd51c61ed2702a6cd905c5"
     },
     {
+      "aniListId": "97889",
+      "tmdbId": "57041",
+      "type": "SERIES",
+      "season": 8,
+      "asset": "anilist_9969.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00002221-content_logo_polychromatic-en-US",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "5e7b2f1da0aff7e6fca3b0ca3a4f1458d6e310a265ede8302f7214a135fd59f1"
+    },
+    {
       "aniListId": "97940",
       "tmdbId": "73223",
       "type": "SERIES",
       "season": 1,
-      "asset": "anilist_97940.png",
-      "source": "https://image.tmdb.org/t/p/original/j9ZZ7WV5pwLLXbbebyGdMUxbqrc.png",
+      "asset": "anilist_195604.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00002115-content_logo_polychromatic-en-US",
       "identityEvidence": "existing-series-ID-and-season-mapping",
-      "sha256": "1a83357a56583fef557a5ac7166a6cc7ae3ae2df3bd8d581d2e53ebb59f41d5d"
+      "sha256": "a032b417b7cfb9956aabfe8aae87a1965586e8a52d82783370686e9072a5c02e"
+    },
+    {
+      "aniListId": "99147",
+      "tmdbId": "1429",
+      "type": "SERIES",
+      "season": 3,
+      "asset": "anilist_16498.png",
+      "source": "https://image.tmdb.org/t/p/original/emwRAEjT5Tfxpm93pKincoVG8UO.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "230a27a8fe2296969f3160d0012546a83eeda5b335bb7f49c8fea4dce586e698"
     },
     {
       "aniListId": "99750",
@@ -642,6 +732,16 @@
       "source": "https://image.tmdb.org/t/p/original/nX7S7Fz3D6LTKui7sypulFs3CDZ.png",
       "identityEvidence": "exact-original-title-year-animation-and-language",
       "sha256": "1b0fb2be1e0d2165bf3172ae38cb6f7c10238b5789a5d547b56864254f657653"
+    },
+    {
+      "aniListId": "101338",
+      "tmdbId": "67075",
+      "type": "SERIES",
+      "season": 2,
+      "asset": "anilist_101338.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00002315-content_logo_polychromatic-en-US",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "fcb93bd566e67ee21579a5f5c50a6bdf302dbc57d5719bbee8661409f812fa58"
     },
     {
       "aniListId": "101348",
@@ -674,6 +774,16 @@
       "sha256": "1dfeae120d0338c62904a9b6d893c5cbcba858d2931f81e011984480cd422000"
     },
     {
+      "aniListId": "101925",
+      "tmdbId": "57041",
+      "type": "SERIES",
+      "season": 10,
+      "asset": "anilist_9969.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00002221-content_logo_polychromatic-en-US",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "5e7b2f1da0aff7e6fca3b0ca3a4f1458d6e310a265ede8302f7214a135fd59f1"
+    },
+    {
       "aniListId": "103047",
       "tmdbId": "533514",
       "type": "MOVIE",
@@ -694,6 +804,16 @@
       "sha256": "905e29d4710034c8d4ed64c492af1149dbef84fb4d1cebcdf882e2cf69a466d4"
     },
     {
+      "aniListId": "104578",
+      "tmdbId": "1429",
+      "type": "SERIES",
+      "season": 3,
+      "asset": "anilist_16498.png",
+      "source": "https://image.tmdb.org/t/p/original/emwRAEjT5Tfxpm93pKincoVG8UO.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "230a27a8fe2296969f3160d0012546a83eeda5b335bb7f49c8fea4dce586e698"
+    },
+    {
       "aniListId": "106286",
       "tmdbId": "568160",
       "type": "MOVIE",
@@ -702,6 +822,16 @@
       "source": "https://image.tmdb.org/t/p/original/hcN3uAVVPsIEZwbNy5nfAfs7zZH.png",
       "identityEvidence": "exact-original-title-year-animation-and-language",
       "sha256": "dc5f64f45d73afe9c1889bab779e1d764df32a8548fbe77d91a63a8e911b1478"
+    },
+    {
+      "aniListId": "110277",
+      "tmdbId": "1429",
+      "type": "SERIES",
+      "season": 4,
+      "asset": "anilist_16498.png",
+      "source": "https://image.tmdb.org/t/p/original/emwRAEjT5Tfxpm93pKincoVG8UO.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "230a27a8fe2296969f3160d0012546a83eeda5b335bb7f49c8fea4dce586e698"
     },
     {
       "aniListId": "114129",
@@ -724,6 +854,16 @@
       "sha256": "4cf51c50ff42ac4a00767dfcb032efefff2a107a18183f965dae3b7d100a99d0"
     },
     {
+      "aniListId": "125367",
+      "tmdbId": "83121",
+      "type": "SERIES",
+      "season": 3,
+      "asset": "anilist_125367.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00058540-content_logo_polychromatic-en-US",
+      "identityEvidence": "crunchyroll-series-cms-generic-content-logo-polychromatic",
+      "sha256": "fa2b40937de8d9ab735921b26b35dd1ad61478c00b3691437568f403a74847fa"
+    },
+    {
       "aniListId": "127230",
       "tmdbId": "114410",
       "type": "SERIES",
@@ -732,6 +872,16 @@
       "source": "https://image.tmdb.org/t/p/original/gtQhIaKELg1gL06d6GHFoRZfuXb.png",
       "identityEvidence": "existing-series-ID-and-season-mapping",
       "sha256": "af5a39992c5c396dfa41f1405fd8434779068418b2cb14f86158f51436882e5c"
+    },
+    {
+      "aniListId": "136430",
+      "tmdbId": "88803",
+      "type": "SERIES",
+      "season": 2,
+      "asset": "anilist_101348.png",
+      "source": "https://image.tmdb.org/t/p/original/3gRatXdgLfzYU9q9WRwuQaIvpGQ.png",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "9651ba43b1114f528580e7d7816db2e9ae09188175012f8d716ef871b7bbf5d5"
     },
     {
       "aniListId": "137653",
@@ -874,6 +1024,16 @@
       "source": "https://image.tmdb.org/t/p/original/lFNhd3XrhA90XawdnocusI9zwsS.png",
       "identityEvidence": "existing-series-ID-and-season-mapping",
       "sha256": "ae2e0d4c503c2b9c30b2c3d6c717734d34f65deb74e56ba633e8286d6a28a474"
+    },
+    {
+      "aniListId": "179876",
+      "tmdbId": "306565",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_179876.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00383997-content_logo_polychromatic-en-US",
+      "identityEvidence": "provider-keyart-and-series-page",
+      "sha256": "995438f9312ea226a97280ea56efdaecc919ba2961786fecc9a63320960b87ff"
     },
     {
       "aniListId": "180136",
@@ -1026,6 +1186,16 @@
       "sha256": "16e158d6d6f8d65d92bc241346be24b0e57acafed4da7fc9c238aae5ea09f31b"
     },
     {
+      "aniListId": "195604",
+      "tmdbId": "73223",
+      "type": "SERIES",
+      "season": 2,
+      "asset": "anilist_195604.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00002115-content_logo_polychromatic-en-US",
+      "identityEvidence": "existing-series-ID-and-season-mapping",
+      "sha256": "a032b417b7cfb9956aabfe8aae87a1965586e8a52d82783370686e9072a5c02e"
+    },
+    {
       "aniListId": "197474",
       "tmdbId": "1530941",
       "type": "MOVIE",
@@ -1084,6 +1254,16 @@
       "source": "https://image.tmdb.org/t/p/original/yi9tqIr0fhIAcqygZCLfpzKRq6n.png",
       "identityEvidence": "existing-series-ID-and-season-mapping",
       "sha256": "3d0a37f751d7f518fef33ebef6cc466c1112b68a558b0fefe82c5cae0dc9fa8b"
+    },
+    {
+      "aniListId": "200294",
+      "tmdbId": "327765",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_200294.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00384013-content_logo_polychromatic-en-US",
+      "identityEvidence": "provider-keyart-and-series-page",
+      "sha256": "c0782c75d401b574e1267fc4df41b2ad1fe6ac2c5766716037fc33974fe2bf10"
     },
     {
       "aniListId": "200455",
@@ -1164,6 +1344,16 @@
       "source": "https://image.tmdb.org/t/p/original/yymlUm5q4wSGtvtqy9GJktFdfzm.png",
       "identityEvidence": "existing-series-ID-and-season-mapping",
       "sha256": "d6ff09561e8bb96b0b54179b574770544ae5e229887cf38c40fc8c9ce8db162d"
+    },
+    {
+      "aniListId": "205909",
+      "tmdbId": "320909",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_205909.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00383999-content_logo_polychromatic-en-US",
+      "identityEvidence": "provider-keyart-and-series-page",
+      "sha256": "106a100a4dd8bddd3d1a292727f1c08e9a1d7df94252807773d56f0300daaaa7"
     },
     {
       "aniListId": "206401",
@@ -1384,6 +1574,16 @@
       "source": "https://image.tmdb.org/t/p/original/ki2DwqPbI2LcWeOQrq7dtaDIHFB.png",
       "identityEvidence": "existing-series-ID-and-season-mapping",
       "sha256": "d8a6106dc9c29b6c120756ced3e810f498db609d78e8b4daf49c1bb7e6116e51"
+    },
+    {
+      "aniListId": "213068",
+      "tmdbId": "323937",
+      "type": "SERIES",
+      "season": 1,
+      "asset": "anilist_213068.png",
+      "source": "https://imgsrv.crunchyroll.com/cdn-cgi/image/fit=contain,format=png,width=1200/display/keyart/T00385792-content_logo_polychromatic-en-US",
+      "identityEvidence": "provider-keyart-and-series-page",
+      "sha256": "4499212fd30e4252b73dbb4891acd0f129ebf0b97f62e22625109f2b70abee5a"
     },
     {
       "aniListId": "214260",

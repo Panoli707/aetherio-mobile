@@ -15,8 +15,9 @@ import kotlinx.coroutines.withContext
 internal fun LicenseSettings() {
     val context = LocalContext.current
     var open by remember { mutableStateOf(false) }
-    val licenses by produceState("Cargando licencias…", open) {
-        if (open) value = withContext(Dispatchers.IO) {
+    var showFullNotices by remember { mutableStateOf(false) }
+    val licenses by produceState("Cargando avisos…", open, showFullNotices) {
+        if (open && showFullNotices) value = withContext(Dispatchers.IO) {
             context.assets.list("licenses").orEmpty().sorted().joinToString("\n\n") { file ->
                 "$file\n\n" + context.assets.open("licenses/$file").bufferedReader().use { it.readText() }
             }
@@ -24,8 +25,18 @@ internal fun LicenseSettings() {
     }
     Text("Software libre", style = MaterialTheme.typography.titleLarge)
     Text("Aetherio · GPL-3.0-or-later. Motor Nuvio Engine 0.1.6. Código fuente: github.com/Panoli707/aetherio-mobile", color = Muted)
-    OutlinedButton(onClick = { open = true }) { Text("Licencias y avisos de terceros") }
-    if (open) AlertDialog(onDismissRequest = { open = false }, title = { Text("Licencias de software") },
-        text = { Text(licenses, Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()), style = MaterialTheme.typography.bodySmall) },
-        confirmButton = { TextButton(onClick = { open = false }) { Text("Cerrar") } })
+    OutlinedButton(onClick = { open = true; showFullNotices = false }) { Text("Licencias y avisos de terceros") }
+    if (open) AlertDialog(onDismissRequest = { open = false }, title = {
+        Text(if (showFullNotices) "Avisos completos" else "Licencias de software")
+    }, text = {
+        if (showFullNotices) {
+            Text(licenses, Modifier.heightIn(max = 400.dp).verticalScroll(rememberScrollState()), style = MaterialTheme.typography.bodySmall)
+        } else {
+            Text("Aetherio se distribuye bajo GPL-3.0-or-later. Incluye bibliotecas y recursos de terceros con licencias propias (Apache, MIT, BSD y otras). Los avisos legales completos se conservan en la aplicación.")
+        }
+    }, confirmButton = {
+        TextButton(onClick = { open = false }) { Text("Cerrar") }
+    }, dismissButton = {
+        if (!showFullNotices) TextButton(onClick = { showFullNotices = true }) { Text("Ver avisos completos") }
+    })
 }

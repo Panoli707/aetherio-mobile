@@ -71,4 +71,27 @@ class WatchProgressUiTest {
         compose.onNodeWithText("Marcar como no visto").assertIsDisplayed()
         compose.onNodeWithText("Reproducir · T2 E3 · 12:34").assertDoesNotExist()
     }
+
+    @Test fun unreleasedEpisodeCardAndOptionsDoNothingUntilRelease() {
+        var played = false
+        var openedActions = false
+        val futureEpisode = EpisodeItem(7, 1, "Episode 7", released = false, airedOn = "2099-11-14")
+        val detail = MediaDetail(anime, seasons = listOf(SeasonInfo(1, "Temporada 1", 1)),
+            episodes = listOf(futureEpisode), selectedSeason = 1)
+        compose.setContent { AetherioTheme {
+            DetailScreen(state = AppState(detail = detail), item = anime, scroll = rememberLazyListState(),
+                onBack = {}, onToggleSaved = {}, onRetry = {}, onSeason = {}, onLink = {},
+                onRequestSources = { _, _, _ -> played = true },
+                onEpisodeWatchAction = { _, _, _, _ -> openedActions = true })
+        } }
+
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailEpisodes"))
+        compose.onNodeWithTag("detailEpisodes").performScrollToNode(hasContentDescription("Episodio T1 E7"))
+        compose.onNodeWithContentDescription("Episodio T1 E7").assertIsNotEnabled()
+            .performTouchInput { click(); longClick() }
+        compose.onNodeWithContentDescription("Opciones del episodio T1 E7").assertIsNotEnabled()
+            .performTouchInput { click() }
+        compose.onNodeWithTag("detailPrimaryPlay").assertIsNotEnabled().performClick()
+        compose.runOnIdle { assertFalse(played); assertFalse(openedActions) }
+    }
 }

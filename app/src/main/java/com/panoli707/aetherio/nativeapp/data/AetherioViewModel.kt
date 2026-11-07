@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.panoli707.aetherio.nativeapp.BuildConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -27,6 +28,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val repository = AetherioRepository(animeRepository = animeRepository,
         homeCache = HomeCatalogCache(java.io.File(application.cacheDir, "desktop-home-53a9276")))
     private val library = LocalLibraryStore(application)
+    private val libraryBrowser = LibraryBrowserStore(application)
     private val homePreferencesStore = HomePreferencesStore(application)
     private val history = WatchHistoryRepository.get(application)
     private val sourceRepository = SourceRepository()
@@ -42,12 +44,66 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val sourceSettings = SourceSettingsStore(application)
     private val addonStore = AddonStore(application)
     private val mutableState = MutableStateFlow(AppState(savedItems = SeriesIdentity.items(library.savedItems), profileName = library.profileName,
+        savedAddedAt = library.savedAddedAt, libraryFilters = libraryBrowser.filters(), discover = DiscoverState(selection = libraryBrowser.selection()),
         homePreferences = homePreferencesStore.load(), profileAppearance = profileStore.load(),
         sourcePreferences = sourceSettings.loadPreferences(),
         enabledDesktopSources = sourceSettings.enabledDesktopSources))
     val state: StateFlow<AppState> = mutableState.asStateFlow()
     private var homeJob: Job? = null
     private var browseJob: Job? = null
+    private var discoverCatalogJob: Job? = null
+    private var discoverAddonUrls: List<String>? = null
+    private val discoverLoader = DiscoverLoader(viewModelScope, { catalog, page, genre ->
+        if (catalog.manifestUrl == null) repository.discover(catalog, page, genre)
+        else withContext(Dispatchers.IO) {
+            val json = SourceProtocol.root(sourceRepository.document(DesktopDiscover.addonEndpoint(catalog, page, genre).toString()), SourceProtocol.MANIFEST_LIMIT, 1000)
+            val metas = requireNotNull(json.optJSONArray("metas"))
+            val type = if (catalog.type == "movie") MediaType.MOVIE else MediaType.SERIES
+            // Native details/playback currently support IMDb and built-in TMDB/AniList identities only.
+            val items = SeriesIdentity.items(CatalogJson.catalog(json, type, CatalogSource.CINEMETA))
+            DiscoverPage(items, catalog.skipStep?.let { metas.length() >= it } == true)
+        }
+    }, { state.value.discover }, { change -> mutableState.update { it.copy(discover = change(it.discover)) } })
+
+    fun setLibraryFilters(filters: LibraryFilters) {
+        libraryBrowser.save(filters)
+        mutableState.update { it.copy(libraryFilters = filters) }
+    }
+
+    fun loadDiscover(selection: DiscoverSelection, more: Boolean = false, force: Boolean = false) {
+        val urls = state.value.addons.filterNot { ProviderHub.isHub(it) }.map { it.manifestUrl }
+        if (!state.value.addonsLoading && (discoverAddonUrls != urls || force && state.value.discover.catalogsError != null)) {
+            discoverAddonUrls = urls
+            discoverCatalogJob?.cancel()
+            mutableState.update { it.copy(discover = it.discover.copy(catalogsLoading = true, catalogsError = null,
+                catalogs = it.discover.catalogs.filter { catalog -> catalog.manifestUrl == null || catalog.manifestUrl in urls })) }
+            discoverCatalogJob = viewModelScope.launch {
+                var failures = 0
+                val catalogs = mutableListOf<DiscoverCatalog>()
+                for (addon in state.value.addons.filterNot { ProviderHub.isHub(it) }) {
+                    try { catalogs += withContext(Dispatchers.IO) {
+                        DesktopDiscover.addonCatalogs(addon, SourceProtocol.root(sourceRepository.document(addon.manifestUrl), SourceProtocol.MANIFEST_LIMIT, 1000))
+                    } }
+                    catch (error: CancellationException) { throw error }
+                    catch (_: Exception) {
+                        failures++
+                        catalogs += state.value.discover.catalogs.filter { it.manifestUrl == addon.manifestUrl }
+                    }
+                }
+                ensureActive()
+                mutableState.update { it.copy(discover = it.discover.copy(catalogs = DesktopDiscover.catalogs + catalogs,
+                    catalogsLoading = false, catalogsError = if (failures > 0) "No se pudieron consultar $failures extensiones. Los catálogos integrados siguen disponibles." else null)) }
+                discoverLoader.load(state.value.discover.selection)
+                libraryBrowser.save(state.value.discover.selection)
+            }
+        }
+        // Do not discard a stored addon selection until its manifest has been restored.
+        if (selection.catalog.isNotEmpty() && state.value.discover.page == 0 && !state.value.discover.loading &&
+            selection.catalog !in state.value.discover.catalogs.map { it.key } &&
+            (state.value.addonsLoading || state.value.discover.catalogsLoading)) return
+        discoverLoader.load(selection, more, force)
+        libraryBrowser.save(state.value.discover.selection)
+    }
     private val detailLoader = DetailLoader(viewModelScope, repository::detail, repository::seasonContent,
         { item -> WatchProgressRules.latest(history.load(), item)?.target?.season }, { state.value },
         { change -> mutableState.update(change) })
@@ -255,8 +311,8 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val current = state.value.savedItems
             val items = if (current.any { it.key == item.key }) current.filterNot { it.key == item.key } else listOf(item) + current
-            mutableState.update { it.copy(savedItems = items) }
             library.save(items)
+            mutableState.update { it.copy(savedItems = items, savedAddedAt = library.savedAddedAt) }
         }
     }
     fun renameProfile(name: String) {
@@ -292,7 +348,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
             val canonical = SeriesIdentity.item(item)
             val saved = (listOf(canonical) + state.value.savedItems).distinctBy { it.key }
             withContext(Dispatchers.IO) { library.save(saved) }
-            mutableState.update { it.copy(savedItems = saved) }
+            mutableState.update { it.copy(savedItems = saved, savedAddedAt = library.savedAddedAt) }
             // Remote counters do not invent playback positions. Only explicit per-entry confirmation imports badges.
             mutableState.update { it.copy(profileMessage = "Anime importado a la biblioteca. Se conservan las marcas y posiciones existentes.") }
         }
@@ -445,10 +501,17 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 mutableState.update { it.copy(sourceQuery = resolved) }
                 var failures = 0
                 var unsupported = 0
+                // All IMDb addons must receive the same converted episode. Share the conversion,
+                // otherwise parallel provider requests can repeat metadata work and disagree.
+                val standardQuery = async {
+                    try { Result.success(repository.providerQuery(resolved, false)) }
+                    catch (error: CancellationException) { throw error }
+                    catch (error: Exception) { Result.failure(error) }
+                }
                 val lookups = addons.filter { hasImdb }.map { addon -> null to suspend {
-                    (if (ProviderHub.isHub(addon)) hubRepository else sourceRepository).sources(addon, repository.providerQuery(resolved, false)) } } +
+                    (if (ProviderHub.isHub(addon)) hubRepository else sourceRepository).sources(addon, standardQuery.await().getOrThrow()) } } +
                     compatibleDesktop.map { provider -> provider.id to suspend {
-                         desktopSourceRepository.sources(provider.id, repository.providerQuery(resolved, provider.id == "animeav1")) } }
+                         desktopSourceRepository.sources(provider.id, if (provider.id == "animeav1") repository.providerQuery(resolved, true) else standardQuery.await().getOrThrow()) } }
                 suspend fun lookup(desktopId: String?, request: suspend () -> SourceResult) {
                     try {
                         val result = request()
@@ -478,7 +541,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                             val config = requireNotNull(provider.config)
                             if (queried.add(config.id)) launch { lookup(null) {
                                 ProviderHubDirectory.filter(provider, SourceRepository(requestTimeoutMs = provider.timeoutMs, attempts = provider.attempts)
-                                    .sources(config, repository.providerQuery(resolved, false)))
+                                    .sources(config, standardQuery.await().getOrThrow()))
                             } }
                         }
                     }
@@ -496,11 +559,10 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
                 mutableState.update { current ->
                     if (current.sourceQuery?.key != resolved.key) current else current.copy(
                         sourcesLoading = false,
-                        sourceError = when {
-                            failures > 0 -> "Provider Hub o un proveedor opcional no respondió. Reintenta la consulta; no se activarán otras fuentes automáticamente."
-                            unsupported > 0 -> "Se rechazaron resultados con URL malformada, DRM o datos no compatibles. Recibir un resultado no garantiza reproducción."
-                            else -> null // A successful empty response uses the distinct "Sin resultados" UI state.
-                        }
+                        sourceError = buildList {
+                            if (failures > 0) add("$failures consultas de proveedores fallaron. Puedes reintentar; las fuentes recibidas siguen disponibles.")
+                            if (unsupported > 0) add("$unsupported resultados no son compatibles (URL, DRM o datos inválidos) y no se enviarán al reproductor.")
+                        }.joinToString(" ").takeIf { it.isNotEmpty() }
                     )
                 }
             } catch (e: CancellationException) { throw e }

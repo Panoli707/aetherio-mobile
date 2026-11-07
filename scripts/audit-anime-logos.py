@@ -25,7 +25,7 @@ RESOURCES = ROOT / 'app/src/main/resources'
 ASSETS = ROOT / 'app/src/main/assets/anime-logos'
 REPORT = ROOT / 'docs/artwork/anime-logo-audit.json'
 REGISTRY = RESOURCES / 'anime-logo-catalog.json'
-EXISTING = {'213068', '200294', '179876', '205909'}
+EXISTING = set()  # The pre-catalog overrides became registry rows in 2026-11; registry coverage applies.
 
 
 def request(url, *, token=None, body=None):

@@ -38,7 +38,7 @@ import java.util.Locale
 // Only destinations backed by existing Aetherio features; no placeholder account or integration screens.
 private enum class SettingsSection(val title: String, val summary: String, val icon: ImageVector, val keywords: String) {
     PROFILE("Perfil local", "Tu nombre y espacio en este dispositivo", Icons.Default.Person, "nombre usuario biblioteca"),
-    DESIGN("Diseño", "Preferencias de Inicio, pósteres y catálogos", Icons.Default.Palette, "inicio anime películas series orden ocultar pósteres"),
+    DESIGN("Preferencias", "Preferencias de Inicio, pósteres y catálogos", Icons.Default.Tune, "inicio anime películas series orden ocultar pósteres"),
     SOURCES("Fuentes y contenido", "Provider Hub, fuentes adicionales y proveedores propios", Icons.Default.Explore, "addons animeav1 manifest catálogo"),
     PLAYBACK("Reproducción", "Reproductor integrado y vídeo por enlace", Icons.Default.PlayArrow, "audio subtítulos velocidad torrent https vídeo"),
     UPDATES("Actualizaciones", "Buscar versiones y gestionar las descargas", Icons.Default.SystemUpdate, "versión descargar instalar automáticas"),
@@ -62,7 +62,7 @@ internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink:
     BackHandler(enabled = selected != null, onBack = back)
 
     if (selected == SettingsSection.PROFILE) {
-        ProfileSpace(state, onRename, personalActions, back, { destination = SettingsSection.DESIGN.name }, onSelectMedia)
+        ProfileSpace(state, onRename, personalActions, back, onSelectMedia)
         return
     }
 
@@ -108,7 +108,7 @@ internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink:
                         }
                     }
                 }
-                if (sections.isEmpty()) StatusMessage("Sin ajustes coincidentes", "Prueba con diseño, perfil, fuentes, reproducción o actualizaciones.")
+                if (sections.isEmpty()) StatusMessage("Sin ajustes coincidentes", "Prueba con preferencias, perfil, fuentes, reproducción o actualizaciones.")
                 SettingsBrand()
             } else {
                 ScreenHeader(selected.title, back)

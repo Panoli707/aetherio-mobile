@@ -75,6 +75,14 @@ internal class AnimeSeasonRepository(
         homeEntries(data)
     } }
 
+    suspend fun discover(sort: String, page: Int, genre: String): DiscoverPage = bounded { mutex.withLock {
+        require(sort in setOf("POPULARITY_DESC", "SCORE_DESC", "TRENDING_DESC", "FAVOURITES_DESC"))
+        require(page in 1..500 && (genre.isEmpty() || genre in DesktopDiscover.animeGenres))
+        val data = request("""query DiscoverAnime(${'$'}page:Int!,${'$'}sort:[MediaSort],${'$'}genre:String){Page(page:${'$'}page,perPage:25){pageInfo{hasNextPage}media(type:ANIME,isAdult:false,sort:${'$'}sort,genre:${'$'}genre){$HOME_FIELDS}}}""",
+            JSONObject().put("page", page).put("sort", sort).put("genre", genre.ifEmpty { null } ?: JSONObject.NULL))
+        DiscoverPage(SeriesIdentity.items(homeEntries(data).map { it.item }), data.getJSONObject("Page").getJSONObject("pageInfo").getBoolean("hasNextPage"))
+    } }
+
     suspend fun homeByMal(ids: List<Int>): List<AnimeCatalogEntry> = bounded { mutex.withLock {
         require(ids.isNotEmpty() && ids.size <= 50 && ids.all { it > 0 })
         homeEntries(request("""query HomeMal(${'$'}ids:[Int]){Page(page:1,perPage:50){media(type:ANIME,isAdult:false,idMal_in:${'$'}ids){$HOME_FIELDS}}}""",

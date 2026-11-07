@@ -85,6 +85,15 @@ class AnimeSeasonTest {
         assertNull(AnimeAv1Protocol.selectTitle(listOf(match), query.copy(season = 3)))
     }
 
+    @Test fun nativeAnimeLookupAcceptsVerifiedLanguageAliasesButNeverTheOtherSeason() {
+        val item = MediaItem("213805", MediaType.SERIES, "Koori no Jouheki 2nd Season", CatalogSource.ANILIST,
+            artworkTitles = listOf("The Ramparts of Ice Season 2", "氷の城壁 第2期"))
+        val match = AnimeAv1Protocol.Title("The Ramparts of Ice Season 2", "the-ramparts-of-ice-season-2")
+        val query = SourceQuery(item, 1, 1)
+        assertEquals(match, AnimeAv1Protocol.selectTitle(listOf(match), query))
+        assertNull(AnimeAv1Protocol.selectTitle(listOf(AnimeAv1Protocol.Title("The Ramparts of Ice", "the-ramparts-of-ice")), query))
+    }
+
     @Test fun bulkMarksNeverCrossSeasonsOrIncludeFutureAndUnknownEpisodes() {
         val episodes = listOf(EpisodeItem(1, 1, "One"), EpisodeItem(2, 1, "Two"), EpisodeItem(3, 1, "Three"),
             EpisodeItem(4, 1, "Future", released = false), EpisodeItem(1, 2, "Other season"))

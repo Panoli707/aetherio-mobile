@@ -27,7 +27,7 @@ internal data class CanonicalArtwork(val title: String, val cover: String?, val 
             val cover = CatalogJson.image(CatalogJson.text(json, "cover")) ?: return null
             val ratio = json.getDouble("ratio").toFloat().takeIf { it in .35f..3f } ?: return null
             val logo = CatalogJson.text(json, "logo")
-            val local = logo.takeIf { Regex("file:///android_asset/anime-logos/(anilist_[0-9]+|dandivine|chojo|dark_machine|firefly_wedding)\\.png").matches(it) }
+            val local = logo.takeIf { Regex("file:///android_asset/anime-logos/anilist_[0-9]+\\.png").matches(it) }
             val presence = json.optString("titlePresence", "ABSENT").let { ArtworkTitlePresence.valueOf(it) }
             CanonicalArtwork(title, cover, ratio, CatalogJson.image(logo) ?: local, presence)
         }.getOrNull()

@@ -51,8 +51,8 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
                 else LazyRow(contentPadding = PaddingValues(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     items(continuing, key = { it.target.key }) { progress ->
                         Column(Modifier.width(280.dp).clickable(onClickLabel = "Continuar ${progress.target.item.title}") { onContinue(progress) }) {
-                            if (progress.target.episode != null && progress.target.imageUrl != null)
-                                Artwork(progress.target.imageUrl, Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(14.dp)))
+                            if (progress.target.episode != null)
+                                EpisodeArtwork(progress.target.imageUrl, progress.target.item, Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(14.dp)))
                             else CanonicalPoster(progress.target.item, Modifier.fillMaxWidth().height(158.dp).clip(RoundedCornerShape(14.dp)),
                                 portrait = false)
                             LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Accent, trackColor = Outline)

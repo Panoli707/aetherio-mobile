@@ -12,10 +12,26 @@ try {
     New-Item -ItemType Directory -Path $fixture | Out-Null
     [IO.File]::WriteAllText((Join-Path $fixture 'settings.gradle.kts'), '// CLI test fixture')
     [IO.File]::WriteAllText((Join-Path $fixture 'gradlew.bat'), "@echo off`r`necho CALL:%*`r`necho JAVA_HOME:%JAVA_HOME%`r`nexit /b %MOCK_GRADLE_EXIT%`r`n")
+    $tools = Join-Path $fixture 'platform-tools'
+    New-Item -ItemType Directory -Path $tools | Out-Null
+    # A standalone fake ADB: never connects to the real ADB server or any device.
+    Add-Type -TypeDefinition @'
+public static class FakeAdb {
+    public static int Main(string[] args) {
+        if (args.Length == 3 && args[0] == "-s" && args[1] == "6b591e1e" && args[2] == "get-state") {
+            System.Console.WriteLine("device"); return 0;
+        }
+        if (args.Length == 5 && args[0] == "-s" && args[1] == "6b591e1e" && args[2] == "shell" && args[3] == "getprop" && args[4] == "ro.product.model") {
+            System.Console.WriteLine("22101320G"); return 0;
+        }
+        return 1;
+    }
+}
+'@ -OutputAssembly (Join-Path $tools 'adb.exe') -OutputType ConsoleApplication
     Push-Location $fixture
     $locationChanged = $true
     $env:JAVA_HOME = $PSHOME
-    $env:ANDROID_HOME = $PSHOME
+    $env:ANDROID_HOME = $fixture
     $env:MOCK_GRADLE_EXIT = '0'
     $cases = @(
         @{ Name='debug-low-memory'; Args=@('-Action','assembleDebug','-LowMemory'); Want=@('--daemon','--max-workers=1','"-Dorg.gradle.jvmargs=-Xmx1024m -Dfile.encoding=UTF-8"',':app:assembleDebug',"JAVA_HOME:$PSHOME"); Reject=@('--no-daemon') },
@@ -23,6 +39,7 @@ try {
         @{ Name='debug-isolation'; Args=@('-Action','verify','-NoDaemon'); Want=@('--no-daemon',':app:assembleDebug',':app:testDebugUnitTest',':app:lintDebug'); Reject=@('--daemon') },
         @{ Name='explicit-resources'; Args=@('-LowMemory','-MaxWorkers','2','-HeapMiB','1536'); Want=@('--max-workers=2','"-Dorg.gradle.jvmargs=-Xmx1536m -Dfile.encoding=UTF-8"'); Reject=@('--max-workers=1','-Xmx1024m') },
         @{ Name='preview'; Args=@('-Action','verifyRelease','-WhatIf'); Want=@('gradlew.bat','--no-daemon'); Reject=@('CALL:') }
+        @{ Name='connected-preserves-installed-apps'; Args=@('-Action','connectedDebugAndroidTest','-LowMemory'); Want=@('-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true',':app:connectedDebugAndroidTest'); Reject=@('uninstall','clearPackageData') }
     )
     foreach ($case in $cases) {
         $arguments = $case.Args
@@ -41,7 +58,7 @@ try {
     $null = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $script -Action assembleDebug
     if ($LASTEXITCODE -ne 17) { throw 'Gradle exit code was not propagated.' }
     'PASS: exit-code-propagation'
-    '6 CLI checks passed; no Android build was started.'
+    '7 CLI checks passed; no Android build or device connection was started.'
 } finally {
     if ($locationChanged) { Pop-Location }
     foreach ($name in $saved.Keys) {
@@ -52,5 +69,9 @@ try {
         $path = Join-Path $fixture $name
         if (Test-Path -LiteralPath $path) { Remove-Item -LiteralPath $path }
     }
+    $fakeAdb = Join-Path $fixture 'platform-tools\adb.exe'
+    if (Test-Path -LiteralPath $fakeAdb) { Remove-Item -LiteralPath $fakeAdb }
+    $tools = Join-Path $fixture 'platform-tools'
+    if (Test-Path -LiteralPath $tools) { Remove-Item -LiteralPath $tools }
     if (Test-Path -LiteralPath $fixture) { Remove-Item -LiteralPath $fixture }
 }

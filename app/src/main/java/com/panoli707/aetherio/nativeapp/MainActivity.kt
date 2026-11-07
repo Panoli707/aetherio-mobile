@@ -38,6 +38,7 @@ import com.panoli707.aetherio.nativeapp.player.MediaUrlPolicy
 import com.panoli707.aetherio.nativeapp.player.VideoActivity
 import com.panoli707.aetherio.nativeapp.player.TrailerPlayback
 import com.panoli707.aetherio.nativeapp.ui.AetherioApp
+import com.panoli707.aetherio.nativeapp.ui.loadThemePalette
 
 class MainActivity : ComponentActivity() {
     private val model: AetherioViewModel by viewModels()
@@ -64,6 +65,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_Aetherio)
         super.onCreate(savedInstanceState)
+        loadThemePalette(this)
         routeSequence = savedInstanceState?.getInt("personalRouteSequence") ?: 0
         profileRequest = savedInstanceState?.getInt("personalProfileRequest") ?: 0
         downloadsRequest = savedInstanceState?.getInt("personalDownloadsRequest") ?: 0
@@ -144,6 +146,8 @@ class MainActivity : ComponentActivity() {
                 onToggleWatching = model::toggleWatching,
                 onLoadAnimeSeason = model::loadAnimeSeason,
                 onBrowse = model::loadBrowse,
+                onLibraryFilters = model::setLibraryFilters,
+                onDiscover = model::loadDiscover,
                 onHomePreferencesChange = model::setHomePreferences,
                 onSourcePreferencesChange = model::setSourcePreferences,
                 onOpenExternal = { url ->
@@ -165,7 +169,7 @@ class MainActivity : ComponentActivity() {
                 personalActions = PersonalActions(
                     connect = { service -> lifecycleScope.launch {
                         try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(model.animeAuthorization(service))).addCategory(Intent.CATEGORY_BROWSABLE)) }
-                        catch (_: Exception) { Toast.makeText(this@MainActivity, "No se pudo abrir la autorización en el navegador.", Toast.LENGTH_LONG).show() }
+                        catch (_: Exception) { Toast.makeText(this@MainActivity, "No se pudo iniciar la vinculación. Consulta el aviso en Mi espacio.", Toast.LENGTH_LONG).show() }
                     } }, refresh = model::refreshAnimeAccount, disconnect = model::disconnectAnimeAccount,
                     updateAnime = model::updateAnimeEntry, importAnime = model::importAnimeEntry,
                     editAnime = model::editAnimeEntry, dismissAnime = model::dismissAnimeDraft,

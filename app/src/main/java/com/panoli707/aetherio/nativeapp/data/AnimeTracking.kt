@@ -48,6 +48,7 @@ internal data class OAuthSession(val access: String, val refresh: String = "", v
 
 /** Pure OAuth protocol validation: exact redirect, one-use state, expiry and duplicate rejection. */
 internal object AnimeOAuth {
+    const val BROKER = "https://aetherio-anilist-auth.adrianchaves341.workers.dev"
     fun redirect(service: AnimeService) = "aetherio://oauth/${service.route}"
     fun pending(service: AnimeService, now: Long): OAuthPending {
         fun random() = ByteArray(48).also(SecureRandom()::nextBytes).joinToString("") { "%02x".format(it.toInt() and 255) }
@@ -57,6 +58,9 @@ internal object AnimeOAuth {
         require(clientId.matches(if (pending.service == AnimeService.ANILIST) Regex("[0-9]{1,12}") else Regex("[a-fA-F0-9]{32}")))
         val params = linkedMapOf("client_id" to clientId, "redirect_uri" to redirect(pending.service), "state" to pending.state,
             "response_type" to if (pending.service == AnimeService.ANILIST) "token" else "code")
+        // AniList implicit uses the redirect registered in its client settings. Sending
+        // redirect_uri here makes its live authorize endpoint reject the grant.
+        if (pending.service == AnimeService.ANILIST) params.remove("redirect_uri")
         if (pending.service == AnimeService.MAL) {
             params["code_challenge"] = pending.verifier
             params["code_challenge_method"] = "plain" // MAL currently supports only plain PKCE.
@@ -69,12 +73,13 @@ internal object AnimeOAuth {
         val uri = URI(raw)
         AnimeService.entries.firstOrNull { uri.scheme == "aetherio" && uri.rawAuthority == "oauth" && uri.rawPath == "/${it.route}" }
     }.getOrNull()
+    fun challenge(pending: OAuthPending): String = MessageDigest.getInstance("SHA-256")
+        .digest(pending.verifier.toByteArray(Charsets.US_ASCII)).joinToString("") { "%02x".format(it.toInt() and 255) }
     fun callback(raw: String, pending: OAuthPending, now: Long): Map<String, String> {
         require(service(raw) == pending.service && now - pending.createdAt in 0..600_000)
         val uri = URI(raw)
-        val payload = if (pending.service == AnimeService.ANILIST) {
-            require(uri.rawQuery == null); uri.rawFragment
-        } else { require(uri.rawFragment == null); uri.rawQuery }
+        if (pending.service == AnimeService.ANILIST) require(uri.rawQuery == null) else require(uri.rawFragment == null)
+        val payload = if (pending.service == AnimeService.ANILIST) uri.rawFragment else uri.rawQuery
         require(!payload.isNullOrEmpty())
         val pairs = payload.split('&').map { part ->
             val pair = part.split('=', limit = 2)
@@ -83,11 +88,13 @@ internal object AnimeOAuth {
         }
         require(pairs.map { it.first }.distinct().size == pairs.size)
         val params = pairs.toMap()
+        if (pending.service == AnimeService.ANILIST) require(params.keys.all { it in setOf("state", "access_token", "token_type", "expires_in", "error") })
         require(MessageDigest.isEqual(params["state"].orEmpty().toByteArray(), pending.state.toByteArray()))
         require("error" !in params) { "AUTH_DENIED" }
+        if (pending.service == AnimeService.ANILIST) require(params["token_type"].equals("Bearer", true))
         val credential = params[if (pending.service == AnimeService.ANILIST) "access_token" else "code"].orEmpty()
         require(credential.length in 1..16_384 && credential.all { it in '!'..'~' })
-        if (pending.service == AnimeService.ANILIST) require(params["token_type"].equals("bearer", true))
+        if (pending.service == AnimeService.ANILIST) require(params["expires_in"]?.toLongOrNull()?.let { it in 1..31_536_000 } == true)
         return params
     }
 }

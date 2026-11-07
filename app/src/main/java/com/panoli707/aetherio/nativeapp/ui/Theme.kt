@@ -1,11 +1,15 @@
 package com.panoli707.aetherio.nativeapp.ui
 
+import android.content.Context
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -18,9 +22,43 @@ internal val RaisedPanel = Color(0xFF202028)
 internal val HighestPanel = Color(0xFF292932)
 internal val Cream = Color(0xFFF5F5F7)
 internal val Muted = Color(0xFFAAAAB8)
-internal val Accent = Color(0xFFA78BFA)
-internal val AccentContainer = Color(0xFF2B2140)
-internal val OnAccentContainer = Color(0xFFE9DDFF)
+internal enum class ThemePalette(val label: String, val accent: Color, val container: Color, val onContainer: Color) {
+    VIOLET("Violeta", Color(0xFFA78BFA), Color(0xFF2B2140), Color(0xFFE9DDFF)),
+    BLUE("Azul", Color(0xFF69B7FF), Color(0xFF15304A), Color(0xFFD8ECFF)),
+    GREEN("Verde", Color(0xFF62D6A5), Color(0xFF123A2C), Color(0xFFD0F7E5)),
+    PINK("Rosa", Color(0xFFFF8FCB), Color(0xFF45203A), Color(0xFFFFD9EC)),
+    AMBER("Ámbar", Color(0xFFFFC66D), Color(0xFF49351C), Color(0xFFFFE8C2))
+}
+
+private var activePalette by mutableStateOf(ThemePalette.VIOLET)
+private var transparentControls by mutableStateOf(false)
+internal val Accent get() = activePalette.accent
+internal val AccentContainer get() = activePalette.container
+internal val OnAccentContainer get() = activePalette.onContainer
+internal val TransparentControlsEnabled get() = transparentControls
+internal val AppButtonAlpha get() = if (transparentControls) .28f else 1f
+internal val ButtonSurfaceAlpha get() = if (transparentControls) .22f else .88f
+
+internal fun loadThemePalette(context: Context) {
+    val preferences = context.getSharedPreferences("aetherio_theme_v1", Context.MODE_PRIVATE)
+    val name = preferences.getString("palette", null)
+    activePalette = ThemePalette.entries.firstOrNull { it.name == name } ?: ThemePalette.VIOLET
+    transparentControls = preferences.getBoolean("transparent_controls", false)
+}
+
+internal fun saveThemePalette(context: Context, palette: ThemePalette): Boolean {
+    val saved = runCatching { context.applicationContext.getSharedPreferences("aetherio_theme_v1", Context.MODE_PRIVATE)
+        .edit().putString("palette", palette.name).commit() }.getOrDefault(false)
+    if (saved) activePalette = palette
+    return saved
+}
+
+internal fun saveTransparentControls(context: Context, enabled: Boolean): Boolean {
+    val saved = runCatching { context.applicationContext.getSharedPreferences("aetherio_theme_v1", Context.MODE_PRIVATE)
+        .edit().putBoolean("transparent_controls", enabled).commit() }.getOrDefault(false)
+    if (saved) transparentControls = enabled
+    return saved
+}
 internal val Outline = Color(0xFF777786)
 internal val Divider = Color(0xFF34343F)
 internal val Success = Color(0xFF86D9AC)
@@ -31,9 +69,11 @@ internal val Rating = Cream
 // Keep glass readable over even the brightest artwork/video frames.
 internal const val GlassPanelAlpha = .94f
 
-internal val AetherioColors = darkColorScheme(
-    primary = Accent, onPrimary = Ink, primaryContainer = AccentContainer, onPrimaryContainer = OnAccentContainer,
-    secondary = Muted, onSecondary = Ink, secondaryContainer = RaisedPanel, onSecondaryContainer = Cream,
+internal val AetherioColors get() = darkColorScheme(
+    primary = Accent.copy(alpha = AppButtonAlpha), onPrimary = if (TransparentControlsEnabled) Cream else Ink,
+    primaryContainer = AccentContainer.copy(alpha = if (TransparentControlsEnabled) .38f else 1f), onPrimaryContainer = OnAccentContainer,
+    secondary = Muted, onSecondary = Ink,
+    secondaryContainer = RaisedPanel.copy(alpha = if (TransparentControlsEnabled) .38f else 1f), onSecondaryContainer = Cream,
     tertiary = Cream, onTertiary = Ink, tertiaryContainer = HighestPanel, onTertiaryContainer = Cream,
     background = Ink, onBackground = Cream, surface = Panel, onSurface = Cream,
     surfaceVariant = RaisedPanel, onSurfaceVariant = Muted,

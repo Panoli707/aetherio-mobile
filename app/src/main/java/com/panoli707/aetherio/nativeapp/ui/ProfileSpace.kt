@@ -20,7 +20,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.panoli707.aetherio.nativeapp.data.*
+import kotlinx.coroutines.delay
 
 data class PersonalActions(
     val connect: (AnimeService) -> Unit = {}, val refresh: (AnimeService) -> Unit = {}, val disconnect: (AnimeService) -> Unit = {},
@@ -73,7 +73,7 @@ private fun ProfileBanner(appearance: ProfileAppearance, modifier: Modifier = Mo
 
 @Composable
 internal fun ProfileSpace(state: AppState, onRename: (String) -> Unit, actions: PersonalActions, onBack: () -> Unit,
-    onDesign: () -> Unit, onSelect: (MediaItem) -> Unit, initialDownloads: Boolean = false, navigationRequest: Int = 0) {
+    onSelect: (MediaItem) -> Unit, initialDownloads: Boolean = false, navigationRequest: Int = 0) {
     var page by rememberSaveable { mutableStateOf(if (initialDownloads) "downloads" else "profile") }
     var handledRequest by rememberSaveable { mutableStateOf(-1) }
     LaunchedEffect(navigationRequest) {
@@ -82,6 +82,7 @@ internal fun ProfileSpace(state: AppState, onRename: (String) -> Unit, actions: 
     }
     BackHandler(page != "profile") { page = "profile" }
     when (page) {
+        "colors" -> ThemeColorSettings { page = "profile" }
         "edit" -> ProfileEditor(state, onRename, actions) { page = "profile" }
         "downloads" -> DownloadsScreen(state, actions) { page = "profile" }
         else -> Box(Modifier.fillMaxSize().background(Ink).testTag("profileSpace")) {
@@ -89,25 +90,34 @@ internal fun ProfileSpace(state: AppState, onRename: (String) -> Unit, actions: 
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 132.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
                 item {
                     Column(Modifier.statusBarsPadding().padding(horizontal = 22.dp).padding(top = 12.dp)) {
-                        IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Volver") }
-                        Row(Modifier.fillMaxWidth().padding(vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Column(Modifier.weight(1f)) {
-                                Text("Mi espacio", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                                Text("Tu biblioteca, listas y descargas.", color = Muted)
-                            }
-                            ProfileAvatar(state.profileAppearance, Modifier.size(54.dp).clickable { page = "edit" })
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            RoundAction("Volver", Icons.Default.ArrowBack, onBack)
+                            Spacer(Modifier.weight(1f))
+                            ProfileAvatar(state.profileAppearance, Modifier.size(48.dp).clickable { page = "edit" })
+                        }
+                        Column(Modifier.fillMaxWidth().padding(vertical = 16.dp)) {
+                            Text("Mi espacio", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
+                            Text("Tu biblioteca, listas y descargas.", color = Muted)
                         }
                     }
                 }
                 item {
                     Surface(Modifier.padding(horizontal = 20.dp).fillMaxWidth(), shape = RoundedCornerShape(26.dp),
-                        color = Panel.copy(alpha = .85f), border = BorderStroke(1.dp, Outline)) {
+                        color = Panel.copy(alpha = if (TransparentControlsEnabled) .20f else .85f), border = BorderStroke(1.dp, Outline)) {
                         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
                             ProfileAvatar(state.profileAppearance, Modifier.size(72.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(state.profileName, style = MaterialTheme.typography.titleLarge, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                Text("Avatar, banner y nombre", color = Muted, style = MaterialTheme.typography.bodySmall)
-                                TextButton(onClick = { page = "edit" }, modifier = Modifier.testTag("editProfile")) { Text("Editar perfil ›") }
+                                Text("Avatar, banner y nombre", color = Muted, style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
+                            OutlinedButton(onClick = { page = "edit" },
+                                modifier = Modifier.testTag("editProfile"),
+                                shape = RoundedCornerShape(50),
+                                border = BorderStroke(1.dp, Accent.copy(alpha = if (TransparentControlsEnabled) .5f else .7f)),
+                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Accent)) {
+                                Text("Editar perfil ›", maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -119,29 +129,8 @@ internal fun ProfileSpace(state: AppState, onRename: (String) -> Unit, actions: 
                 item {
                     Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("PERSONALIZACIÓN", color = Muted, style = MaterialTheme.typography.labelLarge)
-                        ProfileDestination("Diseño de Aetherio", "Inicio, pósteres y catálogos", Icons.Default.Palette, onDesign)
+                        ProfileDestination("Diseño de Aetherio", "Colores y apariencia de la app", Icons.Default.Palette, { page = "colors" })
                         ProfileDestination("Descargas", "Cola, almacenamiento y vídeos sin conexión", Icons.Default.Download, { page = "downloads" })
-                        ProfileDestination("Editar perfil", "Personalización guardada en este dispositivo", Icons.Default.Person, { page = "edit" })
-                        Text("Las cuentas de anime son opcionales. Sincronizan listas de anime, no tus imágenes, descargas ni vídeos. Las actualizaciones siguen en Ajustes > Actualizaciones.",
-                            color = Muted, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                val continuing = WatchProgressRules.continuing(state.watchProgress)
-                if (continuing.isNotEmpty()) item {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Continuar viendo", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(horizontal = 22.dp))
-                        LazyRow(contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            items(continuing, key = { it.target.key }) { progress ->
-                                Surface(onClick = { onSelect(progress.target.item) }, color = Panel, shape = RoundedCornerShape(18.dp), modifier = Modifier.width(230.dp)) {
-                                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        Text(progress.target.item.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                        Text(progress.target.episode?.let { "T${progress.target.season} · E$it · ${watchTime(progress.positionMs)}" }
-                                            ?: watchTime(progress.positionMs), color = Muted, style = MaterialTheme.typography.bodySmall)
-                                        LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth())
-                                    }
-                                }
-                            }
-                        }
                     }
                 }
             }
@@ -151,7 +140,8 @@ internal fun ProfileSpace(state: AppState, onRename: (String) -> Unit, actions: 
 
 @Composable
 private fun ProfileDestination(title: String, summary: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(20.dp), color = Panel, border = BorderStroke(1.dp, Outline), modifier = Modifier.fillMaxWidth()) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(20.dp), color = Panel.copy(alpha = if (TransparentControlsEnabled) .22f else 1f),
+        border = BorderStroke(1.dp, Outline), modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             Icon(icon, null, tint = Accent)
             Column(Modifier.weight(1f)) { Text(title, style = MaterialTheme.typography.titleMedium); Text(summary, color = Muted, style = MaterialTheme.typography.bodySmall) }
@@ -167,6 +157,14 @@ private fun AnimeConnectionCard(service: AnimeService, connection: AnimeConnecti
     var editing by remember { mutableStateOf<AnimeEntry?>(null) }
     var suggestedProgress by remember { mutableStateOf<Int?>(null) }
     var review by remember { mutableStateOf(false) }
+    var visibleError by remember(service) { mutableStateOf<String?>(null) }
+    LaunchedEffect(connection.error) {
+        visibleError = connection.error
+        if (connection.error != null) {
+            delay(5_000)
+            visibleError = null
+        }
+    }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth().testTag("account:${service.name}")) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 22.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("LISTAS · ${service.label}", color = Muted, style = MaterialTheme.typography.labelLarge, modifier = Modifier.weight(1f))
@@ -226,7 +224,7 @@ private fun AnimeConnectionCard(service: AnimeService, connection: AnimeConnecti
             TextButton(onClick = { review = true }, enabled = !connection.busy, modifier = Modifier.padding(horizontal = 16.dp)) { Text("Revisar sincronización del progreso local") }
         }
         if (connection.busy) LinearProgressIndicator(Modifier.padding(horizontal = 22.dp).fillMaxWidth())
-        connection.error?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 24.dp)) }
+        visibleError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 24.dp)) }
     }
     if (logout) AlertDialog(onDismissRequest = { logout = false }, title = { Text("Desconectar ${service.label}") },
         text = { Text("Se borrarán la autorización y la copia local de esta lista. No se borrará tu cuenta, lista remota, biblioteca ni historial. Puedes revocar el permiso también en los ajustes de ${service.label}.") },

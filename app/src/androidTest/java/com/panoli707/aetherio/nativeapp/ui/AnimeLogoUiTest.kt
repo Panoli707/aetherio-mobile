@@ -50,7 +50,7 @@ class AnimeLogoUiTest {
     @Test fun bundledResourcesHaveTransparentMarginsAndNonemptyArtwork() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         for ((id, _) in ids) {
-            val asset = AnimeLogoOverrides.logo(MediaItem(id, MediaType.SERIES, "Anime", CatalogSource.ANILIST))!!
+            val asset = AnimeLogoCatalog.logo(MediaItem(id, MediaType.SERIES, "Anime", CatalogSource.ANILIST))!!
                 .removePrefix("file:///android_asset/")
             val bitmap = context.assets.open(asset).use { android.graphics.BitmapFactory.decodeStream(it) }!!
             assertTrue(bitmap.hasAlpha())

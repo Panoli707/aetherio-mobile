@@ -22,7 +22,7 @@ internal object ArtworkImages {
     fun overlayTitle(header: Header?): Boolean = header?.titlePresence in
         setOf(ArtworkTitlePresence.ABSENT, ArtworkTitlePresence.TOP)
 
-    fun logos(item: MediaItem): List<String> = (listOfNotNull(AnimeLogoOverrides.logo(item), AnimeLogoCatalog.logo(item), item.logoUrl) + item.logoAlternatives)
+    fun logos(item: MediaItem): List<String> = (listOfNotNull(AnimeLogoCatalog.logo(item), item.logoUrl) + item.logoAlternatives)
         .filter(String::isNotBlank).flatMap { listOfNotNull(highResolution(it), it) }.distinct()
     fun highResolution(url: String?): String? {
         if (url == null) return null

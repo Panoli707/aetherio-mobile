@@ -85,8 +85,8 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
                         val target = progress.target
                         Column(Modifier.width(260.dp).clip(RoundedCornerShape(14.dp)).background(Panel)) {
                             Column(Modifier.clickable(onClickLabel = "Continuar ${target.item.title}") { onContinue(progress) }) {
-                                if (target.episode != null && target.imageUrl != null)
-                                    Artwork(target.imageUrl, Modifier.fillMaxWidth().height(140.dp))
+                                if (target.episode != null)
+                                    EpisodeArtwork(target.imageUrl, target.item, Modifier.fillMaxWidth().height(140.dp))
                                 else CanonicalPoster(target.item, Modifier.fillMaxWidth().height(140.dp), portrait = false)
                                 LinearProgressIndicator(progress = { progress.fraction }, modifier = Modifier.fillMaxWidth(), color = Accent, trackColor = Outline)
                                 Column(Modifier.padding(horizontal = 12.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -142,7 +142,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
                 DesktopHomeCatalog.animeGenres.map { "anime-genre:${it.id}" to it.title }, onCategory)
         }
         if (state.sections.isNotEmpty() && displayed.isEmpty() && !state.homeLoading) item(key = "hiddenCatalogs") {
-            StatusMessage("Catálogos ocultos", "Puedes volver a mostrarlos en Ajustes > Diseño. La búsqueda y la biblioteca siguen disponibles.")
+            StatusMessage("Catálogos ocultos", "Puedes volver a mostrarlos en Ajustes > Preferencias. La búsqueda y la biblioteca siguen disponibles.")
         }
     }
 }

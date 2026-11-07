@@ -1,7 +1,8 @@
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [ValidateSet("wrapper", "assembleDebug", "testDebugUnitTest", "lintDebug", "verify", "assembleRelease", "testReleaseUnitTest", "lintRelease", "verifyRelease")]
+    [ValidateSet("wrapper", "assembleDebug", "testDebugUnitTest", "connectedDebugAndroidTest", "lintDebug", "verify", "assembleRelease", "testReleaseUnitTest", "lintRelease", "verifyRelease")]
     [string]$Action = "assembleDebug",
+    [string]$AndroidSerial = "6b591e1e",
     [string]$GradleExecutable,
     [switch]$PublicDistribution,
     [switch]$LowMemory,
@@ -37,6 +38,22 @@ if ($Action -eq "wrapper") {
     exit 0
 }
 
+$androidTestAction = $Action -eq 'connectedDebugAndroidTest'
+$previousAndroidSerial = $env:ANDROID_SERIAL
+if ($androidTestAction) {
+    $adb = Join-Path $env:ANDROID_HOME 'platform-tools\adb.exe'
+    if (-not (Test-Path -LiteralPath $adb -PathType Leaf)) { throw "No existe ADB: $adb" }
+    $state = (& $adb -s $AndroidSerial get-state 2>$null) -join ''
+    if ($LASTEXITCODE -ne 0 -or $state.Trim() -cne 'device') {
+        throw "El Xiaomi ($AndroidSerial) no está conectado y autorizado. No se usarán otros dispositivos ni emuladores."
+    }
+    $model = (& $adb -s $AndroidSerial shell getprop ro.product.model) -join ''
+    if ($LASTEXITCODE -ne 0 -or $model.Trim() -cne '22101320G') {
+        throw "El serial $AndroidSerial no corresponde al Xiaomi 22101320G; se cancela para evitar instalar en otro dispositivo."
+    }
+    $env:ANDROID_SERIAL = $AndroidSerial
+}
+
 $releaseAction = $Action -in @('assembleRelease', 'testReleaseUnitTest', 'lintRelease', 'verifyRelease')
 $gradleArguments = @('--no-configuration-cache')
 if ($NoDaemon -or $releaseAction) { $gradleArguments += '--no-daemon' }
@@ -54,11 +71,21 @@ if ($Action -eq 'verify') {
     $gradleArguments += @(':app:assembleDebug', ':app:testDebugUnitTest', ':app:lintDebug')
 } elseif ($Action -eq 'verifyRelease') {
     $gradleArguments += @(':app:assembleRelease', ':app:testReleaseUnitTest', ':app:lintRelease')
+} elseif ($Action -eq 'connectedDebugAndroidTest') {
+    # Personal device: UTP must not uninstall either APK, including on failed installation.
+    $gradleArguments += '-Pandroid.injected.androidTest.leaveApksInstalledAfterRun=true'
+    $gradleArguments += ':app:connectedDebugAndroidTest'
 } else {
     $gradleArguments += ":app:$Action"
 }
 if ($PSCmdlet.ShouldProcess((Get-Location).Path, "gradlew.bat $($gradleArguments -join ' ')")) {
-    & .\gradlew.bat @gradleArguments
-    exit $LASTEXITCODE
+    try {
+        & .\gradlew.bat @gradleArguments
+        $gradleExitCode = $LASTEXITCODE
+    } finally {
+        if ($androidTestAction) { $env:ANDROID_SERIAL = $previousAndroidSerial }
+    }
+    exit $gradleExitCode
 }
+if ($androidTestAction) { $env:ANDROID_SERIAL = $previousAndroidSerial }
 exit 0

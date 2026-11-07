@@ -22,7 +22,16 @@ class AnimeAccountSecurityTest {
         val server = MockWebServer()
         server.dispatcher = object : Dispatcher() {
             override fun dispatch(request: RecordedRequest): MockResponse {
-                val query = JSONObject(request.body.readUtf8()).getString("query")
+                val body = JSONObject(request.body.readUtf8())
+                if (request.path == "/start") return MockResponse().setBody(JSONObject().put("authorizationUrl",
+                    AnimeOAuth.authorize("56163", OAuthPending(AnimeService.ANILIST, body.getString("state"), "", 0))).toString())
+                if (request.path == "/claim") {
+                    assertEquals(96, body.getString("verifier").length)
+                    assertEquals("f".repeat(64), body.getString("ticket"))
+                    assertNull(request.getHeader("Authorization"))
+                    return MockResponse().setBody("""{"access_token":"private-test-token","token_type":"Bearer","expires_in":3600}""")
+                }
+                val query = body.getString("query")
                 val data = when {
                     "Viewer" in query -> """{"Viewer":{"id":42,"name":"QA account","avatar":{}}}"""
                     "MediaListCollection" in query -> """{"MediaListCollection":{"hasNextChunk":false,"lists":[]}}"""
@@ -33,10 +42,10 @@ class AnimeAccountSecurityTest {
         }
         server.start()
         try {
-            val store = AnimeTrackingStore(context(), AnimeTrackingApi(graphUrl = "${base(server)}/graph", spacingMs = 0), namespace)
+            val store = AnimeTrackingStore(context(), AnimeTrackingApi(graphUrl = "${base(server)}/graph", spacingMs = 0, brokerUrl = base(server)), namespace)
             store.begin(AnimeService.ANILIST)
             val pending = OAuthPending.decode(requireNotNull(secrets.read("pending_ANILIST")))
-            val raw = "aetherio://oauth/anilist#access_token=private-test-token&token_type=Bearer&expires_in=3600&state=${pending.state}"
+            val raw = "aetherio://oauth/anilist#access_token=${"t".repeat(40)}&token_type=Bearer&expires_in=3600&state=${pending.state}"
             store.finish(raw.replace(pending.state, "wrong-state"))
             assertNull(store.state.value.connections.getValue(AnimeService.ANILIST).account)
             store.finish(raw)

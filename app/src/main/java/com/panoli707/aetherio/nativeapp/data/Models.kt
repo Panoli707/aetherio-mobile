@@ -38,7 +38,8 @@ data class MediaItem(
     val logoAlternatives: List<String> = emptyList(),
     val portraitAlternatives: List<String> = emptyList(),
     val backdropAlternatives: List<String> = emptyList(),
-    val artworkTitles: List<String> = emptyList()
+    val artworkTitles: List<String> = emptyList(),
+    val imdbNumbering: Boolean = false
 ) {
     val key: String get() = "${source.name}:${type.path}:$id"
 }
@@ -116,6 +117,9 @@ data class AppState(
     val searchLoading: Boolean = false,
     val searchError: String? = null,
     val savedItems: List<MediaItem> = emptyList(),
+    val savedAddedAt: Map<String, Long> = emptyMap(),
+    val libraryFilters: LibraryFilters = LibraryFilters(),
+    val discover: DiscoverState = DiscoverState(),
     val watchProgress: List<WatchProgress> = emptyList(),
     val watchingAnime: List<MediaItem> = emptyList(),
     val animeSeason: AnimeSeasonState = AnimeSeasonState(),

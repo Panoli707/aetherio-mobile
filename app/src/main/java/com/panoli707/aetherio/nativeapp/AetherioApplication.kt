@@ -7,6 +7,16 @@ import coil.imageLoader
 import coil.decode.SvgDecoder
 
 class AetherioApplication : Application(), ImageLoaderFactory {
+    internal val animeTracking by lazy { com.panoli707.aetherio.nativeapp.data.AnimeTrackingStore(this) }
+    internal val mediaDownloads by lazy { com.panoli707.aetherio.nativeapp.downloads.MediaDownloads(this) }
+    internal var downloadHttpClientOverride: okhttp3.OkHttpClient? = null
+    internal var downloadTorrentSessionsOverride: com.panoli707.aetherio.nativeapp.player.torrent.TorrentSessionManager? = null
+    internal val downloadTorrentSessions get() = downloadTorrentSessionsOverride ?: defaultDownloadTorrentSessions
+    private val defaultDownloadTorrentSessions by lazy {
+        com.panoli707.aetherio.nativeapp.player.torrent.TorrentSessionManager(
+            factory = { com.panoli707.aetherio.nativeapp.player.torrent.NuvioTorrentEngine.create(this, forDownload = true) },
+            enoughSpace = { filesDir.usableSpace >= com.panoli707.aetherio.nativeapp.downloads.MediaDownloads.RESERVE })
+    }
     internal val canonicalArtwork by lazy { com.panoli707.aetherio.nativeapp.ui.CanonicalArtworkProvider(this) { imageLoader } }
     internal var artworkProviderOverride: com.panoli707.aetherio.nativeapp.ui.ArtworkProvider? = null
     internal val artworkProvider get() = artworkProviderOverride ?: canonicalArtwork

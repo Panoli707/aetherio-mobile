@@ -41,7 +41,7 @@ class SettingsNavigationTest {
 
     @Test fun everySectionOpensOnItsFirstTouchWithoutLeavingSettings() {
         showApp()
-        val pages = listOf("PROFILE" to "Nombre del perfil", "DESIGN" to "Contenido principal", "SOURCES" to "Aetherio Provider Hub",
+        val pages = listOf("PROFILE" to "Mi espacio", "DESIGN" to "Contenido principal", "SOURCES" to "Aetherio Provider Hub",
             "PLAYBACK" to "Reproductor integrado", "UPDATES" to "Buscar actualizaciones", "ABOUT" to "Licencias y avisos de terceros")
         pages.forEach { (section, content) ->
             open(section)
@@ -55,15 +55,16 @@ class SettingsNavigationTest {
         val restoration = StateRestorationTester(compose)
         showApp(restoration)
         open("PROFILE")
-        compose.onNodeWithText("Nombre del perfil").performTextReplacement("Borrador local")
-        compose.onNodeWithText("Nombre del perfil").performImeAction()
+        compose.onNodeWithTag("editProfile").performScrollTo().performClick()
+        compose.onNodeWithText("Nombre local").performTextReplacement("Borrador local")
         Espresso.closeSoftKeyboard()
         tab("Biblioteca")
         tab("Ajustes")
         compose.onNodeWithText("Configuración").assertDoesNotExist()
-        compose.onNodeWithText("Nombre del perfil").assertTextContains("Borrador local")
+        compose.onNodeWithText("Nombre local").assertTextContains("Borrador local")
         restoration.emulateSavedInstanceStateRestore()
-        compose.onNodeWithText("Nombre del perfil").assertTextContains("Borrador local")
+        compose.onNodeWithText("Nombre local").assertTextContains("Borrador local")
+        Espresso.pressBack()
         Espresso.pressBack()
         compose.onNodeWithText("Configuración").assertExists()
     }

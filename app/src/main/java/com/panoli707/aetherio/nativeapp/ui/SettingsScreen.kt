@@ -49,7 +49,8 @@ private enum class SettingsSection(val title: String, val summary: String, val i
 internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink: () -> Unit,
     onAddAddon: (String) -> Unit, onRemoveAddon: (String) -> Unit, onDesktopSourceToggle: (String, Boolean) -> Unit,
     updates: UpdateState, onUpdateAction: (UpdateAction) -> Unit, onAutomaticUpdatesChange: (Boolean) -> Unit,
-    onHomePreferencesChange: (HomePreferences) -> Unit = {}) {
+    onHomePreferencesChange: (HomePreferences) -> Unit = {}, personalActions: PersonalActions = PersonalActions(),
+    onSelectMedia: (MediaItem) -> Unit = {}) {
     var destination by rememberSaveable { mutableStateOf<String?>(null) }
     var search by rememberSaveable { mutableStateOf("") }
     val pages = rememberSaveableStateHolder()
@@ -59,6 +60,11 @@ internal fun SettingsScreen(state: AppState, onRename: (String) -> Unit, onLink:
     val selected = SettingsSection.entries.firstOrNull { it.name == route }
     val back = { focus.clearFocus(); destination = null }
     BackHandler(enabled = selected != null, onBack = back)
+
+    if (selected == SettingsSection.PROFILE) {
+        ProfileSpace(state, onRename, personalActions, back, { destination = SettingsSection.DESIGN.name }, onSelectMedia)
+        return
+    }
 
     // Each route has its own composition identity as well as its saved form/scroll state.
     key(route) { pages.SaveableStateProvider(route ?: "overview") {

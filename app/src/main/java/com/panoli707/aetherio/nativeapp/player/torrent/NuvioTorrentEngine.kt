@@ -30,9 +30,10 @@ internal class NuvioTorrentEngine(private val engine: NuvioEngine) : TorrentEngi
 
     companion object {
         /** Called synchronously inside the manager's IO worker so cancellation cannot lose the newly allocated handle. */
-        fun create(context: Context): TorrentEngine {
-            val state = File(context.noBackupFilesDir, "aetherio-torrent/state")
-            val cache = File(context.cacheDir, "aetherio-torrent")
+        fun create(context: Context, forDownload: Boolean = false): TorrentEngine {
+            val directory = if (forDownload) "aetherio-torrent-downloads" else "aetherio-torrent"
+            val state = File(context.noBackupFilesDir, "$directory/state")
+            val cache = File(context.cacheDir, directory)
             check((state.mkdirs() || state.isDirectory) && (cache.mkdirs() || cache.isDirectory))
             val capacity = TorrentCachePolicy.capacity(cache.usableSpace)
             return NuvioTorrentEngine(NuvioEngine.create(NuvioEngineConfig(

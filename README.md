@@ -1,6 +1,6 @@
 # Aetherio
 
-Aetherio es una aplicación multimedia nativa para Android. Gestiona tu biblioteca de series, películas y anime con un reproductor integrado y seguimiento local del progreso. No requiere una cuenta ni ofrece sincronización en la nube.
+Aetherio es una aplicación multimedia nativa para Android. Gestiona tu biblioteca de series, películas y anime con un reproductor integrado, progreso local y descargas para ver sin conexión. No requiere una cuenta; opcionalmente puedes conectar AniList y MyAnimeList para gestionar tus listas de anime. Consulta los cambios y límites de [0.21.0](docs/releases/0.21.0.md).
 
 ## Dependencias
 
@@ -30,7 +30,7 @@ Provider Hub sincroniza automáticamente los addons predeterminados desde su dir
 
 Abre una ficha, pulsa **Reproducir** y toca la tarjeta de una fuente. Puedes gestionar fuentes adicionales y proveedores propios en **Ajustes > Fuentes y contenido** o usar una URL HTTPS directa desde **Ajustes > Reproducción**.
 
-La disponibilidad depende de cada proveedor, la red y los códecs del dispositivo. Los torrents requieren confirmación P2P: tu IP puede ser visible y el consumo de datos y almacenamiento puede ser alto. La sesión se cierra al salir o enviar el reproductor a segundo plano. Usa solo contenidos que tengas permiso para reproducir.
+La disponibilidad depende de cada proveedor, la red y los códecs del dispositivo. Al descargar torrents se pide confirmación P2P: tu IP puede ser visible y el consumo de datos y almacenamiento puede ser alto. La sesión de reproducción se cierra al salir o enviar el reproductor a segundo plano; la cola de descargas usa un servicio independiente. Usa solo contenidos que tengas permiso para reproducir o descargar.
 
 ## Documentación
 

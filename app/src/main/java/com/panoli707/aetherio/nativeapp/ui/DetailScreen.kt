@@ -50,7 +50,8 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
     onRequestSources: (MediaItem, Int?, Int?) -> Unit,
     onEpisodeWatchAction: (MediaItem, EpisodeItem, EpisodeWatchScope, Boolean) -> Unit = { _, _, _, _ -> },
     onToggleWatching: (MediaItem) -> Unit = {}, onOpenExternal: (String) -> Unit = {}, onSelectRelated: (MediaItem) -> Unit = {},
-    onPlayTrailer: (MediaTrailer) -> Unit = {}) {
+    onPlayTrailer: (MediaTrailer) -> Unit = {}, onPrepareDownloads: (MediaItem, List<EpisodeItem>) -> Unit = { _, _ -> },
+    onManageAnime: (AnimeService, Int) -> Unit = { _, _ -> }) {
     MaterialTheme(colorScheme = MaterialTheme.colorScheme) {
         val detail = state.detail?.takeIf { it.item.key == item.key }
         val media = detail?.item ?: item
@@ -70,6 +71,12 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
             else first?.let { "Reproducir · T${it.season} E${it.number}" } ?: "Reproducir"
         var actions by remember(media.key) { mutableStateOf<EpisodeItem?>(null) }
         var infoOpen by rememberSaveable(media.key) { mutableStateOf(false) }
+        var batchOpen by rememberSaveable(media.key) { mutableStateOf(false) }
+        var animeListsOpen by rememberSaveable(media.key) { mutableStateOf(false) }
+        val animeIds = remember(media, detail?.selectedSeason) {
+            if (media.source == CatalogSource.ANILIST) listOfNotNull(media.id.toIntOrNull())
+            else SeriesIdentity.index.parts(media).filter { it.season == detail?.selectedSeason }.map { it.animeId.toInt() }.distinct()
+        }
         BoxWithConstraints(Modifier.fillMaxSize().background(DetailNight)) {
             val portrait = maxWidth < 600.dp
             val viewportHeight = maxHeight
@@ -110,6 +117,16 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                                 Text(playLabel, color = if (canPlay) DetailNight else DetailMuted, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
                             }
                         }
+                        if (media.type == MediaType.MOVIE) OutlinedButton(onClick = { onPrepareDownloads(media, emptyList()) },
+                            modifier = Modifier.fillMaxWidth().padding(top = 12.dp).testTag("downloadMovie")) {
+                            Icon(Icons.Default.Download, null); Spacer(Modifier.width(8.dp)); Text("Descargar película")
+                        }
+                        state.downloadMessage?.let { Text(it, color = DetailMuted, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 8.dp)) }
+                        if (animeIds.isNotEmpty() && state.animeTracking.connections.values.any { it.account != null }) TextButton(onClick = { animeListsOpen = true }) {
+                            Icon(Icons.Default.PlaylistAddCheck, null); Spacer(Modifier.width(8.dp)); Text("Gestionar listas de anime")
+                        }
+                        state.animeTracking.connections.values.filter { it.busy }.takeIf { it.isNotEmpty() }?.let { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                        state.animeTracking.connections.values.mapNotNull { it.error }.firstOrNull()?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                         Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
                             val saved = state.savedItems.any { it.key == media.key }
                             DetailSmallAction(if (saved) "Guardado" else "Biblioteca", if (saved) Icons.Default.Check else Icons.Default.Add,
@@ -130,7 +147,8 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                 if (detail != null && detail.seasons.isNotEmpty()) item(key = "episodes:${detail.selectedSeason}") {
                     Column {
                         var seasonsOpen by remember { mutableStateOf(false) }
-                        Box(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.weight(1f)) {
                             TextButton(onClick = { seasonsOpen = true }, colors = ButtonDefaults.textButtonColors(contentColor = Accent),
                                 modifier = Modifier.background(AccentContainer, RoundedCornerShape(16.dp))) {
                                 val requested = state.pendingSeason ?: detail.selectedSeason
@@ -142,6 +160,11 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
                                     text = { Text("${season.name} · ${season.episodeCount} episodios") },
                                     onClick = { seasonsOpen = false; onSeason(season.number) }) }
                             }
+                        }
+                        FilledTonalIconButton(onClick = { batchOpen = true }, enabled = !state.episodesLoading && episodes.any { it.released },
+                            modifier = Modifier.padding(start = 10.dp).testTag("downloadSeason")) {
+                            Icon(Icons.Default.Download, "Descargar episodios de la temporada seleccionada")
+                        }
                         }
                         if (state.episodesLoading) LoadingRow("Cargando temporada ${state.pendingSeason ?: detail.selectedSeason}…")
                         else if (episodes.isEmpty() && state.detailError == null) StatusMessage("Sin episodios disponibles", "No hay episodios publicados para esta temporada.")
@@ -219,7 +242,19 @@ internal fun DetailScreen(state: AppState, item: MediaItem, scroll: LazyListStat
         }
         actions?.let { episode -> EpisodeActionsSheet(media, episode, detail?.episodes.orEmpty(), state.watchProgress,
             onDismiss = { actions = null }, onMark = { scope, watched -> onEpisodeWatchAction(media, episode, scope, watched) },
-            onSources = { onRequestSources(media, episode.season, episode.number) }, onManual = onLink) }
+            onSources = { onRequestSources(media, episode.season, episode.number) }, onManual = onLink,
+            onDownload = { onPrepareDownloads(media, listOf(episode)) }) }
+        if (batchOpen && detail?.selectedSeason != null) BatchDownloadDialog(media, detail.selectedSeason, episodes, state.downloads,
+            onDismiss = { batchOpen = false }, onConfirm = { chosen -> batchOpen = false; onPrepareDownloads(media, chosen) })
+        if (animeListsOpen) AlertDialog(onDismissRequest = { animeListsOpen = false }, title = { Text("Elegir lista y entrega") },
+            text = { Column {
+                Text("Se abrirá la entrada exacta para confirmar estado, progreso y puntuación antes de enviarlos.", color = Muted)
+                AnimeService.entries.filter { state.animeTracking.connections.getValue(it).account != null }.forEach { service ->
+                    animeIds.forEach { id -> TextButton(onClick = { animeListsOpen = false; onManageAnime(service, id) }, enabled = !state.animeTracking.connections.getValue(service).busy) {
+                        Text(service.label + if (animeIds.size > 1) " · entrega AniList #$id" else " · esta entrega")
+                    } }
+                }
+            } }, confirmButton = { TextButton(onClick = { animeListsOpen = false }) { Text("Cancelar") } })
         if (infoOpen) AlertDialog(onDismissRequest = { infoOpen = false }, title = { Text("Fuentes y reproducción") },
             text = { Text(if (media.source == CatalogSource.ANILIST)
                 "Esta ficha conserva su identidad de AniList y la numeración de su entrega. AnimeAV1 busca por título exacto; no se inventan equivalencias IMDb. El botón principal permite elegir una fuente, no garantiza que exista un vídeo disponible."

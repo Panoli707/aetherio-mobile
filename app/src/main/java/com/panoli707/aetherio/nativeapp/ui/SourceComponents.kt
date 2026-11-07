@@ -155,7 +155,7 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
 @Composable
 internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> Unit,
     onPlay: (StreamSource, VideoFormat) -> Unit, onSettings: () -> Unit, onRetry: () -> Unit = {},
-    onPreferencesChange: (SourcePreferences) -> Unit = {}) {
+    onPreferencesChange: (SourcePreferences) -> Unit = {}, onSkipDownload: () -> Unit = {}) {
     val hasProviders = state.addons.isNotEmpty() || state.enabledDesktopSources.isNotEmpty()
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -187,7 +187,7 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                 verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 SourceToolbarAction("Volver", Icons.AutoMirrored.Filled.ArrowBack, { closeThen(onDismiss) })
                 Column(Modifier.weight(1f)) {
-                    Text("Seleccionar fuente", style = MaterialTheme.typography.titleLarge)
+                    Text(if (state.downloadSelection.isNotEmpty()) "Fuente para descargar" else "Seleccionar fuente", style = MaterialTheme.typography.titleLarge)
                     Text(query.item.title, color = Cream, style = MaterialTheme.typography.titleMedium,
                         maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(if (query.season != null && query.episode != null) "Temporada ${query.season} · Episodio ${query.episode}"
@@ -198,6 +198,14 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                     enabled = !state.sourcesLoading && !state.addonsLoading, loading = state.sourcesLoading)
             }
             HorizontalDivider(color = Cream.copy(alpha = .10f))
+            if (state.downloadSelection.isNotEmpty()) {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)) {
+                    Text("${state.downloadSelection.size} pendientes de fuente · Se descargan en Wi-Fi", color = Accent, style = MaterialTheme.typography.labelMedium)
+                    Text("Solo se guardan las pistas incluidas en el vídeo o manifiesto; no los subtítulos externos del addon.", color = Muted, style = MaterialTheme.typography.bodySmall)
+                    state.downloadMessage?.let { Text(it, color = Muted, style = MaterialTheme.typography.bodySmall) }
+                    TextButton(onClick = onSkipDownload, enabled = !state.downloadEnqueueing) { Text("Omitir este episodio / título") }
+                }
+            }
             LazyRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)) {
                 item(key = "provider:all") {

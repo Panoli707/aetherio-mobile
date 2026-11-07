@@ -16,6 +16,12 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import com.panoli707.aetherio.nativeapp.data.AnimeOAuth
+import com.panoli707.aetherio.nativeapp.ui.PersonalActions
 import com.panoli707.aetherio.nativeapp.data.StreamSource
 import com.panoli707.aetherio.nativeapp.player.VideoFormat
 import com.panoli707.aetherio.nativeapp.player.torrent.TorrentRequestParser
@@ -36,10 +42,32 @@ import com.panoli707.aetherio.nativeapp.ui.AetherioApp
 class MainActivity : ComponentActivity() {
     private val model: AetherioViewModel by viewModels()
     private val updateModel: UpdateViewModel by viewModels()
+    private var profileRequest by mutableIntStateOf(0)
+    private var downloadsRequest by mutableIntStateOf(0)
+    private var routeSequence = 0
+
+    private fun consumeNavigation(request: Intent) {
+        val callback = request.dataString
+        request.data = null // OAuth fragments/codes must not survive recreation or appear in further intents.
+        if (callback != null && AnimeOAuth.service(callback) != null) {
+            profileRequest = ++routeSequence
+            model.handleAnimeAuthorization(callback)
+        }
+        if (request.getBooleanExtra("openDownloads", false)) { downloadsRequest = ++routeSequence; request.removeExtra("openDownloads") }
+    }
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        consumeNavigation(intent)
+        setIntent(intent)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_Aetherio)
         super.onCreate(savedInstanceState)
+        routeSequence = savedInstanceState?.getInt("personalRouteSequence") ?: 0
+        profileRequest = savedInstanceState?.getInt("personalProfileRequest") ?: 0
+        downloadsRequest = savedInstanceState?.getInt("personalDownloadsRequest") ?: 0
+        consumeNavigation(intent)
         if (Build.VERSION.SDK_INT >= 31) splashScreen.setOnExitAnimationListener { it.remove() }
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
@@ -55,6 +83,7 @@ class MainActivity : ComponentActivity() {
                 }
             }
             val installLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
+            val notificationLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
             val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
                 if (Build.VERSION.SDK_INT < 26 || packageManager.canRequestPackageInstalls()) updateModel.requestInstall()
                 else updateModel.installationUnavailable()
@@ -132,6 +161,29 @@ class MainActivity : ComponentActivity() {
                 onRetryDetail = model::retryDetail,
                 onSelectSeason = model::selectSeason,
                 onRenameProfile = model::renameProfile,
+                profileRequest = profileRequest, downloadsRequest = downloadsRequest,
+                personalActions = PersonalActions(
+                    connect = { service -> lifecycleScope.launch {
+                        try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(model.animeAuthorization(service))).addCategory(Intent.CATEGORY_BROWSABLE)) }
+                        catch (_: Exception) { Toast.makeText(this@MainActivity, "No se pudo abrir la autorización en el navegador.", Toast.LENGTH_LONG).show() }
+                    } }, refresh = model::refreshAnimeAccount, disconnect = model::disconnectAnimeAccount,
+                    updateAnime = model::updateAnimeEntry, importAnime = model::importAnimeEntry,
+                    editAnime = model::editAnimeEntry, dismissAnime = model::dismissAnimeDraft,
+                    appearance = model::saveProfileAppearance, importImage = model::importProfileImage,
+                    downloadAction = model::downloadAction, playDownload = { id ->
+                        state.downloads.firstOrNull { it.id == id }?.let { record ->
+                            model.rememberPlaybackQuery(false)
+                            videoLauncher.launch(Intent(this, VideoActivity::class.java).putExtra(VideoActivity.EXTRA_DOWNLOAD_ID, id)
+                                .putExtra(VideoActivity.EXTRA_TITLE, record.label).putExtra(VideoActivity.EXTRA_WATCH_TARGET, WatchProgressCodec.encodeTarget(record.target)))
+                        }
+                    }),
+                onPrepareDownloads = model::prepareDownloads,
+                onSkipDownload = model::nextDownloadSource,
+                onDownloadSource = { source ->
+                    if (Build.VERSION.SDK_INT >= 33 && androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED)
+                        notificationLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    model.chooseDownloadSource(source)
+                },
                 onAddAddon = model::addAddon,
                 onRemoveAddon = model::removeAddon,
                 onDesktopSourceToggle = model::setDesktopSourceEnabled,
@@ -160,6 +212,13 @@ class MainActivity : ComponentActivity() {
         super.onStart()
         model.startHubSync()
         updateModel.checkForUpdates()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("personalRouteSequence", routeSequence)
+        outState.putInt("personalProfileRequest", profileRequest)
+        outState.putInt("personalDownloadsRequest", downloadsRequest)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onStop() {

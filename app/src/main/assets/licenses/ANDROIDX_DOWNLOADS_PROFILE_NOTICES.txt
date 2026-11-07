@@ -1,0 +1,11 @@
+AndroidX WorkManager 2.10.1 and AndroidX ExifInterface 1.4.1
+Copyright The Android Open Source Project
+
+Distributed under the Apache License, Version 2.0. A complete copy of that
+license is included in TESSERACT_LICENSE.txt in this same licenses directory.
+
+WorkManager schedules the explicitly requested media downloads. ExifInterface
+reads image orientation when importing a local profile avatar or banner.
+Neither dependency implements an Aetherio account service or uploads profile
+images. Media downloading and playback also use the existing AndroidX Media3
+1.5.1 integration (Apache License, Version 2.0).

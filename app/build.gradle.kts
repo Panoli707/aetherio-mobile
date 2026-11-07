@@ -81,8 +81,11 @@ android {
         applicationId = "com.panoli707.aetherio.nativeapp"
         minSdk = 24
         targetSdk = 36
-        versionCode = 43
-        versionName = "0.20.3"
+        versionCode = 44
+        versionName = "0.21.0"
+        // Public OAuth client identifiers. Native apps must never embed client secrets.
+        buildConfigField("String", "ANILIST_CLIENT_ID", "\"56163\"")
+        buildConfigField("String", "MAL_CLIENT_ID", "\"eaf348d964cb8409f563aeba210ba95f\"")
         manifestPlaceholders["tmdbCredentialsEmbedded"] = tmdbReadAccessToken.isNotEmpty()
         testInstrumentationRunner = when {
             providers.gradleProperty("scrollReleaseSmoke").orNull == "true" ->
@@ -132,6 +135,8 @@ dependencies {
     implementation("androidx.compose.ui:ui")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.1")
+    implementation("androidx.work:work-runtime-ktx:2.10.1")
+    implementation("androidx.exifinterface:exifinterface:1.4.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.coil-kt:coil-svg:2.7.0")
@@ -155,5 +160,6 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
+    androidTestImplementation("com.squareup.okhttp3:okhttp-tls:4.12.0")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }

@@ -9,6 +9,9 @@ import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
@@ -64,10 +67,15 @@ fun AetherioApp(
     onPlayTrailer: (MediaTrailer) -> Unit = {},
     onBrowse: (String, Boolean) -> Unit = { _, _ -> },
     onHomePreferencesChange: (HomePreferences) -> Unit = {},
-    onSourcePreferencesChange: (SourcePreferences) -> Unit = {}
+    onSourcePreferencesChange: (SourcePreferences) -> Unit = {},
+    personalActions: PersonalActions = PersonalActions(),
+    onPrepareDownloads: (MediaItem, List<EpisodeItem>) -> Unit = { _, _ -> },
+    onDownloadSource: (StreamSource) -> Unit = {}, onSkipDownload: () -> Unit = {},
+    profileRequest: Int = 0, downloadsRequest: Int = 0
 ) {
     var startupComplete by rememberSaveable { mutableStateOf(false) }
-    val startupReady = !state.homeLoading || state.sections.isNotEmpty() || state.homeError != null
+    val startupReady = !state.homeLoading || state.sections.isNotEmpty() || state.homeError != null ||
+        state.downloads.isNotEmpty() || profileRequest > 0 || downloadsRequest > 0
     LaunchedEffect(startupReady) { if (startupReady) startupComplete = true }
     if (!startupComplete) {
         AetherioTheme { StartupScreen() }
@@ -75,12 +83,23 @@ fun AetherioApp(
     }
 
     var tab by rememberSaveable { mutableStateOf("home") }
+    var directDownloads by rememberSaveable { mutableStateOf(false) }
+    var torrentDownload by remember { mutableStateOf<StreamSource?>(null) }
     var searchOpen by rememberSaveable { mutableStateOf(false) }
     var searchNeedsFocus by rememberSaveable { mutableStateOf(false) }
     var categoryId by rememberSaveable { mutableStateOf<String?>(null) }
     var parentCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
     var detailKey by rememberSaveable { mutableStateOf<String?>(null) }
     var linkOpen by rememberSaveable { mutableStateOf(false) }
+    var handledProfileRequest by rememberSaveable { mutableStateOf(0) }
+    var handledDownloadsRequest by rememberSaveable { mutableStateOf(0) }
+    LaunchedEffect(profileRequest, downloadsRequest) {
+        if (profileRequest != handledProfileRequest || downloadsRequest != handledDownloadsRequest) {
+            onDismissSources(); detailKey = null; searchOpen = false; categoryId = null; linkOpen = false
+            tab = "profile"; directDownloads = downloadsRequest > profileRequest
+            handledProfileRequest = profileRequest; handledDownloadsRequest = downloadsRequest
+        }
+    }
     var libraryFilter by rememberSaveable { mutableStateOf("all") }
     var airingDay by rememberSaveable(state.animeSeason.season.year, state.animeSeason.season.code) { mutableStateOf("MONDAY") }
     val homeScroll = rememberLazyListState()
@@ -151,7 +170,7 @@ fun AetherioApp(
                              }
                              DetailScreen(state, selected, detailScroll, closeTop, onToggleSaved, onRetryDetail, onSelectSeason,
                                    { focus.clearFocus(); linkOpen = true }, onRequestSources, onEpisodeWatchAction, onToggleWatching, onOpenExternal, select,
-                                   onPlayTrailer)
+                                    onPlayTrailer, onPrepareDownloads, personalActions.editAnime)
                         } else Column {
                             ScreenHeader("Ficha no disponible", closeTop)
                              if (state.homeLoading) LoadingRow("Recuperando ficha…")
@@ -185,11 +204,13 @@ fun AetherioApp(
                             when (tab) {
                                 "anime" -> AnimeScreen(state, animeScroll, select, onContinue, { categoryId = "airing" })
                                 "library" -> LibraryScreen(state, libraryScroll, libraryFilter, { libraryFilter = it }, select, openSearch)
-                                "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon, onDesktopSourceToggle,
-                                    updates, onUpdateAction, onAutomaticUpdatesChange, onHomePreferencesChange)
+                                 "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon, onDesktopSourceToggle,
+                                     updates, onUpdateAction, onAutomaticUpdatesChange, onHomePreferencesChange, personalActions, select)
+                                 "profile" -> ProfileSpace(state, onRenameProfile, personalActions, { tab = "home" },
+                                     { tab = "settings" }, select, initialDownloads = directDownloads, navigationRequest = maxOf(profileRequest, downloadsRequest))
                                 else -> HomeScreen(state, homeScroll, pager, !linkOpen && state.sourceQuery == null && !updates.noticeVisible,
                                      select, { parentCategoryId = null; categoryId = it }, onRetryHome, onContinue, onLoadAnimeSeason,
-                                    onProfile = { focus.clearFocus(); tab = "settings" })
+                                     onProfile = { focus.clearFocus(); directDownloads = false; tab = "profile" })
                             }
                         }
                         if (!imeVisible) FloatingNavigation(tab, tab == "home" && collapsed, { target ->
@@ -203,7 +224,13 @@ fun AetherioApp(
             if (linkOpen && state.sourceQuery == null) VideoLinkDialog(onDismiss = { focus.clearFocus(); linkOpen = false }, onOpenVideo = onOpenVideo)
             state.sourceQuery?.let { query ->
                 key(query.key) {
-                    SourceSheet(state, query, onDismissSources, onPlaySource,
+                    SourceSheet(state, query, onDismissSources, { source, format ->
+                        if (state.downloadSelection.isEmpty()) onPlaySource(source, format)
+                        else if (!state.downloadEnqueueing) {
+                            if (source.isTorrent) torrentDownload = source else onDownloadSource(source)
+                        }
+                    },
+                        onSkipDownload = onSkipDownload,
                         onPreferencesChange = onSourcePreferencesChange,
                         onRetry = { onRequestSources(query.item, query.season, query.episode) }, onSettings = {
                         focus.clearFocus()
@@ -217,6 +244,11 @@ fun AetherioApp(
                     })
                 }
             }
+            torrentDownload?.let { source -> AlertDialog(onDismissRequest = { torrentDownload = null }, title = { Text("Descarga torrent (P2P)") },
+                text = { Text("Tu IP será visible para otros participantes. La descarga puede consumir mucho almacenamiento y continuar en segundo plano. La subida de contenido sigue desactivada. Usa solo contenido que tengas permiso para descargar.") },
+                confirmButton = { TextButton(onClick = { torrentDownload = null; onDownloadSource(source) }) { Text("Descargar") } },
+                dismissButton = { TextButton(onClick = { torrentDownload = null }) { Text("Cancelar") } }) }
+            state.animeTracking.draft?.let { draft -> AnimeEntryEditor(draft.service, draft.entry, personalActions, personalActions.dismissAnime) }
             if (!linkOpen && state.sourceQuery == null && !imeVisible && updates.noticeVisible) {
                 UpdateDialog(updates, onUpdateAction)
             }

@@ -19,6 +19,10 @@ import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 
 class AetherioViewModel(application: Application) : AndroidViewModel(application) {
+    private val app = application as com.panoli707.aetherio.nativeapp.AetherioApplication
+    private val profileStore = ProfileStore(application)
+    private val tracking = app.animeTracking
+    private val downloads = app.mediaDownloads
     private val animeRepository = AnimeSeasonRepository()
     private val repository = AetherioRepository(animeRepository = animeRepository,
         homeCache = HomeCatalogCache(java.io.File(application.cacheDir, "desktop-home-53a9276")))
@@ -38,7 +42,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val sourceSettings = SourceSettingsStore(application)
     private val addonStore = AddonStore(application)
     private val mutableState = MutableStateFlow(AppState(savedItems = SeriesIdentity.items(library.savedItems), profileName = library.profileName,
-        homePreferences = homePreferencesStore.load(),
+        homePreferences = homePreferencesStore.load(), profileAppearance = profileStore.load(),
         sourcePreferences = sourceSettings.loadPreferences(),
         enabledDesktopSources = sourceSettings.enabledDesktopSources))
     val state: StateFlow<AppState> = mutableState.asStateFlow()
@@ -119,6 +123,10 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     }
 
     init {
+        viewModelScope.launch { tracking.state.collect { value -> mutableState.update { it.copy(animeTracking = value) } } }
+        viewModelScope.launch { downloads.entries.collect { value -> mutableState.update { it.copy(downloads = value,
+            downloadMessage = if (downloads.storageFailure) "No se pudo abrir el índice de descargas. Se conserva sin sobrescribir; reinicia la app para reintentar." else it.downloadMessage) } } }
+        viewModelScope.launch { tracking.restore() }
         viewModelScope.launch { hubDirectory.state.collect { directory ->
             mutableState.update { it.copy(hubProviders = directory.providers, hubRuntimeProviders = directory.branding,
                 hubDirectoryStale = directory.stale, sources = directory.decorate(it.sources)) }
@@ -254,8 +262,109 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     fun renameProfile(name: String) {
         val normalized = LocalLibraryStore.normalizeName(name) ?: return
         viewModelScope.launch {
-            mutableState.update { it.copy(profileName = normalized) }
+            mutableState.update { it.copy(profileName = normalized, profileMessage = "Nombre guardado en este dispositivo.") }
             library.profileName = normalized
+        }
+    }
+
+    suspend fun animeAuthorization(service: AnimeService): String = tracking.begin(service)
+    fun handleAnimeAuthorization(raw: String) { viewModelScope.launch { tracking.finish(raw) } }
+    fun refreshAnimeAccount(service: AnimeService) { viewModelScope.launch { tracking.refresh(service) } }
+    fun editAnimeEntry(service: AnimeService, aniListId: Int) { viewModelScope.launch { tracking.edit(service, aniListId) } }
+    fun dismissAnimeDraft() = tracking.dismissDraft()
+    fun disconnectAnimeAccount(service: AnimeService) { viewModelScope.launch { tracking.disconnect(service) } }
+    fun updateAnimeEntry(service: AnimeService, entry: AnimeEntry, status: AnimeStatus, progress: Int, score: Double) {
+        viewModelScope.launch { tracking.update(service, entry, status, progress, score) }
+    }
+    fun importAnimeEntry(entry: AnimeEntry) {
+        val item = entry.item() ?: return
+        viewModelScope.launch {
+            if (entry.progress > WatchProgressCodec.MAX_ENTRIES) {
+                mutableState.update { it.copy(profileMessage = "Esta entrada supera la capacidad del historial local. No se ha importado ni eliminado ningún dato.") }
+                return@launch
+            }
+            val targets = if (item.type == MediaType.MOVIE) { if (entry.progress > 0 || entry.status == AnimeStatus.COMPLETED) listOf(WatchTarget(item)) else emptyList() }
+                else (1..entry.progress).map { SeriesIdentity.index.target(WatchTarget(item, 1, it)) }
+            if (!history.importWatched(targets)) {
+                mutableState.update { it.copy(profileMessage = "No hay capacidad para importar todas las marcas sin desplazar historial existente. No se ha eliminado ni importado ningún dato.") }
+                return@launch
+            }
+            val canonical = SeriesIdentity.item(item)
+            val saved = (listOf(canonical) + state.value.savedItems).distinctBy { it.key }
+            withContext(Dispatchers.IO) { library.save(saved) }
+            mutableState.update { it.copy(savedItems = saved) }
+            // Remote counters do not invent playback positions. Only explicit per-entry confirmation imports badges.
+            mutableState.update { it.copy(profileMessage = "Anime importado a la biblioteca. Se conservan las marcas y posiciones existentes.") }
+        }
+    }
+    fun saveProfileAppearance(value: ProfileAppearance) {
+        if (state.value.profileBusy) return
+        mutableState.update { it.copy(profileBusy = true, profileMessage = null) }
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { profileStore.save(value) }
+                mutableState.update { it.copy(profileAppearance = value, profileMessage = "Perfil guardado.") }
+            } catch (_: Exception) { mutableState.update { it.copy(profileMessage = "No se pudo guardar el perfil.") } }
+            finally { mutableState.update { it.copy(profileBusy = false) } }
+        }
+    }
+    fun importProfileImage(uri: android.net.Uri, avatar: Boolean) {
+        if (state.value.profileBusy) return
+        mutableState.update { it.copy(profileBusy = true, profileMessage = null) }
+        viewModelScope.launch {
+            try {
+                val value = withContext(Dispatchers.IO) {
+                    val path = profileStore.import(uri, avatar)
+                    val previous = state.value.profileAppearance
+                    (if (avatar) previous.copy(avatarPath = path) else previous.copy(bannerPath = path)).also(profileStore::save)
+                }
+                mutableState.update { it.copy(profileAppearance = value, profileMessage = "Imagen guardada en este dispositivo.") }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { mutableState.update { it.copy(profileMessage = "No se pudo importar la imagen. Elige una imagen de hasta 12 MB.") } }
+            finally { mutableState.update { it.copy(profileBusy = false) } }
+        }
+    }
+    fun prepareDownloads(item: MediaItem, episodes: List<EpisodeItem>) {
+        if (state.value.downloadEnqueueing) return
+        val targets = if (item.type == MediaType.MOVIE) listOf(WatchTarget(item)) else episodes.filter { it.released }
+            .sortedWith(compareBy<EpisodeItem> { it.season }.thenBy { it.number }).map { WatchTarget(item, it.season, it.number, it.title, it.imageUrl) }
+        val pending = targets.distinctBy { it.key }.filter { target -> state.value.downloads.none { it.target.key == target.key } }
+        if (pending.isEmpty()) {
+            mutableState.update { it.copy(downloadMessage = "No hay elementos nuevos para descargar. Administra las tareas existentes desde tu perfil.") }
+            return
+        }
+        mutableState.update { it.copy(downloadSelection = pending, downloadMessage = null) }
+        pending.first().let { requestSources(it.item, it.season, it.episode) }
+    }
+    fun chooseDownloadSource(source: StreamSource) {
+        if (state.value.downloadEnqueueing) return
+        val target = state.value.downloadSelection.firstOrNull() ?: return
+        mutableState.update { it.copy(downloadEnqueueing = true, downloadMessage = null) }
+        viewModelScope.launch {
+            try {
+                val added = withContext(Dispatchers.IO) { downloads.enqueue(target, source) }
+                mutableState.update { it.copy(downloadMessage = if (added) "Añadido a Descargas. Se guardará en una red no medida (Wi-Fi)." else "Este vídeo ya está en Descargas.") }
+                if (state.value.downloadSelection.firstOrNull()?.key == target.key) nextDownloadSource()
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { mutableState.update { it.copy(downloadMessage = "No se pudo añadir la fuente. Prueba otra opción.") } }
+            finally { mutableState.update { it.copy(downloadEnqueueing = false) } }
+        }
+    }
+    fun nextDownloadSource() {
+        if (state.value.downloadEnqueueing && state.value.downloadSelection.isEmpty()) return
+        val pending = state.value.downloadSelection.drop(1)
+        sourceJob?.cancel()
+        mutableState.update { it.copy(downloadSelection = pending, sourceQuery = null, sources = emptyList(), sourcesLoading = false) }
+        pending.firstOrNull()?.let { requestSources(it.item, it.season, it.episode) }
+    }
+    fun downloadAction(id: String, action: String, fileIndex: Int? = null) {
+        viewModelScope.launch {
+            try { withContext(Dispatchers.IO) { when (action) {
+                "pause" -> downloads.pause(id)
+                "resume" -> downloads.resume(id, fileIndex)
+                "delete" -> downloads.delete(id)
+            } } }
+            catch (_: Exception) { mutableState.update { it.copy(downloadMessage = "No se pudo realizar la acción. Si se está usando el vídeo, ciérralo o pausa la descarga y reintenta.") } }
         }
     }
 
@@ -295,7 +404,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
 
     fun dismissSources() {
         sourceJob?.cancel()
-        mutableState.update { it.copy(sourceQuery = null, sources = emptyList(), sourcesLoading = false, sourceError = null) }
+        mutableState.update { it.copy(sourceQuery = null, sources = emptyList(), sourcesLoading = false, sourceError = null, downloadSelection = emptyList()) }
     }
 
     fun requestSources(item: MediaItem, season: Int?, episode: Int?) {

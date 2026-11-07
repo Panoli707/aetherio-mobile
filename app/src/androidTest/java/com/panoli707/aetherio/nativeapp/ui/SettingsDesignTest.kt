@@ -36,10 +36,12 @@ class SettingsDesignTest {
         compose.onNodeWithTag("settingsSearch").performTextInput("perfíl")
         compose.onNodeWithTag("setting:SOURCES").assertDoesNotExist()
         compose.onNodeWithTag("setting:PROFILE").performClick()
-        compose.onNodeWithText("Nombre del perfil").performTextReplacement("Mi espacio")
+        compose.onNodeWithTag("editProfile").performScrollTo().performClick()
+        compose.onNodeWithText("Nombre local").performTextReplacement("Mi espacio")
         compose.onNodeWithText("Guardar nombre").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("Mi espacio", state.value.profileName) }
         compose.onNodeWithContentDescription("Volver").performClick()
+        compose.onNodeWithContentDescription("Volver").performScrollTo().performClick()
         compose.onNodeWithTag("settingsSearch").assertTextContains("perfíl")
         compose.onNodeWithTag("setting:SOURCES").assertDoesNotExist()
         compose.onNodeWithContentDescription("Borrar búsqueda de ajustes").performClick()

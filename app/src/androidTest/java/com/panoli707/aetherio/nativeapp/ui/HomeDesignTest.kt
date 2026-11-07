@@ -190,7 +190,7 @@ class HomeDesignTest {
         compose.runOnIdle { assertTrue(opened) }
     }
 
-    @Test fun profileOpensExistingSettingsAndSavesTheName() {
+    @Test fun profileOpensPersonalSpaceAndSavesTheLocalName() {
         var renamed: String? = null
         compose.setContent {
             AetherioApp(AppState(heroes = listOf(movie), homeLoading = false), UpdateState(),
@@ -201,8 +201,8 @@ class HomeDesignTest {
                 onUpdateAction = {}, onAutomaticUpdatesChange = {})
         }
         compose.onNodeWithContentDescription("Abrir perfil").performClick()
-        compose.onNodeWithText("Perfil local").performClick()
-        compose.onNodeWithText("Nombre del perfil").performScrollTo().performTextReplacement("Mi perfil")
+        compose.onNodeWithTag("editProfile").performScrollTo().performClick()
+        compose.onNodeWithText("Nombre local").performScrollTo().performTextReplacement("Mi perfil")
         compose.onNodeWithText("Guardar nombre").performScrollTo().performClick()
         compose.runOnIdle { assertEquals("Mi perfil", renamed) }
         compose.onNodeWithText("Inicio").performClick()

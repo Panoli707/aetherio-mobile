@@ -71,6 +71,24 @@ internal class WatchHistoryRepository internal constructor(context: Context) {
         }
     }
 
+    /** Explicit remote import is additive and must not evict history when reaching the local capacity. */
+    suspend fun importWatched(targets: List<WatchTarget>): Boolean = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        if (targets.any { !WatchProgressRules.valid(it) }) return@withContext false
+        mutex.withLock {
+            loadLocked()
+            val previous = mutableEntries.value.associateBy { it.target.key }
+            val unique = targets.distinctBy { it.key }
+            if ((previous.keys + unique.map { it.key }).distinct().size > WatchProgressCodec.MAX_ENTRIES) return@withLock false
+            val changed = unique.map { target ->
+                val old = previous[target.key]
+                WatchProgress(target, old?.positionMs ?: 0, old?.durationMs ?: 0, true, old?.updatedAt ?: 0)
+            }
+            val keys = unique.map { it.key }.toSet()
+            saveEntries(changed + mutableEntries.value.filterNot { it.target.key in keys })
+            changed.all { entry -> mutableEntries.value.any { it.target.key == entry.target.key && it.watched } }
+        }
+    }
+
     private fun save(entry: WatchProgress) {
         val updated = (listOf(entry) + mutableEntries.value.filterNot { it.target.key == entry.target.key })
             .take(WatchProgressCodec.MAX_ENTRIES)

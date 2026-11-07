@@ -65,6 +65,16 @@ class WatchHistoryRepositoryTest {
         assertEquals(45000L, repository.load().first { it.target.key == other.key }.positionMs)
     }
 
+    @Test fun importingRemoteBadgesPreservesPositionsAndRejectsCapacityOverflowWithoutEviction() = runBlocking {
+        val repository = WatchHistoryRepository(context)
+        repository.record(target, 45000, 120000).join()
+        assertTrue(repository.importWatched(listOf(target, target.copy(episode = 4))))
+        assertEquals(45000L, repository.load().first { it.target.key == target.key }.positionMs)
+        val previous = repository.load()
+        assertFalse(repository.importWatched((1..WatchProgressCodec.MAX_ENTRIES + 1).map { target.copy(episode = it) }))
+        assertEquals(previous, repository.load())
+    }
+
     @Test fun legacyContinuousEpisodeMigratesWithABackupAndSurvivesTheNextSaveAndReload() = runBlocking {
         val old = WatchTarget(MediaItem("220542", MediaType.SERIES, "La boticaria", isAnime = true), 1, 25)
         val raw = WatchProgressCodec.encode(listOf(WatchProgress(old, 75000, 1440000, updatedAt = 1)))

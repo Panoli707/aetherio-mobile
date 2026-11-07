@@ -62,6 +62,8 @@ class VideoActivity : ComponentActivity() {
     private var player by mutableStateOf<ExoPlayer?>(null)
     private var screen by mutableStateOf(VideoUiState())
     private var mediaUrl: String? = null
+    private val downloadId get() = if (isTrailer) null else intent.getStringExtra(EXTRA_DOWNLOAD_ID)
+    private var offlineDownload: com.panoli707.aetherio.nativeapp.downloads.OfflineDownload? = null
     private var allowDesktopHttp = false
     private var playbackHeaders: Map<String, String> = emptyMap()
     private var resumePosition = C.TIME_UNSET
@@ -162,7 +164,7 @@ class VideoActivity : ComponentActivity() {
             episodeLabel = watchTarget?.let { target -> target.season?.let { "T$it · E${target.episode}" } }.orEmpty(),
             posterUrl = watchTarget?.item?.posterUrl,
             overview = intent.getStringExtra(EXTRA_OVERVIEW)?.take(4000)?.trim().orEmpty())
-        watchTarget?.takeIf { screen.animeEpisode }?.let { target -> lifecycleScope.launch {
+        watchTarget?.takeIf { screen.animeEpisode && downloadId == null }?.let { target -> lifecycleScope.launch {
             val segments = OpeningRepository().segments(SeriesIdentity.externalTarget(target))
             screen = screen.copy(opening = segments?.opening, ending = segments?.ending)
         } }
@@ -180,7 +182,11 @@ class VideoActivity : ComponentActivity() {
                 headers.getString(it) ?: throw IllegalArgumentException()
             }.orEmpty(), torrentRequest == null && intent.getBooleanExtra(EXTRA_PROVIDER_HEADERS, false))
             youtubeRequestValid = youtubeId != null
-            if (torrentRequest != null || youtubeRequestValid) null else MediaUrlPolicy.validate(intent.getStringExtra(EXTRA_URL).orEmpty(), allowDesktopHttp)
+            if (downloadId != null) {
+                require(!isTrailer && !intent.hasExtra(EXTRA_URL) && !intent.hasExtra(EXTRA_TORRENT_REQUEST))
+                require(downloadId!!.matches(Regex("[a-f0-9-]{36}")))
+                null
+            } else if (torrentRequest != null || youtubeRequestValid) null else MediaUrlPolicy.validate(intent.getStringExtra(EXTRA_URL).orEmpty(), allowDesktopHttp)
         } catch (_: RuntimeException) {
             torrentRequest = null
             screen = screen.copy(error = "El enlace de video no es valido o no esta permitido.")
@@ -216,6 +222,19 @@ class VideoActivity : ComponentActivity() {
     override fun onStart() {
         super.onStart()
         startJob = lifecycleScope.launch {
+            if (downloadId != null && offlineDownload == null) {
+                var acquired: com.panoli707.aetherio.nativeapp.downloads.OfflineDownload? = null
+                try {
+                    offlineDownload = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        (application as AetherioApplication).mediaDownloads.open(requireNotNull(downloadId)).also { acquired = it }
+                    }
+                    mediaUrl = offlineDownload?.media?.localConfiguration?.uri.toString()
+                } catch (e: CancellationException) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable + kotlinx.coroutines.Dispatchers.IO) { acquired?.close() }
+                    throw e
+                }
+                catch (_: Exception) { screen = screen.copy(error = "La descarga no está disponible. Compruébala desde Perfil > Descargas.", buffering = false); return@launch }
+            }
             if (!progressInitialized) {
                 val saved = watchTarget?.let { target -> history.load().firstOrNull { it.target.key == target.key } }
                 if (!restoredSession && !mediaIsLive) resumePosition = saved?.resumePositionMs ?: C.TIME_UNSET
@@ -239,6 +258,8 @@ class VideoActivity : ComponentActivity() {
         ticker = null
         releasePlayer()
         closeTorrent()
+        offlineDownload?.close()
+        offlineDownload = null
         super.onStop()
     }
     override fun onConfigurationChanged(newConfig: Configuration) {
@@ -368,7 +389,7 @@ class VideoActivity : ComponentActivity() {
                 catch (_: IllegalArgumentException) { throw IOException("Destino de video no permitido") }
                 spec.withUri(Uri.parse(validated))
             }
-            val source = torrentRoute?.let { TorrentDataSourceFactory(it, remoteSource) } ?: remoteSource
+            val source = offlineDownload?.factory ?: torrentRoute?.let { TorrentDataSourceFactory(it, remoteSource) } ?: remoteSource
             val active = ExoPlayer.Builder(this).setMediaSourceFactory(DefaultMediaSourceFactory(source)).build()
             player = active
             active.volume = screen.volume
@@ -390,7 +411,7 @@ class VideoActivity : ComponentActivity() {
                         .setLanguage(sub.optString("lang").take(80)).setId(sub.optString("id").take(256)).build())
                 }
             }
-            active.setMediaItem(MediaItem.Builder().setUri(url).setMimeType(mime).setSubtitleConfigurations(subtitles).build(),
+            active.setMediaItem(offlineDownload?.media ?: MediaItem.Builder().setUri(url).setMimeType(mime).setSubtitleConfigurations(subtitles).build(),
                 if (mediaIsLive) C.TIME_UNSET else resumePosition)
             active.prepare()
         } catch (_: RuntimeException) {
@@ -517,6 +538,7 @@ class VideoActivity : ComponentActivity() {
         const val EXTRA_TRAILER = "com.panoli707.aetherio.nativeapp.player.TRAILER"
         const val EXTRA_YOUTUBE_ID = "com.panoli707.aetherio.nativeapp.player.YOUTUBE_TRAILER_ID"
         const val EXTRA_URL = "com.panoli707.aetherio.nativeapp.player.URL"
+        const val EXTRA_DOWNLOAD_ID = "com.panoli707.aetherio.nativeapp.player.DOWNLOAD_ID"
         const val EXTRA_TORRENT_REQUEST = "com.panoli707.aetherio.nativeapp.player.TORRENT_REQUEST"
         const val EXTRA_TITLE = "com.panoli707.aetherio.nativeapp.player.TITLE"
         const val EXTRA_OVERVIEW = "com.panoli707.aetherio.nativeapp.player.OVERVIEW"

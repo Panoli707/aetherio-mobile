@@ -9,7 +9,7 @@
 
 Tu IP puede ser visible para otros participantes. La subida de contenido está configurada como desactivada, pero esto no anonimiza las conexiones P2P ni elimina el tráfico de protocolo. Considera el consumo de datos de tu conexión.
 
-Al salir o enviar la actividad a segundo plano se cierra el motor. Al regresar se prepara una ruta nueva y se recupera la posición según el historial. No hay descargas permanentes, seeding en segundo plano ni servicio adicional. La rotación normal mantiene la actividad y su sesión.
+Al salir o enviar la actividad a segundo plano se cierra el motor de **reproducción**. Al regresar se prepara una ruta nueva y se recupera la posición según el historial. La rotación normal mantiene la actividad y su sesión. Desde [0.21.0](releases/0.21.0.md), las descargas explícitas usan una sesión independiente y una cola persistente en segundo plano; no dependen de esta caché ni habilitan seeding.
 
 ## Referencia de la integración 0.13.0
 

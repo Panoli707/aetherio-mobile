@@ -1,0 +1,75 @@
+package com.panoli707.aetherio.nativeapp.data
+
+import java.net.URLEncoder
+import org.json.JSONObject
+import org.junit.Assert.*
+import org.junit.Test
+
+class AnimeTrackingTest {
+    private val pending = OAuthPending(AnimeService.ANILIST, "s".repeat(96), "v".repeat(96), 1000)
+    private fun callback(state: String = pending.state) = "aetherio://oauth/anilist#access_token=example.token&token_type=Bearer&expires_in=100&state=$state"
+    @Test fun mobileFlowsUsePublicClientAndMalPlainPkceWithoutSecrets() {
+        val anilist = AnimeOAuth.authorize("56163", pending)
+        assertTrue(anilist.startsWith("https://anilist.co/"))
+        assertTrue(anilist.contains("response_type=token"))
+        val mal = AnimeOAuth.authorize("eaf348d964cb8409f563aeba210ba95f", pending.copy(service = AnimeService.MAL))
+        assertTrue(mal.contains("response_type=code"))
+        assertTrue(mal.contains("code_challenge=${pending.verifier}"))
+        assertTrue(mal.contains("code_challenge_method=plain"))
+        assertFalse(mal.contains("client_secret"))
+        assertFalse(anilist.contains("client_secret"))
+    }
+    @Test fun validFragmentAndCodeCallbacksAreParsed() {
+        assertEquals("example.token", AnimeOAuth.callback(callback(), pending, 2000)["access_token"])
+        val mal = pending.copy(service = AnimeService.MAL)
+        assertEquals("code", AnimeOAuth.callback("aetherio://oauth/mal?code=code&state=${mal.state}", mal, 2000)["code"])
+    }
+    @Test fun rejectsForeignRedirectsDuplicateParametersExpiredOrWrongState() {
+        val invalid = listOf(callback("wrong"), callback() + "&access_token=stolen", callback().replace("/anilist", "/anilist/"),
+            callback().replace("oauth", "oauth.evil"), callback().replace("aetherio:", "https:"), callback().replace("oauth/", "x@oauth/"),
+            callback().replace("#", "?"), callback().replace("Bearer", "Basic"))
+        invalid.forEach { raw -> assertThrows(IllegalArgumentException::class.java) { AnimeOAuth.callback(raw, pending, 2000) } }
+        assertThrows(IllegalArgumentException::class.java) { AnimeOAuth.callback(callback(), pending, 602_000) }
+        assertThrows(IllegalArgumentException::class.java) { AnimeOAuth.callback(callback(), pending, 0) }
+    }
+    @Test fun refusalNeverBecomesAConnectedSession() {
+        assertThrows(IllegalArgumentException::class.java) {
+            AnimeOAuth.callback("aetherio://oauth/anilist#error=access_denied&state=${pending.state}", pending, 2000)
+        }
+    }
+    @Test fun scoreAndStatusesAreParsedUsingTheServicesActualScales() {
+        val mal = AnimeTrackingApi.malEntry(JSONObject("""{"node":{"id":1,"title":"Test","num_episodes":12,"media_type":"tv"},"list_status":{"status":"on_hold","score":8,"num_episodes_watched":4}}"""))
+        assertEquals(80.0, mal.score, 0.0)
+        assertEquals(AnimeStatus.PAUSED, mal.status)
+        assertEquals(4, mal.progress)
+        assertNull(mal.aniListId)
+        val ani = AnimeTrackingApi.aniEntry(JSONObject("""{"id":99,"idMal":1,"title":{"userPreferred":"Test"},"format":"MOVIE","episodes":1,"isFavourite":true}"""))
+        assertTrue(ani.movie)
+        assertTrue(ani.favorite)
+        assertEquals(99, ani.aniListId)
+        assertEquals(1, ani.malId)
+    }
+    @Test fun accountSnapshotRoundTripsWithoutTokensOrPlaybackData() {
+        val connection = AnimeConnection(AnimeAccount(1, "Tester", "https://example.org/avatar.jpg"), listOf(AnimeEntry(2, 2, 3, "Anime",
+            episodes = 12, progress = 5, score = 85.0, status = AnimeStatus.WATCHING, favorite = true)), updatedAt = 123)
+        val raw = AnimeAccountCodec.encode(connection)
+        assertEquals(connection, AnimeAccountCodec.decode(raw))
+        assertFalse(raw.contains("access_token"))
+        assertFalse(raw.contains("magnet"))
+    }
+    private val index = SeriesIndex(listOf(SeriesPart("101", "77", 1, 0, 1), SeriesPart("102", "77", 1, 12, 2)))
+    @Test fun syncingRequiresExactEntryIdAndRespectsCoursAndNumbering() {
+        val item = MediaItem("77", MediaType.SERIES, "Same title", isAnime = true, seriesNumbering = true)
+        assertEquals(101 to 1, AnimeSyncRules.episode(WatchTarget(item, 1, 1), index))
+        assertEquals(102 to 1, AnimeSyncRules.episode(WatchTarget(item, 2, 1), index))
+        assertEquals(102 to 2, AnimeSyncRules.episode(WatchTarget(item.copy(seriesNumbering = false), 1, 14), index))
+        assertNull(AnimeSyncRules.episode(WatchTarget(item.copy(id = "78"), 1, 1), index))
+        assertNull(AnimeSyncRules.episode(WatchTarget(item.copy(id = "101", source = CatalogSource.ANILIST), 2, 1), index))
+    }
+    @Test fun skippingEpisodesDoesNotInventContiguousProgressOrCompleteAnotherCour() {
+        val item = MediaItem("77", MediaType.SERIES, "Test", isAnime = true, seriesNumbering = true)
+        val history = listOf(1, 2, 4, 5).map { WatchProgress(WatchTarget(item, 1, it), watched = true) }
+        assertEquals(2, AnimeSyncRules.contiguous(AnimeEntry(101, 101, null, "First", episodes = 12), history, index))
+        assertEquals(0, AnimeSyncRules.contiguous(AnimeEntry(102, 102, null, "Second", episodes = 12), history, index))
+    }
+}

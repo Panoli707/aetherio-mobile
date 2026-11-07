@@ -14,7 +14,8 @@ import com.panoli707.aetherio.nativeapp.data.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun EpisodeActionsSheet(item: MediaItem, episode: EpisodeItem, episodes: List<EpisodeItem>, progress: List<WatchProgress>,
-    onDismiss: () -> Unit, onMark: (EpisodeWatchScope, Boolean) -> Unit, onSources: () -> Unit, onManual: () -> Unit) {
+    onDismiss: () -> Unit, onMark: (EpisodeWatchScope, Boolean) -> Unit, onSources: () -> Unit, onManual: () -> Unit,
+    onDownload: () -> Unit = {}) {
     fun seen(ep: EpisodeItem) = progress.any { it.target.item.key == item.key && it.target.season == ep.season && it.target.episode == ep.number && it.watched }
     val previous = EpisodeWatchRules.targets(episodes, episode, EpisodeWatchScope.PREVIOUS)
     val season = EpisodeWatchRules.targets(episodes, episode, EpisodeWatchScope.SEASON)
@@ -44,6 +45,7 @@ internal fun EpisodeActionsSheet(item: MediaItem, episode: EpisodeItem, episodes
                 style = MaterialTheme.typography.bodySmall, color = Muted, modifier = Modifier.padding(horizontal = 22.dp, vertical = 4.dp))
             HorizontalDivider()
             EpisodeAction(Icons.Default.PlayArrow, "Reproducir") { onDismiss(); onSources() }
+            if (episode.released) EpisodeAction(Icons.Default.Download, "Descargar episodio") { onDismiss(); onDownload() }
             EpisodeAction(Icons.Default.Link, "Reproducir manualmente") { onDismiss(); onManual() }
         }
     }

@@ -124,6 +124,59 @@ internal class AetherioRepository(
         } catch (e: CancellationException) { throw e }
         catch (_: Exception) { throw IOException("No se pudo consultar el catalogo") }
     }
+    suspend fun watchingCalendar(range: WatchingRequest): WatchingPage = supervisorScope {
+        require(range.category == WatchingCategory.MOVIES_TV)
+        fun objects(array: org.json.JSONArray?): List<JSONObject> = (0 until (array?.length() ?: 0)).mapNotNull { array?.optJSONObject(it) }
+        suspend fun discover(type: MediaType): Pair<List<JSONObject>, Boolean> {
+            val dateKey = if (type == MediaType.MOVIE) "primary_release_date" else "air_date"
+                val data = tmdb("discover/${type.path}", mapOf("include_adult" to "false", "page" to range.page.toString(),
+                    "$dateKey.gte" to range.start, "$dateKey.lte" to WatchingDates.shift(range.end, -1),
+                    "sort_by" to "popularity.desc"))
+            return objects(data.getJSONArray("results")).filterNot(WatchingDates::isJapaneseAnime) to
+                (range.page < minOf(data.getInt("total_pages"), 500))
+        }
+        val movies = async { val (items, more) = discover(MediaType.MOVIE); items.mapNotNull(WatchingDates::movie) to more }
+        val series = async {
+            val (items, more) = discover(MediaType.SERIES)
+            items.map { json -> async show@ {
+                val item = CatalogJson.item(json, MediaType.SERIES, CatalogSource.TMDB) ?: return@show emptyList<WatchingEvent>()
+                val detail = tmdb("tv/${item.id}")
+                if (WatchingDates.isJapaneseAnime(detail)) return@show emptyList<WatchingEvent>()
+                val seasons = mutableSetOf<Int>()
+                listOf("last_episode_to_air", "next_episode_to_air").forEach { key ->
+                    detail.optJSONObject(key)?.optInt("season_number")?.takeIf { it > 0 }?.let(seasons::add)
+                }
+                val knownSeasons = objects(detail.optJSONArray("seasons")).filter { it.optInt("season_number") > 0 }
+                    .sortedBy { it.optInt("season_number") }
+                knownSeasons.forEachIndexed { index, season ->
+                    val date = CatalogJson.text(season, "air_date")
+                    val nextDate = knownSeasons.drop(index + 1).map { CatalogJson.text(it, "air_date") }.firstOrNull(WatchingDates::valid)
+                    // Also cover historical ranges: last/next episode alone only describe the present season.
+                    if ((!WatchingDates.valid(date) || date < range.end) && (nextDate == null || nextDate >= range.start))
+                        seasons += season.getInt("season_number")
+                }
+                val events = mutableListOf<WatchingEvent>()
+                for (season in seasons) {
+                    val data = tmdb("tv/${item.id}/season/$season")
+                    objects(data.optJSONArray("episodes")).forEach { episode ->
+                        val date = CatalogJson.text(episode, "air_date")
+                        val number = episode.optInt("episode_number")
+                        if (WatchingDates.valid(date) && date >= range.start && date < range.end && number > 0)
+                            events += WatchingEvent(item, date, season = season, episode = number, premiere = number == 1)
+                    }
+                }
+                val premiere = CatalogJson.text(json, "first_air_date")
+                if (WatchingDates.valid(premiere) && premiere >= range.start && premiere < range.end &&
+                    events.none { it.season == 1 && it.episode == 1 })
+                    events += WatchingEvent(item, premiere, season = 1, episode = 1, premiere = true)
+                events
+            } }.awaitAll().flatten() to more
+        }
+        val (movieEvents, moreMovies) = movies.await()
+        val (seriesEvents, moreSeries) = series.await()
+        WatchingPage(movieEvents + seriesEvents, moreMovies || moreSeries)
+    }
+
     private suspend fun <T> optional(block: suspend () -> T): T? = try { block() }
         catch (e: CancellationException) { throw e } catch (_: Exception) { null }
     private suspend fun tmdb(path: String, params: Map<String, String> = emptyMap()): JSONObject {
@@ -365,7 +418,7 @@ internal class AetherioRepository(
         } }.awaitAll()
     }
     suspend fun detail(item: MediaItem): MediaDetail {
-        val identity = SeriesIdentity.item(item)
+        val identity = SeriesIdentity.detailItem(item)
         if (identity != item) return detail(identity)
         if (item.source == CatalogSource.ANILIST) {
             return animeRepository.detail(item)
@@ -407,6 +460,27 @@ internal class AetherioRepository(
         val seasons = (grouped + untouched).sortedBy { it.number }
         return detail.copy(item = detail.item.copy(seriesNumbering = true, isAnime = true), seasons = seasons,
             selectedSeason = item.seasonHint?.takeIf { hint -> seasons.any { it.number == hint } } ?: seasons.firstOrNull()?.number)
+    }
+    /** Season artwork is for library cards only, never the series detail's visual identity. */
+    suspend fun seasonCard(item: MediaItem, season: Int): MediaItem {
+        val root = SeriesIdentity.item(item)
+        require(root.type == MediaType.SERIES && root.isAnime)
+        val part = SeriesIdentity.index.parts(root).filter { it.season == season }.minByOrNull { it.offset }
+        if (part != null) {
+            val artwork = optional { animeRepository.artwork(MediaItem(part.animeId, MediaType.SERIES,
+                root.title, CatalogSource.ANILIST, isAnime = true)) }
+            if (artwork != null) return artwork.copy(id = root.id, source = root.source, seasonHint = season,
+                animeEntryId = part.animeId, seriesNumbering = root.seriesNumbering, imdbId = root.imdbId)
+        }
+        require(root.source == CatalogSource.TMDB)
+        val sourceSeason = part?.tmdbSeason ?: season
+        val json = tmdb("tv/${root.id}/season/$sourceSeason")
+        check(json.getInt("season_number") == sourceSeason)
+        val path = CatalogJson.text(json, "poster_path").takeIf { it.startsWith("/") && !it.startsWith("//") && !it.contains('\\') }
+        val poster = path?.let { CatalogJson.image("https://image.tmdb.org/t/p/w500$it") }
+        return root.copy(title = "${root.title} · Temporada $season", seasonHint = season,
+            posterUrl = poster ?: root.posterUrl, portraitArtworkUrl = poster,
+            year = CatalogJson.text(json, "air_date").take(4), logoUrl = null)
     }
     /** Series-level images only. No season artwork or paginated episode/calendar queries. */
     suspend fun artwork(item: MediaItem): MediaItem {

@@ -19,7 +19,7 @@ python scripts/audit-anime-logos.py
 python scripts/review-anime-logos.py
 ```
 
-El script lee el token TMDB del entorno o de `local.properties`, sin imprimirlo ni guardarlo en los resultados. Consulta las primeras páginas de Inicio, la temporada actualmente en emisión completa y todos los eventos de los últimos 30 días japoneses; cuando Jikan no responde registra el límite y añade consultas equivalentes de AniList, claramente identificadas. Respeta respuestas 429 y no añade consultas a la aplicación durante el uso normal.
+El script usa la configuración local de TMDB sin imprimirla ni guardarla en los resultados. Consulta las primeras páginas de Inicio, la temporada actualmente en emisión completa y todos los eventos de los últimos 30 días japoneses; cuando Jikan no responde registra el límite y añade consultas equivalentes de AniList, claramente identificadas. Respeta respuestas 429 y no añade consultas a la aplicación durante el uso normal.
 
 Estados del informe:
 

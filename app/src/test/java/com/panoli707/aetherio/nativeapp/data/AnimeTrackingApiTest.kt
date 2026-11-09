@@ -9,6 +9,54 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AnimeTrackingApiTest {
+    @Test fun malDeletionAcceptsEmptySuccessfulResponsesButStillRejectsHttpFailures() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val api = AnimeTrackingApi(OkHttpClient(), server.url("/graph").toString(),
+                server.url("/v2").toString(), spacingMs = 0)
+            val entry = AnimeEntry(10, 1, 10, "Anime")
+            for (status in listOf(200, 204)) {
+                server.enqueue(MockResponse().setResponseCode(status))
+                api.remove(AnimeService.MAL, "token", entry)
+                val request = server.takeRequest()
+                assertEquals("DELETE", request.method)
+                assertEquals("/v2/anime/10/my_list_status", request.path)
+            }
+            server.enqueue(MockResponse().setBody("[]"))
+            api.remove(AnimeService.MAL, "token", entry)
+            assertEquals("DELETE", server.takeRequest().method)
+            server.enqueue(MockResponse().setResponseCode(503))
+            server.enqueue(MockResponse().setBody("""{"id":10,"my_list_status":{"status":"watching"}}"""))
+            try {
+                api.remove(AnimeService.MAL, "token", entry)
+                fail("An unsuccessful deletion must not be accepted")
+            } catch (e: AnimeApiException) { assertEquals(503, e.status) }
+        } finally { server.shutdown() }
+    }
+    @Test fun malDeletionReconcilesAbsentEntriesButDoesNotIgnoreAuthorizationErrors() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val api = AnimeTrackingApi(OkHttpClient(), server.url("/graph").toString(),
+                server.url("/v2").toString(), spacingMs = 0)
+            val entry = AnimeEntry(10, 1, 10, "Anime")
+            for (status in listOf(404, 503)) {
+                server.enqueue(MockResponse().setResponseCode(status))
+                server.enqueue(MockResponse().setBody("""{"id":10}"""))
+                api.remove(AnimeService.MAL, "token", entry)
+                assertEquals("DELETE", server.takeRequest().method)
+                val verification = server.takeRequest()
+                assertEquals("GET", verification.method)
+                assertEquals("Bearer token", verification.getHeader("Authorization"))
+            }
+            server.enqueue(MockResponse().setResponseCode(401))
+            try {
+                api.remove(AnimeService.MAL, "token", entry)
+                fail("Authorization failures must remain failures")
+            } catch (e: AnimeApiException) { assertEquals(401, e.status) }
+        } finally { server.shutdown() }
+    }
     @Test fun brokerStartSendsOnlyChallengeAndValidatesTheImplicitAuthorizationUrl() = runBlocking {
         val server = MockWebServer(); server.start()
         try {
@@ -83,6 +131,20 @@ class AnimeTrackingApiTest {
             assertTrue(json.getString("query").contains("scoreRaw:"))
             assertEquals(85, json.getJSONObject("variables").getInt("score"))
             assertFalse(json.toString().contains("user-token"))
+        } finally { server.shutdown() }
+    }
+    @Test fun anilistRemovalResolvesAndDeletesTheListEntryIdNotTheAnimeId() = runBlocking {
+        val server = MockWebServer()
+        server.start()
+        try {
+            val api = AnimeTrackingApi(OkHttpClient(), server.url("/graph").toString(), spacingMs = 0)
+            server.enqueue(MockResponse().setBody("""{"data":{"Media":{"isFavourite":false,"mediaListEntry":{"id":99,"status":"CURRENT","progress":2,"score":80}}}}"""))
+            server.enqueue(MockResponse().setBody("""{"data":{"DeleteMediaListEntry":{"deleted":true}}}"""))
+            api.remove(AnimeService.ANILIST, "token", AnimeEntry(42, 42, null, "Anime"))
+            server.takeRequest()
+            val deletion = JSONObject(server.takeRequest().body.readUtf8())
+            assertTrue(deletion.getString("query").contains("DeleteMediaListEntry"))
+            assertEquals(99, deletion.getJSONObject("variables").getInt("id"))
         } finally { server.shutdown() }
     }
     @Test fun rateLimitsAndGraphqlErrorsRemainFailuresRatherThanEmptySuccessfulLists() = runBlocking {

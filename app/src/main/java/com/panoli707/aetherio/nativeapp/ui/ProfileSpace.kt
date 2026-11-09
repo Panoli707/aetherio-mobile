@@ -42,8 +42,12 @@ import com.panoli707.aetherio.nativeapp.data.*
 import kotlinx.coroutines.delay
 
 data class PersonalActions(
+    val setSyncService: (AnimeService, Boolean) -> Unit = { _, _ -> },
+    val saveMediaState: (MediaItem, Int?, MediaListState) -> Unit = { _, _, _ -> },
+    val removeMedia: (MediaItem, (Boolean) -> Unit) -> Unit = { _, complete -> complete(false) },
     val connect: (AnimeService) -> Unit = {}, val refresh: (AnimeService) -> Unit = {}, val disconnect: (AnimeService) -> Unit = {},
     val updateAnime: (AnimeService, AnimeEntry, AnimeStatus, Int, Double) -> Unit = { _, _, _, _, _ -> },
+    val removeAnime: (AnimeService, AnimeEntry, (Boolean) -> Unit) -> Unit = { _, _, complete -> complete(false) },
     val editAnime: (AnimeService, Int) -> Unit = { _, _ -> }, val dismissAnime: () -> Unit = {},
     val importAnime: (AnimeEntry) -> Unit = {}, val appearance: (ProfileAppearance) -> Unit = {},
     val importImage: (Uri, Boolean) -> Unit = { _, _ -> }, val playDownload: (String) -> Unit = {},
@@ -85,6 +89,7 @@ internal fun ProfileSpace(state: AppState, onRename: (String) -> Unit, actions: 
         "colors" -> ThemeColorSettings { page = "profile" }
         "edit" -> ProfileEditor(state, onRename, actions) { page = "profile" }
         "downloads" -> DownloadsScreen(state, actions) { page = "profile" }
+        "sync" -> SyncPreferencesScreen(state, actions) { page = "profile" }
         else -> Box(Modifier.fillMaxSize().background(Ink).testTag("profileSpace")) {
             ProfileBanner(state.profileAppearance, Modifier.fillMaxWidth().height(380.dp))
             LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 132.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
@@ -122,7 +127,7 @@ internal fun ProfileSpace(state: AppState, onRename: (String) -> Unit, actions: 
                         }
                     }
                 }
-                state.profileMessage?.let { message -> item { Text(message, color = Muted, modifier = Modifier.padding(horizontal = 24.dp)) } }
+                state.profileMessage?.let { message -> item { TimedMessageText(message, modifier = Modifier.padding(horizontal = 24.dp)) } }
                 AnimeService.entries.forEach { service -> item(key = service.name) {
                     AnimeConnectionCard(service, state.animeTracking.connections.getValue(service), state.watchProgress, actions, onSelect)
                 } }
@@ -131,7 +136,33 @@ internal fun ProfileSpace(state: AppState, onRename: (String) -> Unit, actions: 
                         Text("PERSONALIZACIÓN", color = Muted, style = MaterialTheme.typography.labelLarge)
                         ProfileDestination("Diseño de Aetherio", "Colores y apariencia de la app", Icons.Default.Palette, { page = "colors" })
                         ProfileDestination("Descargas", "Cola, almacenamiento y vídeos sin conexión", Icons.Default.Download, { page = "downloads" })
+                        ProfileDestination("Preferencias de sincronización", "Gestiona la sincronización con tus cuentas", Icons.Default.Sync, { page = "sync" })
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SyncPreferencesScreen(state: AppState, actions: PersonalActions, onBack: () -> Unit) {
+    Column(Modifier.fillMaxSize().background(Ink).statusBarsPadding().navigationBarsPadding()
+        .verticalScroll(rememberScrollState()).testTag("syncPreferences")) {
+        ScreenHeader("Preferencias de sincronización", onBack)
+        Column(Modifier.padding(horizontal = 24.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text("Elige qué cuentas reciben los guardados, estados y borrados de Aetherio. Sin opciones activas, todo se guarda solo en Aetherio.", color = Muted)
+            AnimeService.entries.forEach { service ->
+                val connected = state.animeTracking.connections[service]?.account != null
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(service.label)
+                        Text(if (connected) "Cuenta vinculada" else "Sin cuenta vinculada", color = Muted,
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    Switch(checked = connected && service in state.syncServices,
+                        onCheckedChange = { actions.setSyncService(service, it) },
+                        enabled = connected,
+                        modifier = Modifier.testTag("syncPreference:${service.name}"))
                 }
             }
         }
@@ -221,10 +252,9 @@ private fun AnimeConnectionCard(service: AnimeService, connection: AnimeConnecti
                     }
                 }
             }
-            TextButton(onClick = { review = true }, enabled = !connection.busy, modifier = Modifier.padding(horizontal = 16.dp)) { Text("Revisar sincronización del progreso local") }
         }
         if (connection.busy) LinearProgressIndicator(Modifier.padding(horizontal = 22.dp).fillMaxWidth())
-        visibleError?.let { Text(it, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 24.dp)) }
+        visibleError?.let { TimedErrorText(it, modifier = Modifier.padding(horizontal = 24.dp), style = MaterialTheme.typography.bodyMedium) }
     }
     if (logout) AlertDialog(onDismissRequest = { logout = false }, title = { Text("Desconectar ${service.label}") },
         text = { Text("Se borrarán la autorización y la copia local de esta lista. No se borrará tu cuenta, lista remota, biblioteca ni historial. Puedes revocar el permiso también en los ajustes de ${service.label}.") },
@@ -262,7 +292,7 @@ private fun ProfileEditor(state: AppState, onRename: (String) -> Unit, actions: 
                         Icon(Icons.Default.PhotoLibrary, null); Spacer(Modifier.width(8.dp)); Text(if (avatars) "Elegir foto de la galería" else "Elegir banner de la galería")
                     }
                     if (state.profileBusy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    state.profileMessage?.let { Text(it, color = Muted) }
+                    state.profileMessage?.let { TimedMessageText(it) }
                 }
             }
             if (avatars) items((0..7).chunked(4)) { row ->
@@ -290,12 +320,18 @@ internal fun AnimeEntryEditor(service: AnimeService, entry: AnimeEntry, actions:
     var progress by remember(entry.id) { mutableStateOf((suggestedProgress ?: entry.progress).toString()) }
     var score by remember(entry.id) { mutableStateOf((entry.score / 10).toString()) }
     var status by remember(entry.id) { mutableStateOf(entry.status ?: AnimeStatus.PLANNED) }
-    var import by remember { mutableStateOf(false) }
+    var confirmRemove by remember(entry.id) { mutableStateOf(false) }
+    var deleting by remember(entry.id) { mutableStateOf(false) }
+    var deletionError by remember(entry.id) { mutableStateOf<String?>(null) }
+    LaunchedEffect(confirmRemove, deletionError) {
+        if (!confirmRemove) deletionError = null
+        else if (deletionError != null) { delay(5_000); deletionError = null }
+    }
     val count = progress.toIntOrNull()
     val points = score.replace(',', '.').toDoubleOrNull()
     AlertDialog(onDismissRequest = onClose, title = { Text(entry.title, maxLines = 2, overflow = TextOverflow.Ellipsis) }, text = {
         Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text("Cambios en ${service.label}. No se enviarán al otro servicio.", color = Muted)
+            Text("Estado", color = Muted)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) { AnimeStatus.entries.forEach { value ->
                 FilterChip(status == value, { status = value }, label = { Text(value.label, style = MaterialTheme.typography.labelSmall) })
             } }
@@ -303,15 +339,33 @@ internal fun AnimeEntryEditor(service: AnimeService, entry: AnimeEntry, actions:
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
             OutlinedTextField(score, { score = it.take(5) }, label = { Text(if (service == AnimeService.MAL) "Puntuación (0–10, enteros)" else "Puntuación (0–10)") }, singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = if (service == AnimeService.MAL) KeyboardType.Number else KeyboardType.Decimal))
-            if (entry.item() != null) TextButton(onClick = { import = true }) { Text("Importar progreso remoto a Aetherio") }
         }
-    }, confirmButton = { TextButton(enabled = count != null && count in 0..100_000 && (entry.episodes <= 0 || count <= entry.episodes) &&
+    }, confirmButton = { Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        IconButton(onClick = { confirmRemove = true }, modifier = Modifier.testTag("animeEntryDelete")) {
+            Icon(Icons.Default.Delete, contentDescription = "Borrar de ${service.label}", tint = MaterialTheme.colorScheme.error)
+        }
+        Row {
+        TextButton(onClick = onClose) { Text("Cancelar") }
+        TextButton(enabled = count != null && count in 0..100_000 && (entry.episodes <= 0 || count <= entry.episodes) &&
         points != null && points.isFinite() && points in 0.0..10.0 && (service != AnimeService.MAL || points % 1.0 == 0.0),
-        onClick = { actions.updateAnime(service, entry, status, requireNotNull(count), requireNotNull(points) * 10); onClose() }) { Text("Guardar en ${service.label}") } },
-        dismissButton = { TextButton(onClick = onClose) { Text("Cancelar") } })
-    if (import) AlertDialog(onDismissRequest = { import = false }, title = { Text("Importar a Aetherio") },
-        text = { Text("Se añadirá este anime a tu biblioteca y se marcarán como vistos sus primeros ${entry.progress} episodios usando su identidad exacta. No se eliminarán marcas existentes ni se inventarán posiciones de reproducción. No cambia la lista del otro servicio.") },
-        confirmButton = { TextButton(onClick = { actions.importAnime(entry); onClose() }) { Text("Importar") } }, dismissButton = { TextButton(onClick = { import = false }) { Text("Cancelar") } })
+        onClick = { actions.updateAnime(service, entry, status, requireNotNull(count), requireNotNull(points) * 10); onClose() }) { Text("Guardar") }
+        }
+    } })
+    if (confirmRemove) AlertDialog(onDismissRequest = { if (!deleting) confirmRemove = false }, title = { Text("Borrar de ${service.label}") },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("¿Quieres borrar ${entry.title} de tu lista de ${service.label}? Esta acción no se puede deshacer.")
+            deletionError?.let { TimedErrorText(it) }
+        } },
+        confirmButton = { TextButton(enabled = !deleting, onClick = {
+            deleting = true
+            deletionError = null
+            actions.removeAnime(service, entry) { success ->
+                deleting = false
+                if (success) { confirmRemove = false; onClose() }
+                else deletionError = "No se pudo completar el borrado. Tu biblioteca local y sus estados se conservan; comprueba la conexión y vuelve a intentarlo."
+            }
+        }) { Text(if (deleting) "Borrando…" else "Borrar") } },
+        dismissButton = { TextButton(enabled = !deleting, onClick = { confirmRemove = false }) { Text("Cancelar") } })
 }
 
 @Composable

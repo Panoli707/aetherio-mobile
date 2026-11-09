@@ -107,8 +107,7 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(provider.name, style = MaterialTheme.typography.titleMedium)
                 if (provider.id in state.desktopSourceErrors) {
-                    Text("No respondió en la última consulta", color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall)
+                    TimedErrorText("No respondió en la última consulta")
                 }
             }
             Switch(checked = provider.id in state.enabledDesktopSources,
@@ -130,8 +129,8 @@ internal fun AddonsSettings(state: AppState, onAdd: (String) -> Unit, onRemove: 
     if (invalid || state.addonError != null) {
         val message = if (invalid) "Usa una URL HTTPS válida que termine en /manifest.json, sin usuario ni fragmento."
             else "No se pudo completar la operación. Revisa la URL, la conexión y que el manifiesto sea compatible."
-        Text(message, color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.semantics { error(message); liveRegion = LiveRegionMode.Polite })
+        TimedErrorText(message, modifier = Modifier.semantics { error(message); liveRegion = LiveRegionMode.Polite },
+            style = MaterialTheme.typography.bodyMedium)
     }
     if (success && state.addonError == null) Text("Proveedor guardado. Ya puedes buscar fuentes desde las fichas.", color = Success,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
@@ -202,7 +201,7 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                 Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp)) {
                     Text("${state.downloadSelection.size} pendientes de fuente · Se descargan en Wi-Fi", color = Accent, style = MaterialTheme.typography.labelMedium)
                     Text("Solo se guardan las pistas incluidas en el vídeo o manifiesto; no los subtítulos externos del addon.", color = Muted, style = MaterialTheme.typography.bodySmall)
-                    state.downloadMessage?.let { Text(it, color = Muted, style = MaterialTheme.typography.bodySmall) }
+                    state.downloadMessage?.let { TimedMessageText(it, style = MaterialTheme.typography.bodySmall) }
                     TextButton(onClick = onSkipDownload, enabled = !state.downloadEnqueueing) { Text("Omitir este episodio / título") }
                 }
             }
@@ -241,9 +240,8 @@ internal fun SourceSheet(state: AppState, query: SourceQuery, onDismiss: () -> U
                 if (state.sourcesLoading) item(key = "loading") { LoadingRow("Buscando fuentes…") }
                 if (!state.sourcesLoading && state.sourceError != null) item(key = "error") {
                     val message = state.sourceError
-                    Text(message, color = Cream.copy(alpha = .85f),
-                        modifier = Modifier.padding(vertical = 12.dp).testTag("sourceFailure")
-                            .semantics { liveRegion = LiveRegionMode.Polite })
+                    TimedErrorText(message, modifier = Modifier.padding(vertical = 12.dp).testTag("sourceFailure")
+                        .semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodyMedium)
                 }
                 if (!state.sourcesLoading && !state.addonsLoading && hasProviders && state.sourceError == null && state.sources.isEmpty()) item(key = "empty") {
                     StatusMessage("Sin resultados", "No hay fuentes para este título o episodio. Usa el botón de actualizar para volver a intentarlo.")

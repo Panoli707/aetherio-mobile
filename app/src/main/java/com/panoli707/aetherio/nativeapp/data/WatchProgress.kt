@@ -25,6 +25,17 @@ data class WatchProgress(
 }
 
 object WatchProgressRules {
+    /** First unwatched episode in the selected season; advance to the next season after completion. */
+    fun nextEpisode(season: Int?, episodes: List<EpisodeItem>, seasons: List<SeasonInfo>,
+        watched: Set<Pair<Int, Int>>): Pair<Int, Int>? {
+        val selected = season ?: episodes.firstOrNull()?.season ?: seasons.minByOrNull { it.number }?.number ?: return null
+        val currentEpisodes = episodes.filter { it.season == selected }.sortedBy { it.number }
+        currentEpisodes.firstOrNull { (it.season to it.number) !in watched }?.let { return it.season to it.number }
+        if (currentEpisodes.isEmpty()) return selected to 1
+        val nextSeason = seasons.asSequence().filter { it.number > selected && it.episodeCount > 0 }
+            .minByOrNull { it.number }
+        return nextSeason?.number?.let { it to 1 } ?: (selected to 1)
+    }
     fun valid(target: WatchTarget): Boolean = target.item.id.matches(
         if (target.item.source != CatalogSource.CINEMETA) Regex("[0-9]{1,12}") else Regex("tt[0-9]{5,12}")
     ) && target.item.title.length in 1..500 && when (target.item.type) {

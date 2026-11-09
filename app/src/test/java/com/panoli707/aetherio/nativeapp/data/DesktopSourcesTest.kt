@@ -57,7 +57,7 @@ class DesktopSourcesTest {
     @Test fun providersMatchTheFourPublicDesktopConfigurationsAndValidateAsManifestUrls() {
         assertEquals(expectedProviders + DesktopSourceProvider("animeav1", "AnimeAV1"), DesktopSources.providers)
         assertEquals(setOf("penguplay", "hdhub", "animes", "deepflix", "animeav1"), DesktopSources.knownIds)
-        assertTrue(DesktopSources.defaultIds.isEmpty())
+        assertEquals(DesktopSources.knownIds, DesktopSources.defaultIds)
         DesktopSources.providers.mapNotNull { it.manifestUrl }.forEach { url ->
             assertEquals(url, SourceProtocol.manifestUrl(url).toString())
         }

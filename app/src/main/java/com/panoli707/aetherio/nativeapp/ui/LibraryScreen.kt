@@ -27,13 +27,14 @@ internal fun LibraryScreen(state: AppState, scroll: LazyGridState, filter: Strin
     var discover by rememberSaveable { mutableStateOf(false) }
     androidx.activity.compose.BackHandler(discover) { discover = false }
     val discoverScroll = rememberLazyGridState()
-    val entries = remember(state.savedItems, state.savedAddedAt, state.watchProgress, state.watchingAnime, state.animeTracking) { LibraryFiltering.entries(state) }
+    val entries = remember(state.savedItems, state.savedAddedAt, state.watchProgress, state.watchingAnime, state.animeTracking,
+        state.mediaStates, state.hiddenLibraryItems, state.librarySeasonCards) { LibraryFiltering.entries(state) }
     val filtered = remember(entries, state.libraryFilters, filter) { LibraryFiltering.filter(entries, state.libraryFilters.copy(type = filter)) }
     val filters = filtered.filters
     val discovery = state.discover
     // Only a filter change resets scroll, not recomposition or returning from a detail screen.
     var previousLibrarySelection by rememberSaveable { mutableStateOf("${filters.list}|${filters.type}|${filters.genre}|${filters.sort}") }
-    val librarySelection = "${filters.list}|${filters.type}|${filters.genre}|${filters.sort}"
+    val librarySelection = "${filters.list}|${filters.type}|${filters.genre}|${filters.sort}|${filters.status}"
     LaunchedEffect(librarySelection) {
         if (previousLibrarySelection != librarySelection) { scroll.scrollToItem(0); previousLibrarySelection = librarySelection }
     }
@@ -71,6 +72,7 @@ internal fun LibraryScreen(state: AppState, scroll: LazyGridState, filter: Strin
                             LazyRow(Modifier.testTag("libraryFilters"), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 item { LibrarySelector("Lista", filters.list, filtered.lists.options(), { change(filters.copy(list = it, type = "all", genre = "all")) }) }
                                 item { LibrarySelector("Tipo", filters.type, filtered.types.options(), { change(filters.copy(type = it)) }) }
+                                item { LibrarySelector("Estado", filters.status, listOf("all" to "Todos") + AnimeStatus.entries.map { it.name to it.label }, { change(filters.copy(status = it)) }) }
                                 if (filtered.genres.size > 1) item { LibrarySelector("Género", filters.genre, filtered.genres.options(), { change(filters.copy(genre = it)) }) }
                                 item { LibrarySelector("Orden", filters.sort, listOf("added_desc" to "Añadidos recientemente", "added_asc" to "Añadidos primero", "title_asc" to "Título A–Z", "title_desc" to "Título Z–A"), { change(filters.copy(sort = it)) }) }
                             }
@@ -81,7 +83,9 @@ internal fun LibraryScreen(state: AppState, scroll: LazyGridState, filter: Strin
                         if (entries.isEmpty()) StatusMessage("Todavía no hay títulos aquí", "Las películas y series que veas o guardes aparecerán aquí automáticamente.", "Buscar", onSearch)
                         else StatusMessage("No hay títulos con estos filtros", "Cambia la lista, el tipo o el género.", "Restablecer filtros", { change(LibraryFilters()) })
                     }
-                    items(filtered.entries, key = { it.item.key }) { entry -> Poster(entry.item, { onSelect(entry.item) }) }
+                    items(filtered.entries, key = { "${it.item.key}:season:${it.item.seasonHint}" }) { entry ->
+                        Poster(entry.displayItem, { onSelect(entry.item) }, seasonArtwork = entry.item.seasonHint != null && filters.status != "all")
+                    }
                 } else {
                     val selection = DesktopDiscover.normalize(discovery.selection, discovery.catalogs)
                     val catalog = discovery.catalogs.firstOrNull { it.key == selection.catalog }
@@ -97,19 +101,19 @@ internal fun LibraryScreen(state: AppState, scroll: LazyGridState, filter: Strin
                     }
                     if (discovery.catalogsLoading) item(span = { GridItemSpan(maxLineSpan) }) { Text("Consultando catálogos de extensiones…", color = Muted, style = MaterialTheme.typography.bodySmall) }
                     discovery.catalogsError?.let { error -> item(span = { GridItemSpan(maxLineSpan) }) {
-                        Column { Text(error, color = Muted); TextButton(onClick = { onDiscover(discovery.selection, false, true) }) { Text("Reintentar extensiones") } }
+                        Column { TimedErrorText(error, style = MaterialTheme.typography.bodyMedium); TextButton(onClick = { onDiscover(discovery.selection, false, true) }) { Text("Reintentar extensiones") } }
                     } }
                     when {
                         discovery.loading -> item(span = { GridItemSpan(maxLineSpan) }) { LoadingRow("Cargando catálogo…") }
                         discovery.error != null && discovery.items.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
-                            StatusMessage("No se pudo cargar", discovery.error, "Reintentar", { onDiscover(discovery.selection, false, true) })
+                            TimedErrorStatusMessage("No se pudo cargar", discovery.error, "Reintentar", { onDiscover(discovery.selection, false, true) })
                         }
                         discovery.items.isEmpty() -> item(span = { GridItemSpan(maxLineSpan) }) {
                             StatusMessage("Sin resultados", "Este catálogo no devolvió títulos compatibles con los filtros seleccionados.")
                         }
                         else -> {
                             items(discovery.items, key = { it.key }) { item -> Poster(item, { onSelect(item) }) }
-                            if (discovery.error != null) item(span = { GridItemSpan(maxLineSpan) }) { Text(discovery.error, color = MaterialTheme.colorScheme.error) }
+                            if (discovery.error != null) item(span = { GridItemSpan(maxLineSpan) }) { TimedErrorText(discovery.error) }
                             if (discovery.hasMore) item(key = "more", span = { GridItemSpan(maxLineSpan) }) {
                                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                                     OutlinedButton(onClick = { onDiscover(discovery.selection, true, false) }, enabled = !discovery.loadingMore,
@@ -161,5 +165,5 @@ private fun LibraryAniList(connection: AnimeConnection, actions: PersonalActions
             Text(if (connection.busy) "Sincronizando…" else if (connection.account == null || connection.authorizationRequired) "Conectar" else "Sincronizar")
         }
     }
-    connection.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+    connection.error?.let { TimedErrorText(it) }
 }

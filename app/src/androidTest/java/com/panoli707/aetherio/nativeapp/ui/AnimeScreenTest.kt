@@ -13,10 +13,12 @@ import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.junit.rules.RuleChain
 
 @RunWith(AndroidJUnit4::class)
 class AnimeScreenTest {
-    @get:Rule val compose = createComposeRule()
+    val compose = createComposeRule()
+    @get:Rule val rules: RuleChain = RuleChain.outerRule(ForegroundArtworkTestRule()).around(compose)
     private val anime = MediaItem("123", MediaType.SERIES, "Anime local", isAnime = true, episodeCount = 12, animeSeasonLabel = "Otoño 2026")
 
     @Test fun dedicatedAnimePagePlacesPendingEpisodesAboveTrackedPostersAndKeepsWatchedCounts() {

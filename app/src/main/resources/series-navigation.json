@@ -1,0 +1,10 @@
+{
+  "description": "Navigation-only aliases for split deliveries. No verified episode offset: never use these aliases for progress, playback numbering or remote list IDs.",
+  "sources": [
+    "https://anilist.co/anime/210482",
+    "https://anilist.co/anime/190327",
+    "https://www.themoviedb.org/tv/45790/season/6",
+    "https://v3-cinemeta.strem.io/meta/series/tt2359704.json"
+  ],
+  "aliases": { "210482": "190327" }
+}

@@ -34,6 +34,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardActions
@@ -116,11 +117,14 @@ internal fun Metadata(item: MediaItem, centered: Boolean = false) {
 }
 
 @Composable
-internal fun Poster(item: MediaItem, onClick: () -> Unit, modifier: Modifier = Modifier, rank: Int? = null) {
+internal fun Poster(item: MediaItem, onClick: () -> Unit, modifier: Modifier = Modifier, rank: Int? = null,
+    seasonArtwork: Boolean = false) {
     Column(modifier.clickable(onClickLabel = "Ver ${item.title}", onClick = onClick)
         .semantics(mergeDescendants = true) { }) {
         Box(Modifier.fillMaxWidth().aspectRatio(2f / 3f).clip(RoundedCornerShape(14.dp)).testTag("posterArt:${item.key}")) {
-            CanonicalPoster(item, Modifier.fillMaxSize())
+            if (seasonArtwork) AsyncImage(item.posterUrl, item.title, contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize())
+            else CanonicalPoster(item, Modifier.fillMaxSize())
             if (rank != null) {
                 Box(Modifier.fillMaxWidth().height(64.dp).background(Brush.verticalGradient(
                     listOf(Color.Black.copy(alpha = .65f), Color.Transparent))))
@@ -131,6 +135,8 @@ internal fun Poster(item: MediaItem, onClick: () -> Unit, modifier: Modifier = M
         }
         Text(item.title, minLines = 2, maxLines = 2, overflow = TextOverflow.Ellipsis,
             style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 7.dp))
+        if (seasonArtwork && item.seasonHint != null) Text("Temporada ${item.seasonHint}", color = Accent,
+            style = MaterialTheme.typography.bodySmall)
         if (item.year.isNotBlank()) Text(item.year, color = Muted, style = MaterialTheme.typography.bodySmall,
             modifier = Modifier.padding(top = 2.dp))
     }
@@ -188,6 +194,29 @@ internal fun StatusMessage(title: String, message: String, action: String? = nul
 }
 
 @Composable
+internal fun TimedErrorText(message: String, modifier: Modifier = Modifier,
+    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodySmall) {
+    var visible by remember(message) { mutableStateOf(true) }
+    LaunchedEffect(message) { visible = true; delay(5_000); visible = false }
+    if (visible) Text(message, color = MaterialTheme.colorScheme.error, style = style, modifier = modifier)
+}
+
+@Composable
+internal fun TimedMessageText(message: String, color: Color = Muted, modifier: Modifier = Modifier,
+    style: androidx.compose.ui.text.TextStyle = MaterialTheme.typography.bodyMedium) {
+    var visible by remember(message) { mutableStateOf(true) }
+    LaunchedEffect(message) { visible = true; delay(5_000); visible = false }
+    if (visible) Text(message, color = color, style = style, modifier = modifier)
+}
+
+@Composable
+internal fun TimedErrorStatusMessage(title: String, message: String, action: String? = null, onAction: () -> Unit = {}) {
+    var visible by remember(message) { mutableStateOf(true) }
+    LaunchedEffect(message) { visible = true; delay(5_000); visible = false }
+    if (visible) StatusMessage(title, message, action, onAction)
+}
+
+@Composable
 internal fun LoadingRow(label: String) {
     Row(Modifier.fillMaxWidth().padding(24.dp).semantics(mergeDescendants = true) { liveRegion = LiveRegionMode.Polite },
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
@@ -210,7 +239,7 @@ internal fun FloatingNavigation(tab: String, collapsed: Boolean, onTab: (String)
                 verticalAlignment = Alignment.CenterVertically) {
                 NavigationItem("Inicio", Icons.Default.Home, tab == "home", collapsed, itemWidth) { onTab("home") }
                 if (!collapsed) {
-                    NavigationItem("Anime", Icons.Default.LiveTv, tab == "anime", false, itemWidth) { onTab("anime") }
+                    NavigationItem("Calendario", Icons.Default.LiveTv, tab == "anime", false, itemWidth) { onTab("anime") }
                     NavigationItem("Biblioteca", Icons.Default.Favorite, tab == "library", false, itemWidth) { onTab("library") }
                     NavigationItem("Ajustes", Icons.Default.Settings, tab == "settings", false, itemWidth) { onTab("settings") }
                 }

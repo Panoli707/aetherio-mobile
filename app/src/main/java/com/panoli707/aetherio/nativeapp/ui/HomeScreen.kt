@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.LinearProgressIndicator
@@ -67,13 +66,11 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
         }
     },
         contentPadding = PaddingValues(bottom = 110.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
-        if (heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(heroes, pager, onSelect, onProfile, onRetry, state.homeLoading) }
+        if (heroes.isNotEmpty()) item(key = "hero") { HeroCarousel(heroes, pager, onSelect, onProfile) }
         else item(key = "heading") {
             Box(Modifier.fillMaxWidth()) {
                 ScreenHeader("Aetherio")
                 ProfileAction(onProfile, Modifier.align(Alignment.TopEnd))
-                RoundAction("Actualizar catálogo", Icons.Default.Refresh, onRetry,
-                    Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 12.dp, end = 76.dp), enabled = !state.homeLoading)
             }
         }
         val continuing = WatchProgressRules.continuing(state.watchProgress)
@@ -107,7 +104,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
                 DesktopHomeCatalog.platforms.map { "platform:${it.id}" to it.name }, onCategory)
         }
         if (state.homeError != null) item(key = "error") {
-            StatusMessage(if (state.sections.isEmpty()) "No se pudo cargar el catálogo" else "Faltan algunas secciones",
+            TimedErrorStatusMessage(if (state.sections.isEmpty()) "No se pudo cargar el catálogo" else "Faltan algunas secciones",
                 state.homeError, "Reintentar", onRetry)
         } else if (state.homeLoading && state.sections.none { it.items.isNotEmpty() }) item(key = "loading") {
             LoadingRow("Cargando catálogo…")
@@ -149,7 +146,7 @@ internal fun HomeScreen(state: AppState, scroll: LazyListState, pager: PagerStat
 
 @Composable
 private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (MediaItem) -> Unit,
-    onProfile: () -> Unit, onRefresh: () -> Unit, loading: Boolean) {
+    onProfile: () -> Unit) {
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
     Column {
         Box {
@@ -176,8 +173,6 @@ private fun HeroCarousel(heroes: List<MediaItem>, pager: PagerState, onSelect: (
                 }
             }
              ProfileAction(onProfile, Modifier.align(Alignment.TopEnd))
-             RoundAction("Actualizar catálogo", Icons.Default.Refresh, onRefresh,
-                 Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 12.dp, end = 76.dp), enabled = !loading)
         }
         if (heroes.size > 1) Row(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 12.dp)
             .semantics { contentDescription = "Destacado ${pager.currentPage.coerceIn(0, heroes.lastIndex) + 1} de ${heroes.size}" },

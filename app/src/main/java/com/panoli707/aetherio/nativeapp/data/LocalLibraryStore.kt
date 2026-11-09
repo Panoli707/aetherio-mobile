@@ -4,7 +4,20 @@ import android.content.Context
 
 internal class LocalLibraryStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences("aetherio_library", Context.MODE_PRIVATE)
+    fun syncServices(): Set<AnimeService> = AnimeService.entries.filter { preferences.getBoolean("sync_${it.name}", true) }.toSet()
+    fun setSyncService(service: AnimeService, enabled: Boolean) {
+        check(preferences.edit().putBoolean("sync_${service.name}", enabled).commit())
+    }
     val savedItems: List<MediaItem> get() = CatalogJson.decode(preferences.getString("saved", "[]") ?: "[]")
+    var librarySeasonCards: List<MediaItem>
+        get() = CatalogJson.decode(preferences.getString("library_season_cards_v1", "[]") ?: "[]", distinguishSeasons = true)
+        set(value) { check(preferences.edit().putString("library_season_cards_v1", CatalogJson.encode(value)).commit()) }
+    var mediaStates: Map<String, MediaListState>
+        get() = MediaListCodec.decode(preferences.getString("media_states_v1", "{}").orEmpty())
+        set(value) { check(preferences.edit().putString("media_states_v1", MediaListCodec.encode(value)).commit()) }
+    var hiddenLibraryItems: Set<String>
+        get() = preferences.getStringSet("hidden_library_items_v1", emptySet()).orEmpty().map(SeriesIdentity::key).toSet()
+        set(value) { check(preferences.edit().putStringSet("hidden_library_items_v1", value.map(SeriesIdentity::key).toSet()).commit()) }
     val savedAddedAt: Map<String, Long> get() = runCatching {
         val json = org.json.JSONObject(preferences.getString("saved_added_at_v1", "{}").orEmpty())
         json.keys().asSequence().associate { SeriesIdentity.key(it) to json.getLong(it).coerceAtLeast(0) }

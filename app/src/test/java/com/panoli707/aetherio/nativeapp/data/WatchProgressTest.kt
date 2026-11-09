@@ -74,4 +74,13 @@ class WatchProgressTest {
         assertEquals("12:34", watchTime(754321))
         assertEquals("1:02:03", watchTime(3723000))
     }
+
+    @Test fun nextPlaybackSkipsWatchedEpisodesAndAdvancesToTheNextSeason() {
+        val episodes = listOf(EpisodeItem(1, 1, "Uno"), EpisodeItem(2, 1, "Dos"))
+        val seasons = listOf(SeasonInfo(1, "T1", 2), SeasonInfo(2, "T2", 3))
+        assertEquals(1 to 1, WatchProgressRules.nextEpisode(1, episodes, seasons, emptySet()))
+        assertEquals(1 to 2, WatchProgressRules.nextEpisode(1, episodes, seasons, setOf(1 to 1)))
+        assertEquals(2 to 1, WatchProgressRules.nextEpisode(1, episodes, seasons, setOf(1 to 1, 1 to 2)))
+        assertEquals(1 to 1, WatchProgressRules.nextEpisode(1, episodes, listOf(seasons.first()), setOf(1 to 1, 1 to 2)))
+    }
 }

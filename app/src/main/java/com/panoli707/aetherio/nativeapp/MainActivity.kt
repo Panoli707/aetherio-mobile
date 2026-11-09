@@ -145,6 +145,8 @@ class MainActivity : ComponentActivity() {
                 onEpisodeWatchAction = model::markWatched,
                 onToggleWatching = model::toggleWatching,
                 onLoadAnimeSeason = model::loadAnimeSeason,
+                onLoadWatchingCalendar = model::loadWatchingCalendar,
+                onLeaveMovieTvCalendar = model::resetMovieTvCalendar,
                 onBrowse = model::loadBrowse,
                 onLibraryFilters = model::setLibraryFilters,
                 onDiscover = model::loadDiscover,
@@ -167,11 +169,14 @@ class MainActivity : ComponentActivity() {
                 onRenameProfile = model::renameProfile,
                 profileRequest = profileRequest, downloadsRequest = downloadsRequest,
                 personalActions = PersonalActions(
+                    setSyncService = model::setSyncService,
+                    saveMediaState = model::saveMediaState,
+                    removeMedia = model::removeMediaFromLibrary,
                     connect = { service -> lifecycleScope.launch {
                         try { startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(model.animeAuthorization(service))).addCategory(Intent.CATEGORY_BROWSABLE)) }
                         catch (_: Exception) { Toast.makeText(this@MainActivity, "No se pudo iniciar la vinculación. Consulta el aviso en Mi espacio.", Toast.LENGTH_LONG).show() }
                     } }, refresh = model::refreshAnimeAccount, disconnect = model::disconnectAnimeAccount,
-                    updateAnime = model::updateAnimeEntry, importAnime = model::importAnimeEntry,
+                    updateAnime = model::updateAnimeEntry, removeAnime = model::removeAnimeEntry, importAnime = model::importAnimeEntry,
                     editAnime = model::editAnimeEntry, dismissAnime = model::dismissAnimeDraft,
                     appearance = model::saveProfileAppearance, importImage = model::importProfileImage,
                     downloadAction = model::downloadAction, playDownload = { id ->

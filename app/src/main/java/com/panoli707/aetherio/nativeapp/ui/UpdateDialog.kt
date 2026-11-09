@@ -136,11 +136,8 @@ private fun UpdateStatus(state: UpdateState) {
         }
         // Technical errors can include download URLs; never expose them in the UI.
         if (state.error != null) {
-            Text(
-                "No se pudo completar la actualizaci\u00f3n. Vuelve a intentarlo.",
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
-            )
+            TimedErrorText("No se pudo completar la actualizaci\u00f3n. Vuelve a intentarlo.",
+                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }, style = MaterialTheme.typography.bodyMedium)
         } else if (!state.message.isNullOrBlank()) {
             Text(state.message, color = Muted, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
         }

@@ -65,7 +65,7 @@ Estos son filtros de descubrimiento y disponibilidad de TMDB, **no acceso a susc
 ## Consultas y diferencias deliberadas
 
 - Las filas generales usan TMDB en español, conservando endpoints, filtros, umbrales y orden base. Las de plataforma intentan Perú y después Estados Unidos; las filas de Inicio añaden las alternativas por productora o cadena de PC.
-- Anime usa consultas de AniList y Jikan/MyAnimeList, con resolución de identidades y las equivalencias explícitas de temporadas existentes. Jikan utiliza el proxy de metadatos predeterminado de PC, sin credenciales TMDB y sin desplegar servicios. Los registros no resueltos no se publican con IDs inventados. Ante una caída se usa la alternativa TMDB de la fila y se identifica como tal.
+- Anime usa consultas de AniList y Jikan/MyAnimeList, con resolución de identidades y las equivalencias explícitas de temporadas existentes. Jikan utiliza el proxy de metadatos predeterminado de PC, sin desplegar servicios. Los registros no resueltos no se publican con IDs inventados. Ante una caída se usa la alternativa TMDB de la fila y se identifica como tal.
 - En películas anime, la alternativa consulta películas, no series de televisión. Las temporadas y el historial siguen usando las equivalencias de Mobile; no se fusionan entradas por un título parecido.
 - Las filas anime evitan repeticiones entre listas, pero conservan al menos diez entradas disponibles si eliminar duplicados dejaría una fila casi vacía.
 - Los destacados tienen selección diaria estable de cine/series y anime, hasta cinco de cada grupo, con controles móviles.
@@ -78,7 +78,7 @@ La presencia en un catálogo no garantiza un vídeo disponible ni concede derech
 
 Las filas aparecen progresivamente, sin esperar a todos los servicios. Se limitan a cuatro las consultas TMDB simultáneas y se espacian las de Jikan. Las imágenes se cargan al componer tarjetas visibles.
 
-La caché almacena solo metadatos públicos durante seis horas y con un máximo de 16 MiB. Su clave incluye el día y la referencia de catálogo. No guarda el token TMDB, enlaces de reproducción ni datos de usuario. Si una fila falla, su título y el resto de los resultados siguen disponibles; la caché válida se conserva.
+La caché almacena solo metadatos públicos durante seis horas y con un máximo de 16 MiB. Su clave incluye el día y la referencia de catálogo. No guarda enlaces de reproducción ni datos de usuario. Si una fila falla, su título y el resto de los resultados siguen disponibles; la caché válida se conserva.
 
 **Actualizar catálogo**, junto al perfil, fuerza una actualización. Se desactiva durante la carga para evitar peticiones duplicadas. Si falta alguna sección, también se ofrece **Reintentar**.
 

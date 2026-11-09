@@ -24,7 +24,32 @@ class ProfileAndDownloadsUiTest {
         compose.runOnIdle { assertEquals(AnimeService.MAL, connected) }
         compose.onNodeWithText("APP UPDATES").assertDoesNotExist()
         compose.onNodeWithText("Choose Font").assertDoesNotExist()
-        compose.onAllNodes(isToggleable()).assertCountEquals(0)
+    }
+    @Test fun syncPreferencesCanEnableEachServiceIndependentlyFromLocalOnlyMode() {
+        var changed: Pair<AnimeService, Boolean>? = null
+        compose.setContent { AetherioTheme {
+            val connections = AnimeService.entries.associateWith { service ->
+                AnimeConnection(AnimeAccount(if (service == AnimeService.ANILIST) 1 else 2, service.label, null))
+            }
+            ProfileSpace(AppState(syncServices = emptySet(), animeTracking = AnimeTrackingState(connections = connections)), {},
+                PersonalActions(setSyncService = { service, enabled -> changed = service to enabled }), {}, {})
+        } }
+        compose.onNodeWithTag("syncPreference:ANILIST").assertDoesNotExist()
+        compose.onNodeWithText("Preferencias de sincronización").performScrollTo().performClick()
+        compose.onNodeWithTag("syncPreferences").assertIsDisplayed()
+        compose.onNodeWithText("Los editores de AniList y MAL", substring = true).assertDoesNotExist()
+        compose.onNodeWithTag("syncPreference:ANILIST").performScrollTo().assertIsOff().performClick()
+        compose.runOnIdle { assertEquals(AnimeService.ANILIST to true, changed) }
+        compose.onNodeWithTag("syncPreference:MAL").performScrollTo().assertIsOff().performClick()
+        compose.runOnIdle { assertEquals(AnimeService.MAL to true, changed) }
+    }
+    @Test fun syncPreferenceIsDisabledWhenItsAccountIsNotLinked() {
+        compose.setContent { AetherioTheme {
+            ProfileSpace(AppState(), {}, PersonalActions(), {}, {})
+        } }
+        compose.onNodeWithText("Preferencias de sincronización").performScrollTo().performClick()
+        compose.onNodeWithTag("syncPreference:ANILIST").performScrollTo().assertIsOff().assertIsNotEnabled()
+        compose.onNodeWithTag("syncPreference:MAL").performScrollTo().assertIsOff().assertIsNotEnabled()
     }
     @Test fun linkedStateDisplaysRealAccountCountsAndFavoritesInsteadOfConnectButton() {
         val entries = listOf(AnimeEntry(1, 1, 1, "Favorite anime", progress = 3, status = AnimeStatus.WATCHING, favorite = true),

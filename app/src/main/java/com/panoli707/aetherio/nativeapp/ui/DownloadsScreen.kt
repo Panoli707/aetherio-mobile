@@ -89,7 +89,7 @@ internal fun DownloadsScreen(state: AppState, actions: PersonalActions, onBack: 
         item { Column(Modifier.padding(horizontal = 22.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("${state.downloads.count { it.stage == DownloadStage.COMPLETE }} disponibles · ${sizeText(state.downloads.sumOf { it.bytes })} guardados", style = MaterialTheme.typography.titleMedium)
             Text("Cola de una descarga a la vez, solo en redes no medidas. Los vídeos quedan en el almacenamiento privado de Aetherio, no en la caché temporal. Desinstalar o borrar datos elimina las descargas.", color = Muted, style = MaterialTheme.typography.bodySmall)
-            state.downloadMessage?.let { Text(it, color = Muted) }
+            state.downloadMessage?.let { TimedMessageText(it) }
         } }
         if (state.downloads.isEmpty()) item { StatusMessage("Sin descargas", "Abre una película o usa el botón junto a Temporada en una serie para elegir qué guardar.") }
         items(state.downloads, key = { it.id }) { record ->
@@ -112,7 +112,7 @@ internal fun DownloadsScreen(state: AppState, actions: PersonalActions, onBack: 
                         if (fraction != null) LinearProgressIndicator(progress = { fraction }, modifier = Modifier.fillMaxWidth())
                         else LinearProgressIndicator(Modifier.fillMaxWidth())
                     }
-                    record.error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+                    record.error?.let { TimedErrorText(it) }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         when (record.stage) {
                             DownloadStage.COMPLETE -> TextButton(onClick = { actions.playDownload(record.id) }) { Icon(Icons.Default.PlayArrow, null); Text("Reproducir") }

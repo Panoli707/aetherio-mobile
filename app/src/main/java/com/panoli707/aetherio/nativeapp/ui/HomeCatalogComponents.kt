@@ -52,7 +52,7 @@ internal fun HomeCatalogSection(section: CatalogSection, onSelect: (MediaItem) -
                 { onCategory(if (section.id == "mal.airing_anime") "airing" else section.id) })
         }
         if (section.loading && section.items.isEmpty()) LoadingRow("Cargando ${section.title.lowercase()}…")
-        if (section.error != null) StatusMessage("${section.title}: sin actualizar", section.error, "Reintentar", onRetry)
+        if (section.error != null) TimedErrorStatusMessage("${section.title}: sin actualizar", section.error, "Reintentar", onRetry)
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val bannerWidth = (maxWidth - 36.dp).coerceAtMost(520.dp)
             val coverWidth = posterWidth(maxWidth)
@@ -84,12 +84,12 @@ internal fun CatalogBrowseScreen(state: CatalogBrowseState, grid: LazyGridState,
                 style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp))
             LazyColumn(state = scroll, contentPadding = PaddingValues(bottom = 32.dp)) {
                 if (state.loading) item("loading") { LoadingRow("Cargando catálogo…") }
-                if (state.error != null) item("error") { StatusMessage("No se pudo actualizar", state.error, "Reintentar", onRetry) }
+                if (state.error != null) item("error") { TimedErrorStatusMessage("No se pudo actualizar", state.error, "Reintentar", onRetry) }
                 items(state.sections, key = { it.id }) { section -> HomeCatalogSection(section, onSelect, onCategory, onRetry) }
             }
         } else {
             if (state.loading) LoadingRow("Cargando catálogo…")
-            if (state.error != null) StatusMessage("No se pudo actualizar", state.error, "Reintentar", onRetry)
+            if (state.error != null) TimedErrorStatusMessage("No se pudo actualizar", state.error, "Reintentar", onRetry)
             val items = state.sections.flatMap { it.items }.distinctBy { it.key }
             if (!state.loading && state.error == null && items.isEmpty()) StatusMessage("No hay títulos disponibles", "Prueba otra categoría.", "Reintentar", onRetry)
             CatalogGrid(items, grid, onSelect, Modifier.weight(1f))

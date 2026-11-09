@@ -8,12 +8,9 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -26,14 +23,12 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.panoli707.aetherio.nativeapp.data.*
-import kotlinx.coroutines.launch
 
 @Composable
 internal fun AiringAnimeSection(state: AnimeTodayState, onSelect: (MediaItem) -> Unit, onCalendar: () -> Unit, onRetry: () -> Unit,
     nowMs: Long = System.currentTimeMillis()) {
     val entries = remember(state.entries, nowMs) { AnimeToday.released(state.entries, nowMs) }
     val cards = rememberLazyListState()
-    val scope = rememberCoroutineScope()
     Column(Modifier.padding(vertical = 18.dp).testTag("airingAnimeSection")) {
         Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f).clickable(onClickLabel = "Ver temporada y días de emisión", onClick = onCalendar)
@@ -41,19 +36,9 @@ internal fun AiringAnimeSection(state: AnimeTodayState, onSelect: (MediaItem) ->
                 Text("Anime en emisión", style = MaterialTheme.typography.titleLarge)
                 Text("Emitidos recientemente · Japón (JST)", color = Muted, style = MaterialTheme.typography.bodySmall)
             }
-            IconButton(onClick = { scope.launch {
-                cards.animateScrollToItem((cards.firstVisibleItemIndex - (cards.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)).coerceAtLeast(0))
-            } }, enabled = cards.canScrollBackward) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, "Emisiones anteriores en la fila")
-            }
-            IconButton(onClick = { scope.launch {
-                cards.animateScrollToItem((cards.firstVisibleItemIndex + (cards.layoutInfo.visibleItemsInfo.size - 1).coerceAtLeast(1)).coerceAtMost(entries.lastIndex.coerceAtLeast(0)))
-            } }, enabled = cards.canScrollForward) {
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "Más emisiones recientes")
-            }
         }
         if (state.loading && entries.isEmpty()) LoadingRow("Consultando emisiones…")
-        if (state.error != null) StatusMessage("No se pudieron actualizar las emisiones", state.error, "Reintentar", onRetry)
+        if (state.error != null) TimedErrorStatusMessage("No se pudieron actualizar las emisiones", state.error, "Reintentar", onRetry)
         if (state.loaded && !state.loading && state.error == null && entries.isEmpty())
             Text("No hay emisiones confirmadas en los últimos 30 días. Consulta el calendario para ver las próximas.", color = Muted, modifier = Modifier.padding(horizontal = 18.dp))
         BoxWithConstraints(Modifier.fillMaxWidth()) {

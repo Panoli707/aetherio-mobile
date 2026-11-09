@@ -94,6 +94,79 @@ internal class AnimeTrackingStore(context: Context, private val api: AnimeTracki
         change(service) { connected }
     }
     suspend fun refresh(service: AnimeService) = operation(service) { authenticated(service) { load(service, it) } }
+    suspend fun saveState(service: AnimeService, aniListId: Int, value: MediaListState) = operation(service) {
+        val entry = api.catalog(service, aniListId)
+        val progress = value.progress.coerceAtMost(entry.episodes.takeIf { it > 0 } ?: value.progress)
+        val saved = authenticated(service) { api.update(service, it, entry, value.status, progress, value.score) }
+        val current = state.value.connections.getValue(service)
+        val changed = current.copy(entries = listOf(saved) + current.entries.filterNot { it.id == saved.id }, updatedAt = System.currentTimeMillis())
+        secrets.write("list_${service.name}", AnimeAccountCodec.encode(changed))
+        change(service) { changed }
+    }
+    suspend fun remove(service: AnimeService, entry: AnimeEntry) = operation(service) {
+        val current = state.value.connections.getValue(service)
+        require(current.account != null)
+        authenticated(service) { api.remove(service, it, entry) }
+        val changed = current.copy(entries = current.entries.filterNot { it.id == entry.id }, updatedAt = System.currentTimeMillis())
+        secrets.write("list_${service.name}", AnimeAccountCodec.encode(changed))
+        change(service) { changed }
+    }
+    suspend fun removeConfirmed(service: AnimeService, entry: AnimeEntry): Boolean = withContext(Dispatchers.IO) {
+        locks.getValue(service).withLock {
+            change(service) { it.copy(busy = true, error = null) }
+            try {
+                val current = state.value.connections.getValue(service)
+                require(current.account != null) { "AUTH_REQUIRED" }
+                authenticated(service) { api.remove(service, it, entry) }
+                val changed = current.copy(entries = current.entries.filterNot { it.id == entry.id }, updatedAt = System.currentTimeMillis())
+                secrets.write("list_${service.name}", AnimeAccountCodec.encode(changed))
+                change(service) { changed }
+                true
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                change(service) { it.copy(authorizationRequired = it.authorizationRequired ||
+                    e is AnimeApiException && e.status == 401 || e.message == "AUTH_REQUIRED") }
+                false
+            } finally { change(service) { it.copy(busy = false) }
+            }
+        }
+    }
+    suspend fun restoreDeletedEntry(service: AnimeService, entry: AnimeEntry): Boolean = withContext(Dispatchers.IO) {
+        locks.getValue(service).withLock {
+            change(service) { it.copy(busy = true) }
+            try {
+                val current = state.value.connections.getValue(service)
+                val restored = authenticated(service) { api.update(service, it, entry,
+                    entry.status ?: AnimeStatus.PLANNED, entry.progress, entry.score) }
+                val changed = current.copy(entries = listOf(restored) + current.entries.filterNot { it.id == restored.id },
+                    updatedAt = System.currentTimeMillis())
+                secrets.write("list_${service.name}", AnimeAccountCodec.encode(changed))
+                change(service) { changed }
+                true
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) {
+                change(service) { it.copy(authorizationRequired = it.authorizationRequired ||
+                    e is AnimeApiException && e.status == 401 || e.message == "AUTH_REQUIRED") }
+                false
+            } finally { change(service) { it.copy(busy = false) }
+            }
+        }
+    }
+    suspend fun add(service: AnimeService, aniListId: Int, progress: Int) = operation(service) {
+        val connection = state.value.connections.getValue(service)
+        require(connection.account != null)
+        val entry = api.catalog(service, aniListId)
+        val actual = authenticated(service) { api.current(service, it, entry) }
+        // Never replace an existing remote status/progress: after its first creation,
+        // edits belong to AniList or MAL and are read-only from Aetherio's side.
+        if (actual.status != null) return@operation
+        val boundedProgress = progress.coerceAtMost(entry.episodes.takeIf { it > 0 } ?: progress)
+        val status = AnimeSyncRules.initialStatus(entry, boundedProgress)
+        val saved = authenticated(service) { api.update(service, it, actual, status, boundedProgress, 0.0) }
+        val changed = connection.copy(entries = listOf(saved) + connection.entries.filterNot { it.id == saved.id }, updatedAt = System.currentTimeMillis())
+        secrets.write("list_${service.name}", AnimeAccountCodec.encode(changed))
+        change(service) { changed }
+    }
     suspend fun edit(service: AnimeService, aniListId: Int) = operation(service) {
         require(state.value.connections.getValue(service).account != null)
         val entry = api.catalog(service, aniListId)
@@ -123,18 +196,21 @@ internal class AnimeTrackingStore(context: Context, private val api: AnimeTracki
             try { block() }
             catch (e: CancellationException) { throw e }
             catch (e: Exception) {
-                val message = when {
-                    e is AnimeApiException && e.status == 429 -> "El servicio ha limitado las consultas. Reintenta dentro de ${e.retrySeconds.coerceAtLeast(60)} segundos."
-                    e is AnimeApiException && e.status in listOf(401, 403) || e.message == "AUTH_REQUIRED" -> "La autorización ha caducado o no es válida. Vuelve a conectar tu cuenta."
-                    e.message == "AUTH_DENIED" -> "Has cancelado la autorización. No se ha vinculado ninguna cuenta nueva."
-                    e.message == "REMOTE_CHANGED" -> "La lista remota cambió desde la última lectura. No se ha sobrescrito: revisa los nuevos datos y confirma otra vez."
-                    e.message == "NO_MAL_ID" -> "Esta entrega no tiene una equivalencia MyAnimeList confirmada. No se enviará a otro título."
-                    e is IllegalArgumentException || e.message == "AUTH_STATE" -> "No se pudo validar el retorno de autorización. Inicia la conexión otra vez y comprueba el URI registrado."
-                    else -> "No se pudo completar la operación. Los datos anteriores se conservan; comprueba la red y vuelve a intentarlo."
-                }
+                val message = errorMessage(e)
                 change(service) { it.copy(error = message, authorizationRequired = it.authorizationRequired || e is AnimeApiException && e.status == 401 || e.message == "AUTH_REQUIRED") }
             } finally { change(service) { it.copy(busy = false) } }
         }
+    }
+
+    private fun errorMessage(e: Exception): String = when {
+        e is AnimeApiException && e.status == 429 -> "El servicio ha limitado las consultas. Reintenta dentro de ${e.retrySeconds.coerceAtLeast(60)} segundos."
+        e is AnimeApiException && e.status in listOf(401, 403) || e.message == "AUTH_REQUIRED" -> "La autorización ha caducado o no es válida. Vuelve a conectar tu cuenta."
+        e.message == "AUTH_DENIED" -> "Has cancelado la autorización. No se ha vinculado ninguna cuenta nueva."
+        e.message == "REMOTE_CHANGED" -> "La lista remota cambió desde la última lectura. No se ha sobrescrito: revisa los nuevos datos y confirma otra vez."
+        e.message == "NO_MAL_ID" -> "Esta entrega no tiene una equivalencia MyAnimeList confirmada. No se enviará a otro título."
+        e.message == "NOT_IN_ANILIST" -> "No se encontró el anime en la lista remota. No se ha borrado de Aetherio."
+        e is IllegalArgumentException || e.message == "AUTH_STATE" -> "No se pudo validar el retorno de autorización. Inicia la conexión otra vez y comprueba el URI registrado."
+        else -> "No se pudo completar la operación. Los datos anteriores se conservan; comprueba la red y vuelve a intentarlo."
     }
 }
 

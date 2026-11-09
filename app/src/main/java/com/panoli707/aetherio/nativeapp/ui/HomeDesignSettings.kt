@@ -44,8 +44,8 @@ internal fun HomeDesignSettings(state: AppState, onChange: (HomePreferences) -> 
     Text(if (state.homePreferencesSaving) "Guardando…" else "Los cambios se guardan automáticamente en este dispositivo.",
         color = Muted, style = MaterialTheme.typography.bodySmall)
     state.homePreferencesError?.let { message ->
-        Text(message, color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+        TimedErrorText(message, modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            style = MaterialTheme.typography.bodyMedium)
     }
     if (preferences.content == HomeContentPreference.BOTH) {
         Text("¿Con qué preferencia?", style = MaterialTheme.typography.titleMedium)

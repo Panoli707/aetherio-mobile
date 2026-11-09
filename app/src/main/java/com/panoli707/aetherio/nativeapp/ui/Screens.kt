@@ -56,7 +56,7 @@ internal fun SearchScreen(state: AppState, scroll: LazyGridState, requestFocus: 
             keyboardActions = KeyboardActions(onSearch = { focus.clearFocus(); keyboard?.hide() }),
             modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp).focusRequester(requester))
         when {
-            state.searchError != null -> StatusMessage("No se pudo buscar", "Comprueba tu conexión y vuelve a intentarlo.",
+            state.searchError != null -> TimedErrorStatusMessage("No se pudo buscar", "Comprueba tu conexión y vuelve a intentarlo.",
                 "Reintentar", { onSearch(state.searchQuery) })
             state.searchLoading -> LoadingRow("Buscando títulos…")
             state.searchQuery.isBlank() -> StatusMessage("¿Qué te apetece ver?", "Escribe el título de una película o una serie.")

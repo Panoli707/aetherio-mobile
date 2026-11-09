@@ -73,7 +73,9 @@ fun AetherioApp(
     onDownloadSource: (StreamSource) -> Unit = {}, onSkipDownload: () -> Unit = {},
     profileRequest: Int = 0, downloadsRequest: Int = 0,
     onLibraryFilters: (com.panoli707.aetherio.nativeapp.data.LibraryFilters) -> Unit = {},
-    onDiscover: (com.panoli707.aetherio.nativeapp.data.DiscoverSelection, Boolean, Boolean) -> Unit = { _, _, _ -> }
+    onDiscover: (com.panoli707.aetherio.nativeapp.data.DiscoverSelection, Boolean, Boolean) -> Unit = { _, _, _ -> },
+    onLoadWatchingCalendar: (com.panoli707.aetherio.nativeapp.data.WatchingRequest, Boolean) -> Unit = { _, _ -> },
+    onLeaveMovieTvCalendar: () -> Unit = {}
 ) {
     var startupComplete by rememberSaveable { mutableStateOf(false) }
     val startupReady = !state.homeLoading || state.sections.isNotEmpty() || state.homeError != null ||
@@ -121,7 +123,7 @@ fun AetherioApp(
         derivedStateOf { homeScroll.firstVisibleItemIndex > 0 || homeScroll.firstVisibleItemScrollOffset > collapseOffset }
     }
     val openSearch: () -> Unit = { focus.clearFocus(); searchNeedsFocus = true; searchOpen = true }
-    LaunchedEffect(tab, categoryId) { if (tab == "home" || tab == "anime" || categoryId == "airing") onLoadAnimeSeason() }
+    LaunchedEffect(tab, categoryId) { if (tab == "home" || categoryId == "watchingAnime" || categoryId == "airing") onLoadAnimeSeason() }
     val homeLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(homeLifecycle, tab) {
         if (tab == "home") homeLifecycle.repeatOnLifecycle(androidx.lifecycle.Lifecycle.State.RESUMED) {
@@ -133,7 +135,7 @@ fun AetherioApp(
         if (id != null && DesktopHomeCatalog.browseTitle(id) != null) onBrowse(id, false)
     }
     val select: (MediaItem) -> Unit = { original ->
-        val item = SeriesIdentity.item(original)
+        val item = SeriesIdentity.detailItem(original)
         focus.clearFocus()
         onSelectMedia(item)
         detailKey = item.key
@@ -162,7 +164,8 @@ fun AetherioApp(
                          val selected = state.selectedItem?.takeIf { it.key == detailKey }
                             ?: state.detail?.item?.takeIf { it.key == detailKey }
                               ?: (state.heroes.asSequence() + state.savedItems.asSequence() + state.searchResults.asSequence() + state.watchProgress.asSequence().map { it.target.item } +
-                                  state.watchingAnime.asSequence() + state.animeSeason.entries.asSequence().map { it.item } +
+                                   state.watchingAnime.asSequence() + state.animeSeason.entries.asSequence().map { it.item } +
+                                   state.animeCalendar.events.asSequence().map { it.item } + state.movieTvCalendar.events.asSequence().map { it.item } +
                                  state.sections.asSequence().flatMap { it.items.asSequence() }).firstOrNull { it.key == detailKey }
                          if (selected != null) key(detailKey) {
                              LaunchedEffect(selected.key, state.selectedItem?.key) {
@@ -170,7 +173,9 @@ fun AetherioApp(
                              }
                              DetailScreen(state, selected, detailScroll, closeTop, onToggleSaved, onRetryDetail, onSelectSeason,
                                    { focus.clearFocus(); linkOpen = true }, onRequestSources, onEpisodeWatchAction, onToggleWatching, onOpenExternal, select,
-                                    onPlayTrailer, onPrepareDownloads, personalActions.editAnime)
+                                     onPlayTrailer, onPrepareDownloads,
+                                     onSaveMediaState = { media, season, value -> personalActions.saveMediaState(media, season, value) },
+                                     onRemoveMedia = { media, complete -> personalActions.removeMedia(media, complete) })
                         } else Column {
                             ScreenHeader("Ficha no disponible", closeTop)
                              if (state.homeLoading) LoadingRow("Recuperando ficha…")
@@ -178,6 +183,10 @@ fun AetherioApp(
                         }
                     }
                     searchOpen -> SearchScreen(state, searchScroll, searchNeedsFocus, { searchNeedsFocus = false }, onSearch, select, closeTop)
+                    categoryId == "watchingAnime" -> screenState.SaveableStateProvider("watchingAnime") {
+                        AnimeScreen(state, animeScroll, select, onContinue,
+                            { parentCategoryId = "watchingAnime"; categoryId = "airing" }, closeTop)
+                    }
                     categoryId == "airing" -> screenState.SaveableStateProvider("airing") {
                         SeasonalAnimeScreen(state.animeSeason, seasonScroll, closeTop, select, onLoadAnimeSeason,
                             airingDay, { airingDay = it; scope.launch { seasonScroll.scrollToItem(0) } })
@@ -202,7 +211,8 @@ fun AetherioApp(
                     else -> {
                         screenState.SaveableStateProvider(tab) {
                             when (tab) {
-                                "anime" -> AnimeScreen(state, animeScroll, select, onContinue, { categoryId = "airing" })
+                                "anime" -> WatchingScreen(state, select, { parentCategoryId = null; categoryId = "watchingAnime" },
+                                    onLoadWatchingCalendar, onLeaveMovieTvCalendar)
                                 "library" -> LibraryScreen(state, libraryScroll, state.libraryFilters.type, {}, select, openSearch,
                                     onFilters = onLibraryFilters, onDiscover = onDiscover, personalActions = personalActions)
                                  "settings" -> SettingsScreen(state, onRenameProfile, { focus.clearFocus(); linkOpen = true }, onAddAddon, onRemoveAddon, onDesktopSourceToggle,

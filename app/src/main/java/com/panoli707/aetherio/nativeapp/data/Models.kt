@@ -79,6 +79,7 @@ data class MediaDetail(
     val availability: List<WatchRegion> = emptyList(),
     val reviews: List<MediaReview> = emptyList(),
     val related: List<MediaItem> = emptyList(),
+    val sequel: MediaItem? = null,
     val voteCount: Int? = null,
     val certification: String? = null,
     val artworkBase: MediaItem? = null
@@ -98,6 +99,8 @@ data class CatalogBrowseState(val id: String? = null, val title: String = "", va
     val loading: Boolean = false, val error: String? = null)
 
 data class AppState(
+    val animeCalendar: WatchingCalendarState = WatchingCalendarState(),
+    val movieTvCalendar: WatchingCalendarState = WatchingCalendarState(),
     val sections: List<CatalogSection> = emptyList(),
     val homePreferences: HomePreferences = HomePreferences(),
     val homePreferencesSaving: Boolean = false,
@@ -118,6 +121,10 @@ data class AppState(
     val searchError: String? = null,
     val savedItems: List<MediaItem> = emptyList(),
     val savedAddedAt: Map<String, Long> = emptyMap(),
+    val mediaStates: Map<String, MediaListState> = emptyMap(),
+    val hiddenLibraryItems: Set<String> = emptySet(),
+    val librarySeasonCards: List<MediaItem> = emptyList(),
+    val syncServices: Set<AnimeService> = AnimeService.entries.toSet(),
     val libraryFilters: LibraryFilters = LibraryFilters(),
     val discover: DiscoverState = DiscoverState(),
     val watchProgress: List<WatchProgress> = emptyList(),

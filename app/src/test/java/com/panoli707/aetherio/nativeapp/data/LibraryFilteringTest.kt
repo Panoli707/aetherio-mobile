@@ -53,4 +53,37 @@ class LibraryFilteringTest {
         val entries = LibraryFiltering.entries(AppState(savedItems = listOf(movie, series)))
         assertEquals(listOf(movie.id, series.id), LibraryFiltering.filter(entries, LibraryFilters()).entries.map { it.item.id })
     }
+    @Test fun pendingSeasonHasItsOwnCardButOpensTheGeneralSeriesAtThatSeason() {
+        val root = SeriesIdentity.item(MediaItem("21355", MediaType.SERIES, "Re:Zero", CatalogSource.ANILIST, isAnime = true))
+        val second = root.copy(title = "Re:Zero Season 2", seasonHint = 2, posterUrl = "https://example.com/season2.jpg")
+        val state = AppState(savedItems = listOf(root), librarySeasonCards = listOf(second), mediaStates = mapOf(
+            mediaStateKey(root, 1) to MediaListState(AnimeStatus.COMPLETED),
+            mediaStateKey(root, 2) to MediaListState(AnimeStatus.PLANNED)))
+        val entries = LibraryFiltering.entries(state)
+        val pending = LibraryFiltering.filter(entries, LibraryFilters(status = AnimeStatus.PLANNED.name)).entries.single()
+        assertEquals(second, pending.displayItem)
+        assertEquals(root.key, pending.item.key)
+        assertEquals(2, pending.item.seasonHint)
+        assertEquals(CatalogSource.TMDB, pending.item.source)
+        assertEquals(root, LibraryFiltering.filter(entries, LibraryFilters()).entries.single().item)
+        assertNull(pending.item.animeEntryId)
+    }
+    @Test fun severalPendingSeasonsRemainSeparateAndSurviveCardSerialization() {
+        val root = series.copy(isAnime = true)
+        val cards = listOf(2, 3).map { root.copy(title = "Season $it", seasonHint = it) }
+        val restored = CatalogJson.decode(CatalogJson.encode(cards), distinguishSeasons = true)
+        assertEquals(cards, restored)
+        val entries = LibraryFiltering.entries(AppState(savedItems = listOf(root), librarySeasonCards = restored,
+            mediaStates = listOf(2, 3).associate { mediaStateKey(root, it) to MediaListState() }))
+        val pending = LibraryFiltering.filter(entries, LibraryFilters(status = AnimeStatus.PLANNED.name)).entries
+        assertEquals(listOf(2, 3), pending.map { it.item.seasonHint })
+        assertEquals(cards, pending.map { it.displayItem })
+    }
+    @Test fun completedSeasonDoesNotReappearAsAnAggregatePendingSeries() {
+        val anime = series.copy(isAnime = true)
+        val entries = LibraryFiltering.entries(AppState(savedItems = listOf(anime), mediaStates = mapOf(
+            mediaStateKey(anime, 1) to MediaListState(AnimeStatus.COMPLETED))))
+        assertTrue(LibraryFiltering.filter(entries, LibraryFilters(status = AnimeStatus.PLANNED.name)).entries.isEmpty())
+        assertEquals(1, LibraryFiltering.filter(entries, LibraryFilters(status = AnimeStatus.COMPLETED.name)).entries.size)
+    }
 }

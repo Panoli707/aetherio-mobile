@@ -166,7 +166,23 @@ internal class CanonicalArtworkResolver(
     /** Hero-only optional work, after the cover is visible. Never gates a catalog card. */
     suspend fun logo(item: MediaItem): String? {
         val root = CanonicalArtworkIdentity.root(item)
-        // Bundled candidates must remain usable offline; do not gate them on a metadata request.
+        // Prefer the normal provider's root-level logos. Bundled candidates remain an offline fallback.
+        val source = source(item)
+        val rootNames = if (item.key == root.key && item.seasonHint == null && item.animeEntryId == null)
+            listOf(item.title) + item.artworkTitles else emptyList()
+        if (source != null) {
+            val remote = withTimeoutOrNull(12_000) {
+                for (url in (listOfNotNull(source.logoUrl) + source.logoAlternatives)
+                    .filterNot { it.startsWith("file:///android_asset/") }
+                    .mapNotNull(ArtworkImages::highResolution).distinct().take(4)) {
+                    val result = try { inspect(url, true, (listOf(source.title) + source.artworkTitles + rootNames).distinct().joinToString("\n")) }
+                        catch (e: CancellationException) { throw e } catch (_: Exception) { null }
+                    if (result?.genericLogo == true) return@withTimeoutOrNull url
+                }
+                null
+            }
+            if (remote != null) return remote
+        }
         for (url in ArtworkImages.logos(root).filter { it.startsWith("file:///android_asset/") }.take(2)) {
             val result = withTimeoutOrNull(5_000) {
                 try { inspect(url, true, root.title) }
@@ -174,17 +190,6 @@ internal class CanonicalArtworkResolver(
             }
             if (result?.genericLogo == true) return url
         }
-        val source = source(item) ?: return null
-        val rootNames = if (item.key == root.key && item.seasonHint == null && item.animeEntryId == null)
-            listOf(item.title) + item.artworkTitles else emptyList()
-        return withTimeoutOrNull(12_000) {
-            for (url in ArtworkImages.logos(source).filterNot { it.startsWith("file:///android_asset/") }
-                .mapNotNull(ArtworkImages::highResolution).distinct().take(4)) {
-                val inspected = try { inspect(url, true, (listOf(source.title) + source.artworkTitles + rootNames).distinct().joinToString("\n")) }
-                    catch (e: CancellationException) { throw e } catch (_: Exception) { null }
-                if (inspected?.genericLogo == true) return@withTimeoutOrNull url
-            }
-            null
-        }
+        return null
     }
 }

@@ -10,28 +10,25 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.panoli707.aetherio.nativeapp.data.*
 import org.junit.Assert.*
 import org.junit.Rule
+import org.junit.rules.RuleChain
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class DesktopHomeDesignTest {
-    @get:Rule val compose = createComposeRule()
+    val compose = createComposeRule()
+    @get:Rule val rules: RuleChain = RuleChain.outerRule(ForegroundArtworkTestRule()).around(compose)
     private val movie = MediaItem("900000001", MediaType.MOVIE, "Película de prueba", year = "1999")
     private fun rows() = DesktopHomeCatalog.rails().mapIndexed { index, spec ->
         spec.section(listOf(movie.copy(id = (900000001 + index).toString(), type = spec.type, title = "Título $index", isAnime = spec.anime)))
     }
 
-    @Test fun refreshDispatchesOnceAndIsDisabledWhileTheCatalogIsLoading() {
-        val state = mutableStateOf(AppState(homeLoading = false))
-        var requests = 0
+    @Test fun homeProfileRemainsAndRefreshButtonIsAbsent() {
         compose.setContent { AetherioTheme {
-            HomeScreen(state.value, rememberLazyListState(), rememberPagerState { 0 }, false, {}, {}, {
-                requests++; state.value = state.value.copy(homeLoading = true)
-            })
+            HomeScreen(AppState(homeLoading = false), rememberLazyListState(), rememberPagerState { 0 }, false, {}, {}, {})
         } }
-        compose.onNodeWithContentDescription("Actualizar catálogo").assertIsEnabled().performClick()
-        compose.onNodeWithContentDescription("Actualizar catálogo").assertIsNotEnabled()
-        compose.runOnIdle { assertEquals(1, requests) }
+        compose.onNodeWithTag("homeProfile").assertExists()
+        compose.onNodeWithContentDescription("Actualizar catálogo").assertDoesNotExist()
     }
 
     @Test fun all44RailsAndBothGenreExplorersRemainReachableOnPhone() {

@@ -44,7 +44,8 @@ internal object AnimeSeasonProtocol {
         val year = json.optInt("seasonYear", 0)
         val label = if (year in 1900..2200 && season in listOf("WINTER", "SPRING", "SUMMER", "FALL")) AnimeSeason(year, season).label else ""
         val genres = json.optJSONArray("genres")
-        return MediaItem(id.toString(), MediaType.SERIES, title.take(500), CatalogSource.ANILIST,
+        return MediaItem(id.toString(), if (json.optString("format") == "MOVIE") MediaType.MOVIE else MediaType.SERIES,
+            title.take(500), CatalogSource.ANILIST,
             posterUrl = CatalogJson.image(json.optJSONObject("coverImage")?.optString("extraLarge"))
                 ?: CatalogJson.image(json.optJSONObject("coverImage")?.optString("large")),
             backdropUrl = CatalogJson.image(json.optString("bannerImage")),
@@ -108,6 +109,11 @@ internal object AnimeSeasonProtocol {
             CastMember(name, edge.optJSONObject("node")?.optJSONObject("name")?.optString("full").orEmpty(), CatalogJson.image(actor.optJSONObject("image")?.optString("large")))
         }.distinctBy { it.name }.take(12)
         val relatedEdges = json.optJSONObject("relations")?.optJSONArray("edges")
+        val sequel = (0 until (relatedEdges?.length() ?: 0)).asSequence().mapNotNull { index ->
+            val edge = relatedEdges?.optJSONObject(index) ?: return@mapNotNull null
+            if (edge.optString("relationType") != "SEQUEL") return@mapNotNull null
+            edge.optJSONObject("node")?.takeIf { it.optString("format") in listOf("TV", "TV_SHORT", "ONA", "OVA") }?.let(::item)
+        }.firstOrNull { it.key != media.key }
         val related = (0 until (relatedEdges?.length() ?: 0)).mapNotNull { index ->
             relatedEdges?.optJSONObject(index)?.optJSONObject("node")?.takeIf { it.optString("format") in listOf("TV", "TV_SHORT", "ONA", "OVA") }?.let(::item)
         }.filter { it.key != media.key }.distinctBy { it.key }.take(15)
@@ -122,8 +128,9 @@ internal object AnimeSeasonProtocol {
             media.episodeCount?.let { add(DetailFact("Episodios", it.toString())) }
         }
         return MediaDetail(media, json.optInt("duration", 0).takeIf { it > 0 }, cast = cast,
-            seasons = listOf(SeasonInfo(1, media.animeSeasonLabel.ifBlank { "Temporada de anime" }, media.episodeCount ?: episodes.size)),
-            episodes = episodes.map { EpisodeItem(it, 1, "Episodio $it", airedOn = dates[it].orEmpty()) }, selectedSeason = 1,
-            trailers = listOfNotNull(trailer), facts = facts, related = related)
+            seasons = if (media.type == MediaType.MOVIE) emptyList() else listOf(SeasonInfo(1, media.animeSeasonLabel.ifBlank { "Temporada de anime" }, media.episodeCount ?: episodes.size)),
+            episodes = if (media.type == MediaType.MOVIE) emptyList() else episodes.map { EpisodeItem(it, 1, "Episodio $it", airedOn = dates[it].orEmpty()) },
+            selectedSeason = if (media.type == MediaType.MOVIE) null else 1,
+            trailers = listOfNotNull(trailer), facts = facts, related = related, sequel = sequel)
     }
 }

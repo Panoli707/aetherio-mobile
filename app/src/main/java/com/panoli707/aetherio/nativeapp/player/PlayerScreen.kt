@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.panoli707.aetherio.nativeapp.ui.TimedErrorText
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import androidx.media3.common.util.UnstableApi
@@ -174,7 +175,7 @@ fun PlayerScreen(
                     Column(Modifier.align(Alignment.Center).widthIn(max = 520.dp).heightIn(max = errorMaxHeight)
                         .glass(RoundedCornerShape(20.dp)).verticalScroll(rememberScrollState()).padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(state.error, color = Color.White)
+                        TimedErrorText(state.error, style = MaterialTheme.typography.bodyMedium)
                         TextButton(onClick = { act(VideoAction.RETRY) }) { Text("Reintentar", color = Color.White) }
                         if (canChangeSource) TextButton(onClick = { act(VideoAction.FIND_SOURCES) }) {
                             Text("Cambiar fuente", color = Color.White)

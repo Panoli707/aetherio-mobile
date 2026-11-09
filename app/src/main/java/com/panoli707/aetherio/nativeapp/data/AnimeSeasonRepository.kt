@@ -65,6 +65,54 @@ internal class AnimeSeasonRepository(
         AnimeToday.released(todaySchedule, nowMs)
     } }
 
+    suspend fun calendar(range: WatchingRequest): List<WatchingEvent> = bounded { mutex.withLock {
+        require(range.category == WatchingCategory.ANIME)
+        val start = WatchingDates.millis(range.start, AnimeSeason.japan) / 1000
+        val end = WatchingDates.millis(range.end, AnimeSeason.japan) / 1000
+        val events = mutableListOf<WatchingEvent>()
+        var page = 1
+        do {
+            val data = request("""query WatchingAnime(${'$'}page:Int!,${'$'}start:Int!,${'$'}end:Int!){Page(page:${'$'}page,perPage:50){pageInfo{hasNextPage}airingSchedules(airingAt_greater:${'$'}start,airingAt_lesser:${'$'}end,sort:TIME){episode airingAt media{type format $FIELDS}}}}""",
+                JSONObject().put("page", page).put("start", start - 1).put("end", end)).getJSONObject("Page")
+            val schedules = data.getJSONArray("airingSchedules")
+            check(schedules.length() <= 50)
+            for (index in 0 until schedules.length()) {
+                val node = schedules.getJSONObject(index)
+                val event = AnimeToday.episode(node) ?: continue
+                if (event.airedAt !in start until end) continue
+                val movie = node.getJSONObject("media").optString("format") == "MOVIE"
+                events += WatchingEvent(event.item.copy(type = if (movie) MediaType.MOVIE else MediaType.SERIES),
+                    WatchingDates.date(event.airedAt * 1000, AnimeSeason.japan), at = event.airedAt,
+                    episode = if (movie) null else event.episode, premiere = movie || event.episode == 1)
+            }
+            if (!data.getJSONObject("pageInfo").getBoolean("hasNextPage")) break
+            if (++page > 100) throw failure()
+        } while (true)
+        // Announced premieres may have a confirmed date but no episode schedule yet.
+        page = 1
+        do {
+            val data = request("""query WatchingPremieres(${'$'}page:Int!,${'$'}start:FuzzyDateInt!,${'$'}end:FuzzyDateInt!){Page(page:${'$'}page,perPage:50){pageInfo{hasNextPage}media(type:ANIME,isAdult:false,status:NOT_YET_RELEASED,startDate_greater:${'$'}start,startDate_lesser:${'$'}end,sort:START_DATE){$FIELDS format startDate{year month day}}}}""",
+                JSONObject().put("page", page).put("start", WatchingDates.shift(range.start, -1).replace("-", "").toInt())
+                    .put("end", range.end.replace("-", "").toInt())).getJSONObject("Page")
+            val media = data.getJSONArray("media")
+            check(media.length() <= 50)
+            for (index in 0 until media.length()) {
+                val json = media.getJSONObject(index)
+                if (json.optBoolean("isAdult")) continue
+                val item = AnimeSeasonProtocol.item(json) ?: continue
+                val date = json.optJSONObject("startDate") ?: continue
+                val day = String.format(Locale.US, "%04d-%02d-%02d", date.optInt("year"), date.optInt("month"), date.optInt("day"))
+                if (!WatchingDates.valid(day) || day < range.start || day >= range.end || events.any { it.item.id == item.id }) continue
+                val movie = json.optString("format") == "MOVIE"
+                events += WatchingEvent(item.copy(type = if (movie) MediaType.MOVIE else MediaType.SERIES), day,
+                    episode = if (movie) null else 1, premiere = true)
+            }
+            if (!data.getJSONObject("pageInfo").getBoolean("hasNextPage")) break
+            if (++page > 20) throw failure()
+        } while (true)
+        events
+    } }
+
     suspend fun homeCatalog(feed: AnimeFeed): List<AnimeCatalogEntry> = bounded { mutex.withLock {
         require(feed.sort in setOf("POPULARITY_DESC", "SCORE_DESC", "TRENDING_DESC"))
         require(feed.genre == null || DesktopHomeCatalog.animeGenres.any { it.id == feed.genre })
@@ -139,7 +187,7 @@ internal class AnimeSeasonRepository(
         var page = 1
         var media: JSONObject
         do {
-            media = request("""query AnimeDetail(${'$'}id:Int!,${'$'}page:Int!){Media(id:${'$'}id,type:ANIME){$FIELDS description(asHtml:false) duration countryOfOrigin trailer{id site} studios{nodes{name}} characters(perPage:12){edges{node{name{full}} voiceActors(language:JAPANESE){name{full} image{large}}}} relations{edges{node{id format title{romaji} coverImage{large} bannerImage season seasonYear status episodes}}} airingSchedule(perPage:50,page:${'$'}page){nodes{episode airingAt}pageInfo{hasNextPage}}}}""",
+            media = request("""query AnimeDetail(${'$'}id:Int!,${'$'}page:Int!){Media(id:${'$'}id,type:ANIME){$FIELDS description(asHtml:false) duration countryOfOrigin trailer{id site} studios{nodes{name}} characters(perPage:12){edges{node{name{full}} voiceActors(language:JAPANESE){name{full} image{large}}}} relations{edges{relationType node{id format title{romaji} coverImage{large} bannerImage season seasonYear status episodes}}} airingSchedule(perPage:50,page:${'$'}page){nodes{episode airingAt}pageInfo{hasNextPage}}}}""",
                 JSONObject().put("id", item.id.toInt()).put("page", page)).getJSONObject("Media")
             if (media.getInt("id").toString() != item.id) throw failure()
             val schedule = media.getJSONObject("airingSchedule")
@@ -228,7 +276,7 @@ internal class AnimeSeasonRepository(
     private fun failure() = AnimeCalendarException(AnimeCalendarFailure.INVALID_RESPONSE)
     companion object {
         // Synopses are only needed on the detail screen, not on every seasonal card.
-        private const val FIELDS = "id title{romaji english} coverImage{extraLarge large} bannerImage episodes season seasonYear status isAdult averageScore genres"
+        private const val FIELDS = "id format title{romaji english} coverImage{extraLarge large} bannerImage episodes season seasonYear status isAdult averageScore genres"
         private const val HOME_FIELDS = "$FIELDS idMal format startDate{year}"
     }
 }

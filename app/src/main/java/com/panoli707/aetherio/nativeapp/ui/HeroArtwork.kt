@@ -39,7 +39,9 @@ import kotlinx.coroutines.withContext
 internal fun HeroArtwork(item: MediaItem, portrait: Boolean, viewportHeight: Dp,
     modifier: Modifier = Modifier, maxArtworkHeight: Dp = Dp.Infinity,
     imageLoader: ImageLoader = LocalContext.current.imageLoader, fullImage: Boolean = false) {
-    key(CanonicalArtworkIdentity.key(item), portrait) {
+    val context = LocalContext.current
+    val provider = LocalArtworkProvider.current ?: (context.applicationContext as AetherioApplication).artworkProvider
+    key(CanonicalArtworkIdentity.key(item), portrait, provider.revision) {
         HeroArtworkContent(item, portrait, viewportHeight, modifier, maxArtworkHeight, imageLoader, fullImage)
     }
 }

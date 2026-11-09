@@ -23,10 +23,10 @@ internal class SourceSettingsStore(context: Context) {
     }
 
     var enabledDesktopSources: Set<String>
-        // Old "desktop" selections have no automatic/user provenance. Preserve them untouched,
-        // but require a new explicit opt-in instead of duplicating the Hub's server-side fan-out.
+        // Enable bundled sources when no selection exists. A saved empty set is an explicit
+        // opt-out and must survive updates, just like any other saved selection.
         get() = runCatching {
-            preferences.getStringSet("hub_optional_sources_v1", emptySet()).orEmpty().intersect(DesktopSources.knownIds)
+            preferences.getStringSet("hub_optional_sources_v1", DesktopSources.defaultIds).orEmpty().intersect(DesktopSources.knownIds)
         }.getOrDefault(emptySet())
         set(value) {
             preferences.edit().putStringSet("hub_optional_sources_v1", value.intersect(DesktopSources.knownIds)).apply()

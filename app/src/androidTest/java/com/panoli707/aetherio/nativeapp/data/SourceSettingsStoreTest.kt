@@ -38,8 +38,8 @@ class SourceSettingsStoreTest {
         targetContext.deleteSharedPreferences(preferencesName)
     }
 
-    @Test fun freshPreferencesHaveNoAdditionalDesktopSourcesAndDoNotWriteOldSelections() {
-        assertTrue(SourceSettingsStore(context).enabledDesktopSources.isEmpty())
+    @Test fun freshPreferencesEnableAllBundledSourcesAndDoNotWriteOldSelections() {
+        assertEquals(DesktopSources.knownIds, SourceSettingsStore(context).enabledDesktopSources)
         assertFalse(preferences.contains("desktop"))
     }
 

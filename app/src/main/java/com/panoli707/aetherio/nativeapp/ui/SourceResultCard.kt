@@ -94,8 +94,7 @@ internal fun SourceResultCard(source: StreamSource, state: AppState, query: Sour
                 }
                 if (source.url.startsWith("http://", true)) Text("Vídeo HTTP sin cifrar en un dominio permitido.",
                     color = Muted, style = MaterialTheme.typography.bodySmall)
-                if (!source.playable) Text("Fuente no compatible", color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall)
+                if (!source.playable) TimedErrorText("Fuente no compatible")
             }
             val favorite = SourcePreferenceRules.sourceKey(source) in state.sourcePreferences.favoriteSources
             IconToggleButton(checked = favorite, onCheckedChange = {

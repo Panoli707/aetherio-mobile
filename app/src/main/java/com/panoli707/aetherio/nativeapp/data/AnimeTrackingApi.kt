@@ -34,7 +34,7 @@ internal class AnimeTrackingApi(
 ) {
     private val throttle = Mutex()
     private var nextAt = 0L
-    private suspend fun request(builder: Request.Builder, token: String? = null): JSONObject = throttle.withLock {
+    private suspend fun request(builder: Request.Builder, token: String? = null, ignoreSuccessfulBody: Boolean = false): JSONObject = throttle.withLock {
         delay((nextAt - System.currentTimeMillis()).coerceAtLeast(0))
         nextAt = System.currentTimeMillis() + spacingMs
         builder.header("Accept", "application/json")
@@ -51,10 +51,15 @@ internal class AnimeTrackingApi(
                         val retry = if (it.code == 429) (it.header("Retry-After")?.toLongOrNull() ?: 60).coerceIn(1, 3600) else 0
                         if (retry > 0) nextAt = System.currentTimeMillis() + retry * 1000
                         if (!it.isSuccessful) throw AnimeApiException(it.code, retry)
+                        // DELETE has no response payload contract. MAL can return an empty
+                        // body or a non-object JSON value; HTTP success is sufficient.
+                        if (ignoreSuccessfulBody) return@use JSONObject()
                         val source = requireNotNull(it.body).source()
                         source.request(8 * 1024 * 1024L + 1)
                         check(source.buffer.size <= 8 * 1024 * 1024L)
-                        val json = JSONObject(source.readUtf8())
+                        val body = source.readUtf8()
+                        // MAL's successful DELETE may return 200/204 without a JSON body.
+                        val json = if (builder.build().method == "DELETE" && body.isBlank()) JSONObject() else JSONObject(body)
                         if (json.optJSONArray("errors")?.length()?.let { count -> count > 0 } == true) {
                             val code = json.getJSONArray("errors").optJSONObject(0)?.optInt("status", 400) ?: 400
                             throw AnimeApiException(code)
@@ -112,7 +117,7 @@ internal class AnimeTrackingApi(
         if (service == AnimeService.ANILIST) aniList(account, token) else malList(token)
 
     private suspend fun aniList(account: AnimeAccount, token: String): List<AnimeEntry> {
-        val query = """query(${'$'}id:Int!,${'$'}chunk:Int!) { MediaListCollection(userId:${'$'}id,type:ANIME,chunk:${'$'}chunk,perChunk:500) { hasNextChunk lists { entries { status progress score(format:POINT_100) media { $MEDIA } } } } }"""
+        val query = """query(${'$'}id:Int!,${'$'}chunk:Int!) { MediaListCollection(userId:${'$'}id,type:ANIME,chunk:${'$'}chunk,perChunk:500) { hasNextChunk lists { entries { id status progress score(format:POINT_100) media { $MEDIA } } } } }"""
         val entries = linkedMapOf<Int, AnimeEntry>()
         var chunk = 1
         do {
@@ -123,7 +128,7 @@ internal class AnimeTrackingApi(
                 for (j in 0 until rows.length()) {
                     val row = rows.getJSONObject(j)
                     val media = row.getJSONObject("media")
-                    val entry = aniEntry(media).copy(status = AnimeStatus.entries.firstOrNull { it.aniList == row.optString("status") },
+                    val entry = aniEntry(media).copy(listEntryId = row.optInt("id").takeIf { it > 0 }, status = AnimeStatus.entries.firstOrNull { it.aniList == row.optString("status") },
                         progress = row.optInt("progress").coerceIn(0, 100_000), score = row.optDouble("score", 0.0).coerceIn(0.0, 100.0))
                     entries[entry.id] = entry
                 }
@@ -177,7 +182,7 @@ internal class AnimeTrackingApi(
     }
     suspend fun current(service: AnimeService, token: String, entry: AnimeEntry): AnimeEntry {
         return if (service == AnimeService.ANILIST) {
-            val media = graph("""query(${'$'}id:Int!) { Media(id:${'$'}id,type:ANIME) { isFavourite mediaListEntry { status progress score(format:POINT_100) } } }""",
+            val media = graph("""query(${'$'}id:Int!) { Media(id:${'$'}id,type:ANIME) { isFavourite mediaListEntry { id status progress score(format:POINT_100) } } }""",
                 JSONObject().put("id", entry.id), token).getJSONObject("Media")
             applyAniStatus(entry.copy(favorite = media.optBoolean("isFavourite", entry.favorite)), media.optJSONObject("mediaListEntry"))
         } else {
@@ -199,10 +204,33 @@ internal class AnimeTrackingApi(
             return applyMalStatus(entry, row)
         }
     }
+    suspend fun remove(service: AnimeService, token: String, entry: AnimeEntry) {
+        if (service == AnimeService.ANILIST) {
+            val current = current(service, token, entry)
+            if (current.status == null && current.listEntryId == null) return
+            val listId = requireNotNull(current.listEntryId) { "NOT_IN_ANILIST" }
+            graph("""mutation(${'$'}id:Int!) { DeleteMediaListEntry(id:${'$'}id) { deleted } }""",
+                JSONObject().put("id", listId), token)
+        } else {
+            try {
+                request(Request.Builder().url("$malUrl/anime/${entry.id}/my_list_status").delete(), token,
+                    ignoreSuccessfulBody = true)
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e }
+            catch (e: Exception) {
+                // A response can be lost after MAL commits the deletion, or the entry
+                // may already be absent. Confirm against the authenticated catalogue.
+                if (e is AnimeApiException && e.status in listOf(401, 403, 429)) throw e
+                val media = request(Request.Builder().url("$malUrl/anime/${entry.id}?fields=id,my_list_status"), token)
+                require(media.getInt("id") == entry.id)
+                if (media.has("my_list_status") && !media.isNull("my_list_status")) throw e
+            }
+        }
+    }
     companion object {
         private const val MEDIA = "id idMal title { userPreferred } coverImage { large } bannerImage format episodes isFavourite"
         private fun image(raw: String?) = CatalogJson.image(raw)
         private fun applyAniStatus(entry: AnimeEntry, row: JSONObject?): AnimeEntry = entry.copy(
+            listEntryId = row?.optInt("id")?.takeIf { it > 0 } ?: entry.listEntryId,
             status = row?.optString("status")?.let { value -> AnimeStatus.entries.firstOrNull { it.aniList == value } },
             progress = row?.optInt("progress")?.coerceIn(0, 100_000) ?: 0, score = row?.optDouble("score", 0.0)?.coerceIn(0.0, 100.0) ?: 0.0)
         private fun applyMalStatus(entry: AnimeEntry, row: JSONObject?): AnimeEntry = entry.copy(

@@ -39,6 +39,44 @@ class AnimeTodayTest {
         }
     }
 
+    @Test fun confirmedAiringOverridesConflictingFutureDetailDateOnlyForSameAnimeAndEpisode() {
+        val airing = start + 36000
+        val episodes = listOf(EpisodeItem(6, 1, "Previous"),
+            EpisodeItem(7, 1, "Today", released = false, airedOn = "2026-11-14"),
+            EpisodeItem(8, 1, "Next", released = false, airedOn = "2026-11-21"))
+        val corrected = AnimeToday.applyConfirmedAiring(item, episodes,
+            listOf(AnimeAiringEpisode(item, 7, airing), AnimeAiringEpisode(item.copy(id = "other"), 7, airing)), now)
+        assertTrue(corrected[1].released)
+        assertEquals("2026-11-04", corrected[1].airedOn)
+        assertFalse(corrected[2].released)
+        assertEquals(episodes[2].airedOn, corrected[2].airedOn)
+    }
+
+    @Test fun confirmedAniListDeliveryUnlocksMappedSecondSeasonButNotAnotherSeasonOrNextEpisode() {
+        val index = SeriesIndex(listOf(SeriesPart("101", "99", 1, 0, 1), SeriesPart("102", "99", 1, 12, 2)))
+        val delivery = item.copy(id = "102", source = CatalogSource.ANILIST)
+        val series = item.copy(id = "99", source = CatalogSource.TMDB, seriesNumbering = true)
+        val episodes = listOf(EpisodeItem(7, 1, "Other season", released = false),
+            EpisodeItem(7, 2, "Today", released = false, airedOn = "2026-11-14"),
+            EpisodeItem(8, 2, "Next", released = false))
+        val events = listOf(AnimeAiringEpisode(delivery, 7, start + 1))
+        val corrected = AnimeToday.applyConfirmedAiring(series, episodes, events, now, index)
+        assertFalse(corrected[0].released)
+        assertTrue(corrected[1].released)
+        assertEquals("2026-11-04", corrected[1].airedOn)
+        assertFalse(corrected[2].released)
+        assertEquals(episodes, AnimeToday.applyConfirmedAiring(series.copy(id = "other"), episodes, events, now, index))
+        val raw = listOf(EpisodeItem(19, 1, "TMDB combined", released = false))
+        assertTrue(AnimeToday.applyConfirmedAiring(series.copy(seriesNumbering = false), raw, events, now, index).single().released)
+    }
+
+    @Test fun futureAiringIsNotUsedAsReleaseConfirmation() {
+        val episode = EpisodeItem(7, 1, "Next", released = false, airedOn = "2026-11-14")
+        val corrected = AnimeToday.applyConfirmedAiring(item, listOf(episode),
+            listOf(AnimeAiringEpisode(item, 7, now / 1000 + 1)), now)
+        assertEquals(listOf(episode), corrected)
+    }
+
     @Test fun thirtyDayWindowUsesJapanMidnightAndExcludesInvalidAndExpiredEvents() {
         val oldest = AnimeToday.historyStart(now)
         val events = listOf(AnimeAiringEpisode(item, 1, oldest),

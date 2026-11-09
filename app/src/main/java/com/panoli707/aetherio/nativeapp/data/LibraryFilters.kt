@@ -3,8 +3,11 @@ package com.panoli707.aetherio.nativeapp.data
 import java.text.Collator
 import java.util.Locale
 
-data class LibraryFilters(val list: String = "all", val type: String = "all", val genre: String = "all", val sort: String = "added_desc")
-internal data class LibraryEntry(val item: MediaItem, val addedAt: Long, val list: String, val label: String)
+data class LibraryFilters(val list: String = "all", val type: String = "all", val genre: String = "all", val sort: String = "added_desc", val status: String = "all")
+internal data class LibraryEntry(val item: MediaItem, val addedAt: Long, val list: String, val label: String,
+    val status: AnimeStatus? = null, val seasonStatuses: Set<AnimeStatus> = emptySet(),
+    val seasons: Map<Int, AnimeStatus> = emptyMap(), val seasonCards: Map<Int, MediaItem> = emptyMap(),
+    val displayItem: MediaItem = item)
 internal data class LibraryFacet(val key: String, val label: String, val count: Int)
 internal data class FilteredLibrary(val entries: List<LibraryEntry>, val lists: List<LibraryFacet>,
     val types: List<LibraryFacet>, val genres: List<LibraryFacet>, val filters: LibraryFilters)
@@ -17,6 +20,7 @@ internal object LibraryFiltering {
         val entries = linkedMapOf<String, LibraryEntry>()
         fun add(item: MediaItem, time: Long, list: String, label: String) {
             val canonical = SeriesIdentity.item(item)
+            if (canonical.key in state.hiddenLibraryItems) return
             val old = entries[canonical.key]
             val enriched = canonical.copy(genres = (canonical.genres + old?.item?.genres.orEmpty()).distinct())
             entries[canonical.key] = LibraryEntry(enriched, time, list, label)
@@ -33,12 +37,35 @@ internal object LibraryFiltering {
         }
         state.savedItems.forEachIndexed { index, item -> add(item,
             state.savedAddedAt[SeriesIdentity.item(item).key]?.takeIf { it > 0 } ?: -index.toLong(), "saved", "Mi lista") }
-        return entries.values.toList()
+        return entries.values.map { entry ->
+            val saved = entry.list == "saved"
+            val seasonNumbers = if (!entry.item.isAnime) emptySet() else (state.mediaStates.keys.mapNotNull { key ->
+                Regex("^${Regex.escape(entry.item.key)}:season:([0-9]+)$").matchEntire(key)?.groupValues?.get(1)?.toIntOrNull()
+            } + state.watchProgress.filter { it.target.item.key == entry.item.key }.mapNotNull { it.target.season }).toSet()
+            val seasons = seasonNumbers.associateWith { season -> effectiveMediaListState(entry.item, season,
+                state.mediaStates, state.watchProgress, saved).status }
+            val global = effectiveMediaListState(entry.item, null, state.mediaStates, state.watchProgress, saved).status
+            val cards = state.librarySeasonCards.filter { it.key == entry.item.key && it.seasonHint != null }
+                .associateBy { requireNotNull(it.seasonHint) }
+            entry.copy(status = global, seasonStatuses = seasons.values.toSet(), seasons = seasons, seasonCards = cards)
+        }
     }
 
     fun filter(entries: List<LibraryEntry>, filters: LibraryFilters): FilteredLibrary {
         val list = filters.list.takeIf { it == "all" || entries.any { entry -> entry.list == it } } ?: "all"
-        val base = entries.filter { list == "all" || it.list == list }
+        val base = entries.filter { entry ->
+            (list == "all" || entry.list == list) && (filters.status == "all" ||
+                (if (entry.seasons.isNotEmpty()) entry.seasonStatuses.any { it.name == filters.status }
+                else entry.status?.name == filters.status))
+        }.flatMap { entry ->
+            val matching = entry.seasons.filterValues { it.name == filters.status }.keys.sorted()
+            if (filters.status == "all" || matching.isEmpty()) listOf(entry)
+            else matching.map { season ->
+                val target = entry.item.copy(seasonHint = season, animeEntryId = null)
+                val card = entry.seasonCards[season] ?: target.copy(title = "${entry.item.title} · Temporada $season")
+                entry.copy(item = target, displayItem = card)
+            }
+        }
         val type = filters.type.takeIf { it == "all" || base.any { entry -> entry.item.type.path == it } } ?: "all"
         val genre = filters.genre.takeIf { it == "all" || base.any { entry -> entry.item.genres.any { name -> genreKey(name) == it } } } ?: "all"
         val normalized = filters.copy(list = list, type = type, genre = genre,

@@ -46,7 +46,7 @@ El perfil de la primera edición separa aproximadamente **77,59 s en Kotlin**, *
 - Lint debug y release terminaron con **cero errores y 61 advertencias por variante**.
 - Se ejecutaron los seis tests aislados del script: opciones de desarrollo/release, límites de recursos, aislamiento, vista previa, prioridad del entorno de proceso y propagación de fallos.
 - El script actualizado también se probó contra Gradle real: `assembleDebug -LowMemory -PublicDistribution -Profile` terminó correctamente, con las 59 tareas accionables reutilizadas. El primer arranque de esa comprobación costó 22 s según Gradle.
-- Firma del APK release compatible, alineación `zipalign -P 16` y escaneo de 657 entradas sin token local TMDB en texto plano UTF-8/UTF-16LE correctos. La ofuscación no convierte el token en un secreto irrecuperable.
+- Firma del APK release compatible, alineación `zipalign -P 16` y escaneo de 657 entradas para verificar que la configuración local no aparezca en texto plano.
 - El archivo de sonda ya no existe en fuentes ni en las clases debug. No hay cambios en el código funcional de `app` ni de `torrent-engine`.
 - No se reinstaló la app, no se ejecutaron pruebas UI adicionales ni se modificaron datos de dispositivos. Se conservaron Android Studio y el emulador existente.
 - No se midieron tiempos nuevos de instalación, red o publicación: no se publicó una release en esta intervención. Las eliminaciones de AVD persistentes o componentes SDK también quedaron fuera por requerir aprobación específica.
@@ -60,7 +60,7 @@ El perfil de la primera edición separa aproximadamente **77,59 s en Kotlin**, *
 - `-NoDaemon` permite una ejecución aislada también en desarrollo. `-MaxWorkers` y `-HeapMiB` sirven para experimentos explícitos, no son una recomendación de aumentar recursos indiscriminadamente.
 - `-Profile` genera un informe HTML local; `-WhatIf` muestra el comando sin ejecutar Gradle.
 - La configuración de proceso de `JAVA_HOME` y `ANDROID_HOME` tiene prioridad sobre la configuración de usuario, para que una selección explícita no se sobrescriba silenciosamente.
-- Configuration cache permanece deshabilitada porque la configuración lee el token TMDB local. La tarea del material TMDB continúa sin build cache; no se modificó su protección.
+- Configuration cache permanece deshabilitada porque la configuración de compilación depende de ajustes locales. La tarea de material TMDB continúa sin build cache.
 
 El daemon puede permanecer en memoria hasta su cierre por inactividad. `-NoDaemon` no cierra otros daemons ya existentes; no se deben terminar procesos de Android Studio u otros trabajos para recuperar memoria sin autorización.
 
@@ -91,7 +91,7 @@ Esto compila y empaqueta, pero **no ejecuta pruebas JVM ni Android**. Añadir la
 .\scripts\android.ps1 -Action verifyRelease -LowMemory -PublicDistribution
 ```
 
-Conserva compilación release, pruebas JVM release y lint release. Añadir las pruebas Android pertinentes y verificar APK, firma compatible, versión, alineación, credenciales y adjuntos antes de publicar. Una solicitud de publicar todos los commits incluye una nueva release según `AGENTS.md`.
+Conserva compilación release, pruebas JVM release y lint release. Añadir las pruebas Android pertinentes y verificar APK, firma compatible, versión, alineación y adjuntos antes de publicar. Una solicitud de publicar todos los commits incluye una nueva release según `AGENTS.md`.
 
 No repetir verificaciones si la revisión, variante y configuración no cambiaron y el resultado sigue siendo válido. Un cambio posterior invalida las comprobaciones que afecte. No omitir errores ni reducir el conjunto final para mejorar artificialmente el tiempo.
 

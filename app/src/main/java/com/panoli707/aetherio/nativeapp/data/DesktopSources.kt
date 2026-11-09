@@ -16,7 +16,7 @@ object DesktopSources {
         DesktopSourceProvider("animeav1", "AnimeAV1")
     )
     val knownIds: Set<String> get() = providers.map { it.id }.toSet()
-    val defaultIds: Set<String> get() = emptySet()
+    val defaultIds: Set<String> get() = knownIds
 }
 
 internal class DesktopSourceRepository(

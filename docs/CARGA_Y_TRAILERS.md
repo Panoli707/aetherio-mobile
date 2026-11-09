@@ -40,7 +40,7 @@ Como comprobación externa se hicieron tres GET por recurso desde el equipo de d
 | Póster TMDB w500 | 526 ms | 70.258 |
 | El mismo póster original | 825 ms | 938.879 |
 
-Son muestras pequeñas del 5 de noviembre de 2026, no percentiles de producción. El original transfería unas 13,4 veces más bytes en ese ejemplo. La consulta de referencia no incluye los recursos `append_to_response` de la ficha completa. Las mediciones del proxy no representan la API directa autenticada de TMDB que utiliza un APK con token. No son tiempos de carga completos de Aetherio ni permiten extrapolar tiempos al teléfono del usuario.
+Son muestras pequeñas del 5 de noviembre de 2026, no percentiles de producción. El original transfería unas 13,4 veces más bytes en ese ejemplo. La consulta de referencia no incluye los recursos `append_to_response` de la ficha completa. Las mediciones del proxy no representan las consultas directas autenticadas de TMDB desde la app. No son tiempos de carga completos de Aetherio ni permiten extrapolar tiempos al teléfono del usuario.
 
 ## Diagnóstico local para desarrollo
 

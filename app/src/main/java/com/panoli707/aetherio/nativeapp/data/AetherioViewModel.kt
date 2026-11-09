@@ -44,11 +44,25 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     private val sourceSettings = SourceSettingsStore(application)
     private val addonStore = AddonStore(application)
     private val mutableState = MutableStateFlow(AppState(savedItems = SeriesIdentity.items(library.savedItems), profileName = library.profileName,
-        savedAddedAt = library.savedAddedAt, libraryFilters = libraryBrowser.filters(), discover = DiscoverState(selection = libraryBrowser.selection()),
+        savedAddedAt = library.savedAddedAt, mediaStates = library.mediaStates, hiddenLibraryItems = library.hiddenLibraryItems,
+        syncServices = library.syncServices(),
+        librarySeasonCards = library.librarySeasonCards,
+        libraryFilters = libraryBrowser.filters(), discover = DiscoverState(selection = libraryBrowser.selection()),
         homePreferences = homePreferencesStore.load(), profileAppearance = profileStore.load(),
         sourcePreferences = sourceSettings.loadPreferences(),
         enabledDesktopSources = sourceSettings.enabledDesktopSources))
     val state: StateFlow<AppState> = mutableState.asStateFlow()
+    private val animeCalendarLoader = WatchingCalendarLoader(viewModelScope, { WatchingPage(animeRepository.calendar(it)) },
+        { value -> mutableState.update { it.copy(animeCalendar = value) } })
+    private val movieTvCalendarLoader = WatchingCalendarLoader(viewModelScope, repository::watchingCalendar,
+        { value -> mutableState.update { it.copy(movieTvCalendar = value) } })
+
+    fun loadWatchingCalendar(request: WatchingRequest, force: Boolean = false) {
+        if (request.category == WatchingCategory.ANIME) animeCalendarLoader.load(request, force)
+        else movieTvCalendarLoader.load(request, force)
+    }
+
+    fun resetMovieTvCalendar() = movieTvCalendarLoader.resetToFirstPage()
     private var homeJob: Job? = null
     private var browseJob: Job? = null
     private var discoverCatalogJob: Job? = null
@@ -183,6 +197,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { downloads.entries.collect { value -> mutableState.update { it.copy(downloads = value,
             downloadMessage = if (downloads.storageFailure) "No se pudo abrir el índice de descargas. Se conserva sin sobrescribir; reinicia la app para reintentar." else it.downloadMessage) } } }
         viewModelScope.launch { tracking.restore() }
+        viewModelScope.launch { loadLibrarySeasonCards() }
         viewModelScope.launch { hubDirectory.state.collect { directory ->
             mutableState.update { it.copy(hubProviders = directory.providers, hubRuntimeProviders = directory.branding,
                 hubDirectoryStale = directory.stale, sources = directory.decorate(it.sources)) }
@@ -284,7 +299,7 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
         }
     }
     fun selectMedia(selected: MediaItem) {
-        val item = SeriesIdentity.item(selected)
+        val item = SeriesIdentity.detailItem(selected)
         dismissSources()
         detailLoader.open(item)
     }
@@ -310,9 +325,144 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     fun toggleSaved(item: MediaItem) {
         viewModelScope.launch {
             val current = state.value.savedItems
-            val items = if (current.any { it.key == item.key }) current.filterNot { it.key == item.key } else listOf(item) + current
+            val canonical = SeriesIdentity.item(item)
+            val alreadySaved = current.any { SeriesIdentity.item(it).key == canonical.key }
+            val items = if (alreadySaved) current.filterNot { SeriesIdentity.item(it).key == canonical.key } else listOf(canonical) + current
             library.save(items)
-            mutableState.update { it.copy(savedItems = items, savedAddedAt = library.savedAddedAt) }
+            if (!alreadySaved) library.hiddenLibraryItems = library.hiddenLibraryItems - canonical.key
+            mutableState.update { it.copy(savedItems = items, savedAddedAt = library.savedAddedAt, hiddenLibraryItems = library.hiddenLibraryItems) }
+            if (!alreadySaved) persistMediaState(canonical, item.seasonHint, MediaListState())
+        }
+    }
+    fun saveMediaState(item: MediaItem, season: Int?, value: MediaListState) { viewModelScope.launch { persistMediaState(item, season, value) } }
+
+    fun setSyncService(service: AnimeService, enabled: Boolean) {
+        val connected = tracking.state.value.connections[service]?.account != null
+        library.setSyncService(service, enabled && connected)
+        mutableState.update { it.copy(syncServices = library.syncServices()) }
+    }
+
+    fun removeMediaFromLibrary(selected: MediaItem, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            val item = SeriesIdentity.item(selected)
+            val animeIds = buildSet {
+                item.animeEntryId?.toIntOrNull()?.let(::add)
+                if (selected.source == CatalogSource.ANILIST) selected.id.toIntOrNull()?.let(::add)
+                SeriesIdentity.index.parts(item).mapNotNull { it.animeId.toIntOrNull() }.forEach(::add)
+            }
+            val remoteDeletes = if (item.isAnime || animeIds.isNotEmpty()) tracking.state.value.connections.mapValues { (service, connection) ->
+                if (connection.account == null || service !in state.value.syncServices) emptyList() else connection.entries.filter { entry ->
+                    val linkedItem = entry.item()?.let(SeriesIdentity::item)
+                    linkedItem?.key == item.key || entry.aniListId?.let { it in animeIds } == true ||
+                        (service == AnimeService.ANILIST && entry.id in animeIds)
+                }
+            } else emptyMap()
+            val deletedRemotely = mutableListOf<Pair<AnimeService, AnimeEntry>>()
+            for ((service, entries) in remoteDeletes) for (entry in entries) {
+                if (tracking.removeConfirmed(service, entry)) deletedRemotely += service to entry
+                else {
+                    deletedRemotely.asReversed().forEach { (deletedService, deletedEntry) ->
+                        tracking.restoreDeletedEntry(deletedService, deletedEntry)
+                    }
+                    onComplete(false)
+                    return@launch
+                }
+            }
+            val saved = state.value.savedItems.filterNot { SeriesIdentity.item(it).key == item.key }
+            val states = state.value.mediaStates.filterKeys { key -> key != item.key && !key.startsWith("${item.key}:season:") }
+            val hidden = library.hiddenLibraryItems + item.key
+            history.reset(item)
+            library.mediaStates = states
+            library.save(saved)
+            library.hiddenLibraryItems = hidden
+            library.watchingAnime = library.watchingAnime.filterNot { SeriesIdentity.item(it).key == item.key }
+            library.hiddenWatchingAnime = library.hiddenWatchingAnime + item.key
+            mutableState.update { it.copy(savedItems = saved, mediaStates = states, hiddenLibraryItems = hidden, savedAddedAt = library.savedAddedAt,
+                watchProgress = history.entries.value, watchingAnime = watching(history.entries.value)) }
+            onComplete(true)
+        }
+    }
+
+    fun removeAnimeEntry(service: AnimeService, entry: AnimeEntry, onComplete: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            onComplete(tracking.removeConfirmed(service, entry))
+        }
+    }
+
+    private suspend fun persistMediaState(selected: MediaItem, season: Int?, requested: MediaListState) {
+        val item = SeriesIdentity.item(selected)
+        val value = if (requested.status == AnimeStatus.DROPPED) requested.copy(progress = 0) else requested
+        val stateKey = mediaStateKey(item, season)
+        val states = state.value.mediaStates.toMutableMap().apply { put(stateKey, value) }
+        val saved = (state.value.savedItems + item).distinctBy { it.key }.toMutableList()
+        var discoveredSequel: MediaItem? = null
+        if (value.status == AnimeStatus.COMPLETED && item.isAnime && item.type == MediaType.SERIES) {
+            val detail = state.value.detail?.takeIf { it.item.key == selected.key }
+            val nextSeason = season?.let { current -> detail?.seasons.orEmpty().filter { it.number > current }.minByOrNull { it.number } }
+            nextSeason?.let { next -> states.putIfAbsent(mediaStateKey(item, next.number), MediaListState()) }
+            discoveredSequel = detail?.sequel?.let(SeriesIdentity::item)?.takeIf { sequel -> sequel.key != item.key }
+            discoveredSequel?.let { sequel ->
+                if (saved.none { it.key == sequel.key }) saved.add(sequel)
+                states.putIfAbsent(mediaStateKey(sequel, sequel.seasonHint ?: 1), MediaListState())
+            }
+        }
+        library.mediaStates = states
+        library.hiddenLibraryItems = library.hiddenLibraryItems - item.key
+        library.save(saved)
+        if (value.status == AnimeStatus.DROPPED) {
+            history.reset(item, season.takeIf { stateKey != item.key })
+            if (stateKey == item.key) {
+                library.watchingAnime = library.watchingAnime.filterNot { SeriesIdentity.item(it).key == item.key }
+                library.hiddenWatchingAnime = library.hiddenWatchingAnime + item.key
+            }
+        } else if (value.progress > 0 && value.progress <= WatchProgressCodec.MAX_ENTRIES) {
+            val targets = if (selected.type == MediaType.MOVIE) listOf(WatchTarget(item)) else
+                (1..value.progress).map { SeriesIdentity.index.target(WatchTarget(selected, season ?: 1, it)) }
+            history.importWatched(targets)
+        }
+        mutableState.update { it.copy(mediaStates = states, savedItems = saved, hiddenLibraryItems = library.hiddenLibraryItems, savedAddedAt = library.savedAddedAt,
+            watchProgress = history.entries.value, watchingAnime = watching(history.entries.value)) }
+        viewModelScope.launch { loadLibrarySeasonCards() }
+        val connections = tracking.state.value.connections
+        val ids = buildSet {
+            if (selected.source == CatalogSource.ANILIST) selected.id.toIntOrNull()?.let(::add)
+            item.animeEntryId?.toIntOrNull()?.let { mapped -> if (season == null || item.seasonHint == null || item.seasonHint == season) add(mapped) }
+            SeriesIdentity.index.parts(item).filter { season == null || it.season == season }
+                .mapNotNull { it.animeId.toIntOrNull() }.forEach(::add)
+            connections.forEach { (service, connection) -> connection.entries.forEach { entry ->
+                val linkedItem = entry.item()?.let(SeriesIdentity::item)
+                if (linkedItem != null && linkedItem.key == item.key &&
+                    (season == null || linkedItem.seasonHint == null || linkedItem.seasonHint == season)) {
+                    (entry.aniListId ?: entry.id.takeIf { service == AnimeService.ANILIST })?.let(::add)
+                }
+            } }
+        }
+        if (item.isAnime || item.source == CatalogSource.ANILIST || ids.isNotEmpty()) {
+            ids.forEach { id -> connections.forEach { (service, connection) ->
+                if (connection.account != null && service in state.value.syncServices) tracking.saveState(service, id, value)
+            } }
+        }
+        discoveredSequel?.let { sequel ->
+            val id = sequel.id.toIntOrNull()
+            if (sequel.source == CatalogSource.ANILIST && id != null) tracking.state.value.connections.forEach { (service, connection) ->
+                if (connection.account != null && service in state.value.syncServices) tracking.saveState(service, id, MediaListState())
+            }
+        }
+    }
+    private suspend fun loadLibrarySeasonCards() {
+        val requested = state.value.mediaStates.keys.toList()
+        for (key in requested) {
+            val match = Regex("^(.*):season:([0-9]+)$").matchEntire(key) ?: continue
+            val item = state.value.savedItems.firstOrNull { it.key == match.groupValues[1] } ?: continue
+            val season = match.groupValues[2].toIntOrNull() ?: continue
+            if (state.value.librarySeasonCards.any { it.key == item.key && it.seasonHint == season }) continue
+            try {
+                val card = repository.seasonCard(item, season)
+                val cards = state.value.librarySeasonCards.filterNot { it.key == item.key && it.seasonHint == season } + card
+                library.librarySeasonCards = cards
+                mutableState.update { it.copy(librarySeasonCards = cards) }
+            } catch (e: CancellationException) { throw e }
+            catch (_: Exception) { /* Keep the labelled season card offline; retry on the next update. */ }
         }
     }
     fun renameProfile(name: String) {
@@ -324,34 +474,57 @@ class AetherioViewModel(application: Application) : AndroidViewModel(application
     }
 
     suspend fun animeAuthorization(service: AnimeService): String = tracking.begin(service)
-    fun handleAnimeAuthorization(raw: String) { viewModelScope.launch { tracking.finish(raw) } }
-    fun refreshAnimeAccount(service: AnimeService) { viewModelScope.launch { tracking.refresh(service) } }
+    fun handleAnimeAuthorization(raw: String) { viewModelScope.launch {
+        val service = AnimeOAuth.service(raw) ?: return@launch
+        tracking.finish(raw)
+        if (tracking.state.value.connections[service]?.account != null) setSyncService(service, true)
+    } }
+    fun refreshAnimeAccount(service: AnimeService) { viewModelScope.launch {
+        tracking.refresh(service)
+    } }
     fun editAnimeEntry(service: AnimeService, aniListId: Int) { viewModelScope.launch { tracking.edit(service, aniListId) } }
+    private fun localAnimeProgress(aniListId: Int): Int {
+        val watched = state.value.watchProgress.asSequence().filter { it.watched }.mapNotNull {
+            AnimeSyncRules.episode(it.target, SeriesIdentity.index)
+        }.filter { it.first == aniListId }.map { it.second }.toSet()
+        var progress = 0
+        while (progress + 1 in watched) progress++
+        return progress
+    }
     fun dismissAnimeDraft() = tracking.dismissDraft()
-    fun disconnectAnimeAccount(service: AnimeService) { viewModelScope.launch { tracking.disconnect(service) } }
+    fun disconnectAnimeAccount(service: AnimeService) { viewModelScope.launch {
+        tracking.disconnect(service)
+        if (tracking.state.value.connections[service]?.account == null) setSyncService(service, false)
+    } }
     fun updateAnimeEntry(service: AnimeService, entry: AnimeEntry, status: AnimeStatus, progress: Int, score: Double) {
         viewModelScope.launch { tracking.update(service, entry, status, progress, score) }
     }
     fun importAnimeEntry(entry: AnimeEntry) {
-        val item = entry.item() ?: return
-        viewModelScope.launch {
-            if (entry.progress > WatchProgressCodec.MAX_ENTRIES) {
-                mutableState.update { it.copy(profileMessage = "Esta entrada supera la capacidad del historial local. No se ha importado ni eliminado ningún dato.") }
-                return@launch
-            }
-            val targets = if (item.type == MediaType.MOVIE) { if (entry.progress > 0 || entry.status == AnimeStatus.COMPLETED) listOf(WatchTarget(item)) else emptyList() }
-                else (1..entry.progress).map { SeriesIdentity.index.target(WatchTarget(item, 1, it)) }
-            if (!history.importWatched(targets)) {
-                mutableState.update { it.copy(profileMessage = "No hay capacidad para importar todas las marcas sin desplazar historial existente. No se ha eliminado ni importado ningún dato.") }
-                return@launch
-            }
-            val canonical = SeriesIdentity.item(item)
-            val saved = (listOf(canonical) + state.value.savedItems).distinctBy { it.key }
-            withContext(Dispatchers.IO) { library.save(saved) }
-            mutableState.update { it.copy(savedItems = saved, savedAddedAt = library.savedAddedAt) }
-            // Remote counters do not invent playback positions. Only explicit per-entry confirmation imports badges.
-            mutableState.update { it.copy(profileMessage = "Anime importado a la biblioteca. Se conservan las marcas y posiciones existentes.") }
+        viewModelScope.launch { importAnimeEntries(listOf(entry), requireHistoryCapacity = true) }
+    }
+    private suspend fun importAnimeEntries(entries: List<AnimeEntry>, requireHistoryCapacity: Boolean = false) {
+        val imported = entries.mapNotNull { entry -> entry.item()?.let { entry to SeriesIdentity.item(it) } }
+        if (imported.isEmpty()) return
+        val progressTooLarge = imported.any { it.first.progress > WatchProgressCodec.MAX_ENTRIES }
+        if (progressTooLarge && requireHistoryCapacity) {
+            mutableState.update { it.copy(profileMessage = "Una entrada supera la capacidad del historial local. No se ha importado ni eliminado ningún dato.") }
+            return
         }
+        val targets = if (progressTooLarge) emptyList() else imported.flatMap { (entry, item) ->
+            if (item.type == MediaType.MOVIE) {
+                if (entry.progress > 0 || entry.status == AnimeStatus.COMPLETED) listOf(WatchTarget(item)) else emptyList()
+            } else (1..entry.progress).map { SeriesIdentity.index.target(WatchTarget(item, 1, it)) }
+        }.distinctBy { it.key }
+        val historyImported = if (targets.isEmpty() && !progressTooLarge) true else !progressTooLarge && history.importWatched(targets)
+        if (!historyImported && requireHistoryCapacity) {
+            mutableState.update { it.copy(profileMessage = "No hay capacidad para importar todas las marcas sin desplazar historial existente. No se ha eliminado ni importado ningún dato.") }
+            return
+        }
+        val saved = (imported.map { it.second } + state.value.savedItems).distinctBy { it.key }
+        withContext(Dispatchers.IO) { library.save(saved) }
+        mutableState.update { it.copy(savedItems = saved, savedAddedAt = library.savedAddedAt,
+            profileMessage = if (historyImported) "Anime sincronizado a la biblioteca. Se conservan las marcas y posiciones existentes."
+                else "Anime sincronizado a la biblioteca; no se importaron las marcas de visto porque se alcanzó el límite local.") }
     }
     fun saveProfileAppearance(value: ProfileAppearance) {
         if (state.value.profileBusy) return

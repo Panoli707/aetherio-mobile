@@ -86,4 +86,11 @@ class AnimeTrackingTest {
         assertEquals(2, AnimeSyncRules.contiguous(AnimeEntry(101, 101, null, "First", episodes = 12), history, index))
         assertEquals(0, AnimeSyncRules.contiguous(AnimeEntry(102, 102, null, "Second", episodes = 12), history, index))
     }
+    @Test fun addingAnimeChoosesPlannedWatchingOrCompletedFromLocalProgress() {
+        val series = AnimeEntry(1, 1, null, "Series", episodes = 12)
+        assertEquals(AnimeStatus.PLANNED, AnimeSyncRules.initialStatus(series, 0))
+        assertEquals(AnimeStatus.WATCHING, AnimeSyncRules.initialStatus(series, 4))
+        assertEquals(AnimeStatus.COMPLETED, AnimeSyncRules.initialStatus(series, 12))
+        assertEquals(AnimeStatus.COMPLETED, AnimeSyncRules.initialStatus(series.copy(movie = true, episodes = 1), 1))
+    }
 }

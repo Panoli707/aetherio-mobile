@@ -58,6 +58,12 @@ internal class SeriesIndex(rows: List<SeriesPart>, imdbIds: Map<String, String> 
 }
 
 internal object SeriesIdentity {
+    private val navigationAliases: Map<String, String> by lazy {
+        val raw = SeriesIdentity::class.java.classLoader?.getResourceAsStream("series-navigation.json")
+            ?.bufferedReader()?.use { it.readText() } ?: error("Faltan las equivalencias de navegación")
+        val aliases = JSONObject(raw).getJSONObject("aliases")
+        aliases.keys().asSequence().associateWith { aliases.getString(it) }
+    }
     val index: SeriesIndex by lazy {
         val raw = SeriesIdentity::class.java.classLoader?.getResourceAsStream("series-mappings.json")
             ?.bufferedReader()?.use { it.readText() } ?: error("Falta la tabla de equivalencias de series")
@@ -75,6 +81,14 @@ internal object SeriesIdentity {
             imdbId = canonical.imdbId ?: index.imdbId(canonical)) else canonical
     }
     fun items(items: List<MediaItem>): List<MediaItem> = items.map(::item).distinctBy { it.key }
+    /** A delivery may open its series without claiming an unverified episode offset. */
+    fun detailItem(selected: MediaItem): MediaItem {
+        val canonical = item(selected)
+        if (canonical.source != CatalogSource.ANILIST || canonical.type != MediaType.SERIES) return canonical
+        val alias = navigationAliases[selected.id] ?: return canonical
+        val destination = item(selected.copy(id = alias))
+        return if (destination.source == CatalogSource.TMDB) destination else canonical
+    }
     fun key(raw: String): String {
         val match = Regex("ANILIST:tv:([0-9]+)").matchEntire(raw) ?: return raw
         return item(MediaItem(match.groupValues[1], MediaType.SERIES, "Serie", CatalogSource.ANILIST)).key

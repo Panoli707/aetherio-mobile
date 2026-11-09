@@ -186,7 +186,7 @@ internal object CatalogJson {
                  put("artworkTitles", JSONArray(item.artworkTitles.filter { it.isNotBlank() && it.length <= 500 }.distinct().take(4)))
         }) }
     }.toString()
-    fun decode(raw: String): List<MediaItem> = runCatching {
+    fun decode(raw: String, distinguishSeasons: Boolean = false): List<MediaItem> = runCatching {
         objects(JSONArray(raw)).mapNotNull { json ->
             val type = MediaType.entries.find { it.name == text(json, "type") } ?: return@mapNotNull null
             val source = CatalogSource.entries.find { it.name == text(json, "source") } ?: return@mapNotNull null
@@ -205,7 +205,7 @@ internal object CatalogJson {
                  strings(json.optJSONArray("portraitAlternatives")).mapNotNull(::image).distinct().take(8),
                  strings(json.optJSONArray("backdropAlternatives")).mapNotNull(::image).distinct().take(8),
                   strings(json.optJSONArray("artworkTitles")).filter { it.length <= 500 }.distinct().take(4), json.optBoolean("imdbNumbering"))
-        }.distinctBy { it.key }
+        }.distinctBy { if (distinguishSeasons) "${it.key}:season:${it.seasonHint}" else it.key }
     }.getOrDefault(emptyList())
     private fun titlePresence(json: JSONObject, key: String): ArtworkTitlePresence =
         ArtworkTitlePresence.entries.firstOrNull { it.name == text(json, key) } ?: ArtworkTitlePresence.UNKNOWN

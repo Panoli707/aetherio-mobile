@@ -47,7 +47,7 @@ class ProviderDefaultsStoreTest {
             InstrumentationRegistry.getInstrumentation().waitForIdleSync()
             assertEquals(afterFirst, preferences.all)
             assertEquals(1, changes.get())
-            assertTrue(SourceSettingsStore(context).enabledDesktopSources.isEmpty())
+            assertEquals(DesktopSources.knownIds, SourceSettingsStore(context).enabledDesktopSources)
             assertTrue(AddonStore(context).load().isEmpty()) // Managed registration never overwrites user storage.
         } finally { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
     }
@@ -69,7 +69,7 @@ class ProviderDefaultsStoreTest {
         assertEquals(before, encrypted.all)
         assertEquals(otherBefore, unrelated.all)
         assertEquals(DesktopSources.knownIds, settings.getStringSet("desktop", null))
-        assertTrue(SourceSettingsStore(context).enabledDesktopSources.isEmpty())
+        assertEquals(DesktopSources.knownIds, SourceSettingsStore(context).enabledDesktopSources)
         SourceSettingsStore(context).enabledDesktopSources = setOf("animeav1")
         assertEquals(setOf("animeav1"), SourceSettingsStore(context).enabledDesktopSources)
         assertEquals(DesktopSources.knownIds, settings.getStringSet("desktop", null))

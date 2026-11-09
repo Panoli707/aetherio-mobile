@@ -20,11 +20,13 @@ import org.junit.After
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.RuleChain
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
 
 class CanonicalArtworkUiTest {
-    @get:Rule val compose = createComposeRule()
+    val compose = createComposeRule()
+    @get:Rule val rules: RuleChain = RuleChain.outerRule(ForegroundArtworkTestRule()).around(compose)
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private val files = mutableListOf<File>()
     private val gate = CompletableDeferred<Unit>()

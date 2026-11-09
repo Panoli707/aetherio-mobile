@@ -49,7 +49,7 @@ La capa Kotlin original de Nuvio se recompila en `:torrent-engine` con Kotlin 2.
 
 ## Compilar y comprobar
 
-Requisitos: JDK 17, SDK Android 36, Gradle wrapper incluido. Configura `JAVA_HOME` y `ANDROID_HOME`. Para catálogo TMDB autenticado, configura tu propio token de lectura en la variable `TMDB_READ_ACCESS_TOKEN` o `tmdb.readAccessToken` de `local.properties` (archivo ignorado por Git).
+Requisitos: JDK 17, SDK Android 36, Gradle wrapper incluido. Configura `JAVA_HOME` y `ANDROID_HOME`. Para catálogo TMDB autenticado, configura el acceso de lectura mediante la configuración local, ignorada por Git.
 
 ```powershell
 .\scripts\android.ps1 -Action verify
@@ -81,4 +81,4 @@ Los resultados efectivamente ejecutados se registran en las notas de la versión
 
 Aetherio se publica bajo GPL-3.0-or-later con el código de la integración y del wrapper. Se conserva el archivo fuente fijado del núcleo, sus scripts y avisos de dependencias. Consulta [LICENSE](../LICENSE) y [third_party/nuvio-engine](../third_party/nuvio-engine/README.md).
 
-El motor upstream está en desarrollo y no se declara production-ready. La versión se ofrece como preliminar. El token TMDB incorporado en un APK puede recuperarse aunque esté ofuscado; el material generado y las credenciales locales no se publican en Git. Publicar un APK con token requiere autorización explícita mediante el flujo de mantenimiento existente.
+El motor upstream está en desarrollo y no se declara production-ready. La versión se ofrece como preliminar. El material generado y la configuración local no se publican en Git.

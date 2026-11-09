@@ -27,9 +27,43 @@ class DetailDesignTest {
         compose.onNodeWithTag("detailScroll").performScrollToNode(hasTestTag("detailPrimaryPlay"))
         compose.onNodeWithText("Reproducir").performClick()
         compose.onNodeWithContentDescription("Guardar en biblioteca").performClick()
-        compose.onNodeWithContentDescription("Reproducir por enlace propio").performClick()
+        compose.onNodeWithContentDescription("Cambiar estado").performClick()
+        compose.onNodeWithText("Guardar", useUnmergedTree = true).assertExists()
+        compose.onNodeWithText("Importar progreso remoto a Aetherio").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Borrar de la biblioteca").assertDoesNotExist()
+        compose.onNodeWithText("Cancelar").performClick()
         compose.onNodeWithTag("detailEpisodes").assertDoesNotExist()
-        compose.runOnIdle { assertTrue(played && saved && linked) }
+        compose.runOnIdle { assertTrue(played && saved); assertFalse(linked) }
+    }
+
+    @Test fun savedLibraryButtonConfirmsRemovalAndCallsTheLibraryDeleteAction() {
+        var removed = false
+        compose.setContent { AetherioTheme {
+            DetailScreen(AppState(detail = MediaDetail(movie), savedItems = listOf(movie)), movie,
+                rememberLazyListState(), {}, {}, {}, {}, {}, { _, _, _ -> }, onRemoveMedia = { _, complete -> removed = true; complete(true) })
+        } }
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasContentDescription("Quitar de la biblioteca"))
+        compose.onNodeWithContentDescription("Quitar de la biblioteca").performClick()
+        compose.onNodeWithText("eliminar todos sus estados").assertExists()
+        compose.onNodeWithText("Borrar").performClick()
+        compose.runOnIdle { assertTrue(removed) }
+    }
+
+    @Test fun deletionFailureExpiresAndDoesNotReturnWhenConfirmationIsReopened() {
+        compose.setContent { AetherioTheme {
+            DetailScreen(AppState(detail = MediaDetail(movie), savedItems = listOf(movie)), movie,
+                rememberLazyListState(), {}, {}, {}, {}, {}, { _, _, _ -> },
+                onRemoveMedia = { _, complete -> complete(false) })
+        } }
+        compose.onNodeWithTag("detailScroll").performScrollToNode(hasContentDescription("Quitar de la biblioteca"))
+        compose.onNodeWithContentDescription("Quitar de la biblioteca").performClick()
+        compose.onNodeWithText("Borrar").performClick()
+        compose.onNodeWithText("No se pudo completar el borrado.", substring = true).assertExists()
+        compose.mainClock.advanceTimeBy(5_100)
+        compose.onNodeWithText("No se pudo completar el borrado.", substring = true).assertDoesNotExist()
+        compose.onNodeWithText("Cancelar").performClick()
+        compose.onNodeWithContentDescription("Quitar de la biblioteca").performClick()
+        compose.onNodeWithText("No se pudo completar el borrado.", substring = true).assertDoesNotExist()
     }
 
     @Test fun synopsisCanExpandAndCollapseWithoutPushingAllOtherSectionsBehindFullText() {

@@ -8,9 +8,9 @@ Al abrir Aetherio, se muestran el logo y el nombre mientras arranca la interfaz.
 
 - En **Inicio**, desliza los destacados de la cabecera. Avanzan automáticamente mientras Inicio está activo; el botón de perfil abre Ajustes.
 - Desliza horizontalmente las secciones de películas, series y anime. Pulsa la flecha de una sección para ver sus títulos en una cuadrícula.
-- Inicio incorpora las 44 filas predeterminadas de PC, los siete accesos por plataforma y los exploradores de géneros. Los filtros y las diferencias de Android están en [Catálogo de Inicio](CATALOGO_INICIO.md). **Actualizar catálogo**, junto al perfil, fuerza una consulta nueva sin borrar tus datos.
+- Inicio incorpora las 44 filas predeterminadas de PC, los siete accesos por plataforma y los exploradores de géneros. Los filtros y las diferencias de Android están en [Catálogo de Inicio](CATALOGO_INICIO.md). Si falla una carga, usa **Reintentar** en el mensaje correspondiente.
 - Toca la lupa **Buscar**, escribe un título y abre uno de los resultados.
-- Abre la pestaña **Anime** para ver tus episodios pendientes y los animes que sigues.
+- Abre **Calendario** para consultar emisiones y próximos estrenos de **Anime** o **Películas y series**. En Anime, el botón superior **Estás viendo** abre tus episodios pendientes y animes seguidos.
 - Si la navegación se reduce al desplazarte, toca **Inicio** para volver arriba y recuperar las otras pestañas.
 
 Si aparece un error de carga, comprueba la conexión y pulsa **Reintentar** cuando esté disponible.
@@ -58,9 +58,19 @@ Marcar un capítulo manualmente no inventa tiempo de reproducción. Marcarlo com
 
 El progreso y los capítulos vistos se conservan al cerrar o actualizar la app, pero no se sincronizan y se pierden al borrar los datos o desinstalar. No se registran enlaces manuales ni vídeos en directo. Un cierre forzado del proceso puede perder los últimos segundos posteriores al último guardado.
 
-## Anime: pendientes y seguimiento
+## Calendario: emisiones y estrenos
 
-La pestaña **Anime** se limita a los animes que sigues o reproduces de la temporada de emisión actual. **Continuar viendo** muestra sus episodios pendientes, su posición y una barra de progreso. **Estás viendo** presenta sus portadas y el número de capítulos vistos; el total solo aparece cuando está disponible. Las temporadas anteriores y las completadas siguen en **Biblioteca**, sin borrar el progreso. Usa **Temporada y días de emisión** para descubrir otros títulos.
+La pestaña conserva el icono de TV. Selecciona **Anime** o **Películas y series**, cambia entre **Semana** y **Mes** y toca una fecha para ver su agenda. Las flechas cambian de periodo y **Hoy** vuelve a la fecha actual. Cada categoría recuerda su periodo y fecha al cambiar de pestaña o volver de una ficha. Películas y series vuelve a la primera página y al inicio del listado al salir de esa categoría, también al abrir una ficha.
+
+Películas y series carga los títulos de TMDB por páginas, ordenados por popularidad. Usa **Cargar más títulos** para ampliar los resultados del periodo. Los conteos corresponden a los títulos cargados; un día sin resultados cargados no se presenta como un día sin emisiones. TMDB permite consultar hasta 500 páginas por búsqueda. Las páginas adicionales no se conservan al salir: al volver, puedes cargarlas de nuevo.
+
+Anime consulta emisiones de AniList y estrenos anunciados con fecha completa, en horario de Japón (JST), incluidos títulos de temporadas anteriores que sigan emitiéndose. Películas y series consulta TMDB: estrenos originales de películas y fechas de episodios de series. Una película de anime pertenece a Anime, no a Películas y series. La clasificación de anime japonés en TMDB depende de sus metadatos de animación e idioma original.
+
+Solo se muestran horas cuando la fuente las confirma. Las fechas de TMDB y los estrenos de anime sin horario aparecen como **Sin hora confirmada**: no se inventa una emisión a medianoche. Las fechas no garantizan vídeo disponible, doblaje, subtítulos ni estreno en tu país. Los anuncios sin día confirmado todavía no pueden aparecer en la agenda. Un error conserva los datos previos del mismo periodo y ofrece **Reintentar**; no se presenta una consulta incompleta como una agenda vacía.
+
+### Anime: pendientes y seguimiento
+
+En **Calendario > Anime**, pulsa **Estás viendo**, arriba a la derecha, para abrir la pantalla de seguimiento de la temporada actual. **Continuar viendo** muestra sus episodios pendientes, su posición y una barra de progreso. **Estás viendo** presenta sus portadas y el número de capítulos vistos; el total solo aparece cuando está disponible. Las temporadas anteriores y las completadas siguen en **Biblioteca**, sin borrar el progreso. Esta pantalla no incluye un botón inferior de temporada. El botón de seguimiento no aparece en Películas y series.
 
 Los animes con progreso o capítulos marcados se incorporan al seguimiento. También puedes usar **Seguir** desde su ficha sin empezar a reproducir. **Siguiendo** lo retira de esta lista, pero no borra el progreso ni las marcas. Un anime puede permanecer en seguimiento entre episodios o mientras esperas la siguiente emisión.
 
@@ -68,9 +78,9 @@ Los animes con progreso o capítulos marcados se incorporan al seguimiento. Tamb
 
 En Inicio, **Anime en emisión** sigue el orden del catálogo de PC. Cuando una tarjeta tiene un horario confirmado, incorpora el último episodio emitido y el total conocido. No se adivina un capítulo a partir de la próxima emisión. Toca una portada para abrir su ficha o la flecha para ir a la temporada y sus días de emisión.
 
-El calendario consulta AniList y exige la temporada y el año actuales, calculados según el calendario de Japón, junto con el estado **en emisión**. No usa una ventana aproximada de fechas de TMDB: una serie de años anteriores no aparece solo por seguir activa. La fila de descubrimiento de Inicio sí puede usar la alternativa TMDB de PC cuando falla AniList; se identifica como alternativa y no inventa horarios ni episodios confirmados.
+La vista de temporada, accesible desde **Inicio > Anime en emisión**, consulta AniList y exige la temporada y el año actuales, calculados según el calendario de Japón, junto con el estado **en emisión**. No usa una ventana aproximada de fechas de TMDB: una serie de años anteriores no aparece solo por seguir activa. La fila de descubrimiento de Inicio sí puede usar la alternativa TMDB de PC cuando falla AniList; se identifica como alternativa y no inventa horarios ni episodios confirmados.
 
-El calendario empieza en **Lunes**. Puedes elegir **Todos**, otro día o **Sin horario**. Al abrir una ficha y volver, se conservan el filtro elegido y la posición del listado. El día procede de la próxima emisión publicada y se muestra según **Japón (JST)**, no según la hora local ni la disponibilidad de doblaje o subtítulos. Los datos dependen del servicio; la temporada se conserva hasta una hora en memoria y puede volver a consultarse al abrir el calendario. Si falla, se avisa en lugar de sustituirla por series antiguas.
+Esa vista de temporada empieza en **Lunes**. Puedes elegir **Todos**, otro día o **Sin horario**. Al abrir una ficha y volver, se conservan el filtro elegido y la posición del listado. El día procede de la próxima emisión publicada y se muestra según **Japón (JST)**, no según la hora local ni la disponibilidad de doblaje o subtítulos. Los datos dependen del servicio; la temporada se conserva hasta una hora en memoria y puede volver a consultarse al abrir ese listado. Si falla, se avisa en lugar de sustituirla por series antiguas. La nueva pestaña Calendario, en cambio, empieza en la fecha de hoy y permite recorrer otros periodos.
 
 Cuando existen equivalencias explícitas entre AniList y TMDB, las entregas se reúnen en una sola ficha con selector de temporada. Por ejemplo, la boticaria deja de separar la ficha con numeración continua de sus entregas por temporada. Los episodios y el progreso antiguos se traducen con los desplazamientos publicados; se guarda una copia local del historial anterior. La app convierte la numeración para cada proveedor, sin cambiar el capítulo elegido. Las equivalencias ambiguas, incompletas o inexistentes no se fuerzan y nunca se fusiona por parecido del título.
 

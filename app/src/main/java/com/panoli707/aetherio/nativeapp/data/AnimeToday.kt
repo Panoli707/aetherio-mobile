@@ -1,6 +1,9 @@
 package com.panoli707.aetherio.nativeapp.data
 
 import java.util.Calendar
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import org.json.JSONObject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -41,6 +44,29 @@ internal object AnimeToday {
             minutes < 1440 -> "Hace ${minutes / 60} h"
             minutes < 2880 -> "Hace 1 día"
             else -> "Hace ${minutes / 1440} días"
+        }
+    }
+
+    /** An airing-feed confirmation takes precedence over a conflicting future timestamp in detail data. */
+    fun applyConfirmedAiring(item: MediaItem, episodes: List<EpisodeItem>, entries: List<AnimeAiringEpisode>, nowMs: Long,
+        index: SeriesIndex = SeriesIdentity.index): List<EpisodeItem> {
+        val confirmations = entries.filter { it.episode > 0 && it.airedAt in 1..(nowMs / 1000) }.mapNotNull { entry ->
+            val part = index.part(entry.item)
+            val target = when {
+                entry.item.key == item.key -> 1 to entry.episode
+                part != null && item.source == CatalogSource.TMDB && item.type == MediaType.SERIES && part.tmdbId == item.id -> {
+                    if (item.seriesNumbering || item.imdbNumbering)
+                        part.season to (entry.episode + part.offset - index.baseOffset(index.parts(item), part.season))
+                    else part.tmdbSeason to (entry.episode + part.offset)
+                }
+                else -> return@mapNotNull null
+            }
+            target to entry.airedAt
+        }.groupBy({ it.first }, { it.second }).mapValues { it.value.max() }
+        return episodes.map { episode ->
+            val time = confirmations[episode.season to episode.number]
+            if (time != null) episode.copy(released = true, airedOn = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                .apply { timeZone = AnimeSeason.japan }.format(Date(time * 1000))) else episode
         }
     }
 

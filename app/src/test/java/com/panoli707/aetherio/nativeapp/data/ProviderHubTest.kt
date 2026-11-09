@@ -15,13 +15,13 @@ class ProviderHubTest {
     private val series = SourceQuery(MediaItem("1429", MediaType.SERIES, "Series", imdbId = "tt2560140"), 1, 1)
     private val hash = "0123456789abcdef0123456789abcdef01234567"
 
-    @Test fun cleanAndRepeatedInitializationHaveExactlyOneHubAndNoDesktopDefaults() {
+    @Test fun cleanAndRepeatedInitializationHaveExactlyOneHubAndBundledDesktopDefaults() {
         val fresh = ProviderHub.withDefault(emptyList())
         assertEquals(listOf(ProviderHub.config), fresh)
         assertEquals(fresh, ProviderHub.withDefault(ProviderHub.withDefault(fresh)))
-        assertTrue(DesktopSources.defaultIds.isEmpty())
+        assertEquals(DesktopSources.knownIds, DesktopSources.defaultIds)
         assertEquals(fresh, AppState().addons)
-        assertTrue(AppState().enabledDesktopSources.isEmpty())
+        assertEquals(DesktopSources.knownIds, AppState().enabledDesktopSources)
         assertEquals("com.aetherio.hub", fresh.single().manifestId)
     }
 

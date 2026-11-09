@@ -27,11 +27,13 @@ import com.panoli707.aetherio.nativeapp.data.*
 
 @Composable
 internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (MediaItem) -> Unit,
-    onContinue: (WatchProgress) -> Unit, onAiring: () -> Unit) {
+    onContinue: (WatchProgress) -> Unit, onAiring: () -> Unit, onBack: (() -> Unit)? = null) {
     val current = LibraryCatalog.currentAnime(state)
     val continuing = LibraryCatalog.currentProgress(state, current)
     val hero = current.firstOrNull()
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize()) {
+    if (onBack != null) ScreenHeader("Estás viendo", onBack)
+    BoxWithConstraints(Modifier.weight(1f)) {
         val columns = posterColumns(maxWidth)
         LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("animeScroll"),
             contentPadding = PaddingValues(bottom = 120.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding())) {
@@ -95,8 +97,8 @@ internal fun AnimeScreen(state: AppState, scroll: LazyListState, onSelect: (Medi
                     repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
-            item(key = "animeCalendar") { OutlinedButton(onClick = onAiring, modifier = Modifier.padding(18.dp).fillMaxWidth()) { Text("Temporada y días de emisión") } }
         }
+    }
     }
 }
 
@@ -119,7 +121,7 @@ internal fun SeasonalAnimeScreen(state: AnimeSeasonState, scroll: LazyListState,
             val columns = posterColumns(maxWidth)
             LazyColumn(state = scroll, contentPadding = PaddingValues(18.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 if (state.error != null) item(key = "seasonError") {
-                    StatusMessage("No se pudo actualizar la temporada", state.error, "Reintentar", onRetry)
+                    TimedErrorStatusMessage("No se pudo actualizar la temporada", state.error, "Reintentar", onRetry)
                 }
                 if (state.loading && state.entries.isEmpty()) item(key = "seasonLoading") {
                     LoadingRow("Consultando la temporada actual…")

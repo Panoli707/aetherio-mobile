@@ -72,6 +72,14 @@ internal class WatchHistoryRepository internal constructor(context: Context) {
     }
 
     /** Explicit remote import is additive and must not evict history when reaching the local capacity. */
+    suspend fun reset(item: MediaItem, season: Int? = null) = kotlinx.coroutines.withContext(Dispatchers.IO) {
+        mutex.withLock {
+            loadLocked()
+            saveEntries(mutableEntries.value.filterNot { entry -> SeriesIdentity.item(entry.target.item).key == SeriesIdentity.item(item).key &&
+                (season == null || entry.target.season == season) })
+        }
+    }
+
     suspend fun importWatched(targets: List<WatchTarget>): Boolean = kotlinx.coroutines.withContext(Dispatchers.IO) {
         if (targets.any { !WatchProgressRules.valid(it) }) return@withContext false
         mutex.withLock {

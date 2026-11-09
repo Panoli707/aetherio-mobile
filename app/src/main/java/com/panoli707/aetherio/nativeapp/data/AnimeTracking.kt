@@ -16,7 +16,7 @@ enum class AnimeStatus(val label: String, val aniList: String, val mal: String) 
 data class AnimeEntry(val id: Int, val aniListId: Int?, val malId: Int?, val title: String,
     val poster: String? = null, val banner: String? = null, val movie: Boolean = false,
     val episodes: Int = 0, val progress: Int = 0, val score: Double = 0.0,
-    val status: AnimeStatus? = null, val favorite: Boolean = false) {
+    val status: AnimeStatus? = null, val favorite: Boolean = false, val listEntryId: Int? = null) {
     fun item(): MediaItem? = aniListId?.takeIf { it > 0 }?.let {
         MediaItem(it.toString(), if (movie) MediaType.MOVIE else MediaType.SERIES, title,
             CatalogSource.ANILIST, posterUrl = poster, backdropUrl = banner, isAnime = true,
@@ -100,6 +100,12 @@ internal object AnimeOAuth {
 }
 
 internal object AnimeSyncRules {
+    fun initialStatus(entry: AnimeEntry, progress: Int): AnimeStatus = when {
+        entry.movie && progress > 0 -> AnimeStatus.COMPLETED
+        entry.episodes > 0 && progress >= entry.episodes -> AnimeStatus.COMPLETED
+        progress > 0 -> AnimeStatus.WATCHING
+        else -> AnimeStatus.PLANNED
+    }
     /** Exact ID+offset conversion. Never guess a season/cour from a title or the most recently opened entry. */
     fun episode(target: WatchTarget, index: SeriesIndex): Pair<Int, Int>? {
         val item = target.item
